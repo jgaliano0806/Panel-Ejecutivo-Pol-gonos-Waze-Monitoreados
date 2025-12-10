@@ -1,5 +1,5 @@
 import { wazeService } from './wazeService';
-import { REAL_POLYGONS } from '../config/realPolygons';
+import { REAL_POLYGONS, getAllGroups } from '../config/realPolygons';
 import { PolygonStatus, Severity } from '../types';
 
 /**
@@ -115,11 +115,12 @@ export class ApiService {
     }
 
     /**
-     * Calcula KPIs Globales
+     * Calcula KPIs Globales con estadísticas por grupo
      */
     getGlobalKPIs() {
         const polygons = this.getPolygonsStatus();
         const alerts = wazeService.getAlerts();
+        const jams = wazeService.getJams();
 
         const totalPolygons = polygons.length;
         const fluidPolygons = polygons.filter(p => p.state === 'low').length;
@@ -130,12 +131,56 @@ export class ApiService {
             : 0;
 
         const activeConstructions = alerts.filter(a => a.type === 'construction').length;
+        const totalJams = jams.length;
+
+        // Estadísticas por grupo
+        const groups = getAllGroups();
+        const groupStats = groups.map(groupName => {
+            const groupPolygons = polygons.filter(p => p.group === groupName);
+            const groupAlerts = groupPolygons.reduce((sum, p) => sum + p.metrics.alertCount, 0);
+            const groupJams = groupPolygons.reduce((sum, p) => sum + p.metrics.jamCount, 0);
+            const criticalInGroup = groupPolygons.filter(p => p.state === 'high').length;
+            
+            return {
+                group: groupName,
+                polygonCount: groupPolygons.length,
+                alertCount: groupAlerts,
+                jamCount: groupJams,
+                criticalCount: criticalInGroup,
+                fluidCount: groupPolygons.filter(p => p.state === 'low').length,
+            };
+        });
+
+        // Top polígonos críticos
+        const topCritical = polygons
+            .filter(p => p.state === 'high' || p.state === 'medium')
+            .sort((a, b) => {
+                // Ordenar por: estado (high > medium), luego por alertas + jams
+                if (a.state !== b.state) {
+                    return a.state === 'high' ? -1 : 1;
+                }
+                const aTotal = a.metrics.alertCount + a.metrics.jamCount;
+                const bTotal = b.metrics.alertCount + b.metrics.jamCount;
+                return bTotal - aTotal;
+            })
+            .slice(0, 10)
+            .map(p => ({
+                id: p.id,
+                name: p.name,
+                group: p.group,
+                state: p.state,
+                alertCount: p.metrics.alertCount,
+                jamCount: p.metrics.jamCount,
+            }));
 
         return {
             fluidityPercentage,
             activeIncidents: alerts.length,
+            activeJams: totalJams,
             criticalPolygons,
             activeConstructions,
+            groupStats,
+            topCritical,
             trends: {
                 fluidityChange: 0, // TODO: Implementar histórico
                 incidentsChange: 0

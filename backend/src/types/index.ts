@@ -82,7 +82,11 @@ export interface InternalAlert {
     description: string;
     timestamp: Date;
     location: { lat: number; lng: number };
+    street?: string;
+    city?: string;
     reportRating?: number;
+    confidence?: number;
+    reliability?: number;
     nThumbsUp?: number;
 }
 
@@ -95,7 +99,13 @@ export interface InternalJam {
     length: number; // metros
     timestamp: Date;
     location: { lat: number; lng: number }; // Start point
+    endLocation?: { lat: number; lng: number }; // End point
     level: number; // 0-5
+    street?: string;
+    city?: string;
+    roadType?: number;
+    turnType?: string;
+    blockingAlertUuid?: string;
 }
 
 export interface PolygonStatus {

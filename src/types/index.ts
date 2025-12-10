@@ -76,7 +76,11 @@ export interface Incident {
     description: string;
     timestamp: Date;
     location: Location;
+    street?: string;       // Calle del incidente
+    city?: string;         // Ciudad
     reportRating?: number; // Confiabilidad del reporte
+    confidence?: number;   // Nivel de confianza
+    reliability?: number;  // Confiabilidad
     nThumbsUp?: number;    // Confirmaciones de usuarios
 }
 
@@ -96,6 +100,11 @@ export interface TrafficJam {
     location: Location;     // Punto de inicio
     endLocation?: Location; // Punto final (opcional)
     level?: number;         // Nivel de congestión (0-5, Waze)
+    street?: string;        // Calle principal
+    city?: string;          // Ciudad
+    roadType?: number;      // Tipo de ruta (1-21)
+    turnType?: string;      // Tipo de giro
+    blockingAlertUuid?: string; // UUID de alerta bloqueante
 }
 
 /**
@@ -118,8 +127,25 @@ export interface PolygonStats {
 export interface GlobalKPIs {
     fluidityPercentage: number;      // % de polígonos en estado LOW
     activeIncidents: number;
+    activeJams?: number;             // Total de atascos activos
     criticalPolygons: number;        // Polígonos en estado HIGH
     activeConstructions: number;     // Obras con impacto alto
+    groupStats?: Array<{             // Estadísticas por grupo
+        group: string;
+        polygonCount: number;
+        alertCount: number;
+        jamCount: number;
+        criticalCount: number;
+        fluidCount: number;
+    }>;
+    topCritical?: Array<{            // Top polígonos críticos
+        id: string;
+        name: string;
+        group: string;
+        state: 'low' | 'medium' | 'high';
+        alertCount: number;
+        jamCount: number;
+    }>;
     trends: {
         fluidityChange: number;        // Comparado con ayer
         incidentsChange: number;

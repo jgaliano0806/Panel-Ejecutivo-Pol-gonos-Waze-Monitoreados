@@ -60,15 +60,15 @@ server.get('/api/polygons', async (request, reply) => {
 
 server.get('/api/polygons/:id', async (request, reply) => {
     try {
-        const { id } = request.params as { id: string };
-        const detail = apiService.getPolygonDetail(id);
+    const { id } = request.params as { id: string };
+    const detail = apiService.getPolygonDetail(id);
 
-        if (!detail) {
-            reply.code(404).send({ error: 'Polygon not found' });
-            return;
-        }
+    if (!detail) {
+        reply.code(404).send({ error: 'Polygon not found' });
+        return;
+    }
 
-        return detail;
+    return detail;
     } catch (error) {
         reply.code(500).send({ error: 'Failed to get polygon detail' });
     }
@@ -76,7 +76,7 @@ server.get('/api/polygons/:id', async (request, reply) => {
 
 server.get('/api/kpis/global', async (request, reply) => {
     try {
-        return apiService.getGlobalKPIs();
+    return apiService.getGlobalKPIs();
     } catch (error) {
         reply.code(500).send({ error: 'Failed to get global KPIs' });
     }
@@ -84,7 +84,7 @@ server.get('/api/kpis/global', async (request, reply) => {
 
 server.get('/api/incidents/all', async (request, reply) => {
     try {
-        return wazeService.getAlerts();
+    return wazeService.getAlerts();
     } catch (error) {
         reply.code(500).send({ error: 'Failed to get incidents' });
     }
@@ -92,7 +92,7 @@ server.get('/api/incidents/all', async (request, reply) => {
 
 server.get('/api/jams/all', async (request, reply) => {
     try {
-        return wazeService.getJams();
+    return wazeService.getJams();
     } catch (error) {
         reply.code(500).send({ error: 'Failed to get traffic jams' });
     }
