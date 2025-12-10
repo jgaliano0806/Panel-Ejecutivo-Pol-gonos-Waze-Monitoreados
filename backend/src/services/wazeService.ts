@@ -129,7 +129,11 @@ export class WazeService {
             description: alert.reportDescription || alert.subtype || alert.type,
             timestamp: new Date(alert.pubMillis),
             location: { lat: alert.location.y, lng: alert.location.x },
+            street: alert.street,
+            city: alert.city,
             reportRating: alert.reportRating,
+            confidence: alert.confidence,
+            reliability: alert.reliability,
             nThumbsUp: alert.nThumbsUp,
         }));
     }
@@ -140,6 +144,7 @@ export class WazeService {
     private normalizeJams(rawJams: WazeRawJam[], polygonId: string): InternalJam[] {
         return rawJams.map(jam => {
             const startPoint = jam.line && jam.line.length > 0 ? jam.line[0] : { x: 0, y: 0 };
+            const endPoint = jam.line && jam.line.length > 1 ? jam.line[jam.line.length - 1] : null;
 
             return {
                 id: jam.uuid || String(jam.id),
@@ -150,7 +155,13 @@ export class WazeService {
                 length: jam.length,
                 timestamp: new Date(jam.pubMillis),
                 location: { lat: startPoint.y, lng: startPoint.x },
+                endLocation: endPoint ? { lat: endPoint.y, lng: endPoint.x } : undefined,
                 level: jam.level,
+                street: jam.street,
+                city: jam.city,
+                roadType: jam.roadType,
+                turnType: jam.turnType,
+                blockingAlertUuid: jam.blockingAlertUuid,
             };
         });
     }

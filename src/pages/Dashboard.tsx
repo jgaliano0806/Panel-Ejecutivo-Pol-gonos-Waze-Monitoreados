@@ -8,6 +8,8 @@ import Filters from '../components/Filters';
 import AlertsPanel from '../components/AlertsPanel';
 import Footer from '../components/Footer';
 import PolygonDetail from '../components/PolygonDetail';
+import { GroupStats } from '../components/GroupStats';
+import { TopCritical } from '../components/TopCritical';
 
 // Lazy load del mapa para mejor performance inicial
 const Map = lazy(() => import('../components/Map'));
@@ -107,15 +109,15 @@ const Dashboard: React.FC = () => {
             {/* Header */}
             <Header lastUpdate={lastUpdate} />
 
-            {/* Main Content */}
-            <main className="max-w-7xl mx-auto px-6 py-6">
+            {/* Main Content - Optimizado para Full HD */}
+            <main className="max-w-[1850px] mx-auto px-4 py-4">
                 {/* KPIs */}
-                <div className="mb-6">
+                <div className="mb-4">
                     <KPICards kpis={globalKPIs} />
                 </div>
 
                 {/* Filtros */}
-                <div className="mb-6">
+                <div className="mb-4">
                     <Filters
                         polygons={polygons}
                         selectedPolygon={selectedPolygon}
@@ -125,12 +127,12 @@ const Dashboard: React.FC = () => {
                     />
                 </div>
 
-                {/* Grid principal: Mapa + Alertas */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                    {/* Mapa - Ocupa 2 columnas en desktop */}
-                    <div className="lg:col-span-2">
+                {/* Grid principal: Mapa + Alertas - Mapa 90% del ancho */}
+                <div className="grid grid-cols-1 xl:grid-cols-10 gap-4 mb-4">
+                    {/* Mapa - 90% del ancho en pantallas grandes */}
+                    <div className="xl:col-span-9">
                         <Suspense fallback={
-                            <div className="card h-[600px] flex items-center justify-center">
+                            <div className="card h-[850px] flex items-center justify-center">
                                 <div className="text-center">
                                     <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary-600 border-t-transparent"></div>
                                     <p className="mt-2 text-sm text-gray-600">Cargando mapa...</p>
@@ -147,15 +149,15 @@ const Dashboard: React.FC = () => {
                         </Suspense>
                     </div>
 
-                    {/* Panel de Alertas - 1 columna */}
-                    <div>
-                        <AlertsPanel incidents={incidents} polygons={polygons} limit={10} />
+                    {/* Panel de Alertas - 10% del ancho */}
+                    <div className="xl:col-span-1">
+                        <AlertsPanel incidents={incidents} polygons={polygons} limit={15} />
                     </div>
                 </div>
 
                 {/* Panel de Detalle del Polígono (si hay uno seleccionado) */}
                 {selectedPolygonData && (
-                    <div className="mb-6">
+                    <div className="mb-4">
                         <PolygonDetail
                             polygon={selectedPolygonData}
                             incidents={incidents}
@@ -165,25 +167,23 @@ const Dashboard: React.FC = () => {
                     </div>
                 )}
 
-                {/* Sección de Tendencias (placeholder) */}
-                <div className="mb-6">
-                    <div className="card">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                            Tendencias y Análisis
-                        </h2>
-                        <div className="bg-gray-50 rounded-lg p-8 text-center">
-                            <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                            </svg>
-                            <p className="text-sm text-gray-500">
-                                Gráficos de tendencias (últimos 30 días) - Próximamente
-                            </p>
-                            <p className="text-xs text-gray-400 mt-1">
-                                Se integrará con Recharts para visualizar históricos
-                            </p>
-                        </div>
+                {/* Sección de Estadísticas por Grupo y Top Críticos */}
+                {(backendKPIs?.groupStats || backendKPIs?.topCritical) && (
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
+                        {/* Estadísticas por Grupo */}
+                        {backendKPIs?.groupStats && backendKPIs.groupStats.length > 0 && (
+                            <GroupStats stats={backendKPIs.groupStats} />
+                        )}
+                        
+                        {/* Top Polígonos Críticos */}
+                        {backendKPIs?.topCritical && (
+                            <TopCritical 
+                                polygons={backendKPIs.topCritical} 
+                                onPolygonClick={handlePolygonChange}
+                            />
+                        )}
                     </div>
-                </div>
+                )}
             </main>
 
             {/* Footer */}

@@ -2,6 +2,12 @@ import React from 'react';
 import type { Polygon, Incident, TrafficJam } from '../types';
 import { PolygonState } from '../types';
 import { calculatePolygonStats, formatDelay } from '../utils/polygonCalculations';
+import { 
+    getIncidentDescription, 
+    getIncidentEmoji, 
+    getJamLevelTranslation,
+    getRoadTypeTranslation 
+} from '../utils/wazeTranslations';
 
 interface PolygonDetailProps {
     polygon: Polygon;
@@ -90,26 +96,52 @@ const PolygonDetail: React.FC<PolygonDetailProps> = ({
                     <p className="text-sm text-gray-500 italic">No hay incidentes activos</p>
                 ) : (
                     <div className="space-y-2 max-h-48 overflow-y-auto">
-                        {polygonIncidents.map(incident => (
-                            <div
-                                key={incident.id}
-                                className="bg-gray-50 rounded-lg p-3 text-sm"
-                            >
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                        <p className="font-medium text-gray-900 capitalize">{incident.type}</p>
-                                        <p className="text-xs text-gray-600 mt-1">{incident.description}</p>
+                        {polygonIncidents.map(incident => {
+                            const emoji = getIncidentEmoji(incident.type);
+                            const description = getIncidentDescription(incident.type, incident.subtype);
+                            
+                            return (
+                                <div
+                                    key={incident.id}
+                                    className="bg-gray-50 rounded-lg p-3 text-sm border-l-4 border-orange-400"
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex-1">
+                                            <p className="font-medium text-gray-900">
+                                                {emoji} {description}
+                                            </p>
+                                            {incident.street && (
+                                                <p className="text-xs text-gray-600 mt-1">
+                                                    📍 {incident.street}
+                                                </p>
+                                            )}
+                                            {/* Solo mostrar descripción si no es una key */}
+                                            {incident.description && 
+                                             incident.description !== incident.subtype &&
+                                             !/^[A-Z_]+$/.test(incident.description) && (
+                                                <p className="text-xs text-gray-500 mt-1">
+                                                    {incident.description}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <span className={`text-xs px-2 py-1 rounded ${incident.severity >= 3 ? 'bg-danger-light/30 text-danger-dark' : 'bg-warning-light/30 text-warning-dark'
+                                            }`}>
+                                            Sev. {incident.severity}
+                                        </span>
                                     </div>
-                                    <span className={`text-xs px-2 py-1 rounded ${incident.severity >= 3 ? 'bg-danger-light/30 text-danger-dark' : 'bg-warning-light/30 text-warning-dark'
-                                        }`}>
-                                        Sev. {incident.severity}
-                                    </span>
+                                    <div className="flex items-center justify-between mt-2">
+                                        <p className="text-xs text-gray-500">
+                                            {new Date(incident.timestamp).toLocaleString('es-AR')}
+                                        </p>
+                                        {incident.nThumbsUp && incident.nThumbsUp > 0 && (
+                                            <p className="text-xs text-green-600">
+                                                👍 {incident.nThumbsUp} confirmaciones
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
-                                <p className="text-xs text-gray-500 mt-2">
-                                    {new Date(incident.timestamp).toLocaleString('es-AR')}
-                                </p>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
@@ -123,36 +155,58 @@ const PolygonDetail: React.FC<PolygonDetailProps> = ({
                     <p className="text-sm text-gray-500 italic">No hay atascos reportados</p>
                 ) : (
                     <div className="space-y-2 max-h-48 overflow-y-auto">
-                        {polygonJams.map(jam => (
-                            <div
-                                key={jam.id}
-                                className="bg-gray-50 rounded-lg p-3 text-sm"
-                            >
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="font-medium text-gray-900">Congestión</span>
-                                    <span className={`text-xs px-2 py-1 rounded ${jam.speed < 15 ? 'bg-danger-light/30 text-danger-dark' :
-                                        jam.speed < 30 ? 'bg-warning-light/30 text-warning-dark' :
+                        {polygonJams.map(jam => {
+                            const jamLevelText = jam.level !== undefined 
+                                ? getJamLevelTranslation(jam.level) 
+                                : 'Sin información';
+                            
+                            return (
+                                <div
+                                    key={jam.id}
+                                    className="bg-gray-50 rounded-lg p-3 text-sm border-l-4 border-red-400"
+                                >
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="font-medium text-gray-900">
+                                            🚦 {jamLevelText}
+                                        </span>
+                                        <span className={`text-xs px-2 py-1 rounded font-medium ${
+                                            jam.speed < 15 ? 'bg-danger-light/30 text-danger-dark' :
+                                            jam.speed < 30 ? 'bg-warning-light/30 text-warning-dark' :
                                             'bg-success-light/30 text-success-dark'
                                         }`}>
-                                        {jam.speed} km/h
-                                    </span>
+                                            {jam.speed} km/h
+                                        </span>
+                                    </div>
+                                    
+                                    {jam.street && (
+                                        <p className="text-xs text-gray-600 mb-2">
+                                            📍 {jam.street}
+                                        </p>
+                                    )}
+                                    
+                                    <div className="grid grid-cols-3 gap-2 text-xs text-gray-600">
+                                        <div>
+                                            <p className="text-gray-500">Demora</p>
+                                            <p className="font-medium text-gray-900">{formatDelay(jam.delay)}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-gray-500">Longitud</p>
+                                            <p className="font-medium text-gray-900">{jam.length}m</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-gray-500">Severidad</p>
+                                            <p className="font-medium text-gray-900">{jam.severity}/5</p>
+                                        </div>
+                                    </div>
+                                    
+                                    {jam.roadType && (
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            🛣️ {getRoadTypeTranslation(jam.roadType)}
+                                        </p>
+                                    )}
                                 </div>
-                                <div className="grid grid-cols-3 gap-2 text-xs text-gray-600">
-                                    <div>
-                                        <p className="text-gray-500">Delay</p>
-                                        <p className="font-medium text-gray-900">{formatDelay(jam.delay)}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-gray-500">Longitud</p>
-                                        <p className="font-medium text-gray-900">{jam.length}m</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-gray-500">Nivel</p>
-                                        <p className="font-medium text-gray-900">{jam.level || '-'}/5</p>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>

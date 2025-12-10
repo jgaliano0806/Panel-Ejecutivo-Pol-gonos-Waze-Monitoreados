@@ -2,6 +2,7 @@ import React from 'react';
 import type { Incident, Polygon } from '../types';
 import { Severity } from '../types';
 import { getPolygonById } from '../utils/polygonHelpers';
+import { getIncidentDescription, getIncidentEmoji } from '../utils/wazeTranslations';
 
 interface AlertsPanelProps {
     incidents: Incident[];
@@ -33,17 +34,10 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({ incidents, polygons, limit = 
         return <span className="badge bg-gray-100 text-gray-700">Baja</span>;
     };
 
-    const getIncidentTypeLabel = (type: string) => {
-        const labels: Record<string, string> = {
-            accident: 'Accidente',
-            construction: 'Obra',
-            roadclosed: 'Calle Cerrada',
-            hazard: 'Peligro',
-            pothole: 'Bache',
-            jam: 'Atasco',
-            weatherhazard: 'Clima Adverso',
-        };
-        return labels[type] || type;
+    const getIncidentTypeLabel = (incident: Incident) => {
+        const emoji = getIncidentEmoji(incident.type);
+        const description = getIncidentDescription(incident.type, incident.subtype);
+        return `${emoji} ${description}`;
     };
 
     const getIncidentIcon = (type: string) => {
@@ -93,7 +87,7 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({ incidents, polygons, limit = 
                 <span className="text-sm text-gray-500">{sortedIncidents.length} activas</span>
             </div>
 
-            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+            <div className="space-y-3 max-h-[800px] overflow-y-auto pr-2">
                 {sortedIncidents.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
                         <svg className="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -118,14 +112,25 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({ incidents, polygons, limit = 
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between mb-1">
                                             <h3 className="text-sm font-medium text-gray-900">
-                                                {getIncidentTypeLabel(incident.type)}
+                                                {getIncidentTypeLabel(incident)}
                                             </h3>
                                             {getSeverityBadge(incident.severity)}
                                         </div>
 
-                                        <p className="text-xs text-gray-600 mb-2 line-clamp-2">
-                                            {incident.description}
-                                        </p>
+                                        {incident.street && (
+                                            <p className="text-xs text-gray-600 mb-1">
+                                                📍 {incident.street}
+                                            </p>
+                                        )}
+                                        
+                                        {/* Solo mostrar descripción si no es una key */}
+                                        {incident.description && 
+                                         incident.description !== incident.subtype &&
+                                         !/^[A-Z_]+$/.test(incident.description) && (
+                                            <p className="text-xs text-gray-500 mb-2 line-clamp-2">
+                                                {incident.description}
+                                            </p>
+                                        )}
 
                                         <div className="flex items-center justify-between text-xs text-gray-500">
                                             <span className="font-medium text-primary-600">
