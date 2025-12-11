@@ -65,7 +65,7 @@ export class DataQualityService {
         FILTER_OUT: {
             minConfidence: 2,    // Filtrar si confidence < 2 (muy poco confiable)
             minReliability: 2,   // Filtrar si reliability < 2 (reportante novato)
-            minThumbsUp: 0       // Filtrar si tiene feedback negativo
+            minThumbsUp: -2      // Filtrar solo si nThumbsUp < -2 (feedback muy negativo)
         }
     };
 
@@ -88,9 +88,10 @@ export class DataQualityService {
             shouldFilter = true;
             reason = `Reliability muy bajo (${reliability}/10)`;
         } else if (incident.nThumbsUp !== undefined && incident.nThumbsUp < this.thresholds.FILTER_OUT.minThumbsUp) {
-            // Si tiene thumbs up negativo, es sospechoso
+            // Solo filtrar si tiene feedback MUY negativo (< -2)
+            // Incidentes con -1 o -2 aún pueden ser legítimos
             shouldFilter = true;
-            reason = 'Feedback negativo de usuarios';
+            reason = `Feedback muy negativo (${incident.nThumbsUp} thumbs)`;
         }
 
         // Determinar calidad
