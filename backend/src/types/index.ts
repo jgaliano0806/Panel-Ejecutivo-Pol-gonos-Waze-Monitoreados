@@ -50,6 +50,91 @@ export interface WazeFeedResponse {
     endTime: string;
 }
 
+// --- Waze TVT (Travel Time Traffic) Types ---
+
+export interface WazeTVTSegment {
+    id: number;
+    from: string;
+    to: string;
+    length: number; // Longitud en metros
+    historicTime: number; // Tiempo histórico en segundos
+    currentTime: number; // Tiempo actual en segundos
+    speed: number; // Velocidad en km/h
+    jamLevel: number; // 0-5 (0 = sin congestión, 5 = severa)
+    delay: number; // Demora en segundos
+}
+
+export interface WazeTVTResponse {
+    segments: WazeTVTSegment[];
+    updateTime: number; // Timestamp en millis
+}
+
+// --- Alert System Types ---
+
+export const AlertSeverity = {
+    CRITICAL: 'critical',
+    HIGH: 'high',
+    MEDIUM: 'medium',
+    LOW: 'low',
+} as const;
+
+export type AlertSeverity = typeof AlertSeverity[keyof typeof AlertSeverity];
+
+export const AlertType = {
+    TOTAL_BLOCKAGE: 'total_blockage',
+    EXCESSIVE_DELAY: 'excessive_delay',
+    SIGNIFICANT_DELAY: 'significant_delay',
+    EXTENSIVE_CONGESTION: 'extensive_congestion',
+    HIGH_USER_IMPACT: 'high_user_impact',
+    JAM_LEVEL_INCREASE: 'jam_level_increase',
+    NEW_IRREGULARITY: 'new_irregularity',
+} as const;
+
+export type AlertType = typeof AlertType[keyof typeof AlertType];
+
+export interface TrafficAlert {
+    id: string;
+    timestamp: Date;
+    severity: AlertSeverity;
+    type: AlertType;
+    polygonId: string;
+    polygonName: string;
+    location: string;
+    message: string;
+    data: any; // Datos específicos del tipo de alerta
+    isAcknowledged: boolean;
+    acknowledgedAt?: Date;
+    acknowledgedBy?: string;
+}
+
+// --- Historical Data Types ---
+
+export interface HistoricalSnapshot {
+    timestamp: Date;
+    totalJams: number;
+    totalIncidents: number;
+    avgSpeed: number | null;
+    avgDelay: number;
+    criticalKm: number;
+    affectedPolygons: number;
+    criticalPolygons: number;
+}
+
+export interface PolygonHistoricalData {
+    polygonId: string;
+    polygonName: string;
+    snapshots: HistoricalSnapshot[];
+}
+
+export interface TrendData {
+    current: number;
+    hourAgo: number | null;
+    dayAgo: number | null;
+    weekAgo: number | null;
+    trend: 'improving' | 'worsening' | 'stable';
+    percentChange: number;
+}
+
 // --- Internal Domain Types ---
 
 export const IncidentType = {
@@ -106,6 +191,7 @@ export interface InternalJam {
     roadType?: number;
     turnType?: string;
     blockingAlertUuid?: string;
+    source: 'waze' | 'tvt'; // Fuente de datos: Waze feeds (con coords) o TVT feeds (sin coords)
 }
 
 export interface PolygonStatus {
@@ -132,4 +218,19 @@ export interface ConfigPolygon {
         type: 'Polygon';
         coordinates: number[][][];
     };
+}
+
+// Traffic metrics for polygon analysis
+export interface PolygonTrafficMetrics {
+    polygonId: string;
+    minSpeed: number | null;
+    maxSpeed: number | null;
+    avgSpeed: number | null;
+    slowPoints: number;
+    moderatePoints: number;
+    fastPoints: number;
+    stoppedPoints: number;
+    congestionIndex: number;
+    totalJams: number;
+    lastUpdate: Date;
 }

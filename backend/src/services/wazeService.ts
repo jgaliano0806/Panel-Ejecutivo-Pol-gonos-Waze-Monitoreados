@@ -1,6 +1,8 @@
 import axios from 'axios';
 import {
     WazeFeedResponse,
+    WazeTVTResponse,
+    WazeTVTSegment,
     InternalAlert,
     InternalJam,
     IncidentType,
@@ -9,6 +11,9 @@ import {
     WazeRawJam
 } from '../types';
 import { REAL_POLYGONS, RealPolygonConfig } from '../config/realPolygons';
+import { alertService } from './alertService';
+import { historicalService } from './historicalService';
+import { dataQualityService } from './dataQualityService';
 
 /**
  * Servicio de Ingesta de Waze - VERSIÓN MULTI-FEED
@@ -23,10 +28,17 @@ export class WazeService {
     // In-memory store
     private currentAlerts: InternalAlert[] = [];
     private currentJams: InternalJam[] = [];
+    private previousJams: InternalJam[] = []; // Para detectar cambios
 
     constructor() {
         this.polygons = REAL_POLYGONS;
         console.log(`📍 Configurados ${this.polygons.length} polígonos con feeds individuales`);
+
+        // Iniciar auto-guardado de histórico
+        historicalService.startAutoSave(() => ({
+            jams: this.currentJams,
+            incidents: this.currentAlerts
+        }));
     }
 
     /**
@@ -74,9 +86,44 @@ export class WazeService {
                 }
             }
 
+            // Detectar cambios en jams para alertas
+            if (this.previousJams.length > 0) {
+                const changeAlerts = alertService.detectJamLevelChanges(this.previousJams, allJams);
+                if (changeAlerts.length > 0) {
+                    console.log(`🔔 ${changeAlerts.length} cambios detectados en niveles de congestión`);
+                }
+            }
+
+            // Evaluar situación actual y generar alertas (ahora incluye info de incidentes)
+            const trafficAlerts = alertService.evaluateAllPolygons(allJams, allAlerts);
+            console.log(`🚨 ${trafficAlerts.length} alertas activas generadas`);
+
+            // Actualizar estado
+            this.previousJams = this.currentJams; // Guardar estado anterior
             this.currentAlerts = allAlerts;
             this.currentJams = allJams;
             this.lastUpdate = new Date();
+
+            // Limpiar alertas antiguas cada hora
+            alertService.cleanOldAlerts();
+
+            // MEJORA: Verificar límite de eventos de Waze (5000 max)
+            const feedStatus = dataQualityService.checkFeedLimit(allAlerts, allJams);
+            if (feedStatus.atLimit) {
+                console.warn(`⚠️ LÍMITE ALCANZADO: ${feedStatus.totalEvents} eventos (100% del límite de Waze)`);
+            } else if (feedStatus.nearLimit) {
+                console.warn(`⚠️ Cerca del límite: ${feedStatus.totalEvents} eventos (${feedStatus.percentage}% del límite)`);
+            }
+
+            // MEJORA: Detectar y reportar incidentes obsoletos
+            const staleIncidents = dataQualityService.detectStaleIncidents(allAlerts, 30);
+            if (staleIncidents.length > 0) {
+                console.log(`🕐 ${staleIncidents.length} incidentes probablemente obsoletos (>30 min con baja confianza)`);
+            }
+
+            // MEJORA: Reportar calidad de datos
+            const qualityMetrics = dataQualityService.calculateQualityMetrics(allAlerts);
+            console.log(`📊 Calidad de datos: ${qualityMetrics.qualityPercentage}% alta calidad (${qualityMetrics.highQualityIncidents}/${qualityMetrics.totalIncidents} incidentes)`);
 
             const duration = Date.now() - startTime;
             console.log(`✅ Feed procesado en ${duration}ms. Alertas: ${allAlerts.length}, Jams: ${allJams.length}, Errores: ${errors}/${this.polygons.length}`);
@@ -87,19 +134,41 @@ export class WazeService {
     }
 
     /**
-     * Fetch de un solo feed de polígono
+     * Fetch de un solo feed de polígono (incidentes + TVT si está disponible)
      */
     private async fetchPolygonFeed(polygon: RealPolygonConfig): Promise<{ alerts: InternalAlert[]; jams: InternalJam[] }> {
         try {
-            const response = await axios.get<WazeFeedResponse>(polygon.feedUrl, {
-                timeout: 10000, // 10s timeout
-            });
+            // Fetch paralelo de ambos feeds (incidentes y TVT)
+            const promises: Promise<any>[] = [
+                axios.get<WazeFeedResponse>(polygon.feedUrl, { timeout: 10000 })
+            ];
 
-            const data = response.data;
+            // Si tiene feed TVT, agregarlo
+            if (polygon.tvtFeedUrl) {
+                promises.push(
+                    axios.get<WazeTVTResponse>(polygon.tvtFeedUrl, { timeout: 10000 })
+                );
+            }
 
-            // Normalizar y asignar el polygonId automáticamente
-            const alerts = this.normalizeAlerts(data.alerts || [], polygon.id);
-            const jams = this.normalizeJams(data.jams || [], polygon.id);
+            const results = await Promise.allSettled(promises);
+
+            // Procesar feed de incidentes
+            let alerts: InternalAlert[] = [];
+            let jams: InternalJam[] = [];
+
+            if (results[0].status === 'fulfilled') {
+                const data = results[0].value.data;
+                alerts = this.normalizeAlerts(data.alerts || [], polygon.id);
+                jams = this.normalizeJams(data.jams || [], polygon.id);
+            }
+
+            // Procesar feed TVT si existe y fue exitoso
+            if (polygon.tvtFeedUrl && results[1] && results[1].status === 'fulfilled') {
+                const tvtData = results[1].value.data;
+                const tvtJams = this.normalizeTVTSegments(tvtData.segments || [], polygon.id);
+                // Combinar jams del feed normal con jams del feed TVT
+                jams = [...jams, ...tvtJams];
+            }
 
             return { alerts, jams };
 
@@ -162,8 +231,34 @@ export class WazeService {
                 roadType: jam.roadType,
                 turnType: jam.turnType,
                 blockingAlertUuid: jam.blockingAlertUuid,
+                source: 'waze' as const, // Jams de Waze feeds (con coordenadas)
             };
         });
+    }
+
+    /**
+     * Normaliza segmentos TVT a formato de jams interno
+     */
+    private normalizeTVTSegments(segments: WazeTVTSegment[], polygonId: string): InternalJam[] {
+        return segments
+            // AHORA incluimos jamLevel 0 para detectar tráfico fluido
+            .filter(seg => seg.jamLevel >= 0)
+            .map(seg => ({
+                id: `tvt-${polygonId}-${seg.id}`,
+                polygonId,
+                speed: seg.speed,
+                delay: seg.delay,
+                severity: this.mapJamSeverity(seg.jamLevel),
+                length: seg.length,
+                timestamp: new Date(),
+                location: { lat: 0, lng: 0 }, // TVT no provee coordenadas exactas
+                level: seg.jamLevel,
+                street: `${seg.from} → ${seg.to}`,
+                roadType: undefined,
+                turnType: undefined,
+                blockingAlertUuid: undefined,
+                source: 'tvt' as const, // Jams de TVT feeds (sin coordenadas)
+            }));
     }
 
     // --- Helpers (sin cambios) ---

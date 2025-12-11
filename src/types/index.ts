@@ -57,6 +57,7 @@ export interface Polygon {
     group: string; // Agrupación lógica (ej: "Zona Norte", "Corredor Principal")
     geometry: GeoJSONPolygon;
     state: PolygonState;
+    trafficMetrics?: PolygonTrafficMetrics; // Métricas enriquecidas por hook
     metadata?: {
         jurisdiction?: string;
         priority?: number;
@@ -105,6 +106,8 @@ export interface TrafficJam {
     roadType?: number;      // Tipo de ruta (1-21)
     turnType?: string;      // Tipo de giro
     blockingAlertUuid?: string; // UUID de alerta bloqueante
+    line?: Array<{ x: number; y: number }>; // Línea completa del atasco
+    source: 'waze' | 'tvt'; // Fuente de datos: Waze feeds (con coords) o TVT feeds (sin coords)
 }
 
 /**
@@ -159,4 +162,136 @@ export interface DashboardFilters {
     selectedPolygon: string | null;
     selectedGroup: string | null;
     timeRange?: 'live' | '1h' | '24h' | '7d';
+}
+
+/**
+ * Métricas de tráfico detalladas por polígono
+ */
+export interface PolygonTrafficMetrics {
+    polygonId: string;
+    minSpeed: number | null;
+    maxSpeed: number | null;
+    avgSpeed: number | null;
+    slowPoints: number;
+    moderatePoints: number;
+    fastPoints: number;
+    stoppedPoints: number;
+    congestionIndex: number;
+    totalJams: number;
+    lastUpdate: Date;
+}
+
+/**
+ * Sistema de Alertas de Tráfico
+ */
+export type AlertSeverity = 'critical' | 'high' | 'medium' | 'low';
+export type AlertType =
+    | 'total_blockage'
+    | 'excessive_delay'
+    | 'significant_delay'
+    | 'extensive_congestion'
+    | 'high_user_impact'
+    | 'jam_level_increase'
+    | 'new_irregularity';
+
+export interface TrafficAlert {
+    id: string;
+    timestamp: string;
+    severity: AlertSeverity;
+    type: AlertType;
+    polygonId: string;
+    polygonName: string;
+    location: string;
+    message: string;
+    data: any;
+    isAcknowledged: boolean;
+    acknowledgedAt?: string;
+    acknowledgedBy?: string;
+}
+
+export interface AlertStats {
+    total: number;
+    active: number;
+    acknowledged: number;
+    bySeverity: {
+        critical: number;
+        high: number;
+        medium: number;
+        low: number;
+    };
+    byType: {
+        totalBlockage: number;
+        excessiveDelay: number;
+        significantDelay: number;
+        extensiveCongestion: number;
+        highUserImpact: number;
+    };
+}
+
+/**
+ * Sistema de Alertas de Discrepancia Waze-TVT
+ */
+export type DiscrepancyAlertType =
+    | 'speed_discrepancy'
+    | 'coverage_discrepancy'
+    | 'delay_discrepancy';
+
+export interface DiscrepancyAlert {
+    id: string;
+    timestamp: Date;
+    type: DiscrepancyAlertType;
+    severity: AlertSeverity;
+    polygonId: string;
+    polygonName: string;
+    data: {
+        waze: {
+            avgSpeed: number;
+            avgDelay: number;
+            count: number;
+        };
+        tvt: {
+            avgSpeed: number;
+            avgDelay: number;
+            count: number;
+        };
+        difference: {
+            speed: number;
+            delay: number;
+            coverageRatio: number;
+        };
+    };
+    message: string;
+    recommendation: string;
+    isAcknowledged: boolean;
+    acknowledgedAt?: Date;
+}
+
+/**
+ * Datos Históricos
+ */
+export interface HistoricalSnapshot {
+    timestamp: string;
+    totalJams: number;
+    totalIncidents: number;
+    avgSpeed: number | null;
+    avgDelay: number;
+    criticalKm: number;
+    affectedPolygons: number;
+    criticalPolygons: number;
+}
+
+export interface TrendData {
+    current: number;
+    hourAgo: number | null;
+    dayAgo: number | null;
+    weekAgo: number | null;
+    trend: 'improving' | 'worsening' | 'stable';
+    percentChange: number;
+}
+
+export interface AllTrends {
+    totalJams: TrendData;
+    avgSpeed: TrendData;
+    criticalKm: TrendData;
+    avgDelay: TrendData;
 }

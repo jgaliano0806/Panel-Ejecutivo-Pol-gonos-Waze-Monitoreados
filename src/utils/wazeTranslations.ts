@@ -129,7 +129,7 @@ export function getSubtypeTranslation(type: string, subtype: string): string {
             return translations[subtype];
         }
     }
-    
+
     // Si no funciona, intentar extraer el tipo del subtipo
     // Por ejemplo: "HAZARD_ON_ROAD_CONSTRUCTION" -> buscar en "hazard_on_road"
     for (const translations of Object.values(WAZE_TRANSLATIONS)) {
@@ -138,7 +138,7 @@ export function getSubtypeTranslation(type: string, subtype: string): string {
             return typedTranslations[subtype];
         }
     }
-    
+
     return subtype;
 }
 
@@ -181,29 +181,39 @@ export function getIncidentDescription(type: string, subtype?: string): string {
             return translation;
         }
     }
-    
+
     // Si no hay subtipo o no se encontró traducción, usar el tipo principal
     return getMainTypeTranslation(type);
 }
 
-/**
- * Obtiene el emoji apropiado para el tipo de incidente
- */
-export function getIncidentEmoji(type: string): string {
+export function getIncidentEmoji(type: string, subtype?: string): string {
+    const typeLower = type.toLowerCase();
+    const subtypeLower = (subtype || '').toLowerCase();
+
+    // Iconos específicos por subtipo
+    if (subtypeLower.includes('police')) return "👮‍♂️";
+    if (subtypeLower.includes('stopped_car')) return "🚙⚠️";
+    if (subtypeLower.includes('pothole')) return "🕳️";
+    if (subtypeLower.includes('heavy_rain')) return "🌧️";
+    if (subtypeLower.includes('fog')) return "🌫️";
+    if (subtypeLower.includes('ice')) return "❄️";
+
     const emojiMap: Record<string, string> = {
-        accident: "🚗💥",
-        jam: "🚦",
+        accident: "💥", // Waze style crash
+        jam: "🐢", // Waze style slow traffic
         hazard: "⚠️",
         hazard_on_road: "⚠️",
-        hazard_on_shoulder: "🚧",
-        hazard_weather: "🌧️",
-        weatherhazard: "🌧️",
-        construction: "🏗️",
-        road_closed: "🚫",
-        roadclosed: "🚫",
-        misc: "📍"
+        hazard_on_shoulder: "🚙⚠️",
+        hazard_weather: "🌩️",
+        weatherhazard: "🌩️",
+        construction: "🚧",
+        road_closed: "⛔",
+        roadclosed: "⛔",
+        police: "👮‍♂️", // Explicit police type
+        misc: "ℹ️"
     };
-    return emojiMap[type.toLowerCase()] || "⚠️";
+
+    return emojiMap[typeLower] || "⚠️";
 }
 
 /**
@@ -211,17 +221,18 @@ export function getIncidentEmoji(type: string): string {
  */
 export function getIncidentColor(type: string): string {
     const colorMap: Record<string, string> = {
-        accident: "red",
-        jam: "orange",
-        hazard: "yellow",
-        hazard_on_road: "yellow",
-        hazard_on_shoulder: "amber",
-        hazard_weather: "blue",
-        weatherhazard: "blue",
-        construction: "purple",
-        road_closed: "red",
-        roadclosed: "red",
-        misc: "gray"
+        accident: "#ef4444", // Red
+        jam: "#f97316",      // Orange
+        hazard: "#eab308",   // Yellow
+        hazard_on_road: "#eab308",
+        hazard_on_shoulder: "#eab308",
+        hazard_weather: "#3b82f6", // Blue
+        weatherhazard: "#3b82f6",
+        construction: "#d97706", // Amber/OrangeDark
+        road_closed: "#dc2626", // Red Dark
+        roadclosed: "#dc2626",
+        police: "#3b82f6",   // Blue police
+        misc: "#6b7280"      // Gray
     };
-    return colorMap[type.toLowerCase()] || "gray";
+    return colorMap[type.toLowerCase()] || "#6b7280";
 }

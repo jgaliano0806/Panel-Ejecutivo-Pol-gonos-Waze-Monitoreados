@@ -8,6 +8,7 @@ import {
     getJamLevelTranslation,
     getRoadTypeTranslation 
 } from '../utils/wazeTranslations';
+import { CongestionIndexCard } from './CongestionIndexCard';
 
 interface PolygonDetailProps {
     polygon: Polygon;
@@ -86,6 +87,16 @@ const PolygonDetail: React.FC<PolygonDetailProps> = ({
                     </p>
                 </div>
             </div>
+
+            {/* Índice de Congestión (si hay datos) */}
+            {polygon.trafficMetrics && (
+                <div className="mb-6">
+                    <CongestionIndexCard 
+                        polygonId={polygon.id}
+                        metrics={polygon.trafficMetrics}
+                    />
+                </div>
+            )}
 
             {/* Lista de incidentes */}
             <div className="mb-6">

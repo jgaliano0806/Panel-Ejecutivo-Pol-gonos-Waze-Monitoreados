@@ -28,9 +28,12 @@ Panel ejecutivo en tiempo real para monitoreo de 66 polígonos viales en Córdob
 - ✅ **Visualización Geoespacial:** Mapa interactivo con Leaflet
 - ✅ **KPIs Ejecutivos:** Métricas de fluidez, incidentes críticos, y obras
 - ✅ **Alertas Inteligentes:** Clasificación y priorización de incidentes
+- ✅ **Sistema de Calidad de Datos:** Filtrado por Confidence/Reliability scores de Waze
 - ✅ **Interfaz Optimizada:** Diseño Full HD (1920×1080) con popups informativos
 - ✅ **Traducción al Español:** Todas las claves de Waze traducidas
 - ✅ **Performance Optimizado:** Algoritmos O(n) y memoización React
+- ✅ **Detección de Datos Obsoletos:** Identificación automática de incidentes no válidos
+- ✅ **Monitoreo de Límites:** Alertas al alcanzar límite de 5000 eventos de Waze
 
 ---
 
@@ -197,10 +200,15 @@ Panel-Ejecutivo-Poligonos-Waze/
 │   │   │   └── realPolygons.ts       # Configuración 66 polígonos
 │   │   ├── services/
 │   │   │   ├── wazeService.ts        # Ingesta de datos Waze
-│   │   │   └── apiService.ts         # Lógica de negocio
+│   │   │   ├── apiService.ts         # Lógica de negocio
+│   │   │   ├── alertService.ts       # Sistema de alertas
+│   │   │   ├── aggregationService.ts # Agregación de métricas
+│   │   │   ├── historicalService.ts  # Datos históricos
+│   │   │   └── dataQualityService.ts # Calidad de datos (NUEVO)
 │   │   ├── types/
-│   │   │   └── waze.ts               # Tipos TypeScript
+│   │   │   └── index.ts              # Tipos TypeScript
 │   │   └── server.ts                 # Servidor Fastify
+│   ├── data/                         # Datos históricos
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── .env.example
@@ -252,7 +260,11 @@ Panel-Ejecutivo-Poligonos-Waze/
 ├── tsconfig.json                     # Config TypeScript
 ├── .gitignore
 ├── README.md                         # Documentación básica
-└── DOCUMENTATION.md                  # Esta documentación
+├── DOCUMENTATION.md                  # Esta documentación
+├── MEJORAS_API_WAZE.md              # Documentación de mejoras (NUEVO)
+├── RESUMEN_MEJORAS_WAZE.md          # Resumen ejecutivo (NUEVO)
+├── INTEGRACION_FRONTEND.md          # Guía frontend (NUEVO)
+└── PRUEBAS_CALIDAD_DATOS.md         # Guía de pruebas (NUEVO)
 ```
 
 ---
@@ -546,11 +558,60 @@ Response: {
 }
 ```
 
+#### **Endpoints de Calidad de Datos (NUEVOS)**
+
+**GET /api/data-quality/report**
+```json
+Response: {
+  timestamp: Date;
+  metrics: QualityMetrics;
+  byPolygon: Object;
+  lowQualityIncidents: Array;
+}
+```
+
+**GET /api/data-quality/metrics**
+```json
+Response: {
+  totalIncidents: number;
+  highQualityIncidents: number;
+  avgConfidence: number;
+  avgReliability: number;
+  qualityPercentage: number;
+}
+```
+
+**GET /api/data-quality/incidents/high-quality**
+- Retorna solo incidentes con alta confiabilidad
+
+**GET /api/data-quality/incidents/prioritized**
+- Retorna incidentes ordenados por prioridad (calidad + severidad)
+
+**GET /api/data-quality/incidents/stale?maxAge=30**
+- Retorna incidentes probablemente obsoletos
+
+**GET /api/data-quality/feed-status**
+```json
+Response: {
+  nearLimit: boolean;
+  atLimit: boolean;
+  totalEvents: number;
+  percentage: number;
+}
+```
+
+**GET /api/data-quality/thresholds**
+- Retorna umbrales de calidad configurados
+
+**POST /api/data-quality/thresholds**
+- Actualiza umbrales dinámicamente
+
 **Características:**
 - Cache HTTP (30 segundos)
 - Error handler global
 - Logging estructurado
 - CORS habilitado
+- Sistema de calidad basado en scores de Waze
 
 ---
 
@@ -1640,6 +1701,17 @@ curl http://localhost:3001/health
 
 ### **APIs:**
 - [Waze Live Map](https://www.waze.com/live-map)
+- [Waze Data Feed](https://support.google.com/waze/partners/answer/10618035)
+- [Waze Traffic View](https://support.google.com/waze/partners/answer/14210446)
+
+### **Documentación del Proyecto:**
+- **ANALISIS_COMPLETO_FEEDS_WAZE.md** - 📚 Análisis exhaustivo de feeds de Waze (NUEVO)
+- **REFERENCIA_RAPIDA_WAZE.md** - ⚡ Referencia rápida de feeds (NUEVO)
+- **MEJORAS_API_WAZE.md** - Documentación completa de mejoras en APIs
+- **RESUMEN_MEJORAS_WAZE.md** - Resumen ejecutivo de mejoras
+- **INTEGRACION_FRONTEND.md** - Guía de integración frontend
+- **PRUEBAS_CALIDAD_DATOS.md** - Guía de pruebas y validación
+- **ARQUITECTURA_MEJORADA.md** - Diagramas de arquitectura mejorada
 
 ---
 
@@ -1660,4 +1732,8 @@ Para soporte o consultas sobre el proyecto:
 
 **Última actualización:** Diciembre 2024
 **Versión:** 1.0.0
+
+
+
+
 

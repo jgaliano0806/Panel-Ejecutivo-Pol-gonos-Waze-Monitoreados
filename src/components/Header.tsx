@@ -14,32 +14,23 @@ const Header: React.FC<HeaderProps> = ({ lastUpdate }) => {
     };
 
     return (
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
+        <header className="bg-white border-b-4 border-yellow-400 px-6 py-4 shadow-sm">
             <div className="max-w-7xl mx-auto">
                 <div className="flex items-center justify-between">
                     {/* Logo y título */}
                     <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-primary-600 rounded-lg flex items-center justify-center">
-                            <svg
-                                className="w-7 h-7 text-white"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-                                />
-                            </svg>
+                        {/* Logo Oficial Caminos de las Sierras */}
+                        <div className="h-16 w-auto flex items-center justify-center">
+                            <img
+                                src="/logo_cs.png"
+                                alt="Caminos de las Sierras"
+                                className="h-full w-auto object-contain"
+                            />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-900">
-                                Panel Ejecutivo – Polígonos Waze Monitoreados
-                            </h1>
-                            <p className="text-sm text-gray-500 mt-0.5">
-                                Estado general en tiempo real
+                            {/* Título eliminado por redundancia con logo */}
+                            <p className="text-lg text-primary-700 font-bold mt-1 tracking-wide border-l-2 border-yellow-400 pl-3 ml-2">
+                                Panel de Control Inteligente
                             </p>
                         </div>
                     </div>

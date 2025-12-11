@@ -1,14 +1,15 @@
 import React, { useEffect, useMemo } from 'react';
-import { MapContainer, TileLayer, Polygon as LeafletPolygon, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon as LeafletPolygon, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { Polygon, Incident, TrafficJam } from '../types';
 import { PolygonState } from '../types';
 import { getPolygonColor, getPolygonOpacity } from '../utils/polygonCalculations';
-import { 
-    getIncidentDescription, 
+import {
+    getIncidentDescription,
     getIncidentEmoji,
+    getIncidentColor,
     getJamLevelTranslation,
-    getRoadTypeTranslation 
+    getRoadTypeTranslation
 } from '../utils/wazeTranslations';
 import { getPolygonById } from '../utils/polygonHelpers';
 import 'leaflet/dist/leaflet.css';
@@ -16,11 +17,11 @@ import 'leaflet/dist/leaflet.css';
 // Helper para calcular dirección del flujo
 const getFlowDirection = (start: { lat: number; lng: number }, end?: { lat: number; lng: number }): string => {
     if (!end) return 'No disponible';
-    
+
     const deltaLat = end.lat - start.lat;
     const deltaLng = end.lng - start.lng;
     const angle = Math.atan2(deltaLng, deltaLat) * (180 / Math.PI);
-    
+
     if (angle >= -22.5 && angle < 22.5) return '⬆️ Norte';
     if (angle >= 22.5 && angle < 67.5) return '↗️ Noreste';
     if (angle >= 67.5 && angle < 112.5) return '➡️ Este';
@@ -40,35 +41,41 @@ L.Icon.Default.mergeOptions({
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Crear iconos una sola vez y reutilizarlos
-const createIncidentIcon = (color: string) => L.divIcon({
+// Crear iconos dinámicos con emojis
+const createEmojiMarker = (emoji: string, color: string) => L.divIcon({
     className: 'custom-incident-marker',
-    html: `<div style="background-color: ${color}; width: 24px; height: 24px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
+    html: `<div style="
+        background-color: white; 
+        width: 32px; 
+        height: 32px; 
+        border-radius: 50%; 
+        border: 3px solid ${color}; 
+        box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+    ">${emoji}</div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
 });
 
 const createJamIcon = (color: string) => L.divIcon({
     className: 'custom-jam-marker',
-    html: `<div style="background-color: ${color}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; opacity: 0.8;"></div>`,
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
+    html: `<div style="background-color: ${color}; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; opacity: 0.9;"></div>`,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
 });
 
-// Cache de iconos para evitar recrearlos
-const ICON_CACHE = {
-    incidents: {
-        red: createIncidentIcon('#ef4444'),
-        orange: createIncidentIcon('#f97316'),
-        darkRed: createIncidentIcon('#dc2626'),
-        yellow: createIncidentIcon('#eab308'),
-        gray: createIncidentIcon('#6b7280'),
-    },
-    jams: {
-        red: createJamIcon('#ef4444'),
-        yellow: createJamIcon('#eab308'),
-        green: createJamIcon('#22c55e'),
+// Cache simple para evitar recrear objetos Leaflet idénticos
+const MARKER_CACHE: Record<string, L.DivIcon> = {};
+
+const getCachedEmojiMarker = (emoji: string, color: string) => {
+    const key = `${emoji}-${color}`;
+    if (!MARKER_CACHE[key]) {
+        MARKER_CACHE[key] = createEmojiMarker(emoji, color);
     }
+    return MARKER_CACHE[key];
 };
 
 interface MapProps {
@@ -80,8 +87,8 @@ interface MapProps {
 }
 
 // Componente para ajustar el zoom automáticamente
-const MapController: React.FC<{ 
-    selectedPolygon: string | null; 
+const MapController: React.FC<{
+    selectedPolygon: string | null;
     polygons: Polygon[];
     initialLoad: boolean;
 }> = ({
@@ -89,46 +96,46 @@ const MapController: React.FC<{
     polygons,
     initialLoad
 }) => {
-    const map = useMap();
+        const map = useMap();
 
-    // Ajustar mapa al cargar para mostrar todos los polígonos
-    useEffect(() => {
-        if (initialLoad && polygons.length > 0) {
-            const allCoords: [number, number][] = [];
-            
-            // Recopilar todas las coordenadas de todos los polígonos
-            polygons.forEach(polygon => {
-                polygon.geometry.coordinates[0].forEach(coord => {
-                    allCoords.push([coord[1], coord[0]]); // [lat, lng]
+        // Ajustar mapa al cargar para mostrar todos los polígonos
+        useEffect(() => {
+            if (initialLoad && polygons.length > 0) {
+                const allCoords: [number, number][] = [];
+
+                // Recopilar todas las coordenadas de todos los polígonos
+                polygons.forEach(polygon => {
+                    polygon.geometry.coordinates[0].forEach(coord => {
+                        allCoords.push([coord[1], coord[0]]); // [lat, lng]
+                    });
                 });
-            });
 
-            if (allCoords.length > 0) {
-                const bounds = L.latLngBounds(allCoords);
-                map.fitBounds(bounds, { padding: [50, 50] });
+                if (allCoords.length > 0) {
+                    const bounds = L.latLngBounds(allCoords);
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                }
             }
-        }
-    }, [initialLoad, polygons, map]);
+        }, [initialLoad, polygons, map]);
 
-    // Ajustar zoom cuando se selecciona un polígono
-    useEffect(() => {
-        if (selectedPolygon) {
-            const polygon = polygons.find(p => p.id === selectedPolygon);
-            if (polygon) {
-                const coords = polygon.geometry.coordinates[0];
-                const lats = coords.map(c => c[1]);
-                const lngs = coords.map(c => c[0]);
-                const bounds = L.latLngBounds(
-                    [Math.min(...lats), Math.min(...lngs)],
-                    [Math.max(...lats), Math.max(...lngs)]
-                );
-                map.fitBounds(bounds, { padding: [50, 50] });
+        // Ajustar zoom cuando se selecciona un polígono
+        useEffect(() => {
+            if (selectedPolygon) {
+                const polygon = polygons.find(p => p.id === selectedPolygon);
+                if (polygon) {
+                    const coords = polygon.geometry.coordinates[0];
+                    const lats = coords.map(c => c[1]);
+                    const lngs = coords.map(c => c[0]);
+                    const bounds = L.latLngBounds(
+                        [Math.min(...lats), Math.min(...lngs)],
+                        [Math.max(...lats), Math.max(...lngs)]
+                    );
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                }
             }
-        }
-    }, [selectedPolygon, polygons, map]);
+        }, [selectedPolygon, polygons, map]);
 
-    return null;
-};
+        return null;
+    };
 
 const Map: React.FC<MapProps> = ({
     polygons,
@@ -139,47 +146,38 @@ const Map: React.FC<MapProps> = ({
 }) => {
     // Centro aproximado de Córdoba, Argentina
     const center: [number, number] = [-31.4201, -64.1888];
-    
+
     // Flag para indicar carga inicial
     const [initialLoad, setInitialLoad] = React.useState(true);
-    
+
     React.useEffect(() => {
         if (polygons.length > 0) {
             setInitialLoad(false);
         }
     }, [polygons]);
 
-    // Usar iconos del cache - performance mejorada
-    const getIncidentIcon = (incident: Incident) => {
-        switch (incident.type) {
-            case 'accident':
-                return ICON_CACHE.incidents.red;
-            case 'construction':
-                return ICON_CACHE.incidents.orange;
-            case 'roadclosed':
-                return ICON_CACHE.incidents.darkRed;
-            case 'hazard':
-                return ICON_CACHE.incidents.yellow;
-            default:
-                return ICON_CACHE.incidents.gray;
-        }
+    // Obtener icono dinámico para incidentes
+    const getIncidentMarker = (incident: Incident) => {
+        const emoji = getIncidentEmoji(incident.type, incident.subtype);
+        const color = getIncidentColor(incident.type);
+        return getCachedEmojiMarker(emoji, color);
     };
 
-    const getJamIcon = (jam: TrafficJam) => {
-        if (jam.speed < 15) return ICON_CACHE.jams.red;
-        if (jam.speed < 30) return ICON_CACHE.jams.yellow;
-        return ICON_CACHE.jams.green;
+    const getJamMarker = (jam: TrafficJam) => {
+        if (jam.speed < 15) return createJamIcon('#ef4444');
+        if (jam.speed < 30) return createJamIcon('#eab308');
+        return createJamIcon('#22c55e');
     };
 
     // Memoizar incidentes filtrados
-    const filteredIncidents = useMemo(() => 
+    const filteredIncidents = useMemo(() =>
         incidents.filter(inc => inc.polygonId),
         [incidents]
     );
 
-    // Memoizar jams filtrados
+    // Memoizar jams filtrados - Excluir jams TVT (no tienen coordenadas reales)
     const filteredJams = useMemo(() =>
-        jams.filter(jam => jam.polygonId),
+        jams.filter(jam => jam.polygonId && jam.source !== 'tvt'), // Filtrar TVT: no tienen coords válidas
         [jams]
     );
 
@@ -247,46 +245,43 @@ const Map: React.FC<MapProps> = ({
                     const emoji = getIncidentEmoji(incident.type);
                     const description = getIncidentDescription(incident.type, incident.subtype);
                     const polygon = incident.polygonId ? getPolygonById(polygons, incident.polygonId) : null;
-                    
+
                     return (
                         <Marker
                             key={incident.id}
                             position={[incident.location.lat, incident.location.lng]}
-                            icon={getIncidentIcon(incident)}
+                            icon={getIncidentMarker(incident)}
                         >
                             <Popup maxWidth={700} className="custom-popup">
                                 <div className="w-[700px] min-h-[300px] p-0 overflow-visible bg-white rounded-xl shadow-2xl border-3 border-black">
                                     {/* Header compacto - 40px */}
-                                    <div className={`px-4 py-2.5 ${
-                                        incident.severity >= 4 ? 'bg-gradient-to-r from-red-600 to-red-700' :
+                                    <div className={`px-4 py-2.5 ${incident.severity >= 4 ? 'bg-gradient-to-r from-red-600 to-red-700' :
                                         incident.severity >= 3 ? 'bg-gradient-to-r from-orange-600 to-orange-700' :
-                                        incident.severity >= 2 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' :
-                                        'bg-gradient-to-r from-gray-500 to-gray-600'
-                                    } text-white`}>
+                                            incident.severity >= 2 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' :
+                                                'bg-gradient-to-r from-gray-500 to-gray-600'
+                                        } text-white`}>
                                         <div className="flex items-center justify-between">
                                             <h3 className="font-black text-lg">{emoji} {description.toUpperCase()}</h3>
                                             <span className="text-sm">🕐 {new Date(incident.timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} • {Math.round((Date.now() - new Date(incident.timestamp).getTime()) / 60000)} min</span>
                                         </div>
                                     </div>
-                                    
+
                                     {/* Layout balanceado - 260px */}
                                     <div className="p-4 bg-gray-50">
                                         {/* FILA 1: Info Principal - 110px */}
                                         <div className="grid grid-cols-2 gap-4 mb-4">
                                             {/* Severidad Grande */}
-                                            <div className={`flex flex-col items-center justify-center rounded-xl p-4 border-3 shadow-xl ${
-                                                incident.severity >= 4 ? 'bg-red-100 border-red-600' :
+                                            <div className={`flex flex-col items-center justify-center rounded-xl p-4 border-3 shadow-xl ${incident.severity >= 4 ? 'bg-red-100 border-red-600' :
                                                 incident.severity >= 3 ? 'bg-orange-100 border-orange-600' :
-                                                incident.severity >= 2 ? 'bg-yellow-100 border-yellow-600' :
-                                                'bg-gray-100 border-gray-600'
-                                            }`}>
+                                                    incident.severity >= 2 ? 'bg-yellow-100 border-yellow-600' :
+                                                        'bg-gray-100 border-gray-600'
+                                                }`}>
                                                 <span className="text-4xl mb-2">⚠️</span>
                                                 <p className="text-xs text-gray-700 font-bold uppercase mb-1">Severidad</p>
-                                                <p className={`text-2xl font-black ${
-                                                    incident.severity >= 4 ? 'text-red-800' :
+                                                <p className={`text-2xl font-black ${incident.severity >= 4 ? 'text-red-800' :
                                                     incident.severity >= 3 ? 'text-orange-800' :
-                                                    incident.severity >= 2 ? 'text-yellow-800' : 'text-gray-800'
-                                                }`}>
+                                                        incident.severity >= 2 ? 'text-yellow-800' : 'text-gray-800'
+                                                    }`}>
                                                     {incident.severity >= 4 ? 'CRÍTICA' :
                                                         incident.severity >= 3 ? 'ALTA' :
                                                             incident.severity >= 2 ? 'MEDIA' : 'BAJA'}
@@ -295,7 +290,7 @@ const Map: React.FC<MapProps> = ({
                                                     <p className="text-sm font-bold text-green-700 mt-2">✓ {incident.nThumbsUp} confirmaciones</p>
                                                 )}
                                             </div>
-                                            
+
                                             {/* Ubicación Unificada */}
                                             <div className="bg-gradient-to-br from-blue-50 to-white border-3 border-blue-600 rounded-xl p-3 shadow-xl">
                                                 {/* Tramo y Grupo */}
@@ -311,12 +306,12 @@ const Map: React.FC<MapProps> = ({
                                                         </p>
                                                     </div>
                                                 )}
-                                                
+
                                                 {/* Separador */}
                                                 {polygon && incident.street && (
                                                     <div className="h-px bg-blue-300 my-2"></div>
                                                 )}
-                                                
+
                                                 {/* Ubicación específica */}
                                                 {incident.street && (
                                                     <div>
@@ -337,7 +332,7 @@ const Map: React.FC<MapProps> = ({
                                                 )}
                                             </div>
                                         </div>
-                                        
+
                                         {/* FILA 2: Métricas de Confiabilidad - 100px */}
                                         {(incident.reportRating !== undefined || incident.reliability !== undefined) && (
                                             <div className="grid grid-cols-3 gap-3">
@@ -371,85 +366,111 @@ const Map: React.FC<MapProps> = ({
                     );
                 })}
 
+                {/* Renderizar líneas de congestión */}
+                {filteredJams.map((jam) => {
+                    // Verificar si tiene datos de línea
+                    if (!jam.line || jam.line.length < 2) return null;
+
+                    // Convertir coordenadas de Waze (x=lng, y=lat) a formato Leaflet [lat, lng]
+                    const positions = jam.line.map(point => [point.y, point.x] as [number, number]);
+
+                    // Color según velocidad
+                    const lineColor =
+                        jam.speed < 10 ? '#dc2626' :  // rojo
+                            jam.speed < 20 ? '#ea580c' :  // naranja
+                                jam.speed < 30 ? '#d97706' :  // amarillo oscuro
+                                    '#16a34a';                     // verde
+
+                    return (
+                        <Polyline
+                            key={`line-${jam.id}`}
+                            positions={positions}
+                            pathOptions={{
+                                color: lineColor,
+                                weight: 5,
+                                opacity: 0.6,
+                                lineCap: 'round',
+                                lineJoin: 'round'
+                            }}
+                        />
+                    );
+                })}
+
                 {/* Renderizar marcadores de atascos */}
                 {filteredJams.map((jam) => {
-                    const jamLevelText = jam.level !== undefined 
-                        ? getJamLevelTranslation(jam.level) 
+                    const jamLevelText = jam.level !== undefined
+                        ? getJamLevelTranslation(jam.level)
                         : 'Congestión';
                     const polygon = jam.polygonId ? getPolygonById(polygons, jam.polygonId) : null;
                     const flowDirection = getFlowDirection(jam.location, jam.endLocation);
-                    
+
                     return (
                         <Marker
                             key={jam.id}
                             position={[jam.location.lat, jam.location.lng]}
-                            icon={getJamIcon(jam)}
+                            icon={getJamMarker(jam)}
                         >
                             <Popup maxWidth={700} className="custom-popup">
                                 <div className="w-[700px] min-h-[300px] p-0 overflow-visible bg-white rounded-xl shadow-2xl border-3 border-black">
                                     {/* Header compacto - 40px */}
-                                    <div className={`px-4 py-2.5 ${
-                                        (jam.level ?? 0) >= 4 ? 'bg-gradient-to-r from-red-600 to-red-700' :
+                                    <div className={`px-4 py-2.5 ${(jam.level ?? 0) >= 4 ? 'bg-gradient-to-r from-red-600 to-red-700' :
                                         (jam.level ?? 0) >= 3 ? 'bg-gradient-to-r from-orange-600 to-orange-700' :
-                                        (jam.level ?? 0) >= 2 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' :
-                                        'bg-gradient-to-r from-green-600 to-green-700'
-                                    } text-white`}>
+                                            (jam.level ?? 0) >= 2 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' :
+                                                'bg-gradient-to-r from-green-600 to-green-700'
+                                        } text-white`}>
                                         <div className="flex items-center justify-between">
                                             <h3 className="font-black text-lg">🚦 {jamLevelText.toUpperCase()}</h3>
                                             <span className="text-sm">🕐 {new Date(jam.timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} • {Math.round((Date.now() - new Date(jam.timestamp).getTime()) / 60000)} min</span>
                                         </div>
                                     </div>
-                                    
+
                                     {/* Layout balanceado - 260px */}
                                     <div className="p-4 bg-gray-50">
                                         {/* FILA 1: Métricas de Impacto - 110px */}
                                         <div className="grid grid-cols-4 gap-3 mb-4">
                                             {/* Velocidad */}
-                                            <div className={`flex flex-col items-center justify-center rounded-xl p-4 border-3 shadow-xl ${
-                                                jam.speed < 10 ? 'bg-red-100 border-red-600' :
+                                            <div className={`flex flex-col items-center justify-center rounded-xl p-4 border-3 shadow-xl ${jam.speed < 10 ? 'bg-red-100 border-red-600' :
                                                 jam.speed < 20 ? 'bg-orange-100 border-orange-600' :
-                                                jam.speed < 30 ? 'bg-yellow-100 border-yellow-600' :
-                                                'bg-green-100 border-green-600'
-                                            }`}>
+                                                    jam.speed < 30 ? 'bg-yellow-100 border-yellow-600' :
+                                                        'bg-green-100 border-green-600'
+                                                }`}>
                                                 <span className="text-3xl mb-1">🏎️</span>
                                                 <p className="text-xs text-gray-700 font-bold uppercase mb-1">Velocidad</p>
-                                                <p className={`text-xl font-black ${
-                                                    jam.speed < 10 ? 'text-red-800' :
+                                                <p className={`text-xl font-black ${jam.speed < 10 ? 'text-red-800' :
                                                     jam.speed < 20 ? 'text-orange-800' :
-                                                    jam.speed < 30 ? 'text-yellow-800' :
-                                                    'text-green-800'
-                                                }`}>{jam.speed.toFixed(0)} km/h</p>
+                                                        jam.speed < 30 ? 'text-yellow-800' :
+                                                            'text-green-800'
+                                                    }`}>{jam.speed.toFixed(0)} km/h</p>
                                             </div>
-                                            
+
                                             {/* Demora */}
                                             <div className="flex flex-col items-center justify-center bg-orange-100 border-3 border-orange-600 rounded-xl p-4 shadow-xl">
                                                 <span className="text-3xl mb-1">⏱️</span>
                                                 <p className="text-xs text-gray-700 font-bold uppercase mb-1">Demora</p>
                                                 <p className="text-xl font-black text-orange-800">+{Math.round(jam.delay / 60)} min</p>
                                             </div>
-                                            
+
                                             {/* Longitud */}
                                             <div className="flex flex-col items-center justify-center bg-blue-100 border-3 border-blue-600 rounded-xl p-4 shadow-xl">
                                                 <span className="text-3xl mb-1">📏</span>
                                                 <p className="text-xs text-gray-700 font-bold uppercase mb-1">Longitud</p>
                                                 <p className="text-xl font-black text-blue-800">
-                                                    {jam.length >= 1000 ? `${(jam.length/1000).toFixed(1)} km` : `${jam.length} m`}
+                                                    {jam.length >= 1000 ? `${(jam.length / 1000).toFixed(1)} km` : `${jam.length} m`}
                                                 </p>
                                             </div>
-                                            
+
                                             {/* Nivel */}
                                             <div className="flex flex-col items-center justify-center bg-gray-100 border-3 border-gray-600 rounded-xl p-4 shadow-xl">
                                                 <span className="text-3xl mb-1">⚡</span>
                                                 <p className="text-xs text-gray-700 font-bold uppercase mb-1">Nivel</p>
-                                                <p className={`text-xl font-black ${
-                                                    (jam.level ?? 0) >= 4 ? 'text-red-800' :
+                                                <p className={`text-xl font-black ${(jam.level ?? 0) >= 4 ? 'text-red-800' :
                                                     (jam.level ?? 0) >= 3 ? 'text-orange-800' :
-                                                    (jam.level ?? 0) >= 2 ? 'text-yellow-800' :
-                                                    'text-green-800'
-                                                }`}>{jam.level ?? 0}/5</p>
+                                                        (jam.level ?? 0) >= 2 ? 'text-yellow-800' :
+                                                            'text-green-800'
+                                                    }`}>{jam.level ?? 0}/5</p>
                                             </div>
                                         </div>
-                                        
+
                                         {/* FILA 2: Ubicación y Detalles - 110px */}
                                         <div className="grid grid-cols-3 gap-3">
                                             {/* Ubicación Unificada - Ocupa 2 columnas */}
@@ -467,12 +488,12 @@ const Map: React.FC<MapProps> = ({
                                                         </p>
                                                     </div>
                                                 )}
-                                                
+
                                                 {/* Separador */}
                                                 {polygon && jam.street && (
                                                     <div className="h-px bg-blue-300 my-2"></div>
                                                 )}
-                                                
+
                                                 {/* Ubicación específica */}
                                                 {jam.street && (
                                                     <div>
@@ -487,7 +508,7 @@ const Map: React.FC<MapProps> = ({
                                                     </div>
                                                 )}
                                             </div>
-                                            
+
                                             {/* Columna de Info Adicional */}
                                             <div className="flex flex-col gap-2">
                                                 {/* Sentido */}
@@ -496,7 +517,7 @@ const Map: React.FC<MapProps> = ({
                                                     <p className="text-xs text-indigo-700 font-bold mb-0.5">SENTIDO</p>
                                                     <p className="text-sm font-black text-indigo-900 text-center">{flowDirection.split(' ')[1] || flowDirection}</p>
                                                 </div>
-                                                
+
                                                 {/* Tipo Vía o Alerta */}
                                                 {jam.roadType ? (
                                                     <div className="flex flex-col items-center justify-center bg-purple-50 border-2 border-purple-600 rounded-lg p-2 shadow-md flex-1">
