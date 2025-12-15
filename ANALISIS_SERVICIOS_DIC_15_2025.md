@@ -173,7 +173,7 @@
 **Estado Frontend:** ❌ NO INTEGRADO
 
 **Evaluación:** ⚠️ NUEVO - Listo para integrar
-**Recomendación:** 
+**Recomendación:**
 - Usar en `EventsListModal` para breakdown de tipos
 - Agregar dashboard de análisis de incidentes
 
@@ -409,7 +409,7 @@ const { data: stats } = useIncidentStats();
 const { data: speedComparison } = useSpeedComparison(polygonId);
 
 // Mostrar comparativa
-<SpeedComparisonCard 
+<SpeedComparisonCard
   wazeSpeed={speedComparison.wazeSpeed}
   externalSpeed={speedComparison.externalSpeed}
   difference={speedComparison.difference}

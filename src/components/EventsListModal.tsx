@@ -1,9 +1,16 @@
 import React, { useState } from 'react';
 import type { Incident, TrafficAlert } from '../types';
 import { getIncidentDescription, getIncidentEmoji } from '../utils/wazeTranslations';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
+
+// API Key de Google Maps - IMPORTANTE: Configura tu propia API key
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8';
+
+// Estilos del mapa
+const mapContainerStyle = {
+  width: '100%',
+  height: '100%'
+};
 
 // Agregar estilos de animación
 const style = document.createElement('style');
@@ -39,14 +46,6 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// Fix para los iconos de Leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
 interface EventsListModalProps {
   incidents: Incident[];
   alerts: TrafficAlert[];
@@ -61,9 +60,10 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
   onEventClick,
 }) => {
   const [expandedIncident, setExpandedIncident] = useState<string | null>(null);
-  
+  const [showInfoWindow, setShowInfoWindow] = useState(false);
+
   // Encontrar el incidente expandido
-  const currentExpandedIncident = expandedIncident 
+  const currentExpandedIncident = expandedIncident
     ? incidents.find(i => i.id === expandedIncident)
     : null;
   const formatCoordinates = (lat: number, lng: number) => {
@@ -586,7 +586,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
               {(() => {
                 const emoji = getIncidentEmoji(currentExpandedIncident.type, currentExpandedIncident.subtype);
                 const typeDescription = getIncidentDescription(currentExpandedIncident.type, currentExpandedIncident.subtype);
-                
+
                 return (
                   <>
                     {/* Header del Modal */}
@@ -638,27 +638,52 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                         {/* Overlay con gradiente */}
                         <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-black/20 to-transparent z-10 pointer-events-none"></div>
 
-                        <MapContainer
-                          center={[currentExpandedIncident.location.lat, currentExpandedIncident.location.lng]}
-                          zoom={17}
-                          style={{ height: '100%', width: '100%' }}
-                          scrollWheelZoom={true}
-                          zoomControl={true}
-                        >
-                          <TileLayer
-                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                          />
-                          <Marker position={[currentExpandedIncident.location.lat, currentExpandedIncident.location.lng]}>
-                            <Popup>
-                              <div className="text-center p-2">
-                                <p className="font-black text-xl mb-2">{emoji}</p>
-                                <p className="font-bold text-base mb-1">{typeDescription}</p>
-                                {currentExpandedIncident.street && <p className="text-sm text-gray-600">{currentExpandedIncident.street}</p>}
-                              </div>
-                            </Popup>
-                          </Marker>
-                        </MapContainer>
+                        <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
+                          <GoogleMap
+                            mapContainerStyle={mapContainerStyle}
+                            center={{
+                              lat: currentExpandedIncident.location.lat,
+                              lng: currentExpandedIncident.location.lng
+                            }}
+                            zoom={17}
+                            options={{
+                              zoomControl: true,
+                              streetViewControl: true,
+                              mapTypeControl: true,
+                              fullscreenControl: true,
+                            }}
+                          >
+                            <Marker
+                              position={{
+                                lat: currentExpandedIncident.location.lat,
+                                lng: currentExpandedIncident.location.lng
+                              }}
+                              onClick={() => setShowInfoWindow(true)}
+                              animation={google.maps.Animation.DROP}
+                            />
+                            
+                            {showInfoWindow && (
+                              <InfoWindow
+                                position={{
+                                  lat: currentExpandedIncident.location.lat,
+                                  lng: currentExpandedIncident.location.lng
+                                }}
+                                onCloseClick={() => setShowInfoWindow(false)}
+                              >
+                                <div className="p-3">
+                                  <p className="font-black text-2xl mb-2 text-center">{emoji}</p>
+                                  <p className="font-bold text-lg mb-2">{typeDescription}</p>
+                                  {currentExpandedIncident.street && (
+                                    <p className="text-sm text-gray-700">{currentExpandedIncident.street}</p>
+                                  )}
+                                  {currentExpandedIncident.city && (
+                                    <p className="text-xs text-gray-500 mt-1">{currentExpandedIncident.city}</p>
+                                  )}
+                                </div>
+                              </InfoWindow>
+                            )}
+                          </GoogleMap>
+                        </LoadScript>
                       </div>
 
                       {/* Información Detallada con Cards Mejoradas */}

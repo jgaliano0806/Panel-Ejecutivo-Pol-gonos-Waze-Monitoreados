@@ -32,7 +32,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
 
   // Calcular totales reales que se muestran en el modal
   const totalEvents = incidents.length + (alerts.length || 0);
-  
+
   // Contar eventos críticos de ambas fuentes
   const criticalIncidents = incidents.filter(i => i.severity >= 4).length;
   const criticalAlerts = (alerts || []).filter(a => a.severity === 'critical').length;

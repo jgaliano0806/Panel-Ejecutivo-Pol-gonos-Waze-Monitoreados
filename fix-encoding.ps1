@@ -24,19 +24,21 @@ try {
     git config core.autocrlf true
     git config core.filemode false
     Write-Host "✅ Git configurado correctamente`n" -ForegroundColor Green
-} catch {
+}
+catch {
     Write-Host "⚠️ Error configurando Git: $($_.Exception.Message)`n" -ForegroundColor Yellow
 }
 
 # Función para convertir archivos a UTF-8
 function Convert-ToUTF8 {
     param([string]$Path)
-    
+
     try {
         $content = Get-Content -Path $Path -Raw -Encoding UTF8
         Set-Content -Path $Path -Value $content -Encoding UTF8 -NoNewline
         return $true
-    } catch {
+    }
+    catch {
         return $false
     }
 }
@@ -47,14 +49,15 @@ $extensions = @('*.ts', '*.tsx', '*.js', '*.jsx', '*.json', '*.md', '*.css', '*.
 Write-Host "📝 Convirtiendo archivos a UTF-8..." -ForegroundColor Cyan
 
 foreach ($ext in $extensions) {
-    $files = Get-ChildItem -Path $scriptDir -Filter $ext -Recurse -File -ErrorAction SilentlyContinue | 
-        Where-Object { $_.FullName -notmatch 'node_modules|\.git|dist|build' }
-    
+    $files = Get-ChildItem -Path $scriptDir -Filter $ext -Recurse -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.FullName -notmatch 'node_modules|\.git|dist|build' }
+
     foreach ($file in $files) {
         if (Convert-ToUTF8 -Path $file.FullName) {
             $totalFixed++
             Write-Host "  ✓ $($file.Name)" -ForegroundColor Gray
-        } else {
+        }
+        else {
             $errors++
             Write-Host "  ✗ $($file.Name)" -ForegroundColor Red
         }
@@ -72,7 +75,8 @@ Write-Host "🔄 Normalizando line endings..." -ForegroundColor Cyan
 try {
     git add --renormalize .
     Write-Host "✅ Line endings normalizados`n" -ForegroundColor Green
-} catch {
+}
+catch {
     Write-Host "⚠️ No se pudieron normalizar line endings (ejecuta 'git add --renormalize .' manualmente)`n" -ForegroundColor Yellow
 }
 
