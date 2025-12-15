@@ -661,7 +661,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                               onClick={() => setShowInfoWindow(true)}
                               animation={google.maps.Animation.DROP}
                             />
-                            
+
                             {showInfoWindow && (
                               <InfoWindow
                                 position={{

@@ -227,12 +227,12 @@ text: {
 <Card className="group relative overflow-hidden">
   {/* Glass morphism background */}
   <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 backdrop-blur-sm" />
-  
+
   {/* Hover glow effect */}
   <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
     <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 blur-xl" />
   </div>
-  
+
   {/* Content */}
   <CardContent className="relative z-10">
     <motion.div
@@ -270,11 +270,11 @@ text: {
     <XAxis dataKey="time" className="text-xs" />
     <YAxis className="text-xs" />
     <Tooltip content={<CustomTooltip />} />
-    <Area 
-      type="monotone" 
-      dataKey="value" 
-      stroke="#3b82f6" 
-      fillOpacity={1} 
+    <Area
+      type="monotone"
+      dataKey="value"
+      stroke="#3b82f6"
+      fillOpacity={1}
       fill="url(#colorValue)"
       animationBegin={0}
       animationDuration={1500}
@@ -356,7 +356,7 @@ text: {
       layoutId="activeTab"
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
     />
-    
+
     <TabsTrigger value="home">
       <Home className="w-4 h-4 mr-2" />
       Inicio
@@ -514,7 +514,7 @@ export const TopCriticalDashboard = memo(({ polygons, incidents }) => {
     () => calculateTopCritical(polygons, incidents),
     [polygons, incidents]
   );
-  
+
   return <Table data={sortedData} />;
 });
 ```

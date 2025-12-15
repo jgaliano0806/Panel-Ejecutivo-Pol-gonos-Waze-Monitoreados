@@ -12,6 +12,7 @@ import { AlertsBadge } from '../components/AlertsBadge';
 import { TrendsChart } from '../components/TrendsChart';
 import { WazeOMeter } from '../components/WazeOMeter';
 import { ExecutiveSummary } from '../components/ExecutiveSummary';
+import { ModernExecutiveSummary } from '../components/dashboard/modern-executive-summary';
 import { TopCriticalDashboard } from '../components/TopCriticalDashboard';
 import { GroupTrafficComparison } from '../components/GroupTrafficComparison';
 import { useHistoricalData, useTrends } from '../hooks/useWazeData';
@@ -93,8 +94,8 @@ const Dashboard: React.FC = () => {
             case 'home':
                 return (
                     <div className="space-y-4">
-                        {/* Resumen Ejecutivo */}
-                        <ExecutiveSummary
+                        {/* Resumen Ejecutivo Moderno */}
+                        <ModernExecutiveSummary
                             kpis={globalKPIs}
                             alertStats={alertStats}
                             totalPolygons={polygons.length}
