@@ -1,6 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Incident, TrafficAlert } from '../types';
 import { getIncidentDescription, getIncidentEmoji } from '../utils/wazeTranslations';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix para los iconos de Leaflet
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
 
 interface EventsListModalProps {
   incidents: Incident[];
@@ -15,6 +26,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
   onClose,
   onEventClick,
 }) => {
+  const [expandedIncident, setExpandedIncident] = useState<string | null>(null);
   const formatCoordinates = (lat: number, lng: number) => {
     return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
   };
@@ -127,43 +139,143 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                           </div>
 
                           {/* Location Info */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm bg-white/70 rounded-lg p-4 border border-gray-200">
-                            {incident.street && (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm bg-white/70 rounded-lg p-4 border border-gray-200">
+                              {incident.street && (
+                                <div className="flex items-start gap-2">
+                                  <span className="text-blue-600 font-bold">📍</span>
+                                  <div>
+                                    <span className="text-gray-500 font-semibold text-xs">Dirección:</span>
+                                    <p className="text-gray-900 font-medium">{incident.street}</p>
+                                  </div>
+                                </div>
+                              )}
+                              {incident.city && (
+                                <div className="flex items-start gap-2">
+                                  <span className="text-blue-600 font-bold">🏙️</span>
+                                  <div>
+                                    <span className="text-gray-500 font-semibold text-xs">Ciudad:</span>
+                                    <p className="text-gray-900 font-medium">{incident.city}</p>
+                                  </div>
+                                </div>
+                              )}
                               <div className="flex items-start gap-2">
-                                <span className="text-blue-600 font-bold">📍</span>
+                                <span className="text-blue-600 font-bold">🗺️</span>
                                 <div>
-                                  <span className="text-gray-500 font-semibold text-xs">Dirección:</span>
-                                  <p className="text-gray-900 font-medium">{incident.street}</p>
+                                  <span className="text-gray-500 font-semibold text-xs">Coordenadas:</span>
+                                  <p className="text-gray-900 font-mono text-xs font-medium">
+                                    {formatCoordinates(incident.location.lat, incident.location.lng)}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <span className="text-blue-600 font-bold">🕐</span>
+                                <div>
+                                  <span className="text-gray-500 font-semibold text-xs">Reportado:</span>
+                                  <p className="text-gray-900 font-medium text-xs">
+                                    {new Date(incident.timestamp).toLocaleString('es-AR')}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Botón Ver en Minimapa */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedIncident(expandedIncident === incident.id ? null : incident.id);
+                              }}
+                              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                            >
+                              <span className="text-xl">
+                                {expandedIncident === incident.id ? '📍' : '🗺️'}
+                              </span>
+                              <span>
+                                {expandedIncident === incident.id ? 'Ocultar Minimapa' : 'Ver Ubicación en Minimapa'}
+                              </span>
+                            </button>
+
+                            {/* Minimapa Expandido */}
+                            {expandedIncident === incident.id && (
+                              <div className="mt-3 border-2 border-blue-400 rounded-xl overflow-hidden shadow-2xl bg-white">
+                                {/* Mapa */}
+                                <div style={{ height: '300px', width: '100%' }}>
+                                  <MapContainer
+                                    center={[incident.location.lat, incident.location.lng]}
+                                    zoom={16}
+                                    style={{ height: '100%', width: '100%' }}
+                                    scrollWheelZoom={false}
+                                  >
+                                    <TileLayer
+                                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                                    />
+                                    <Marker position={[incident.location.lat, incident.location.lng]}>
+                                      <Popup>
+                                        <div className="text-center">
+                                          <p className="font-bold text-lg mb-1">{emoji} {typeDescription}</p>
+                                          {incident.street && <p className="text-sm">{incident.street}</p>}
+                                        </div>
+                                      </Popup>
+                                    </Marker>
+                                  </MapContainer>
+                                </div>
+
+                                {/* Información Detallada */}
+                                <div className="p-4 bg-gradient-to-br from-gray-50 to-blue-50 space-y-3">
+                                  <h4 className="font-black text-lg text-gray-900 border-b-2 border-blue-300 pb-2">
+                                    📋 Información Completa del Incidente
+                                  </h4>
+                                  
+                                  <div className="grid grid-cols-2 gap-3 text-sm">
+                                    <div className="bg-white rounded-lg p-3 border border-gray-200">
+                                      <p className="text-gray-500 font-semibold text-xs mb-1">Tipo</p>
+                                      <p className="text-gray-900 font-bold">{emoji} {typeDescription}</p>
+                                    </div>
+                                    
+                                    <div className="bg-white rounded-lg p-3 border border-gray-200">
+                                      <p className="text-gray-500 font-semibold text-xs mb-1">Severidad</p>
+                                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${getSeverityColor(incident.severity)}`}>
+                                        {getSeverityLabel(incident.severity)}
+                                      </span>
+                                    </div>
+
+                                    {incident.street && (
+                                      <div className="bg-white rounded-lg p-3 border border-gray-200 col-span-2">
+                                        <p className="text-gray-500 font-semibold text-xs mb-1">📍 Ubicación</p>
+                                        <p className="text-gray-900 font-medium">{incident.street}</p>
+                                        {incident.city && <p className="text-gray-600 text-xs mt-1">{incident.city}</p>}
+                                      </div>
+                                    )}
+
+                                    <div className="bg-white rounded-lg p-3 border border-gray-200">
+                                      <p className="text-gray-500 font-semibold text-xs mb-1">🗺️ Latitud</p>
+                                      <p className="text-gray-900 font-mono text-xs">{incident.location.lat.toFixed(6)}</p>
+                                    </div>
+
+                                    <div className="bg-white rounded-lg p-3 border border-gray-200">
+                                      <p className="text-gray-500 font-semibold text-xs mb-1">🗺️ Longitud</p>
+                                      <p className="text-gray-900 font-mono text-xs">{incident.location.lng.toFixed(6)}</p>
+                                    </div>
+
+                                    <div className="bg-white rounded-lg p-3 border border-gray-200 col-span-2">
+                                      <p className="text-gray-500 font-semibold text-xs mb-1">🕐 Fecha y Hora</p>
+                                      <p className="text-gray-900 font-medium">{new Date(incident.timestamp).toLocaleString('es-AR', { 
+                                        dateStyle: 'full', 
+                                        timeStyle: 'medium' 
+                                      })}</p>
+                                    </div>
+
+                                    {incident.nThumbsUp !== undefined && (
+                                      <div className="bg-white rounded-lg p-3 border border-gray-200 col-span-2">
+                                        <p className="text-gray-500 font-semibold text-xs mb-1">👍 Confirmaciones</p>
+                                        <p className="text-green-700 font-bold text-lg">{incident.nThumbsUp} Wazers confirmaron</p>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             )}
-                            {incident.city && (
-                              <div className="flex items-start gap-2">
-                                <span className="text-blue-600 font-bold">🏙️</span>
-                                <div>
-                                  <span className="text-gray-500 font-semibold text-xs">Ciudad:</span>
-                                  <p className="text-gray-900 font-medium">{incident.city}</p>
-                                </div>
-                              </div>
-                            )}
-                            <div className="flex items-start gap-2">
-                              <span className="text-blue-600 font-bold">🗺️</span>
-                              <div>
-                                <span className="text-gray-500 font-semibold text-xs">Coordenadas:</span>
-                                <p className="text-gray-900 font-mono text-xs font-medium">
-                                  {formatCoordinates(incident.location.lat, incident.location.lng)}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-start gap-2">
-                              <span className="text-blue-600 font-bold">🕐</span>
-                              <div>
-                                <span className="text-gray-500 font-semibold text-xs">Reportado:</span>
-                                <p className="text-gray-900 font-medium text-xs">
-                                  {new Date(incident.timestamp).toLocaleString('es-AR')}
-                                </p>
-                              </div>
-                            </div>
                           </div>
 
                           {/* Confirmaciones de Wazers */}
