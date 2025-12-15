@@ -35,41 +35,58 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-fadeIn"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 text-white px-8 py-6 flex items-center justify-between border-b-4 border-blue-800">
           <div>
-            <h2 className="text-2xl font-bold">📋 Eventos Activos</h2>
-            <p className="text-sm text-blue-100 mt-1">
-              {incidents.length} incidentes • {alerts.length} alertas del sistema
-            </p>
+            <h2 className="text-3xl font-black mb-2 flex items-center gap-3">
+              <span className="text-4xl">📋</span>
+              Eventos Activos en Tiempo Real
+            </h2>
+            <div className="flex items-center gap-4 text-sm">
+              <span className="px-3 py-1 bg-white/20 rounded-full font-semibold backdrop-blur-sm">
+                ⚠️ {incidents.length} Incidentes
+              </span>
+              <span className="px-3 py-1 bg-white/20 rounded-full font-semibold backdrop-blur-sm">
+                🚨 {alerts.length} Alertas
+              </span>
+              <span className="px-3 py-1 bg-white/20 rounded-full font-semibold backdrop-blur-sm">
+                📊 Total: {incidents.length + alerts.length}
+              </span>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+            className="text-white hover:bg-white/20 rounded-full p-3 transition-all hover:scale-110 hover:rotate-90"
+            title="Cerrar"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-8 bg-gray-50">
           {/* Incidentes Section */}
           {incidents.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                <span>⚠️</span>
-                <span>Incidentes de Waze ({incidents.length})</span>
-              </h3>
-              <div className="space-y-3">
+            <div className="mb-8">
+              <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-t-xl shadow-md">
+                <h3 className="text-xl font-black flex items-center gap-3">
+                  <span className="text-2xl">⚠️</span>
+                  <span>Incidentes de Waze</span>
+                  <span className="ml-auto bg-white/30 px-3 py-1 rounded-full text-sm font-bold">
+                    {incidents.length}
+                  </span>
+                </h3>
+              </div>
+              <div className="space-y-4 bg-white p-6 rounded-b-xl shadow-lg">
                 {incidents
                   .sort((a, b) => {
                     // Ordenar por severidad (mayor a menor)
@@ -90,68 +107,80 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                     <div
                       key={incident.id}
                       onClick={() => onEventClick(incident, 'incident')}
-                      className="border-2 rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-all hover:shadow-md"
+                      className="border-2 rounded-xl p-5 bg-gradient-to-br from-white to-gray-50 hover:from-blue-50 hover:to-indigo-50 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-[1.02] hover:border-blue-400"
                     >
-                      <div className="flex items-start gap-4">
+                      <div className="flex items-start gap-5">
                         {/* Icon */}
-                        <div className="text-4xl flex-shrink-0">{emoji}</div>
+                        <div className="text-5xl flex-shrink-0 drop-shadow-md">{emoji}</div>
 
                         {/* Main Info */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-3 mb-2">
+                          <div className="flex items-start justify-between gap-3 mb-3">
                             <div>
-                              <h4 className="font-bold text-gray-900 text-lg">
+                              <h4 className="font-black text-gray-900 text-xl mb-1">
                                 {typeDescription}
                               </h4>
                             </div>
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${getSeverityColor(incident.severity)}`}>
+                            <span className={`px-4 py-2 rounded-full text-xs font-black border-2 shadow-md ${getSeverityColor(incident.severity)}`}>
                               {getSeverityLabel(incident.severity)}
                             </span>
                           </div>
 
                           {/* Location Info */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm bg-white/70 rounded-lg p-4 border border-gray-200">
                             {incident.street && (
                               <div className="flex items-start gap-2">
-                                <span className="text-gray-500 font-semibold">📍 Dirección:</span>
-                                <span className="text-gray-900">{incident.street}</span>
+                                <span className="text-blue-600 font-bold">📍</span>
+                                <div>
+                                  <span className="text-gray-500 font-semibold text-xs">Dirección:</span>
+                                  <p className="text-gray-900 font-medium">{incident.street}</p>
+                                </div>
                               </div>
                             )}
                             {incident.city && (
                               <div className="flex items-start gap-2">
-                                <span className="text-gray-500 font-semibold">🏙️ Ciudad:</span>
-                                <span className="text-gray-900">{incident.city}</span>
+                                <span className="text-blue-600 font-bold">🏙️</span>
+                                <div>
+                                  <span className="text-gray-500 font-semibold text-xs">Ciudad:</span>
+                                  <p className="text-gray-900 font-medium">{incident.city}</p>
+                                </div>
                               </div>
                             )}
                             <div className="flex items-start gap-2">
-                              <span className="text-gray-500 font-semibold">🗺️ Coordenadas:</span>
-                              <span className="text-gray-900 font-mono text-xs">
-                                {formatCoordinates(incident.location.lat, incident.location.lng)}
-                              </span>
+                              <span className="text-blue-600 font-bold">🗺️</span>
+                              <div>
+                                <span className="text-gray-500 font-semibold text-xs">Coordenadas:</span>
+                                <p className="text-gray-900 font-mono text-xs font-medium">
+                                  {formatCoordinates(incident.location.lat, incident.location.lng)}
+                                </p>
+                              </div>
                             </div>
                             <div className="flex items-start gap-2">
-                              <span className="text-gray-500 font-semibold">🕐 Reportado:</span>
-                              <span className="text-gray-900">
-                                {new Date(incident.timestamp).toLocaleString('es-AR')}
-                              </span>
+                              <span className="text-blue-600 font-bold">🕐</span>
+                              <div>
+                                <span className="text-gray-500 font-semibold text-xs">Reportado:</span>
+                                <p className="text-gray-900 font-medium text-xs">
+                                  {new Date(incident.timestamp).toLocaleString('es-AR')}
+                                </p>
+                              </div>
                             </div>
                           </div>
 
                           {/* Additional Info */}
                           {(incident.nThumbsUp || incident.reliability || incident.reportRating) && (
-                            <div className="mt-2 pt-2 border-t border-gray-200 flex gap-3 text-xs">
+                            <div className="mt-3 pt-3 border-t-2 border-dashed border-gray-300 flex flex-wrap gap-2">
                               {incident.nThumbsUp !== undefined && incident.nThumbsUp > 0 && (
-                                <span className="text-green-700 font-semibold">
+                                <span className="px-3 py-1.5 bg-green-100 text-green-800 rounded-full text-xs font-bold border border-green-300 shadow-sm">
                                   👍 {incident.nThumbsUp} confirmaciones
                                 </span>
                               )}
                               {incident.reliability !== undefined && (
-                                <span className="text-blue-700 font-semibold">
+                                <span className="px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-xs font-bold border border-blue-300 shadow-sm">
                                   ✓ Confiabilidad: {incident.reliability}/10
                                 </span>
                               )}
                               {incident.reportRating !== undefined && (
-                                <span className="text-indigo-700 font-semibold">
+                                <span className="px-3 py-1.5 bg-indigo-100 text-indigo-800 rounded-full text-xs font-bold border border-indigo-300 shadow-sm">
                                   📊 Rating: {incident.reportRating}/10
                                 </span>
                               )}
@@ -170,9 +199,11 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                       </div>
 
                       {/* Click hint */}
-                      <div className="mt-3 pt-3 border-t border-gray-200 text-center">
-                        <span className="text-xs text-blue-600 font-semibold">
-                          🗺️ Click para ver en el mapa
+                      <div className="mt-4 pt-4 border-t-2 border-gray-200 text-center">
+                        <span className="text-sm text-blue-600 font-black flex items-center justify-center gap-2">
+                          <span className="text-lg">🗺️</span>
+                          Click para ver ubicación en el mapa
+                          <span className="text-lg">→</span>
                         </span>
                       </div>
                     </div>
@@ -184,12 +215,17 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
 
           {/* Alertas del Sistema Section */}
           {alerts.length > 0 && (
-            <div>
-              <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                <span>🚨</span>
-                <span>Alertas del Sistema ({alerts.length})</span>
-              </h3>
-              <div className="space-y-3">
+            <div className="mb-6">
+              <div className="bg-gradient-to-r from-red-600 to-pink-600 text-white px-6 py-3 rounded-t-xl shadow-md">
+                <h3 className="text-xl font-black flex items-center gap-3">
+                  <span className="text-2xl">🚨</span>
+                  <span>Alertas del Sistema</span>
+                  <span className="ml-auto bg-white/30 px-3 py-1 rounded-full text-sm font-bold">
+                    {alerts.length}
+                  </span>
+                </h3>
+              </div>
+              <div className="space-y-4 bg-white p-6 rounded-b-xl shadow-lg">
                 {alerts
                   .sort((a, b) => {
                     // Ordenar por severidad: critical > high > medium > low
@@ -208,7 +244,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                     <div
                       key={alert.id}
                       onClick={() => onEventClick(alert, 'alert')}
-                      className={`border-2 rounded-lg p-4 cursor-pointer transition-all hover:shadow-md ${severityConfig.color}`}
+                      className={`border-2 rounded-xl p-5 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-[1.02] ${severityConfig.color}`}
                     >
                       <div className="flex items-start gap-4">
                         <div className="text-4xl">{severityConfig.icon}</div>
@@ -255,17 +291,23 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
 
           {/* Empty State */}
           {incidents.length === 0 && alerts.length === 0 && (
-            <div className="text-center py-12 text-gray-400">
-              <div className="text-6xl mb-4">✅</div>
-              <p className="text-xl font-semibold text-gray-600">No hay eventos activos</p>
-              <p className="text-sm text-gray-500 mt-2">Todos los sistemas operando normalmente</p>
+            <div className="text-center py-20 bg-white rounded-xl shadow-lg">
+              <div className="text-8xl mb-6 animate-bounce">✅</div>
+              <p className="text-3xl font-black text-gray-700 mb-2">¡Todo en Orden!</p>
+              <p className="text-lg text-gray-500">No hay eventos activos en este momento</p>
+              <p className="text-sm text-gray-400 mt-3">Todos los sistemas operando normalmente</p>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="bg-gray-50 px-6 py-3 border-t border-gray-200 text-center text-sm text-gray-600">
-          💡 <strong>Tip:</strong> Haz click en cualquier evento para ver su ubicación en el mapa
+        <div className="bg-gradient-to-r from-gray-100 to-gray-200 px-8 py-4 border-t-2 border-gray-300">
+          <div className="flex items-center justify-center gap-3 text-sm text-gray-700">
+            <span className="text-2xl">💡</span>
+            <p className="font-semibold">
+              <strong className="text-blue-600">Tip:</strong> Haz click en cualquier evento para ver su ubicación exacta en el mapa
+            </p>
+          </div>
         </div>
       </div>
     </div>
