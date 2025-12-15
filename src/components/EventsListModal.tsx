@@ -70,14 +70,21 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                 <span>Incidentes de Waze ({incidents.length})</span>
               </h3>
               <div className="space-y-3">
-                {incidents.map((incident) => {
+                {incidents
+                  .sort((a, b) => {
+                    // Ordenar por severidad (mayor a menor)
+                    if (b.severity !== a.severity) {
+                      return b.severity - a.severity;
+                    }
+                    // Si tienen misma severidad, por confiabilidad
+                    return (b.reliability || 0) - (a.reliability || 0);
+                  })
+                  .map((incident) => {
                   const emoji = getIncidentEmoji(incident.type, incident.subtype);
                   const typeDescription = getIncidentDescription(incident.type, incident.subtype);
-                  
-                  // Evitar duplicación si subtipo es igual al tipo
-                  const showSubtype = incident.subtype && 
-                    incident.subtype !== incident.type && 
-                    incident.subtype !== 'NO_SUBTYPE';
+
+                  // NO mostrar subtipo si la descripción ya lo incluye
+                  const showSubtype = false; // Siempre ocultar el subtipo raw
 
                   return (
                     <div
@@ -96,11 +103,6 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                               <h4 className="font-bold text-gray-900 text-lg">
                                 {typeDescription}
                               </h4>
-                              {showSubtype && (
-                                <p className="text-sm text-gray-600 mt-1">
-                                  Subtipo: {incident.subtype}
-                                </p>
-                              )}
                             </div>
                             <span className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${getSeverityColor(incident.severity)}`}>
                               {getSeverityLabel(incident.severity)}
@@ -157,7 +159,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                           )}
 
                           {/* Description if available and not a key */}
-                          {incident.description && 
+                          {incident.description &&
                            incident.description !== incident.subtype &&
                            !/^[A-Z_]+$/.test(incident.description) && (
                             <div className="mt-2 text-sm text-gray-600 italic">
@@ -188,7 +190,13 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                 <span>Alertas del Sistema ({alerts.length})</span>
               </h3>
               <div className="space-y-3">
-                {alerts.map((alert) => {
+                {alerts
+                  .sort((a, b) => {
+                    // Ordenar por severidad: critical > high > medium > low
+                    const severityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
+                    return (severityOrder[b.severity] || 0) - (severityOrder[a.severity] || 0);
+                  })
+                  .map((alert) => {
                   const severityConfig = {
                     critical: { label: 'CRÍTICA', color: 'bg-red-100 border-red-400 text-red-900', icon: '🚨' },
                     high: { label: 'ALTA', color: 'bg-orange-100 border-orange-400 text-orange-900', icon: '⚠️' },
@@ -211,7 +219,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                               {severityConfig.label}
                             </span>
                           </div>
-                          
+
                           <div className="text-sm space-y-1">
                             <div className="flex items-center gap-2">
                               <span className="font-semibold">📍 Ubicación:</span>
