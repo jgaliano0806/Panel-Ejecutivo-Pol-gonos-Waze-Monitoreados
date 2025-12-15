@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import type { AlertStats } from '../types';
 
 interface AlertsBadgeProps {
@@ -20,17 +20,17 @@ export const AlertsBadge: React.FC<AlertsBadgeProps> = ({ stats, onClick }) => {
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-3xl">ðŸš¨</span>
+          <span className="text-3xl">🚨</span>
           <div>
-            <h3 className="font-bold text-lg">Alertas CrÃ­ticas Activas</h3>
+            <h3 className="font-bold text-lg">Alertas Críticas Activas</h3>
             <p className="text-sm text-red-100">
-              {bySeverity.critical} crÃ­tica{bySeverity.critical !== 1 ? 's' : ''}, {bySeverity.high} alta{bySeverity.high !== 1 ? 's' : ''}
+              {bySeverity.critical} crítica{bySeverity.critical !== 1 ? 's' : ''}, {bySeverity.high} alta{bySeverity.high !== 1 ? 's' : ''}
             </p>
           </div>
         </div>
         <div className="text-right">
           <div className="text-3xl font-black">{bySeverity.critical}</div>
-          <div className="text-xs text-red-100">CRÃTICAS</div>
+          <div className="text-xs text-red-100">CRÍTICAS</div>
         </div>
       </div>
     </div>
