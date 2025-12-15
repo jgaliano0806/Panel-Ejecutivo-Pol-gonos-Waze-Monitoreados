@@ -1,24 +1,25 @@
-import React, { useState, useMemo, lazy, Suspense, useCallback } from 'react';
+import React, { useState, useMemo, lazy, Suspense, useCallback, memo } from 'react';
 import { useWazeData } from '../hooks/useWazeData';
 import type { GlobalKPIs } from '../types';
 import { PolygonState, IncidentType, Severity } from '../types';
 import Header from '../components/Header';
+import { ModernHeader } from '../components/layout/modern-header';
+import { ModernNavigation } from '../components/layout/modern-navigation';
 import Filters from '../components/Filters';
 import Footer from '../components/Footer';
 import PolygonDetail from '../components/PolygonDetail';
 import { BlockingIncidents } from '../components/BlockingIncidents';
 import { AlertsMonitor } from '../components/AlertsMonitor';
 import { AlertsBadge } from '../components/AlertsBadge';
-import { TrendsChart } from '../components/TrendsChart';
 import { WazeOMeter } from '../components/WazeOMeter';
-import { ExecutiveSummary } from '../components/ExecutiveSummary';
 import { ModernExecutiveSummary } from '../components/dashboard/modern-executive-summary';
 import { TopCriticalDashboard } from '../components/TopCriticalDashboard';
-import { GroupTrafficComparison } from '../components/GroupTrafficComparison';
 import { useHistoricalData, useTrends } from '../hooks/useWazeData';
 
-// Lazy load del mapa
+// Lazy load de componentes pesados
 const Map = lazy(() => import('../components/Map'));
+const TrendsChart = lazy(() => import('../components/TrendsChart').then(m => ({ default: m.TrendsChart })));
+const GroupTrafficComparison = lazy(() => import('../components/GroupTrafficComparison').then(m => ({ default: m.GroupTrafficComparison })));
 
 const Dashboard: React.FC = () => {
     const { polygons, incidents, jams, alerts, alertStats, isLoading, isError, lastUpdate, globalKPIs: backendKPIs } = useWazeData();
@@ -124,31 +125,49 @@ const Dashboard: React.FC = () => {
 
                         {/* Tendencias (últimas 24h) */}
                         {historicalData.data && historicalData.data.length > 0 && (
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-900 mb-3">
-                                    📈 Evolución (últimas 24 horas)
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <TrendsChart
-                                        snapshots={historicalData.data}
-                                        metric="avgSpeed"
-                                        title="Velocidad Promedio"
-                                        unit="km/h"
-                                    />
-                                    <TrendsChart
-                                        snapshots={historicalData.data}
-                                        metric="totalJams"
-                                        title="Puntos de Congestión"
-                                    />
+                            <Suspense fallback={
+                                <div className="card h-64 flex items-center justify-center">
+                                    <div className="text-center">
+                                        <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary-600 border-t-transparent"></div>
+                                        <p className="mt-2 text-sm text-gray-600">Cargando gráficos...</p>
+                                    </div>
                                 </div>
-                            </div>
+                            }>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900 mb-3">
+                                        📈 Evolución (últimas 24 horas)
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <TrendsChart
+                                            snapshots={historicalData.data}
+                                            metric="avgSpeed"
+                                            title="Velocidad Promedio"
+                                            unit="km/h"
+                                        />
+                                        <TrendsChart
+                                            snapshots={historicalData.data}
+                                            metric="totalJams"
+                                            title="Puntos de Congestión"
+                                        />
+                                    </div>
+                                </div>
+                            </Suspense>
                         )}
 
                         {/* Comparativa por Grupo */}
-                        <GroupTrafficComparison
-                            polygons={polygons}
-                            groups={allGroups}
-                        />
+                        <Suspense fallback={
+                            <div className="card h-64 flex items-center justify-center">
+                                <div className="text-center">
+                                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary-600 border-t-transparent"></div>
+                                    <p className="mt-2 text-sm text-gray-600">Cargando comparativa...</p>
+                                </div>
+                            </div>
+                        }>
+                            <GroupTrafficComparison
+                                polygons={polygons}
+                                groups={allGroups}
+                            />
+                        </Suspense>
                     </div>
                 );
 
@@ -239,57 +258,16 @@ const Dashboard: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            {/* Header */}
-            <Header lastUpdate={lastUpdate} />
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20">
+            {/* Header Moderno */}
+            <ModernHeader lastUpdate={lastUpdate} />
 
-            {/* Navegación Principal */}
-            <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
-                <div className="max-w-[1850px] mx-auto px-4">
-                    <nav className="flex space-x-8">
-                        <button
-                            onClick={() => setCurrentView('home')}
-                            className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
-                                currentView === 'home'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                            }`}
-                        >
-                            <span className="text-lg">🏠</span>
-                            Inicio
-                        </button>
-
-                        <button
-                            onClick={() => setCurrentView('map')}
-                            className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
-                                currentView === 'map'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                            }`}
-                        >
-                            <span className="text-lg">🗺️</span>
-                            Mapa y Zonas
-                        </button>
-
-                        <button
-                            onClick={() => setCurrentView('events')}
-                            className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
-                                currentView === 'events'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                            }`}
-                        >
-                            <span className="text-lg">⚠️</span>
-                            Alertas y Eventos
-                            {alertStats && alertStats.bySeverity.critical > 0 && (
-                                <span className="ml-1 px-2 py-0.5 bg-red-600 text-white text-xs font-bold rounded-full animate-pulse">
-                                    {alertStats.bySeverity.critical}
-                                </span>
-                            )}
-                        </button>
-                    </nav>
-                </div>
-            </div>
+            {/* Navegación Moderna */}
+            <ModernNavigation
+                currentView={currentView}
+                onViewChange={setCurrentView}
+                criticalAlertsCount={alertStats?.bySeverity.critical}
+            />
 
             {/* Main Content */}
             <main className="max-w-[1850px] mx-auto px-4 py-6">
