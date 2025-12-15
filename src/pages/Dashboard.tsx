@@ -99,6 +99,15 @@ const Dashboard: React.FC = () => {
                             alertStats={alertStats}
                             totalPolygons={polygons.length}
                             criticalPolygons={criticalPolygonsCount}
+                            incidents={incidents}
+                            alerts={alerts}
+                            onEventSelect={(incident) => {
+                                // Cambiar a vista de mapa y seleccionar el polígono del incidente
+                                if (incident.polygonId) {
+                                    setSelectedPolygon(incident.polygonId);
+                                    setCurrentView('map');
+                                }
+                            }}
                         />
 
                         {/* Grid Principal: Top Críticos + Estado de Red */}

@@ -1,11 +1,15 @@
-import React from 'react';
-import type { GlobalKPIs, AlertStats } from '../types';
+import React, { useState } from 'react';
+import type { GlobalKPIs, AlertStats, Incident, TrafficAlert } from '../types';
+import { EventsListModal } from './EventsListModal';
 
 interface ExecutiveSummaryProps {
   kpis: GlobalKPIs;
   alertStats?: AlertStats;
   totalPolygons: number;
   criticalPolygons: number;
+  incidents?: Incident[];
+  alerts?: TrafficAlert[];
+  onEventSelect?: (incident: Incident) => void;
 }
 
 export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
@@ -13,7 +17,18 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   alertStats,
   totalPolygons,
   criticalPolygons,
+  incidents = [],
+  alerts = [],
+  onEventSelect,
 }) => {
+  const [showEventsModal, setShowEventsModal] = useState(false);
+
+  const handleEventClick = (event: Incident | TrafficAlert, type: 'incident' | 'alert') => {
+    setShowEventsModal(false);
+    if (type === 'incident' && onEventSelect) {
+      onEventSelect(event as Incident);
+    }
+  };
   const metrics = [
     {
       label: 'Fluidez del Sistema',
@@ -70,20 +85,45 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {metrics.map((metric) => (
-          <div
-            key={metric.label}
-            className={`border-2 rounded-lg p-3 ${getColorClasses(metric.color)}`}
-          >
-            <div className="text-center">
-              <div className="text-3xl mb-2">{metric.icon}</div>
-              <div className="text-2xl font-black mb-1">{metric.value}</div>
-              <div className="text-xs font-semibold mb-1">{metric.label}</div>
-              <div className="text-xs opacity-80">{metric.subtext}</div>
+        {metrics.map((metric, index) => {
+          // Las cards de Alertas e Incidentes son clickeables
+          const isClickable = index === 1 || index === 2; // Alertas Activas o Incidentes Activos
+          const hasEvents = incidents.length > 0 || alerts.length > 0;
+          
+          return (
+            <div
+              key={metric.label}
+              onClick={() => isClickable && hasEvents && setShowEventsModal(true)}
+              className={`border-2 rounded-lg p-3 ${getColorClasses(metric.color)} ${
+                isClickable && hasEvents ? 'cursor-pointer hover:shadow-lg hover:scale-105 transition-all' : ''
+              }`}
+              title={isClickable && hasEvents ? 'Click para ver detalle de eventos' : ''}
+            >
+              <div className="text-center">
+                <div className="text-3xl mb-2">{metric.icon}</div>
+                <div className="text-2xl font-black mb-1">{metric.value}</div>
+                <div className="text-xs font-semibold mb-1">{metric.label}</div>
+                <div className="text-xs opacity-80">{metric.subtext}</div>
+                {isClickable && hasEvents && (
+                  <div className="text-xs font-bold mt-2 opacity-70">
+                    👆 Click para detalles
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
+
+      {/* Modal de Eventos */}
+      {showEventsModal && (
+        <EventsListModal
+          incidents={incidents}
+          alerts={alerts}
+          onClose={() => setShowEventsModal(false)}
+          onEventClick={handleEventClick}
+        />
+      )}
 
       {/* Indicadores adicionales */}
       <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-3 gap-4 text-center">
