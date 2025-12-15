@@ -166,24 +166,28 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                             </div>
                           </div>
 
-                          {/* Additional Info */}
-                          {(incident.nThumbsUp || incident.reliability || incident.reportRating) && (
-                            <div className="mt-3 pt-3 border-t-2 border-dashed border-gray-300 flex flex-wrap gap-2">
-                              {incident.nThumbsUp !== undefined && incident.nThumbsUp > 0 && (
-                                <span className="px-3 py-1.5 bg-green-100 text-green-800 rounded-full text-xs font-bold border border-green-300 shadow-sm">
-                                  👍 {incident.nThumbsUp} confirmaciones
-                                </span>
-                              )}
-                              {incident.reliability !== undefined && (
-                                <span className="px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-xs font-bold border border-blue-300 shadow-sm">
-                                  ✓ Confiabilidad: {incident.reliability}/10
-                                </span>
-                              )}
-                              {incident.reportRating !== undefined && (
-                                <span className="px-3 py-1.5 bg-indigo-100 text-indigo-800 rounded-full text-xs font-bold border border-indigo-300 shadow-sm">
-                                  📊 Rating: {incident.reportRating}/10
-                                </span>
-                              )}
+                          {/* Confirmaciones de Wazers */}
+                          {incident.nThumbsUp !== undefined && (
+                            <div className="mt-3 pt-3 border-t-2 border-dashed border-gray-300">
+                              <div className="flex items-center gap-3 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-3 shadow-md">
+                                <span className="text-3xl">👍</span>
+                                <div className="flex-1">
+                                  <p className="text-xs text-gray-600 font-semibold">Confirmado por Wazers</p>
+                                  <p className="text-2xl font-black text-green-700">
+                                    {incident.nThumbsUp} {incident.nThumbsUp === 1 ? 'usuario' : 'usuarios'}
+                                  </p>
+                                </div>
+                                {incident.nThumbsUp > 5 && (
+                                  <span className="px-3 py-1 bg-green-600 text-white rounded-full text-xs font-bold shadow-sm">
+                                    ✓ Alta confianza
+                                  </span>
+                                )}
+                                {incident.nThumbsUp === 0 && (
+                                  <span className="px-3 py-1 bg-gray-400 text-white rounded-full text-xs font-bold shadow-sm">
+                                    Sin confirmar
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           )}
 
