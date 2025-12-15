@@ -47,20 +47,6 @@ export const calculatePolygonState = (
 };
 
 /**
- * Actualiza todos los polígonos con su estado calculado
- */
-export const updatePolygonStates = (
-    polygons: Polygon[],
-    incidents: Incident[],
-    jams: TrafficJam[]
-): Polygon[] => {
-    return polygons.map(polygon => ({
-        ...polygon,
-        state: calculatePolygonState(polygon, incidents, jams),
-    }));
-};
-
-/**
  * Calcula estadísticas completas de un polígono
  */
 export const calculatePolygonStats = (
@@ -90,30 +76,6 @@ export const calculatePolygonStats = (
         state: calculatePolygonState(polygon, incidents, jams),
         lastUpdate: new Date(),
     };
-};
-
-/**
- * Verifica si un punto está dentro de un polígono (algoritmo ray-casting)
- */
-export const isPointInPolygon = (
-    point: { lat: number; lng: number },
-    polygon: Polygon
-): boolean => {
-    const { lat, lng } = point;
-    const coords = polygon.geometry.coordinates[0];
-
-    let inside = false;
-    for (let i = 0, j = coords.length - 1; i < coords.length; j = i++) {
-        const [xi, yi] = coords[i];
-        const [xj, yj] = coords[j];
-
-        const intersect = ((yi > lat) !== (yj > lat))
-            && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi);
-
-        if (intersect) inside = !inside;
-    }
-
-    return inside;
 };
 
 /**
@@ -160,15 +122,3 @@ export const formatDelay = (delayInSeconds: number): string => {
     return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
 };
 
-/**
- * Ordena polígonos por severidad (críticos primero)
- */
-export const sortPolygonsBySeverity = (polygons: Polygon[]): Polygon[] => {
-    const order = {
-        [PolygonState.HIGH]: 0,
-        [PolygonState.MEDIUM]: 1,
-        [PolygonState.LOW]: 2,
-    };
-
-    return [...polygons].sort((a, b) => order[a.state] - order[b.state]);
-};

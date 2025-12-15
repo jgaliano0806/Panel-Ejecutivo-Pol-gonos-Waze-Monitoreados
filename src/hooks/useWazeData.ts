@@ -16,12 +16,12 @@ const fetcher = async <T>(url: string): Promise<T> => {
             'Content-Type': 'application/json',
         },
     });
-    
+
     if (!response.ok) {
         const error = await response.text().catch(() => response.statusText);
         throw new Error(`API Error (${response.status}): ${error}`);
     }
-    
+
     return response.json();
 };
 
@@ -143,7 +143,7 @@ export const useWazeData = () => {
         const backendMap = new Map(
             polygonsQuery.data.map(p => [p.id, p])
         );
-        
+
         const metricsMap = new Map(
             (trafficMetricsQuery.data || []).map(m => [m.polygonId, m])
         );
@@ -151,7 +151,7 @@ export const useWazeData = () => {
         return realCordobaPolygons.map(localPoly => {
             const backendData = backendMap.get(localPoly.id);
             const metricsData = metricsMap.get(localPoly.id);
-            
+
             if (!backendData) return localPoly;
 
             return {
@@ -165,7 +165,7 @@ export const useWazeData = () => {
     }, [polygonsQuery.data, trafficMetricsQuery.data]);
 
     // Memoizar estados de carga y error
-    const isLoading = useMemo(() => 
+    const isLoading = useMemo(() =>
         polygonsQuery.isLoading || incidentsQuery.isLoading || jamsQuery.isLoading,
         [polygonsQuery.isLoading, incidentsQuery.isLoading, jamsQuery.isLoading]
     );

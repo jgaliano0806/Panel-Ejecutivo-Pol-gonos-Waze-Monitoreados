@@ -9,6 +9,10 @@ export interface RealPolygonConfig {
     feedUrl: string; // Feed de incidentes (alerts + jams)
     tvtFeedUrl?: string; // Feed TVT (Travel Time Traffic) - Opcional
     group?: string; // Se puede categorizar después
+    coordinates?: { // Coordenadas aproximadas del centro del polígono
+        lat: number;
+        lon: number;
+    };
 }
 
 // Función helper para asignar grupos automáticamente según el nombre

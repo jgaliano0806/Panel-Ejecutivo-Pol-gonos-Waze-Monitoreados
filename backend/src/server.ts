@@ -6,6 +6,9 @@ import { alertService } from './services/alertService';
 import { aggregationService } from './services/aggregationService';
 import { historicalService } from './services/historicalService';
 import { dataQualityService } from './services/dataQualityService';
+import { incidentStatsService } from './services/incidentStatsService';
+import { externalTrafficService } from './services/externalTrafficService';
+import { REAL_POLYGONS } from './config/realPolygons';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -373,6 +376,165 @@ server.post('/api/data-quality/thresholds', async (request, reply) => {
         return { success: true, message: 'Thresholds updated', current: dataQualityService.getThresholds() };
     } catch (error) {
         reply.code(500).send({ error: 'Failed to update thresholds' });
+    }
+});
+
+// --- Endpoints de Estadísticas de Incidentes ---
+
+/**
+ * GET /api/incidents/stats/global
+ * Obtiene estadísticas globales de tipos y subtipos de incidentes
+ */
+server.get('/api/incidents/stats/global', async (request, reply) => {
+    try {
+        const alerts = wazeService.getAlerts();
+        const jams = wazeService.getJams();
+        const stats = incidentStatsService.getGlobalStats(alerts, jams);
+        return stats;
+    } catch (error) {
+        reply.code(500).send({ error: 'Failed to get global incident stats' });
+    }
+});
+
+/**
+ * GET /api/incidents/stats/polygon/:polygonId
+ * Obtiene estadísticas detalladas de incidentes para un polígono específico
+ */
+server.get('/api/incidents/stats/polygon/:polygonId', async (request, reply) => {
+    try {
+        const { polygonId } = request.params as { polygonId: string };
+        const polygon = REAL_POLYGONS.find(p => p.id === polygonId);
+        
+        if (!polygon) {
+            reply.code(404).send({ error: 'Polygon not found' });
+            return;
+        }
+        
+        const alerts = wazeService.getAlerts();
+        const jams = wazeService.getJams();
+        const stats = incidentStatsService.getPolygonStats(
+            polygonId,
+            polygon.name,
+            alerts,
+            jams
+        );
+        
+        return stats;
+    } catch (error) {
+        reply.code(500).send({ error: 'Failed to get polygon incident stats' });
+    }
+});
+
+/**
+ * GET /api/incidents/types-summary
+ * Resumen rápido de tipos de incidentes activos
+ */
+server.get('/api/incidents/types-summary', async (request, reply) => {
+    try {
+        const alerts = wazeService.getAlerts();
+        
+        // Agrupar por tipo
+        const typeCounts = new Map<string, number>();
+        for (const alert of alerts) {
+            const count = typeCounts.get(alert.type) || 0;
+            typeCounts.set(alert.type, count + 1);
+        }
+        
+        const summary = Array.from(typeCounts.entries()).map(([type, count]) => ({
+            type,
+            count,
+            emoji: incidentStatsService.getIncidentEmoji(type)
+        })).sort((a, b) => b.count - a.count);
+        
+        return summary;
+    } catch (error) {
+        reply.code(500).send({ error: 'Failed to get incident types summary' });
+    }
+});
+
+// --- Endpoints de Velocidad Externa ---
+
+/**
+ * GET /api/speed/comparison/:polygonId
+ * Compara velocidad de Waze con fuentes externas
+ */
+server.get('/api/speed/comparison/:polygonId', async (request, reply) => {
+    try {
+        const { polygonId } = request.params as { polygonId: string };
+        const polygon = REAL_POLYGONS.find(p => p.id === polygonId);
+        
+        if (!polygon) {
+            reply.code(404).send({ error: 'Polygon not found' });
+            return;
+        }
+        
+        // Obtener velocidad de Waze
+        const trafficMetrics = apiService.getTrafficMetricsByPolygon(polygonId);
+        const wazeSpeed = trafficMetrics?.avgSpeed || null;
+        
+        // Calcular centro del polígono (aproximado)
+        // En producción, esto debería venir de la config del polígono
+        const centerLat = polygon.coordinates?.lat || -31.4173; // Córdoba por defecto
+        const centerLon = polygon.coordinates?.lon || -64.1833;
+        
+        const comparison = await externalTrafficService.getSpeedComparison(
+            polygonId,
+            polygon.name,
+            centerLat,
+            centerLon,
+            wazeSpeed
+        );
+        
+        return comparison;
+    } catch (error) {
+        server.log.error(error);
+        reply.code(500).send({ error: 'Failed to get speed comparison' });
+    }
+});
+
+/**
+ * GET /api/speed/comparison/all
+ * Obtiene comparación de velocidades para todos los polígonos críticos
+ */
+server.get('/api/speed/comparison/all', async (request, reply) => {
+    try {
+        const limit = parseInt((request.query as any)?.limit || '10');
+        
+        // Obtener polígonos con tráfico
+        const allMetrics = apiService.getAllTrafficMetrics();
+        const topPolygons = allMetrics
+            .filter(m => m.totalJams > 0)
+            .slice(0, limit);
+        
+        // Obtener comparaciones en paralelo (con límite para no sobrecargar)
+        const comparisons = await Promise.all(
+            topPolygons.map(async (metrics) => {
+                const polygon = REAL_POLYGONS.find(p => p.id === metrics.polygonId);
+                if (!polygon) return null;
+                
+                const centerLat = polygon.coordinates?.lat || -31.4173;
+                const centerLon = polygon.coordinates?.lon || -64.1833;
+                
+                try {
+                    return await externalTrafficService.getSpeedComparison(
+                        polygon.id,
+                        polygon.name,
+                        centerLat,
+                        centerLon,
+                        metrics.avgSpeed
+                    );
+                } catch (error) {
+                    const err = error instanceof Error ? error : new Error(String(error));
+                    server.log.error(err, `Error getting speed for ${polygon.name}`);
+                    return null;
+                }
+            })
+        );
+        
+        return comparisons.filter(c => c !== null);
+    } catch (error) {
+        server.log.error(error);
+        reply.code(500).send({ error: 'Failed to get speed comparisons' });
     }
 });
 

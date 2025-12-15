@@ -31,8 +31,8 @@ export const TopCriticalDashboard: React.FC<TopCriticalDashboardProps> = ({
           🏆 Top Polígonos Críticos
         </h2>
         <div className="text-center py-8 text-gray-400">
-          <p className="text-sm">No hay zonas con problemas</p>
-          <p className="text-xs mt-2">✅ Toda la red vial circula con normalidad</p>
+          <p className="text-sm">No hay polígonos críticos en este momento</p>
+          <p className="text-xs mt-2">✅ Todos los polígonos están fluidos</p>
         </div>
       </div>
     );
@@ -45,25 +45,18 @@ export const TopCriticalDashboard: React.FC<TopCriticalDashboardProps> = ({
     return `#${index + 1}`;
   };
 
-  const getSeverityColor = (index: number) => {
+  const getCongestionColor = (index: number) => {
     if (index >= 80) return 'bg-red-600 text-white';
     if (index >= 60) return 'bg-orange-500 text-white';
     if (index >= 40) return 'bg-yellow-500 text-white';
     return 'bg-green-500 text-white';
-  };
-  
-  const getSeverityLabel = (index: number) => {
-    if (index >= 80) return 'MUY CRÍTICO';
-    if (index >= 60) return 'CRÍTICO';
-    if (index >= 40) return 'MODERADO';
-    return 'NORMAL';
   };
 
   return (
     <div className="card">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold text-gray-900">
-          🚦 Zonas con Mayor Congestión
+          🏆 Top {limit} Polígonos Críticos
         </h2>
         <div className="text-right">
           <div className="text-xs text-gray-600">
@@ -122,9 +115,9 @@ export const TopCriticalDashboard: React.FC<TopCriticalDashboardProps> = ({
                     </div>
 
                     <div className="bg-gray-50 rounded px-2 py-1 flex flex-col items-center justify-center text-center">
-                      <div className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Estado</div>
-                      <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getSeverityColor(metrics.congestionIndex)}`}>
-                        {getSeverityLabel(metrics.congestionIndex)}
+                      <div className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Índice</div>
+                      <div className={`text-sm font-bold px-2 py-0.5 rounded-full ${getCongestionColor(metrics.congestionIndex)}`}>
+                        {metrics.congestionIndex}
                       </div>
                     </div>
                   </div>
@@ -144,10 +137,3 @@ export const TopCriticalDashboard: React.FC<TopCriticalDashboardProps> = ({
   );
 };
 
-// Helper función para obtener color de congestión
-function getCongestionColor(index: number): string {
-  if (index >= 80) return 'bg-red-600';
-  if (index >= 60) return 'bg-orange-500';
-  if (index >= 40) return 'bg-yellow-500';
-  return 'bg-green-500';
-}

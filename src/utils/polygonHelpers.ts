@@ -19,11 +19,3 @@ export const getPolygonGroups = (polygons: Polygon[]): string[] => {
     return Array.from(new Set(polygons.map(p => p.group)));
 };
 
-/**
- * Filtra polígonos por grupo
- */
-export const getPolygonsByGroup = (polygons: Polygon[], group: string): Polygon[] => {
-    return polygons.filter(p => p.group === group);
-};
-
-

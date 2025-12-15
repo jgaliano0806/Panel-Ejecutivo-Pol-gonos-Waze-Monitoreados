@@ -16,32 +16,32 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
 }) => {
   const metrics = [
     {
-      label: 'Estado General',
-      value: kpis.fluidityPercentage >= 70 ? 'Fluido' : kpis.fluidityPercentage >= 50 ? 'Normal' : 'Con Demoras',
-      subtext: `${totalPolygons - criticalPolygons} de ${totalPolygons} zonas sin problemas`,
+      label: 'Fluidez del Sistema',
+      value: `${kpis.fluidityPercentage}%`,
+      subtext: `${totalPolygons - criticalPolygons}/${totalPolygons} polígonos fluidos`,
       icon: '🎯',
       color: kpis.fluidityPercentage >= 70 ? 'green' : kpis.fluidityPercentage >= 50 ? 'yellow' : 'red',
     },
     {
-      label: 'Situaciones Críticas',
-      value: (alertStats?.bySeverity.critical || 0) + (alertStats?.bySeverity.high || 0),
+      label: 'Alertas Activas',
+      value: alertStats?.active || 0,
       subtext: alertStats?.bySeverity.critical 
-        ? `${alertStats.bySeverity.critical} requieren atención urgente`
-        : 'Todo bajo control',
+        ? `${alertStats.bySeverity.critical} críticas`
+        : 'Sin críticas',
       icon: '🚨',
-      color: (alertStats?.bySeverity.critical || 0) > 0 ? 'red' : (alertStats?.bySeverity.high || 0) > 0 ? 'yellow' : 'green',
+      color: (alertStats?.bySeverity.critical || 0) > 0 ? 'red' : 'green',
     },
     {
-      label: 'Eventos Reportados',
+      label: 'Incidentes Activos',
       value: kpis.activeIncidents,
-      subtext: kpis.activeConstructions > 0 ? `${kpis.activeConstructions} obras en curso` : 'Sin obras activas',
+      subtext: `${kpis.activeConstructions} obras activas`,
       icon: '⚠️',
       color: kpis.activeIncidents > 50 ? 'red' : kpis.activeIncidents > 20 ? 'yellow' : 'green',
     },
     {
-      label: 'Zonas con Problemas',
+      label: 'Polígonos Críticos',
       value: criticalPolygons,
-      subtext: criticalPolygons > 0 ? `Requieren monitoreo` : 'Todas las zonas fluidas',
+      subtext: `${((criticalPolygons / totalPolygons) * 100).toFixed(0)}% del total`,
       icon: '🚦',
       color: criticalPolygons > 10 ? 'red' : criticalPolygons > 5 ? 'yellow' : 'green',
     },
@@ -118,3 +118,4 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
     </div>
   );
 };
+
