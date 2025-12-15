@@ -18,7 +18,7 @@ style.textContent = `
       opacity: 1;
     }
   }
-  
+
   @keyframes shimmer {
     0% {
       transform: translateX(-100%);
@@ -27,7 +27,7 @@ style.textContent = `
       transform: translateX(100%);
     }
   }
-  
+
   @keyframes fadeIn {
     from {
       opacity: 0;
@@ -237,7 +237,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                           {expandedIncident === incident.id && (
                             <div
                               className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fadeIn"
-                              style={{ 
+                              style={{
                                 background: 'rgba(0, 0, 0, 0.75)',
                                 backdropFilter: 'blur(8px)'
                               }}
@@ -256,9 +256,9 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                 {/* Header del Modal */}
                                 <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 text-white px-8 py-6 relative overflow-hidden">
                                   {/* Efecto de brillo animado */}
-                                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" 
+                                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"
                                        style={{ animation: 'shimmer 3s infinite' }}></div>
-                                  
+
                                   <div className="relative z-10 flex items-center justify-between">
                                     <div className="flex items-center gap-4">
                                       <div className="text-5xl drop-shadow-lg animate-bounce" style={{ animationDuration: '2s' }}>
@@ -295,13 +295,13 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                 {/* Contenido Scrolleable */}
                                 <div className="flex-1 overflow-y-auto">
                                   {/* Mapa con efecto de entrada */}
-                              <div
+                                  <div
                                     className="relative overflow-hidden"
                                     style={{ height: '400px' }}
                                   >
                                     {/* Overlay con gradiente */}
                                     <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-black/20 to-transparent z-10 pointer-events-none"></div>
-                                    
+
                                     <MapContainer
                                       center={[incident.location.lat, incident.location.lng]}
                                       zoom={17}
