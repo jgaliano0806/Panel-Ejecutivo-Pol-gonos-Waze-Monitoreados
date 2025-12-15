@@ -61,6 +61,11 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
   onEventClick,
 }) => {
   const [expandedIncident, setExpandedIncident] = useState<string | null>(null);
+  
+  // Encontrar el incidente expandido
+  const currentExpandedIncident = expandedIncident 
+    ? incidents.find(i => i.id === expandedIncident)
+    : null;
   const formatCoordinates = (lat: number, lng: number) => {
     return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
   };
@@ -233,8 +238,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                             </button>
                           </div>
 
-                          {/* Modal Flotante del Minimapa */}
-                          {expandedIncident === incident.id && (
+                          {/* Confirmaciones de Wazers */}
                             <div
                               className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fadeIn"
                               style={{
@@ -421,11 +425,6 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                     </p>
                                   </div>
                                 </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
                           {/* Confirmaciones de Wazers */}
                           {incident.nThumbsUp !== undefined && (
                             <div className="mt-3 pt-3 border-t-2 border-dashed border-gray-300">
@@ -563,6 +562,207 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
             </div>
           )}
         </div>
+
+        {/* Modal Flotante del Minimapa - Fuera del listado */}
+        {currentExpandedIncident && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fadeIn"
+            style={{
+              background: 'rgba(0, 0, 0, 0.75)',
+              backdropFilter: 'blur(8px)'
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpandedIncident(null);
+            }}
+          >
+            <div
+              className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[85vh] overflow-hidden flex flex-col animate-scaleIn"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                animation: 'scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
+              }}
+            >
+              {(() => {
+                const emoji = getIncidentEmoji(currentExpandedIncident.type, currentExpandedIncident.subtype);
+                const typeDescription = getIncidentDescription(currentExpandedIncident.type, currentExpandedIncident.subtype);
+                
+                return (
+                  <>
+                    {/* Header del Modal */}
+                    <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 text-white px-8 py-6 relative overflow-hidden">
+                      {/* Efecto de brillo animado */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"
+                           style={{ animation: 'shimmer 3s infinite' }}></div>
+
+                      <div className="relative z-10 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="text-5xl drop-shadow-lg animate-bounce" style={{ animationDuration: '2s' }}>
+                            {emoji}
+                          </div>
+                          <div>
+                            <h3 className="text-2xl font-black mb-1">{typeDescription}</h3>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-3 py-1 rounded-full text-xs font-bold ${getSeverityColor(currentExpandedIncident.severity)} shadow-lg`}>
+                                {getSeverityLabel(currentExpandedIncident.severity)}
+                              </span>
+                              {currentExpandedIncident.nThumbsUp !== undefined && currentExpandedIncident.nThumbsUp > 0 && (
+                                <span className="px-3 py-1 bg-white/30 backdrop-blur-sm rounded-full text-xs font-bold">
+                                  👍 {currentExpandedIncident.nThumbsUp} confirmaciones
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedIncident(null);
+                          }}
+                          className="text-white hover:bg-white/20 rounded-full p-3 transition-all duration-300 hover:scale-110 hover:rotate-90 group"
+                        >
+                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Contenido Scrolleable */}
+                    <div className="flex-1 overflow-y-auto">
+                      {/* Mapa con efecto de entrada */}
+                      <div
+                        className="relative overflow-hidden"
+                        style={{ height: '400px' }}
+                      >
+                        {/* Overlay con gradiente */}
+                        <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-black/20 to-transparent z-10 pointer-events-none"></div>
+
+                        <MapContainer
+                          center={[currentExpandedIncident.location.lat, currentExpandedIncident.location.lng]}
+                          zoom={17}
+                          style={{ height: '100%', width: '100%' }}
+                          scrollWheelZoom={true}
+                          zoomControl={true}
+                        >
+                          <TileLayer
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                          />
+                          <Marker position={[currentExpandedIncident.location.lat, currentExpandedIncident.location.lng]}>
+                            <Popup>
+                              <div className="text-center p-2">
+                                <p className="font-black text-xl mb-2">{emoji}</p>
+                                <p className="font-bold text-base mb-1">{typeDescription}</p>
+                                {currentExpandedIncident.street && <p className="text-sm text-gray-600">{currentExpandedIncident.street}</p>}
+                              </div>
+                            </Popup>
+                          </Marker>
+                        </MapContainer>
+                      </div>
+
+                      {/* Información Detallada con Cards Mejoradas */}
+                      <div className="p-8 bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="flex-1 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-indigo-500 rounded-full"></div>
+                          <h4 className="font-black text-2xl text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+                            📋 Detalles Completos
+                          </h4>
+                          <div className="flex-1 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-blue-500 rounded-full"></div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Card Ubicación Principal */}
+                          {currentExpandedIncident.street && (
+                            <div className="md:col-span-2 bg-gradient-to-br from-white to-blue-50 rounded-2xl p-5 border-2 border-blue-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                              <div className="flex items-start gap-4">
+                                <span className="text-4xl">📍</span>
+                                <div className="flex-1">
+                                  <p className="text-gray-500 font-bold text-sm mb-2">UBICACIÓN EXACTA</p>
+                                  <p className="text-gray-900 font-black text-xl mb-1">{currentExpandedIncident.street}</p>
+                                  {currentExpandedIncident.city && (
+                                    <p className="text-gray-600 font-semibold">{currentExpandedIncident.city}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Card Coordenadas */}
+                          <div className="bg-gradient-to-br from-white to-emerald-50 rounded-2xl p-5 border-2 border-emerald-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                            <div className="flex items-center gap-3 mb-3">
+                              <span className="text-3xl">🌍</span>
+                              <p className="text-gray-700 font-bold">COORDENADAS GPS</p>
+                            </div>
+                            <div className="space-y-2 bg-white/50 rounded-lg p-3">
+                              <div>
+                                <p className="text-gray-500 text-xs font-semibold">Latitud</p>
+                                <p className="text-gray-900 font-mono font-bold text-lg">{currentExpandedIncident.location.lat.toFixed(6)}</p>
+                              </div>
+                              <div className="border-t border-gray-200 pt-2">
+                                <p className="text-gray-500 text-xs font-semibold">Longitud</p>
+                                <p className="text-gray-900 font-mono font-bold text-lg">{currentExpandedIncident.location.lng.toFixed(6)}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Card Fecha y Hora */}
+                          <div className="bg-gradient-to-br from-white to-orange-50 rounded-2xl p-5 border-2 border-orange-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                            <div className="flex items-center gap-3 mb-3">
+                              <span className="text-3xl">🕐</span>
+                              <p className="text-gray-700 font-bold">FECHA Y HORA</p>
+                            </div>
+                            <div className="bg-white/50 rounded-lg p-3">
+                              <p className="text-gray-900 font-bold text-base leading-relaxed">
+                                {new Date(currentExpandedIncident.timestamp).toLocaleString('es-AR', {
+                                  dateStyle: 'full',
+                                  timeStyle: 'short'
+                                })}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Card Confirmaciones */}
+                          {currentExpandedIncident.nThumbsUp !== undefined && (
+                            <div className="md:col-span-2 bg-gradient-to-br from-white to-green-50 rounded-2xl p-5 border-2 border-green-300 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                  <span className="text-5xl">👍</span>
+                                  <div>
+                                    <p className="text-gray-500 font-bold text-sm mb-1">CONFIRMADO POR WAZERS</p>
+                                    <p className="text-green-700 font-black text-3xl">
+                                      {currentExpandedIncident.nThumbsUp} {currentExpandedIncident.nThumbsUp === 1 ? 'usuario' : 'usuarios'}
+                                    </p>
+                                  </div>
+                                </div>
+                                {currentExpandedIncident.nThumbsUp > 5 && (
+                                  <div className="bg-green-600 text-white px-6 py-3 rounded-full shadow-lg">
+                                    <p className="font-black text-sm">✓ ALTA</p>
+                                    <p className="font-black text-xs">CONFIANZA</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Footer del Modal */}
+                    <div className="bg-gradient-to-r from-gray-100 to-gray-200 px-8 py-4 border-t-2 border-gray-300">
+                      <div className="flex items-center justify-center gap-3">
+                        <span className="text-2xl">💡</span>
+                        <p className="text-gray-700 font-semibold text-sm">
+                          Haz zoom o mueve el mapa para explorar el área
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="bg-gradient-to-r from-gray-100 to-gray-200 px-8 py-4 border-t-2 border-gray-300">
