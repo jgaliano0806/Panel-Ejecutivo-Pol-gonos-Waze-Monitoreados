@@ -5,6 +5,9 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    port: 5173,
+    strictPort: true, // Falla si el puerto está ocupado en lugar de usar otro
+    host: true, // Permite acceso desde la red local
     proxy: {
       '/api': {
         target: 'http://localhost:3001',
