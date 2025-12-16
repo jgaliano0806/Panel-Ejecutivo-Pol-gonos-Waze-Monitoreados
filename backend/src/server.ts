@@ -29,11 +29,20 @@ server.register(cors, {
 
 // Hook global de manejo de errores
 server.setErrorHandler((error, request, reply) => {
-    server.log.error(error);
+    server.log.error({
+        error: error.message,
+        stack: error.stack,
+        url: request.url,
+        method: request.method,
+    }, 'Error en servidor');
+    
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     reply.status(500).send({
         error: 'Internal Server Error',
-        message: process.env.NODE_ENV === 'development' ? errorMessage : 'Something went wrong'
+        message: process.env.NODE_ENV === 'development' ? errorMessage : 'Something went wrong',
+        ...(process.env.NODE_ENV === 'development' && errorStack ? { stack: errorStack } : {})
     });
 });
 
@@ -61,7 +70,12 @@ server.get('/api/polygons', async (request, reply) => {
         const polygons = apiService.getPolygonsStatus();
         return polygons;
     } catch (error) {
-        reply.code(500).send({ error: 'Failed to get polygons status' });
+        server.log.error({ error, url: request.url }, 'Error en /api/polygons');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        reply.code(500).send({ 
+            error: 'Failed to get polygons status',
+            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        });
     }
 });
 
@@ -83,25 +97,40 @@ server.get('/api/polygons/:id', async (request, reply) => {
 
 server.get('/api/kpis/global', async (request, reply) => {
     try {
-    return apiService.getGlobalKPIs();
+        return apiService.getGlobalKPIs();
     } catch (error) {
-        reply.code(500).send({ error: 'Failed to get global KPIs' });
+        server.log.error({ error, url: request.url }, 'Error en /api/kpis/global');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        reply.code(500).send({ 
+            error: 'Failed to get global KPIs',
+            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        });
     }
 });
 
 server.get('/api/incidents/all', async (request, reply) => {
     try {
-    return wazeService.getAlerts();
+        return wazeService.getAlerts();
     } catch (error) {
-        reply.code(500).send({ error: 'Failed to get incidents' });
+        server.log.error({ error, url: request.url }, 'Error en /api/incidents/all');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        reply.code(500).send({ 
+            error: 'Failed to get incidents',
+            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        });
     }
 });
 
 server.get('/api/jams/all', async (request, reply) => {
     try {
-    return wazeService.getJams();
+        return wazeService.getJams();
     } catch (error) {
-        reply.code(500).send({ error: 'Failed to get traffic jams' });
+        server.log.error({ error, url: request.url }, 'Error en /api/jams/all');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        reply.code(500).send({ 
+            error: 'Failed to get traffic jams',
+            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        });
     }
 });
 
@@ -110,7 +139,12 @@ server.get('/api/traffic-metrics', async (request, reply) => {
         const metrics = apiService.getAllTrafficMetrics();
         return metrics;
     } catch (error) {
-        reply.code(500).send({ error: 'Failed to get traffic metrics' });
+        server.log.error({ error, url: request.url }, 'Error en /api/traffic-metrics');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        reply.code(500).send({ 
+            error: 'Failed to get traffic metrics',
+            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        });
     }
 });
 
@@ -136,7 +170,12 @@ server.get('/api/alerts', async (request, reply) => {
     try {
         return alertService.getActiveAlerts();
     } catch (error) {
-        reply.code(500).send({ error: 'Failed to get alerts' });
+        server.log.error({ error, url: request.url }, 'Error en /api/alerts');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        reply.code(500).send({ 
+            error: 'Failed to get alerts',
+            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        });
     }
 });
 
@@ -144,7 +183,12 @@ server.get('/api/alerts/stats', async (request, reply) => {
     try {
         return alertService.getAlertStats();
     } catch (error) {
-        reply.code(500).send({ error: 'Failed to get alert stats' });
+        server.log.error({ error, url: request.url }, 'Error en /api/alerts/stats');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        reply.code(500).send({ 
+            error: 'Failed to get alert stats',
+            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        });
     }
 });
 

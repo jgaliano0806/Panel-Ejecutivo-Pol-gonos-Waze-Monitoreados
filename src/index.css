@@ -106,10 +106,10 @@
 
 /* Ocultar mensajes de desarrollo de Google Maps */
 .gm-style-cc,
-.gm-style-cc > div,
-.gm-style-cc > div > div,
-.gm-style > div:first-child > div:last-child > div:first-child,
-.gm-style > div:first-child > div:last-child > div:first-child > div {
+.gm-style-cc>div,
+.gm-style-cc>div>div,
+.gm-style>div:first-child>div:last-child>div:first-child,
+.gm-style>div:first-child>div:last-child>div:first-child>div {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;

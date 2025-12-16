@@ -298,11 +298,21 @@ export class WazeService {
     // --- Public Accessors ---
 
     getAlerts(): InternalAlert[] {
-        return this.currentAlerts;
+        try {
+            return this.currentAlerts || [];
+        } catch (error) {
+            console.error('Error en getAlerts:', error);
+            return [];
+        }
     }
 
     getJams(): InternalJam[] {
-        return this.currentJams;
+        try {
+            return this.currentJams || [];
+        } catch (error) {
+            console.error('Error en getJams:', error);
+            return [];
+        }
     }
 
     getLastUpdate(): Date {

@@ -619,7 +619,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                         <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-black/20 to-transparent z-10 pointer-events-none"></div>
 
                         {GOOGLE_MAPS_API_KEY ? (
-                          <LoadScript 
+                          <LoadScript
                             googleMapsApiKey={GOOGLE_MAPS_API_KEY}
                             loadingElement={
                               <div className="flex items-center justify-center h-full bg-gray-50">
@@ -659,8 +659,8 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                   allDivs.forEach((div) => {
                                     const text = div.textContent || '';
                                     const style = (div as HTMLElement).getAttribute('style') || '';
-                                    
-                                    if (text.includes('Esta página no puede cargar Google Maps') || 
+
+                                    if (text.includes('Esta página no puede cargar Google Maps') ||
                                         text.includes('¿Eres el propietario de este sitio web?') ||
                                         text.includes('Aceptar') ||
                                         (style.includes('background-color: white') && style.includes('font-weight: 500') && style.includes('Roboto'))) {
@@ -668,18 +668,18 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                       (div as HTMLElement).remove();
                                     }
                                   });
-                                  
+
                                   // Ocultar elementos con clases específicas de Google Maps
                                   document.querySelectorAll('.gm-style-cc, .gm-style-cc > div, .gm-style-cc > div > div').forEach((el) => {
                                     (el as HTMLElement).style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
                                   });
                                 };
-                                
+
                                 // Ejecutar inmediatamente y luego periódicamente
                                 setTimeout(hideMessages, 100);
                                 setTimeout(hideMessages, 500);
                                 setTimeout(hideMessages, 1000);
-                                
+
                                 // Observer para detectar nuevos elementos que aparezcan
                                 const observer = new MutationObserver(hideMessages);
                                 observer.observe(document.body, {
@@ -687,7 +687,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                   subtree: true,
                                   attributes: true,
                                 });
-                                
+
                                 // Limpiar observer después de 10 segundos
                                 setTimeout(() => observer.disconnect(), 10000);
                               }}
