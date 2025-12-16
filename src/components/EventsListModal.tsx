@@ -713,8 +713,10 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                     <p className="text-xs text-gray-500 mt-1">{currentExpandedIncident.city}</p>
                                   )}
                                   {!isIncident && currentExpandedAlert && (
-                                    <p className="text-sm text-gray-700">{currentExpandedAlert.location}</p>
-                                    <p className="text-xs text-gray-500 mt-1">{currentExpandedAlert.polygonName}</p>
+                                    <>
+                                      <p className="text-sm text-gray-700">{currentExpandedAlert.location}</p>
+                                      <p className="text-xs text-gray-500 mt-1">{currentExpandedAlert.polygonName}</p>
+                                    </>
                                   )}
                                 </div>
                               </InfoWindow>

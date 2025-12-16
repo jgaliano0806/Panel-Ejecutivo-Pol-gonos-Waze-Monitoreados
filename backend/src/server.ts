@@ -35,10 +35,10 @@ server.setErrorHandler((error, request, reply) => {
         url: request.url,
         method: request.method,
     }, 'Error en servidor');
-    
+
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : undefined;
-    
+
     reply.status(500).send({
         error: 'Internal Server Error',
         message: process.env.NODE_ENV === 'development' ? errorMessage : 'Something went wrong',
@@ -57,12 +57,22 @@ server.addHook('onSend', async (request, reply) => {
 // --- Rutas ---
 
 server.get('/health', async () => {
-    return {
-        status: 'ok',
-        uptime: process.uptime(),
-        lastWazeUpdate: wazeService.getLastUpdate(),
-        memory: process.memoryUsage()
-    };
+    try {
+        return {
+            status: 'ok',
+            uptime: process.uptime(),
+            lastWazeUpdate: wazeService.getLastUpdate(),
+            memory: process.memoryUsage(),
+            alertsCount: wazeService.getAlerts().length,
+            jamsCount: wazeService.getJams().length,
+        };
+    } catch (error) {
+        server.log.error({ error }, 'Error en /health');
+        return {
+            status: 'error',
+            error: error instanceof Error ? error.message : 'Unknown error'
+        };
+    }
 });
 
 server.get('/api/polygons', async (request, reply) => {
@@ -72,7 +82,7 @@ server.get('/api/polygons', async (request, reply) => {
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/polygons');
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        reply.code(500).send({ 
+        reply.code(500).send({
             error: 'Failed to get polygons status',
             message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
         });
@@ -101,7 +111,7 @@ server.get('/api/kpis/global', async (request, reply) => {
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/kpis/global');
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        reply.code(500).send({ 
+        reply.code(500).send({
             error: 'Failed to get global KPIs',
             message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
         });
@@ -114,7 +124,7 @@ server.get('/api/incidents/all', async (request, reply) => {
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/incidents/all');
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        reply.code(500).send({ 
+        reply.code(500).send({
             error: 'Failed to get incidents',
             message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
         });
@@ -127,7 +137,7 @@ server.get('/api/jams/all', async (request, reply) => {
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/jams/all');
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        reply.code(500).send({ 
+        reply.code(500).send({
             error: 'Failed to get traffic jams',
             message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
         });
@@ -141,7 +151,7 @@ server.get('/api/traffic-metrics', async (request, reply) => {
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/traffic-metrics');
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        reply.code(500).send({ 
+        reply.code(500).send({
             error: 'Failed to get traffic metrics',
             message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
         });
@@ -152,12 +162,12 @@ server.get('/api/traffic-metrics/:polygonId', async (request, reply) => {
     try {
         const { polygonId } = request.params as { polygonId: string };
         const metrics = apiService.getTrafficMetricsByPolygon(polygonId);
-        
+
         if (!metrics) {
             reply.code(404).send({ error: 'Polygon not found' });
             return;
         }
-        
+
         return metrics;
     } catch (error) {
         reply.code(500).send({ error: 'Failed to get polygon traffic metrics' });
@@ -172,7 +182,7 @@ server.get('/api/alerts', async (request, reply) => {
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/alerts');
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        reply.code(500).send({ 
+        reply.code(500).send({
             error: 'Failed to get alerts',
             message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
         });
@@ -185,7 +195,7 @@ server.get('/api/alerts/stats', async (request, reply) => {
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/alerts/stats');
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        reply.code(500).send({ 
+        reply.code(500).send({
             error: 'Failed to get alert stats',
             message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
         });
@@ -214,14 +224,14 @@ server.post('/api/alerts/:alertId/acknowledge', async (request, reply) => {
     try {
         const { alertId } = request.params as { alertId: string };
         const body = request.body as { acknowledgedBy?: string };
-        
+
         const success = alertService.acknowledgeAlert(alertId, body.acknowledgedBy);
-        
+
         if (!success) {
             reply.code(404).send({ error: 'Alert not found' });
             return;
         }
-        
+
         return { success: true, message: 'Alert acknowledged' };
     } catch (error) {
         reply.code(500).send({ error: 'Failed to acknowledge alert' });
@@ -235,7 +245,7 @@ server.get('/api/metrics/global', async (request, reply) => {
         const jams = wazeService.getJams();
         const incidents = wazeService.getAlerts();
         const trafficMetrics = apiService.getAllTrafficMetrics();
-        
+
         const globalMetrics = aggregationService.calculateGlobalMetrics(jams, incidents, trafficMetrics);
         return globalMetrics;
     } catch (error) {
@@ -248,7 +258,7 @@ server.get('/api/metrics/top-critical', async (request, reply) => {
         const limit = parseInt((request.query as any)?.limit || '10');
         const jams = wazeService.getJams();
         const incidents = wazeService.getAlerts();
-        
+
         const topCritical = aggregationService.getTopCriticalPolygons(jams, incidents, limit);
         return topCritical;
     } catch (error) {
@@ -310,7 +320,7 @@ server.get('/api/data-quality/report', async (request, reply) => {
     try {
         const incidents = wazeService.getAlerts();
         const report = dataQualityService.generateQualityReport(incidents);
-        
+
         // Convertir Map a objeto para JSON
         const reportJson = {
             timestamp: report.timestamp,
@@ -318,7 +328,7 @@ server.get('/api/data-quality/report', async (request, reply) => {
             byPolygon: Object.fromEntries(report.byPolygon),
             lowQualityIncidents: report.lowQualityIncidents
         };
-        
+
         return reportJson;
     } catch (error) {
         reply.code(500).send({ error: 'Failed to generate quality report' });
@@ -448,12 +458,12 @@ server.get('/api/incidents/stats/polygon/:polygonId', async (request, reply) => 
     try {
         const { polygonId } = request.params as { polygonId: string };
         const polygon = REAL_POLYGONS.find(p => p.id === polygonId);
-        
+
         if (!polygon) {
             reply.code(404).send({ error: 'Polygon not found' });
             return;
         }
-        
+
         const alerts = wazeService.getAlerts();
         const jams = wazeService.getJams();
         const stats = incidentStatsService.getPolygonStats(
@@ -462,7 +472,7 @@ server.get('/api/incidents/stats/polygon/:polygonId', async (request, reply) => 
             alerts,
             jams
         );
-        
+
         return stats;
     } catch (error) {
         reply.code(500).send({ error: 'Failed to get polygon incident stats' });
@@ -476,20 +486,20 @@ server.get('/api/incidents/stats/polygon/:polygonId', async (request, reply) => 
 server.get('/api/incidents/types-summary', async (request, reply) => {
     try {
         const alerts = wazeService.getAlerts();
-        
+
         // Agrupar por tipo
         const typeCounts = new Map<string, number>();
         for (const alert of alerts) {
             const count = typeCounts.get(alert.type) || 0;
             typeCounts.set(alert.type, count + 1);
         }
-        
+
         const summary = Array.from(typeCounts.entries()).map(([type, count]) => ({
             type,
             count,
             emoji: incidentStatsService.getIncidentEmoji(type)
         })).sort((a, b) => b.count - a.count);
-        
+
         return summary;
     } catch (error) {
         reply.code(500).send({ error: 'Failed to get incident types summary' });
@@ -506,21 +516,21 @@ server.get('/api/speed/comparison/:polygonId', async (request, reply) => {
     try {
         const { polygonId } = request.params as { polygonId: string };
         const polygon = REAL_POLYGONS.find(p => p.id === polygonId);
-        
+
         if (!polygon) {
             reply.code(404).send({ error: 'Polygon not found' });
             return;
         }
-        
+
         // Obtener velocidad de Waze
         const trafficMetrics = apiService.getTrafficMetricsByPolygon(polygonId);
         const wazeSpeed = trafficMetrics?.avgSpeed || null;
-        
+
         // Calcular centro del polígono (aproximado)
         // En producción, esto debería venir de la config del polígono
         const centerLat = polygon.coordinates?.lat || -31.4173; // Córdoba por defecto
         const centerLon = polygon.coordinates?.lon || -64.1833;
-        
+
         const comparison = await externalTrafficService.getSpeedComparison(
             polygonId,
             polygon.name,
@@ -528,7 +538,7 @@ server.get('/api/speed/comparison/:polygonId', async (request, reply) => {
             centerLon,
             wazeSpeed
         );
-        
+
         return comparison;
     } catch (error) {
         server.log.error(error);
@@ -543,22 +553,22 @@ server.get('/api/speed/comparison/:polygonId', async (request, reply) => {
 server.get('/api/speed/comparison/all', async (request, reply) => {
     try {
         const limit = parseInt((request.query as any)?.limit || '10');
-        
+
         // Obtener polígonos con tráfico
         const allMetrics = apiService.getAllTrafficMetrics();
         const topPolygons = allMetrics
             .filter(m => m.totalJams > 0)
             .slice(0, limit);
-        
+
         // Obtener comparaciones en paralelo (con límite para no sobrecargar)
         const comparisons = await Promise.all(
             topPolygons.map(async (metrics) => {
                 const polygon = REAL_POLYGONS.find(p => p.id === metrics.polygonId);
                 if (!polygon) return null;
-                
+
                 const centerLat = polygon.coordinates?.lat || -31.4173;
                 const centerLon = polygon.coordinates?.lon || -64.1833;
-                
+
                 try {
                     return await externalTrafficService.getSpeedComparison(
                         polygon.id,
@@ -574,7 +584,7 @@ server.get('/api/speed/comparison/all', async (request, reply) => {
                 }
             })
         );
-        
+
         return comparisons.filter(c => c !== null);
     } catch (error) {
         server.log.error(error);
