@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { GlobalKPIs, AlertStats, Incident, TrafficAlert } from '../../types';
+import type { GlobalKPIs, AlertStats, Incident, TrafficAlert, Polygon } from '../../types';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { cn } from '../../lib/utils';
@@ -14,6 +14,7 @@ interface ModernExecutiveSummaryProps {
   criticalPolygons: number;
   incidents?: Incident[];
   alerts?: TrafficAlert[];
+  polygons?: Polygon[];
   onEventSelect?: (incident: Incident) => void;
 }
 
@@ -24,6 +25,7 @@ export const ModernExecutiveSummary: React.FC<ModernExecutiveSummaryProps> = ({
   criticalPolygons,
   incidents = [],
   alerts = [],
+  polygons = [],
   onEventSelect,
 }) => {
   const [showEventsModal, setShowEventsModal] = useState(false);
@@ -358,6 +360,7 @@ export const ModernExecutiveSummary: React.FC<ModernExecutiveSummaryProps> = ({
         <EventsListModal
           incidents={incidents}
           alerts={alerts}
+          polygons={polygons}
           onClose={() => setShowEventsModal(false)}
           onEventClick={handleEventClick}
         />

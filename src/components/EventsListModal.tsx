@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Incident, TrafficAlert } from '../types';
+import type { Incident, TrafficAlert, Polygon } from '../types';
 import { getIncidentDescription, getIncidentEmoji } from '../utils/wazeTranslations';
 import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
 
@@ -49,6 +49,7 @@ document.head.appendChild(style);
 interface EventsListModalProps {
   incidents: Incident[];
   alerts: TrafficAlert[];
+  polygons?: Polygon[];
   onClose: () => void;
   onEventClick: (event: Incident | TrafficAlert, type: 'incident' | 'alert') => void;
 }
@@ -56,17 +57,66 @@ interface EventsListModalProps {
 export const EventsListModal: React.FC<EventsListModalProps> = ({
   incidents,
   alerts,
+  polygons = [],
   onClose,
   onEventClick,
 }) => {
-  const [expandedIncident, setExpandedIncident] = useState<string | null>(null);
+  const [expandedEvent, setExpandedEvent] = useState<{ id: string; type: 'incident' | 'alert' } | null>(null);
   const [showInfoWindow, setShowInfoWindow] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'incidents' | 'alerts'>('all');
 
-  // Encontrar el incidente expandido
-  const currentExpandedIncident = expandedIncident
-    ? incidents.find(i => i.id === expandedIncident)
+  // Encontrar el evento expandido (incidente o alerta)
+  const currentExpandedIncident = expandedEvent && expandedEvent.type === 'incident'
+    ? incidents.find(i => i.id === expandedEvent.id)
     : null;
+  
+  const currentExpandedAlert = expandedEvent && expandedEvent.type === 'alert'
+    ? alerts.find(a => a.id === expandedEvent.id)
+    : null;
+
+  // Obtener coordenadas del evento expandido
+  const getEventCoordinates = () => {
+    if (currentExpandedIncident) {
+      return {
+        lat: currentExpandedIncident.location.lat,
+        lng: currentExpandedIncident.location.lng,
+      };
+    }
+    if (currentExpandedAlert) {
+      // Buscar el polígono para obtener sus coordenadas
+      const polygon = polygons.find(p => p.id === currentExpandedAlert.polygonId);
+      if (polygon && polygon.geometry && polygon.geometry.coordinates) {
+        // Calcular el centro del polígono desde las coordenadas GeoJSON
+        const coordinates = polygon.geometry.coordinates[0]; // Primer anillo del polígono
+        if (coordinates && coordinates.length > 0) {
+          let sumLat = 0;
+          let sumLng = 0;
+          let count = 0;
+          
+          // Sumar todas las coordenadas
+          for (const coord of coordinates) {
+            if (Array.isArray(coord) && coord.length >= 2) {
+              sumLng += coord[0]; // Longitud
+              sumLat += coord[1]; // Latitud
+              count++;
+            }
+          }
+          
+          if (count > 0) {
+            return {
+              lat: sumLat / count,
+              lng: sumLng / count,
+            };
+          }
+        }
+      }
+      // Fallback: coordenadas de Córdoba centro
+      return { lat: -31.4201, lng: -64.1888 };
+    }
+    return null;
+  };
+
+  const eventCoordinates = getEventCoordinates();
   const formatCoordinates = (lat: number, lng: number) => {
     return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
   };
@@ -253,7 +303,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setExpandedIncident(incident.id);
+                                setExpandedEvent({ id: incident.id, type: 'incident' });
                               }}
                               className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 hover:from-blue-700 hover:via-purple-700 hover:to-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-[1.02] flex items-center justify-center gap-3 group"
                             >
@@ -380,6 +430,25 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                               </div>
                             )}
                           </div>
+
+                          {/* Botón Ver en Minimapa */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedEvent({ id: alert.id, type: 'alert' });
+                            }}
+                            className="w-full mt-3 bg-gradient-to-r from-red-600 via-pink-600 to-rose-600 hover:from-red-700 hover:via-pink-700 hover:to-rose-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-[1.02] flex items-center justify-center gap-3 group"
+                          >
+                            <span className="text-2xl group-hover:scale-125 transition-transform duration-300">
+                              🗺️
+                            </span>
+                            <span className="tracking-wide">
+                              Ver Ubicación en Minimapa
+                            </span>
+                            <span className="text-2xl group-hover:translate-x-1 transition-transform duration-300">
+                              →
+                            </span>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -412,7 +481,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
         </div>
 
         {/* Modal Flotante del Minimapa - Fuera del listado */}
-        {currentExpandedIncident && (
+        {(currentExpandedIncident || currentExpandedAlert) && eventCoordinates && (
           <div
             className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fadeIn"
             style={{
@@ -421,7 +490,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
             }}
             onClick={(e) => {
               e.stopPropagation();
-              setExpandedIncident(null);
+              setExpandedEvent(null);
             }}
           >
             <div
@@ -432,8 +501,31 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
               }}
             >
               {(() => {
-                const emoji = getIncidentEmoji(currentExpandedIncident.type, currentExpandedIncident.subtype);
-                const typeDescription = getIncidentDescription(currentExpandedIncident.type, currentExpandedIncident.subtype);
+                // Determinar si es incidente o alerta
+                const isIncident = !!currentExpandedIncident;
+                const event = currentExpandedIncident || currentExpandedAlert;
+                
+                let emoji: string;
+                let typeDescription: string;
+                let eventData: any;
+
+                if (isIncident && currentExpandedIncident) {
+                  emoji = getIncidentEmoji(currentExpandedIncident.type, currentExpandedIncident.subtype);
+                  typeDescription = getIncidentDescription(currentExpandedIncident.type, currentExpandedIncident.subtype);
+                  eventData = currentExpandedIncident;
+                } else if (currentExpandedAlert) {
+                  const severityConfig = {
+                    critical: { icon: '🚨', label: 'CRÍTICA' },
+                    high: { icon: '⚠️', label: 'ALTA' },
+                    medium: { icon: '⚡', label: 'MEDIA' },
+                    low: { icon: 'ℹ️', label: 'BAJA' },
+                  }[currentExpandedAlert.severity];
+                  emoji = severityConfig.icon;
+                  typeDescription = currentExpandedAlert.message;
+                  eventData = currentExpandedAlert;
+                } else {
+                  return null;
+                }
 
                 return (
                   <>
@@ -451,12 +543,28 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                           <div>
                             <h3 className="text-2xl font-black mb-1">{typeDescription}</h3>
                             <div className="flex items-center gap-2">
-                              <span className={`px-3 py-1 rounded-full text-xs font-bold ${getSeverityColor(currentExpandedIncident.severity)} shadow-lg`}>
-                                {getSeverityLabel(currentExpandedIncident.severity)}
-                              </span>
-                              {currentExpandedIncident.nThumbsUp !== undefined && currentExpandedIncident.nThumbsUp > 0 && (
-                                <span className="px-3 py-1 bg-white/30 backdrop-blur-sm rounded-full text-xs font-bold">
-                                  👍 {currentExpandedIncident.nThumbsUp} confirmaciones
+                              {isIncident && currentExpandedIncident && (
+                                <>
+                                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${getSeverityColor(currentExpandedIncident.severity)} shadow-lg`}>
+                                    {getSeverityLabel(currentExpandedIncident.severity)}
+                                  </span>
+                                  {currentExpandedIncident.nThumbsUp !== undefined && currentExpandedIncident.nThumbsUp > 0 && (
+                                    <span className="px-3 py-1 bg-white/30 backdrop-blur-sm rounded-full text-xs font-bold">
+                                      👍 {currentExpandedIncident.nThumbsUp} confirmaciones
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                              {!isIncident && currentExpandedAlert && (
+                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                  currentExpandedAlert.severity === 'critical' ? 'bg-red-100 border-red-400 text-red-900' :
+                                  currentExpandedAlert.severity === 'high' ? 'bg-orange-100 border-orange-400 text-orange-900' :
+                                  currentExpandedAlert.severity === 'medium' ? 'bg-yellow-100 border-yellow-400 text-yellow-900' :
+                                  'bg-blue-100 border-blue-400 text-blue-900'
+                                } shadow-lg`}>
+                                  {currentExpandedAlert.severity === 'critical' ? 'CRÍTICA' :
+                                   currentExpandedAlert.severity === 'high' ? 'ALTA' :
+                                   currentExpandedAlert.severity === 'medium' ? 'MEDIA' : 'BAJA'}
                                 </span>
                               )}
                             </div>
@@ -465,7 +573,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setExpandedIncident(null);
+                            setExpandedEvent(null);
                           }}
                           className="text-white hover:bg-white/20 rounded-full p-3 transition-all duration-300 hover:scale-110 hover:rotate-90 group"
                         >
@@ -489,10 +597,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                         <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
                           <GoogleMap
                             mapContainerStyle={mapContainerStyle}
-                            center={{
-                              lat: currentExpandedIncident.location.lat,
-                              lng: currentExpandedIncident.location.lng
-                            }}
+                            center={eventCoordinates}
                             zoom={17}
                             options={{
                               zoomControl: true,
@@ -502,30 +607,28 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                             }}
                           >
                             <Marker
-                              position={{
-                                lat: currentExpandedIncident.location.lat,
-                                lng: currentExpandedIncident.location.lng
-                              }}
+                              position={eventCoordinates}
                               onClick={() => setShowInfoWindow(true)}
                               animation={window.google?.maps?.Animation?.DROP}
                             />
 
                             {showInfoWindow && (
                               <InfoWindow
-                                position={{
-                                  lat: currentExpandedIncident.location.lat,
-                                  lng: currentExpandedIncident.location.lng
-                                }}
+                                position={eventCoordinates}
                                 onCloseClick={() => setShowInfoWindow(false)}
                               >
                                 <div className="p-3">
                                   <p className="font-black text-2xl mb-2 text-center">{emoji}</p>
                                   <p className="font-bold text-lg mb-2">{typeDescription}</p>
-                                  {currentExpandedIncident.street && (
+                                  {isIncident && currentExpandedIncident?.street && (
                                     <p className="text-sm text-gray-700">{currentExpandedIncident.street}</p>
                                   )}
-                                  {currentExpandedIncident.city && (
+                                  {isIncident && currentExpandedIncident?.city && (
                                     <p className="text-xs text-gray-500 mt-1">{currentExpandedIncident.city}</p>
+                                  )}
+                                  {!isIncident && currentExpandedAlert && (
+                                    <p className="text-sm text-gray-700">{currentExpandedAlert.location}</p>
+                                    <p className="text-xs text-gray-500 mt-1">{currentExpandedAlert.polygonName}</p>
                                   )}
                                 </div>
                               </InfoWindow>
@@ -546,57 +649,71 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {/* Card Ubicación Principal */}
-                          {currentExpandedIncident.street && (
+                          {(isIncident && currentExpandedIncident?.street) || (!isIncident && currentExpandedAlert) ? (
                             <div className="md:col-span-2 bg-gradient-to-br from-white to-blue-50 rounded-2xl p-5 border-2 border-blue-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
                               <div className="flex items-start gap-4">
                                 <span className="text-4xl">📍</span>
                                 <div className="flex-1">
-                                  <p className="text-gray-500 font-bold text-sm mb-2">UBICACIÓN EXACTA</p>
-                                  <p className="text-gray-900 font-black text-xl mb-1">{currentExpandedIncident.street}</p>
-                                  {currentExpandedIncident.city && (
-                                    <p className="text-gray-600 font-semibold">{currentExpandedIncident.city}</p>
+                                  <p className="text-gray-500 font-bold text-sm mb-2">UBICACIÓN</p>
+                                  {isIncident && currentExpandedIncident?.street && (
+                                    <>
+                                      <p className="text-gray-900 font-black text-xl mb-1">{currentExpandedIncident.street}</p>
+                                      {currentExpandedIncident.city && (
+                                        <p className="text-gray-600 font-semibold">{currentExpandedIncident.city}</p>
+                                      )}
+                                    </>
                                   )}
+                                  {!isIncident && currentExpandedAlert && (
+                                    <>
+                                      <p className="text-gray-900 font-black text-xl mb-1">{currentExpandedAlert.location}</p>
+                                      <p className="text-gray-600 font-semibold">{currentExpandedAlert.polygonName}</p>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {/* Card Coordenadas */}
+                          {eventCoordinates && (
+                            <div className="bg-gradient-to-br from-white to-emerald-50 rounded-2xl p-5 border-2 border-emerald-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                              <div className="flex items-center gap-3 mb-3">
+                                <span className="text-3xl">🌍</span>
+                                <p className="text-gray-700 font-bold">COORDENADAS GPS</p>
+                              </div>
+                              <div className="space-y-2 bg-white/50 rounded-lg p-3">
+                                <div>
+                                  <p className="text-gray-500 text-xs font-semibold">Latitud</p>
+                                  <p className="text-gray-900 font-mono font-bold text-lg">{eventCoordinates.lat.toFixed(6)}</p>
+                                </div>
+                                <div className="border-t border-gray-200 pt-2">
+                                  <p className="text-gray-500 text-xs font-semibold">Longitud</p>
+                                  <p className="text-gray-900 font-mono font-bold text-lg">{eventCoordinates.lng.toFixed(6)}</p>
                                 </div>
                               </div>
                             </div>
                           )}
 
-                          {/* Card Coordenadas */}
-                          <div className="bg-gradient-to-br from-white to-emerald-50 rounded-2xl p-5 border-2 border-emerald-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
-                            <div className="flex items-center gap-3 mb-3">
-                              <span className="text-3xl">🌍</span>
-                              <p className="text-gray-700 font-bold">COORDENADAS GPS</p>
-                            </div>
-                            <div className="space-y-2 bg-white/50 rounded-lg p-3">
-                              <div>
-                                <p className="text-gray-500 text-xs font-semibold">Latitud</p>
-                                <p className="text-gray-900 font-mono font-bold text-lg">{currentExpandedIncident.location.lat.toFixed(6)}</p>
-                              </div>
-                              <div className="border-t border-gray-200 pt-2">
-                                <p className="text-gray-500 text-xs font-semibold">Longitud</p>
-                                <p className="text-gray-900 font-mono font-bold text-lg">{currentExpandedIncident.location.lng.toFixed(6)}</p>
-                              </div>
-                            </div>
-                          </div>
-
                           {/* Card Fecha y Hora */}
-                          <div className="bg-gradient-to-br from-white to-orange-50 rounded-2xl p-5 border-2 border-orange-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
-                            <div className="flex items-center gap-3 mb-3">
-                              <span className="text-3xl">🕐</span>
-                              <p className="text-gray-700 font-bold">FECHA Y HORA</p>
+                          {eventData && (
+                            <div className="bg-gradient-to-br from-white to-orange-50 rounded-2xl p-5 border-2 border-orange-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                              <div className="flex items-center gap-3 mb-3">
+                                <span className="text-3xl">🕐</span>
+                                <p className="text-gray-700 font-bold">FECHA Y HORA</p>
+                              </div>
+                              <div className="bg-white/50 rounded-lg p-3">
+                                <p className="text-gray-900 font-bold text-base leading-relaxed">
+                                  {new Date(eventData.timestamp).toLocaleString('es-AR', {
+                                    dateStyle: 'full',
+                                    timeStyle: 'short'
+                                  })}
+                                </p>
+                              </div>
                             </div>
-                            <div className="bg-white/50 rounded-lg p-3">
-                              <p className="text-gray-900 font-bold text-base leading-relaxed">
-                                {new Date(currentExpandedIncident.timestamp).toLocaleString('es-AR', {
-                                  dateStyle: 'full',
-                                  timeStyle: 'short'
-                                })}
-                              </p>
-                            </div>
-                          </div>
+                          )}
 
-                          {/* Card Confirmaciones */}
-                          {currentExpandedIncident.nThumbsUp !== undefined && (
+                          {/* Card Confirmaciones - Solo para incidentes */}
+                          {isIncident && currentExpandedIncident?.nThumbsUp !== undefined && (
                             <div className="md:col-span-2 bg-gradient-to-br from-white to-green-50 rounded-2xl p-5 border-2 border-green-300 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4">

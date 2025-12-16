@@ -103,6 +103,7 @@ const Dashboard: React.FC = () => {
                             criticalPolygons={criticalPolygonsCount}
                             incidents={incidents}
                             alerts={alerts}
+                            polygons={polygons}
                             onEventSelect={(incident) => {
                                 // Cambiar a vista de mapa y seleccionar el polígono del incidente
                                 if (incident.polygonId) {
