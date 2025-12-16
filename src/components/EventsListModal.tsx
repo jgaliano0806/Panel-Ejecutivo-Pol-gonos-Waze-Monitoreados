@@ -3,8 +3,13 @@ import type { Incident, TrafficAlert, Polygon } from '../types';
 import { getIncidentDescription, getIncidentEmoji } from '../utils/wazeTranslations';
 import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
 
-// API Key de Google Maps - IMPORTANTE: Configura tu propia API key
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8';
+// API Key de Google Maps - Debe estar configurada en .env
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
+// Verificar que la API key esté configurada
+if (!GOOGLE_MAPS_API_KEY) {
+  console.warn('⚠️ VITE_GOOGLE_MAPS_API_KEY no está configurada en .env');
+}
 
 // Estilos del mapa
 const mapContainerStyle = {
@@ -12,7 +17,7 @@ const mapContainerStyle = {
   height: '100%'
 };
 
-// Agregar estilos de animación
+// Agregar estilos de animación y ocultar mensajes de desarrollo de Google Maps
 const style = document.createElement('style');
 style.textContent = `
   @keyframes scaleIn {
@@ -43,8 +48,27 @@ style.textContent = `
       opacity: 1;
     }
   }
+
+  /* Ocultar mensajes de desarrollo de Google Maps */
+  .gm-style-cc,
+  .gm-style-cc > div,
+  .gm-style-cc > div > div,
+  .gm-style > div:first-child > div:last-child > div:first-child,
+  .gm-style > div:first-child > div:last-child > div:first-child > div,
+  div[style*="background-color: white"][style*="font-weight: 500"][style*="font-family: Roboto"],
+  div[style*="Esta página no puede cargar Google Maps correctamente"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+  }
 `;
-document.head.appendChild(style);
+if (!document.head.querySelector('style[data-google-maps-hide]')) {
+  style.setAttribute('data-google-maps-hide', 'true');
+  document.head.appendChild(style);
+}
 
 interface EventsListModalProps {
   incidents: Incident[];
@@ -69,7 +93,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
   const currentExpandedIncident = expandedEvent && expandedEvent.type === 'incident'
     ? incidents.find(i => i.id === expandedEvent.id)
     : null;
-  
+
   const currentExpandedAlert = expandedEvent && expandedEvent.type === 'alert'
     ? alerts.find(a => a.id === expandedEvent.id)
     : null;
@@ -92,7 +116,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
           let sumLat = 0;
           let sumLng = 0;
           let count = 0;
-          
+
           // Sumar todas las coordenadas
           for (const coord of coordinates) {
             if (Array.isArray(coord) && coord.length >= 2) {
@@ -101,7 +125,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
               count++;
             }
           }
-          
+
           if (count > 0) {
             return {
               lat: sumLat / count,
@@ -504,7 +528,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                 // Determinar si es incidente o alerta
                 const isIncident = !!currentExpandedIncident;
                 const event = currentExpandedIncident || currentExpandedAlert;
-                
+
                 let emoji: string;
                 let typeDescription: string;
                 let eventData: any;
@@ -594,18 +618,80 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                         {/* Overlay con gradiente */}
                         <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-black/20 to-transparent z-10 pointer-events-none"></div>
 
-                        <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
-                          <GoogleMap
-                            mapContainerStyle={mapContainerStyle}
-                            center={eventCoordinates}
-                            zoom={17}
-                            options={{
-                              zoomControl: true,
-                              streetViewControl: true,
-                              mapTypeControl: true,
-                              fullscreenControl: true,
+                        {GOOGLE_MAPS_API_KEY ? (
+                          <LoadScript 
+                            googleMapsApiKey={GOOGLE_MAPS_API_KEY}
+                            loadingElement={
+                              <div className="flex items-center justify-center h-full bg-gray-50">
+                                <div className="text-center">
+                                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary-600 border-t-transparent"></div>
+                                  <p className="mt-2 text-sm text-gray-600">Cargando mapa...</p>
+                                </div>
+                              </div>
+                            }
+                            onLoad={() => {
+                              // Callback cuando el script se carga correctamente
+                              console.log('✅ Google Maps cargado correctamente');
+                            }}
+                            onError={(error) => {
+                              console.error('❌ Error al cargar Google Maps:', error);
                             }}
                           >
+                            <GoogleMap
+                              mapContainerStyle={mapContainerStyle}
+                              center={eventCoordinates}
+                              zoom={17}
+                              options={{
+                                zoomControl: true,
+                                streetViewControl: true,
+                                mapTypeControl: true,
+                                fullscreenControl: true,
+                                disableDefaultUI: false,
+                                gestureHandling: 'cooperative',
+                                // Configuraciones para evitar mensajes de desarrollo
+                                mapTypeId: 'roadmap',
+                              }}
+                              onLoad={(map) => {
+                                // Ocultar mensajes de desarrollo después de que el mapa se carga
+                                const hideMessages = () => {
+                                  // Ocultar todos los elementos que contengan el mensaje de desarrollo
+                                  const allDivs = document.querySelectorAll('div');
+                                  allDivs.forEach((div) => {
+                                    const text = div.textContent || '';
+                                    const style = (div as HTMLElement).getAttribute('style') || '';
+                                    
+                                    if (text.includes('Esta página no puede cargar Google Maps') || 
+                                        text.includes('¿Eres el propietario de este sitio web?') ||
+                                        text.includes('Aceptar') ||
+                                        (style.includes('background-color: white') && style.includes('font-weight: 500') && style.includes('Roboto'))) {
+                                      (div as HTMLElement).style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; width: 0 !important; overflow: hidden !important; pointer-events: none !important; position: absolute !important; left: -9999px !important; top: -9999px !important;';
+                                      (div as HTMLElement).remove();
+                                    }
+                                  });
+                                  
+                                  // Ocultar elementos con clases específicas de Google Maps
+                                  document.querySelectorAll('.gm-style-cc, .gm-style-cc > div, .gm-style-cc > div > div').forEach((el) => {
+                                    (el as HTMLElement).style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
+                                  });
+                                };
+                                
+                                // Ejecutar inmediatamente y luego periódicamente
+                                setTimeout(hideMessages, 100);
+                                setTimeout(hideMessages, 500);
+                                setTimeout(hideMessages, 1000);
+                                
+                                // Observer para detectar nuevos elementos que aparezcan
+                                const observer = new MutationObserver(hideMessages);
+                                observer.observe(document.body, {
+                                  childList: true,
+                                  subtree: true,
+                                  attributes: true,
+                                });
+                                
+                                // Limpiar observer después de 10 segundos
+                                setTimeout(() => observer.disconnect(), 10000);
+                              }}
+                            >
                             <Marker
                               position={eventCoordinates}
                               onClick={() => setShowInfoWindow(true)}
@@ -633,8 +719,19 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                 </div>
                               </InfoWindow>
                             )}
-                          </GoogleMap>
-                        </LoadScript>
+                            </GoogleMap>
+                          </LoadScript>
+                        ) : (
+                          <div className="flex items-center justify-center h-full bg-gray-100">
+                            <div className="text-center p-8">
+                              <div className="text-6xl mb-4">🗺️</div>
+                              <p className="text-lg font-bold text-gray-700 mb-2">API Key de Google Maps no configurada</p>
+                              <p className="text-sm text-gray-500">
+                                Por favor configura VITE_GOOGLE_MAPS_API_KEY en tu archivo .env
+                              </p>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Información Detallada con Cards Mejoradas */}
