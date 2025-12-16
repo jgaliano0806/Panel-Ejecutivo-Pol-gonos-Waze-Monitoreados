@@ -61,6 +61,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
 }) => {
   const [expandedIncident, setExpandedIncident] = useState<string | null>(null);
   const [showInfoWindow, setShowInfoWindow] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'incidents' | 'alerts'>('all');
 
   // Encontrar el incidente expandido
   const currentExpandedIncident = expandedIncident
@@ -101,15 +102,45 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
               Eventos Activos en Tiempo Real
             </h2>
             <div className="flex items-center gap-4 text-sm">
-              <span className="px-3 py-1 bg-white/20 rounded-full font-semibold backdrop-blur-sm">
-                ⚠️ {incidents.length} Incidentes
-              </span>
-              <span className="px-3 py-1 bg-white/20 rounded-full font-semibold backdrop-blur-sm">
-                🚨 {alerts.length} Alertas
-              </span>
-              <span className="px-3 py-1 bg-white/20 rounded-full font-semibold backdrop-blur-sm">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveFilter('all');
+                }}
+                className={`px-4 py-2 rounded-full font-bold backdrop-blur-sm transition-all duration-200 hover:scale-110 ${
+                  activeFilter === 'all'
+                    ? 'bg-white text-blue-700 shadow-lg scale-105 border-2 border-white'
+                    : 'bg-white/20 text-white hover:bg-white/30'
+                }`}
+              >
                 📊 Total: {incidents.length + alerts.length}
-              </span>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveFilter('incidents');
+                }}
+                className={`px-4 py-2 rounded-full font-bold backdrop-blur-sm transition-all duration-200 hover:scale-110 ${
+                  activeFilter === 'incidents'
+                    ? 'bg-white text-orange-700 shadow-lg scale-105 border-2 border-white'
+                    : 'bg-white/20 text-white hover:bg-white/30'
+                }`}
+              >
+                ⚠️ {incidents.length} Incidentes
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveFilter('alerts');
+                }}
+                className={`px-4 py-2 rounded-full font-bold backdrop-blur-sm transition-all duration-200 hover:scale-110 ${
+                  activeFilter === 'alerts'
+                    ? 'bg-white text-red-700 shadow-lg scale-105 border-2 border-white'
+                    : 'bg-white/20 text-white hover:bg-white/30'
+                }`}
+              >
+                🚨 {alerts.length} Alertas
+              </button>
             </div>
           </div>
           <button
@@ -126,7 +157,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-8 bg-gray-50">
           {/* Incidentes Section */}
-          {incidents.length > 0 && (
+          {incidents.length > 0 && (activeFilter === 'all' || activeFilter === 'incidents') && (
             <div className="mb-8">
               <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-t-xl shadow-md">
                 <h3 className="text-xl font-black flex items-center gap-3">
@@ -283,7 +314,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
           )}
 
           {/* Alertas del Sistema Section */}
-          {alerts.length > 0 && (
+          {alerts.length > 0 && (activeFilter === 'all' || activeFilter === 'alerts') && (
             <div className="mb-6">
               <div className="bg-gradient-to-r from-red-600 to-pink-600 text-white px-6 py-3 rounded-t-xl shadow-md">
                 <h3 className="text-xl font-black flex items-center gap-3">
@@ -359,12 +390,23 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
           )}
 
           {/* Empty State */}
-          {incidents.length === 0 && alerts.length === 0 && (
+          {((activeFilter === 'all' && incidents.length === 0 && alerts.length === 0) ||
+            (activeFilter === 'incidents' && incidents.length === 0) ||
+            (activeFilter === 'alerts' && alerts.length === 0)) && (
             <div className="text-center py-20 bg-white rounded-xl shadow-lg">
               <div className="text-8xl mb-6 animate-bounce">✅</div>
-              <p className="text-3xl font-black text-gray-700 mb-2">¡Todo en Orden!</p>
-              <p className="text-lg text-gray-500">No hay eventos activos en este momento</p>
-              <p className="text-sm text-gray-400 mt-3">Todos los sistemas operando normalmente</p>
+              <p className="text-3xl font-black text-gray-700 mb-2">
+                {activeFilter === 'incidents' && 'No hay incidentes activos'}
+                {activeFilter === 'alerts' && 'No hay alertas activas'}
+                {activeFilter === 'all' && '¡Todo en Orden!'}
+              </p>
+              <p className="text-lg text-gray-500">
+                {activeFilter === 'all' && 'No hay eventos activos en este momento'}
+                {activeFilter !== 'all' && 'Intenta cambiar el filtro para ver otros eventos'}
+              </p>
+              {activeFilter === 'all' && (
+                <p className="text-sm text-gray-400 mt-3">Todos los sistemas operando normalmente</p>
+              )}
             </div>
           )}
         </div>
