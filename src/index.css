@@ -10,25 +10,27 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 217.2 91.2% 59.8%;
+    /* Verde corporativo Caminos de las Sierras (#15803d = hsl(142, 65%, 30%)) */
+    --primary: 142 65% 30%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 262.1 83.3% 57.8%;
+    --secondary: 142 50% 45%;
     --secondary-foreground: 210 40% 98%;
-    --accent: 188.7 94.5% 42.7%;
+    --accent: 142 60% 40%;
     --accent-foreground: 210 40% 98%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --success: 142.1 76.2% 36.3%;
+    --success: 142 76% 36%;
     --success-foreground: 210 40% 98%;
-    --warning: 37.7 92.1% 50.2%;
+    /* Amarillo corporativo Caminos de las Sierras (#facc15 = hsl(48, 96%, 53%)) */
+    --warning: 48 96% 53%;
     --warning-foreground: 210 40% 98%;
     --danger: 0 84.2% 60.2%;
     --danger-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 217.2 91.2% 59.8%;
+    --ring: 142 65% 30%;
     --radius: 0.75rem;
   }
 
