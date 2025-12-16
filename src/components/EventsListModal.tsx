@@ -275,15 +275,6 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                           )}
                         </div>
                       </div>
-
-                      {/* Click hint */}
-                      <div className="mt-4 pt-4 border-t-2 border-gray-200 text-center">
-                        <span className="text-sm text-blue-600 font-black flex items-center justify-center gap-2">
-                          <span className="text-lg">🗺️</span>
-                          Click para ver ubicación en el mapa
-                          <span className="text-lg">→</span>
-                        </span>
-                      </div>
                     </div>
                   );
                 })}
