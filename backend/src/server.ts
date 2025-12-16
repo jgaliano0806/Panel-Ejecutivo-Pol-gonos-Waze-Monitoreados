@@ -162,15 +162,20 @@ server.get('/api/traffic-metrics/:polygonId', async (request, reply) => {
     try {
         const { polygonId } = request.params as { polygonId: string };
         const metrics = apiService.getTrafficMetricsByPolygon(polygonId);
-
+        
         if (!metrics) {
             reply.code(404).send({ error: 'Polygon not found' });
             return;
         }
-
+        
         return metrics;
     } catch (error) {
-        reply.code(500).send({ error: 'Failed to get polygon traffic metrics' });
+        server.log.error({ error, url: request.url }, 'Error en /api/traffic-metrics/:polygonId');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        reply.code(500).send({ 
+            error: 'Failed to get polygon traffic metrics',
+            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        });
     }
 });
 
@@ -178,11 +183,12 @@ server.get('/api/traffic-metrics/:polygonId', async (request, reply) => {
 
 server.get('/api/alerts', async (request, reply) => {
     try {
-        return alertService.getActiveAlerts();
+        const alerts = alertService.getActiveAlerts();
+        return alerts || [];
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/alerts');
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        reply.code(500).send({
+        reply.code(500).send({ 
             error: 'Failed to get alerts',
             message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
         });

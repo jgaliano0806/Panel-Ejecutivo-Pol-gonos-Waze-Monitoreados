@@ -361,7 +361,12 @@ export class AlertService {
      * Obtiene todas las alertas activas
      */
     getActiveAlerts(): TrafficAlert[] {
-        return this.alerts.filter(a => !a.isAcknowledged);
+        try {
+            return this.alerts ? this.alerts.filter(a => !a.isAcknowledged) : [];
+        } catch (error) {
+            console.error('Error en getActiveAlerts:', error);
+            return [];
+        }
     }
 
     /**
@@ -409,25 +414,48 @@ export class AlertService {
      * Obtiene estadísticas de alertas
      */
     getAlertStats() {
-        const active = this.getActiveAlerts();
-        return {
-            total: this.alerts.length,
-            active: active.length,
-            acknowledged: this.alerts.length - active.length,
-            bySeverity: {
-                critical: active.filter(a => a.severity === AlertSeverity.CRITICAL).length,
-                high: active.filter(a => a.severity === AlertSeverity.HIGH).length,
-                medium: active.filter(a => a.severity === AlertSeverity.MEDIUM).length,
-                low: active.filter(a => a.severity === AlertSeverity.LOW).length,
-            },
-            byType: {
-                totalBlockage: active.filter(a => a.type === AlertType.TOTAL_BLOCKAGE).length,
-                excessiveDelay: active.filter(a => a.type === AlertType.EXCESSIVE_DELAY).length,
-                significantDelay: active.filter(a => a.type === AlertType.SIGNIFICANT_DELAY).length,
-                extensiveCongestion: active.filter(a => a.type === AlertType.EXTENSIVE_CONGESTION).length,
-                highUserImpact: active.filter(a => a.type === AlertType.HIGH_USER_IMPACT).length,
-            },
-        };
+        try {
+            const active = this.getActiveAlerts();
+            const alerts = this.alerts || [];
+            return {
+                total: alerts.length,
+                active: active.length,
+                acknowledged: alerts.length - active.length,
+                bySeverity: {
+                    critical: active.filter(a => a.severity === AlertSeverity.CRITICAL).length,
+                    high: active.filter(a => a.severity === AlertSeverity.HIGH).length,
+                    medium: active.filter(a => a.severity === AlertSeverity.MEDIUM).length,
+                    low: active.filter(a => a.severity === AlertSeverity.LOW).length,
+                },
+                byType: {
+                    totalBlockage: active.filter(a => a.type === AlertType.TOTAL_BLOCKAGE).length,
+                    excessiveDelay: active.filter(a => a.type === AlertType.EXCESSIVE_DELAY).length,
+                    significantDelay: active.filter(a => a.type === AlertType.SIGNIFICANT_DELAY).length,
+                    extensiveCongestion: active.filter(a => a.type === AlertType.EXTENSIVE_CONGESTION).length,
+                    highUserImpact: active.filter(a => a.type === AlertType.HIGH_USER_IMPACT).length,
+                },
+            };
+        } catch (error) {
+            console.error('Error en getAlertStats:', error);
+            return {
+                total: 0,
+                active: 0,
+                acknowledged: 0,
+                bySeverity: {
+                    critical: 0,
+                    high: 0,
+                    medium: 0,
+                    low: 0,
+                },
+                byType: {
+                    totalBlockage: 0,
+                    excessiveDelay: 0,
+                    significantDelay: 0,
+                    extensiveCongestion: 0,
+                    highUserImpact: 0,
+                },
+            };
+        }
     }
 }
 

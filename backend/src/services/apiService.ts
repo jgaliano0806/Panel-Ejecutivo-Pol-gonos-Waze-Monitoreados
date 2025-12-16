@@ -103,21 +103,26 @@ export class ApiService {
      * Obtiene detalle de un polígono específico
      */
     getPolygonDetail(id: string) {
-        const statusList = this.getPolygonsStatus();
-        const status = statusList.find(p => p.id === id);
+        try {
+            const statusList = this.getPolygonsStatus();
+            const status = statusList.find(p => p.id === id);
 
-        if (!status) return null;
+            if (!status) return null;
 
-        const alerts = wazeService.getAlerts().filter(a => a.polygonId === id);
-        const jams = wazeService.getJams().filter(j => j.polygonId === id);
+            const alerts = wazeService.getAlerts().filter(a => a.polygonId === id);
+            const jams = wazeService.getJams().filter(j => j.polygonId === id);
 
-        return {
-            ...status,
-            items: {
-                alerts,
-                jams
-            }
-        };
+            return {
+                ...status,
+                items: {
+                    alerts,
+                    jams
+                }
+            };
+        } catch (error) {
+            console.error('Error en getPolygonDetail:', error);
+            return null;
+        }
     }
 
     /**
@@ -220,8 +225,9 @@ export class ApiService {
      * Obtiene métricas de tráfico para un polígono específico
      */
     getTrafficMetricsByPolygon(polygonId: string): PolygonTrafficMetrics | null {
-        const jams = wazeService.getJams();
-        const polygonJams = jams.filter(jam => jam.polygonId === polygonId);
+        try {
+            const jams = wazeService.getJams();
+            const polygonJams = jams.filter(jam => jam.polygonId === polygonId);
 
         // Sin datos
         if (polygonJams.length === 0) {
@@ -278,13 +284,18 @@ export class ApiService {
             totalJams: polygonJams.length,
             lastUpdate: wazeService.getLastUpdate()
         };
+        } catch (error) {
+            console.error('Error en getTrafficMetricsByPolygon:', error);
+            return null;
+        }
     }
 
     /**
      * Obtiene métricas de tráfico para todos los polígonos
      */
     getAllTrafficMetrics(): PolygonTrafficMetrics[] {
-        const jams = wazeService.getJams();
+        try {
+            const jams = wazeService.getJams();
 
         // Agrupar jams por polígono usando Map para O(1)
         const jamsByPolygon = new Map<string, typeof jams>();
