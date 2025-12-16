@@ -12,7 +12,7 @@ import {
     getRoadTypeTranslation
 } from '../utils/wazeTranslations';
 import { getPolygonById } from '../utils/polygonHelpers';
-import 'leaflet/dist/leaflet.css';
+
 
 // Helper para calcular dirección del flujo
 const getFlowDirection = (start: { lat: number; lng: number }, end?: { lat: number; lng: number }): string => {
@@ -45,11 +45,11 @@ L.Icon.Default.mergeOptions({
 const createEmojiMarker = (emoji: string, color: string) => L.divIcon({
     className: 'custom-incident-marker',
     html: `<div style="
-        background-color: white; 
-        width: 32px; 
-        height: 32px; 
-        border-radius: 50%; 
-        border: 3px solid ${color}; 
+        background-color: white;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 3px solid ${color};
         box-shadow: 0 3px 6px rgba(0,0,0,0.4);
         display: flex;
         align-items: center;

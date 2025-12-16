@@ -798,5 +798,25 @@
     "criticalKm": 0,
     "affectedPolygons": 0,
     "criticalPolygons": 0
+  },
+  {
+    "timestamp": "2025-12-15T18:34:21.937Z",
+    "totalJams": 21,
+    "totalIncidents": 49,
+    "avgSpeed": 17,
+    "avgDelay": 29,
+    "criticalKm": 3.84,
+    "affectedPolygons": 5,
+    "criticalPolygons": 2
+  },
+  {
+    "timestamp": "2025-12-16T11:11:38.120Z",
+    "totalJams": 0,
+    "totalIncidents": 0,
+    "avgSpeed": null,
+    "avgDelay": 0,
+    "criticalKm": 0,
+    "affectedPolygons": 0,
+    "criticalPolygons": 0
   }
 ]

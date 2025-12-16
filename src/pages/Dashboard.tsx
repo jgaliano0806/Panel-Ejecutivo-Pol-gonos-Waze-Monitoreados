@@ -258,7 +258,7 @@ const Dashboard: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20">
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-primary-50/20 to-green-50/20">
             {/* Header Moderno */}
             <ModernHeader lastUpdate={lastUpdate} />
 

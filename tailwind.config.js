@@ -23,16 +23,17 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
+          // Colores corporativos Caminos de las Sierras (verde corporativo)
+          50: '#f0fdf4',
+          100: '#dcfce7',
+          200: '#bbf7d0',
+          300: '#86efac',
+          400: '#4ade80',
+          500: '#22c55e',
+          600: '#16a34a',
+          700: '#15803d', // Color principal corporativo
+          800: '#166534',
+          900: '#14532d',
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -54,9 +55,11 @@ export default {
         warning: {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
-          light: '#fde047',
-          500: '#f59e0b',
-          dark: '#d97706',
+          // Amarillo característico de Caminos de las Sierras
+          light: '#fef08a',
+          400: '#facc15', // Amarillo corporativo (border)
+          500: '#eab308',
+          dark: '#ca8a04',
         },
         danger: {
           DEFAULT: "hsl(var(--danger))",
@@ -115,7 +118,7 @@ export default {
           "0%": { transform: "translateX(-100%)" },
           "100%": { transform: "translateX(100%)" },
         },
-        pulse-slow: {
+        "pulse-slow": {
           "0%, 100%": { opacity: "1" },
           "50%": { opacity: "0.8" },
         },

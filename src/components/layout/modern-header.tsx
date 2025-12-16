@@ -1,8 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Activity, Clock, Wifi } from 'lucide-react';
+import { Clock, Wifi } from 'lucide-react';
 import { Badge } from '../ui/badge';
-import { cn } from '../../lib/utils';
 import { formatRelativeTime } from '../../lib/utils';
 
 interface ModernHeaderProps {
@@ -19,12 +18,12 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({ lastUpdate }) => {
 
   return (
     <motion.header
-      className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 border-b-4 border-blue-500 shadow-2xl sticky top-0 z-40"
+      className="bg-white border-b-4 border-yellow-400 shadow-lg sticky top-0 z-40"
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ type: "spring", stiffness: 100, damping: 20 }}
     >
-      <div className="max-w-[1850px] mx-auto px-6 py-5">
+      <div className="max-w-[1850px] mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Logo y Título */}
           <motion.div
@@ -33,27 +32,26 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({ lastUpdate }) => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <div className="relative">
-              <motion.div
-                className="absolute inset-0 bg-blue-400 rounded-xl blur-lg"
-                animate={{
-                  scale: [1, 1.2, 1],
-                  opacity: [0.5, 0.8, 0.5],
-                }}
-                transition={{ duration: 2, repeat: Infinity }}
+            {/* Logo Oficial Caminos de las Sierras */}
+            <motion.div
+              className="h-16 w-auto flex items-center justify-center"
+              whileHover={{ scale: 1.05 }}
+              transition={{ type: "spring", stiffness: 300 }}
+            >
+              <img
+                src="/logo_cs.png"
+                alt="Caminos de las Sierras"
+                className="h-full w-auto object-contain"
               />
-              <div className="relative bg-gradient-to-br from-blue-500 to-indigo-600 p-3 rounded-xl shadow-xl">
-                <Activity className="w-8 h-8 text-white" strokeWidth={2.5} />
-              </div>
-            </div>
-            
-            <div>
-              <h1 className="text-3xl font-black text-white mb-1 tracking-tight">
-                Panel Ejecutivo de Tráfico
+            </motion.div>
+
+            <div className="border-l-2 border-yellow-400 pl-4">
+              <h1 className="text-2xl font-black text-primary-700 mb-0.5 tracking-tight">
+                Panel de Control Inteligente
               </h1>
-              <p className="text-sm text-blue-200 font-medium flex items-center gap-2">
-                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                Sistema de Monitoreo Waze
+              <p className="text-sm text-gray-600 font-medium flex items-center gap-2">
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                Monitoreo de Tráfico en Tiempo Real
               </p>
             </div>
           </motion.div>
@@ -66,13 +64,13 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({ lastUpdate }) => {
             transition={{ delay: 0.3 }}
           >
             {/* Hora Actual */}
-            <div className="hidden md:flex items-center gap-3 bg-white/10 backdrop-blur-md rounded-xl px-4 py-3 border border-white/20">
-              <Clock className="w-5 h-5 text-blue-200" />
+            <div className="hidden md:flex items-center gap-3 bg-gray-50 rounded-lg px-4 py-2.5 border border-gray-200">
+              <Clock className="w-5 h-5 text-primary-600" />
               <div>
-                <div className="text-xs text-blue-200 font-semibold">Hora Actual</div>
-                <div className="text-lg font-bold text-white tabular-nums">
-                  {currentTime.toLocaleTimeString('es-AR', { 
-                    hour: '2-digit', 
+                <div className="text-xs text-gray-500 font-semibold">Hora Actual</div>
+                <div className="text-base font-bold text-gray-900 tabular-nums">
+                  {currentTime.toLocaleTimeString('es-AR', {
+                    hour: '2-digit',
                     minute: '2-digit',
                     second: '2-digit'
                   })}
@@ -82,11 +80,11 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({ lastUpdate }) => {
 
             {/* Última Actualización */}
             {lastUpdate && (
-              <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md rounded-xl px-4 py-3 border border-white/20">
-                <Wifi className="w-5 h-5 text-green-300" />
+              <div className="flex items-center gap-3 bg-gray-50 rounded-lg px-4 py-2.5 border border-gray-200">
+                <Wifi className="w-5 h-5 text-green-600" />
                 <div>
-                  <div className="text-xs text-blue-200 font-semibold">Última Actualización</div>
-                  <div className="text-sm font-bold text-white">
+                  <div className="text-xs text-gray-500 font-semibold">Última Actualización</div>
+                  <div className="text-sm font-bold text-gray-900">
                     {formatRelativeTime(lastUpdate)}
                   </div>
                 </div>
@@ -100,9 +98,9 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({ lastUpdate }) => {
               }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              <Badge variant="success" size="lg" className="shadow-lg">
-                <span className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
-                OPERATIVO
+              <Badge variant="success" size="lg" className="shadow-md">
+                <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+                EN VIVO
               </Badge>
             </motion.div>
           </motion.div>

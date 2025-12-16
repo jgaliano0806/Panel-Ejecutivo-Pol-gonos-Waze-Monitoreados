@@ -50,8 +50,8 @@ export const ModernExecutiveSummary: React.FC<ModernExecutiveSummaryProps> = ({
       numericValue: kpis.fluidityPercentage,
       subtext: `${totalPolygons - criticalPolygons} de ${totalPolygons} polígonos`,
       icon: Target,
-      gradient: 'from-blue-500 via-cyan-500 to-teal-500',
-      bgGradient: 'from-blue-50 to-cyan-50',
+      gradient: 'from-primary-600 via-primary-700 to-primary-800', // Verde corporativo
+      bgGradient: 'from-primary-50 to-green-50',
       trend: kpis.trends?.fluidityChange || 0,
       isClickable: false,
     },
@@ -60,12 +60,12 @@ export const ModernExecutiveSummary: React.FC<ModernExecutiveSummaryProps> = ({
       label: 'Eventos Activos',
       value: totalEvents,
       numericValue: totalEvents,
-      subtext: totalCritical > 0 
+      subtext: totalCritical > 0
         ? `${totalCritical} críticos activos`
         : `${incidents.length} incidentes • ${alerts.length || 0} alertas`,
       icon: AlertTriangle,
-      gradient: totalCritical > 0 ? 'from-red-500 via-pink-500 to-rose-500' : 'from-green-500 via-emerald-500 to-teal-500',
-      bgGradient: totalCritical > 0 ? 'from-red-50 to-pink-50' : 'from-green-50 to-emerald-50',
+      gradient: totalCritical > 0 ? 'from-red-600 via-red-700 to-red-800' : 'from-primary-500 via-primary-600 to-primary-700',
+      bgGradient: totalCritical > 0 ? 'from-red-50 to-red-100' : 'from-primary-50 to-green-50',
       trend: kpis.trends?.incidentsChange || 0,
       isClickable: true,
       pulse: totalCritical > 0,
@@ -77,8 +77,8 @@ export const ModernExecutiveSummary: React.FC<ModernExecutiveSummaryProps> = ({
       numericValue: incidents.length,
       subtext: `${criticalIncidents} críticos • ${incidents.filter(i => i.severity >= 3).length} altos`,
       icon: AlertTriangle,
-      gradient: criticalIncidents > 0 ? 'from-orange-500 via-red-500 to-pink-500' : 'from-yellow-500 via-orange-500 to-amber-500',
-      bgGradient: criticalIncidents > 0 ? 'from-orange-50 to-red-50' : 'from-yellow-50 to-orange-50',
+      gradient: criticalIncidents > 0 ? 'from-orange-600 via-red-600 to-red-700' : 'from-warning-400 via-warning-500 to-warning-600',
+      bgGradient: criticalIncidents > 0 ? 'from-orange-50 to-red-50' : 'from-warning-50 to-yellow-50',
       trend: 0,
       isClickable: true,
       pulse: criticalIncidents > 0,
@@ -90,8 +90,8 @@ export const ModernExecutiveSummary: React.FC<ModernExecutiveSummaryProps> = ({
       numericValue: criticalPolygons,
       subtext: `${((criticalPolygons / totalPolygons) * 100).toFixed(0)}% del total`,
       icon: MapPin,
-      gradient: 'from-purple-500 via-indigo-500 to-blue-500',
-      bgGradient: 'from-purple-50 to-indigo-50',
+      gradient: 'from-primary-700 via-primary-800 to-primary-900', // Verde oscuro corporativo
+      bgGradient: 'from-primary-100 to-green-100',
       trend: 0,
       isClickable: false,
     },
@@ -111,9 +111,9 @@ export const ModernExecutiveSummary: React.FC<ModernExecutiveSummaryProps> = ({
   // Card animation
   const item = {
     hidden: { opacity: 0, y: 20, scale: 0.95 },
-    show: { 
-      opacity: 1, 
-      y: 0, 
+    show: {
+      opacity: 1,
+      y: 0,
       scale: 1,
       transition: {
         type: "spring",
@@ -125,8 +125,8 @@ export const ModernExecutiveSummary: React.FC<ModernExecutiveSummaryProps> = ({
 
   return (
     <>
-      <Card className="overflow-hidden border-0 shadow-2xl">
-        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-6">
+      <Card className="overflow-hidden border-2 border-yellow-400 shadow-xl">
+        <div className="bg-gradient-to-r from-primary-700 via-primary-800 to-primary-900 p-6 border-b-4 border-yellow-400">
           <div className="flex items-center justify-between">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
@@ -137,8 +137,8 @@ export const ModernExecutiveSummary: React.FC<ModernExecutiveSummaryProps> = ({
                 <span className="text-4xl">📊</span>
                 Resumen Ejecutivo
               </h2>
-              <p className="text-blue-100 text-sm mt-1 font-medium">
-                Monitoreo en tiempo real
+              <p className="text-primary-100 text-sm mt-1 font-medium">
+                Monitoreo en tiempo real - Caminos de las Sierras
               </p>
             </motion.div>
             <motion.div
@@ -147,7 +147,7 @@ export const ModernExecutiveSummary: React.FC<ModernExecutiveSummaryProps> = ({
               transition={{ duration: 0.5, delay: 0.2 }}
               className="text-right"
             >
-              <div className="text-xs text-blue-100 font-semibold">Actualizado</div>
+              <div className="text-xs text-primary-100 font-semibold">Actualizado</div>
               <div className="text-sm text-white font-bold">
                 {new Date().toLocaleTimeString('es-AR')}
               </div>
@@ -229,11 +229,11 @@ export const ModernExecutiveSummary: React.FC<ModernExecutiveSummaryProps> = ({
                       className="text-5xl font-black text-gray-900"
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      transition={{ 
-                        type: "spring", 
-                        stiffness: 200, 
+                      transition={{
+                        type: "spring",
+                        stiffness: 200,
                         damping: 20,
-                        delay: index * 0.1 
+                        delay: index * 0.1
                       }}
                     >
                       {metric.value}
@@ -316,7 +316,7 @@ export const ModernExecutiveSummary: React.FC<ModernExecutiveSummaryProps> = ({
                   {Math.abs(kpis.trends?.fluidityChange || 0)}%
                 </div>
               </div>
-              
+
               <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-xl p-4 border border-orange-200">
                 <div className="text-xs text-gray-600 font-semibold mb-2">Tendencia Incidentes</div>
                 <div className={cn(
@@ -333,10 +333,10 @@ export const ModernExecutiveSummary: React.FC<ModernExecutiveSummaryProps> = ({
                   {Math.abs(kpis.trends?.incidentsChange || 0)}%
                 </div>
               </div>
-              
+
               <div className={cn(
                 "rounded-xl p-4 border-2",
-                kpis.fluidityPercentage >= 70 
+                kpis.fluidityPercentage >= 70
                   ? "bg-gradient-to-br from-green-50 to-emerald-50 border-green-300"
                   : kpis.fluidityPercentage >= 50
                   ? "bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-300"

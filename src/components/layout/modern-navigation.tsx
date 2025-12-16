@@ -22,25 +22,25 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
       id: 'home' as ViewType,
       label: 'Inicio',
       icon: Home,
-      color: 'from-blue-500 to-cyan-500',
+      color: 'from-primary-600 to-primary-700', // Verde corporativo
     },
     {
       id: 'map' as ViewType,
       label: 'Mapa y Zonas',
       icon: Map,
-      color: 'from-green-500 to-emerald-500',
+      color: 'from-primary-500 to-primary-600', // Verde corporativo
     },
     {
       id: 'events' as ViewType,
       label: 'Alertas y Eventos',
       icon: AlertCircle,
-      color: 'from-red-500 to-pink-500',
+      color: 'from-warning-400 to-warning-500', // Amarillo corporativo
       badge: criticalAlertsCount > 0 ? criticalAlertsCount : undefined,
     },
   ];
 
   return (
-    <nav className="bg-white border-b-2 border-gray-200 shadow-md sticky top-[88px] z-30">
+    <nav className="bg-white border-b-2 border-yellow-400 shadow-md sticky top-[88px] z-30">
       <div className="max-w-[1850px] mx-auto px-6">
         <div className="flex space-x-2">
           {tabs.map((tab) => {
@@ -63,7 +63,7 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
                 {/* Icon con gradiente en activo */}
                 <div className={cn(
                   "p-2 rounded-lg transition-all duration-200",
-                  isActive 
+                  isActive
                     ? `bg-gradient-to-br ${tab.color} shadow-lg`
                     : "bg-gray-100"
                 )}>

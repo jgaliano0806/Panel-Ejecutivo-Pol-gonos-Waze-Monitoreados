@@ -40,8 +40,8 @@ export function getSeverityColor(severity: number | string): {
   text: string;
   border: string;
 } {
-  const sev = typeof severity === 'string' ? 
-    { 'critical': 4, 'high': 3, 'medium': 2, 'low': 1 }[severity] || 1 
+  const sev = typeof severity === 'string' ?
+    { 'critical': 4, 'high': 3, 'medium': 2, 'low': 1 }[severity] || 1
     : severity;
 
   if (sev >= 4) return {
