@@ -369,6 +369,16 @@
       "criticalKm": 0.53,
       "affectedPolygons": 1,
       "criticalPolygons": 0
+    },
+    {
+      "timestamp": "2025-12-22T17:17:48.862Z",
+      "totalJams": 3,
+      "totalIncidents": 4,
+      "avgSpeed": null,
+      "avgDelay": -1,
+      "criticalKm": 0.53,
+      "affectedPolygons": 1,
+      "criticalPolygons": 0
     }
   ],
   "P037": [
@@ -763,6 +773,16 @@
       "criticalKm": 1.55,
       "affectedPolygons": 1,
       "criticalPolygons": 1
+    },
+    {
+      "timestamp": "2025-12-22T17:17:48.863Z",
+      "totalJams": 10,
+      "totalIncidents": 13,
+      "avgSpeed": null,
+      "avgDelay": -1,
+      "criticalKm": 1.55,
+      "affectedPolygons": 1,
+      "criticalPolygons": 1
     }
   ],
   "P063": [
@@ -1135,6 +1155,16 @@
       "criticalKm": 0.87,
       "affectedPolygons": 1,
       "criticalPolygons": 0
+    },
+    {
+      "timestamp": "2025-12-22T17:17:48.863Z",
+      "totalJams": 5,
+      "totalIncidents": 7,
+      "avgSpeed": 6,
+      "avgDelay": 41,
+      "criticalKm": 0.87,
+      "affectedPolygons": 1,
+      "criticalPolygons": 0
     }
   ],
   "P001": [
@@ -1429,6 +1459,16 @@
       "criticalKm": 0,
       "affectedPolygons": 1,
       "criticalPolygons": 0
+    },
+    {
+      "timestamp": "2025-12-22T17:17:48.863Z",
+      "totalJams": 2,
+      "totalIncidents": 2,
+      "avgSpeed": 7,
+      "avgDelay": 196,
+      "criticalKm": 0,
+      "affectedPolygons": 1,
+      "criticalPolygons": 0
     }
   ],
   "P029": [
@@ -1518,6 +1558,16 @@
       "totalIncidents": 0,
       "avgSpeed": 11,
       "avgDelay": 114,
+      "criticalKm": 0,
+      "affectedPolygons": 1,
+      "criticalPolygons": 0
+    },
+    {
+      "timestamp": "2025-12-22T17:17:48.863Z",
+      "totalJams": 1,
+      "totalIncidents": 4,
+      "avgSpeed": 20,
+      "avgDelay": 141,
       "criticalKm": 0,
       "affectedPolygons": 1,
       "criticalPolygons": 0
@@ -2209,6 +2259,16 @@
       "criticalKm": 0,
       "affectedPolygons": 1,
       "criticalPolygons": 0
+    },
+    {
+      "timestamp": "2025-12-22T17:17:48.863Z",
+      "totalJams": 1,
+      "totalIncidents": 0,
+      "avgSpeed": 15,
+      "avgDelay": 956,
+      "criticalKm": 1.12,
+      "affectedPolygons": 1,
+      "criticalPolygons": 1
     }
   ],
   "P060": [

@@ -1,21 +1,34 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Clock, Wifi } from 'lucide-react';
+import { Clock, Wifi, RefreshCw } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { formatRelativeTime } from '../../lib/utils';
 import { COMPANY_INFO, UI_TEXTS } from '../../config/constants';
 
 interface ModernHeaderProps {
   lastUpdate?: Date;
+  onRefresh?: () => void;
 }
 
-export const ModernHeader: React.FC<ModernHeaderProps> = ({ lastUpdate }) => {
+export const ModernHeader: React.FC<ModernHeaderProps> = ({ lastUpdate, onRefresh }) => {
   const [currentTime, setCurrentTime] = React.useState(new Date());
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
 
   React.useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const handleRefresh = async () => {
+    if (!onRefresh || isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      // Mantener el estado de refreshing por un momento para feedback visual
+      setTimeout(() => setIsRefreshing(false), 1000);
+    }
+  };
 
   return (
     <motion.header
@@ -95,7 +108,8 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({ lastUpdate }) => {
                   {currentTime.toLocaleTimeString('es-AR', {
                     hour: '2-digit',
                     minute: '2-digit',
-                    second: '2-digit'
+                    second: '2-digit',
+                    hour12: false
                   })}
                 </div>
               </div>
@@ -117,6 +131,23 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({ lastUpdate }) => {
                   </div>
                 </div>
               </motion.div>
+            )}
+
+            {/* Botón de Actualización Forzada */}
+            {onRefresh && (
+              <motion.button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="flex items-center gap-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl px-5 py-3 border-2 border-blue-400 shadow-lg hover:shadow-xl transition-all duration-300 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                whileHover={{ scale: isRefreshing ? 1 : 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                animate={isRefreshing ? { rotate: 360 } : {}}
+                transition={isRefreshing ? { duration: 1, repeat: Infinity, ease: "linear" } : {}}
+                title="Actualizar todos los feeds"
+              >
+                <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span className="text-sm hidden sm:inline">Actualizar</span>
+              </motion.button>
             )}
 
             {/* Badge de Estado */}

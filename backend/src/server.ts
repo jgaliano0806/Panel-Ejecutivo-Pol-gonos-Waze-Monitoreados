@@ -556,7 +556,7 @@ server.get('/api/incidents/delay/:incidentId', async (request, reply) => {
         }
 
         // Obtener datos históricos si están disponibles
-        const historicalData = historicalService.getGlobalHistory(24);
+        const historicalData = historicalService.getGlobalSnapshots(24);
 
         const delayResult = delayCalculationService.calculateIncidentDelay(
             incident,
@@ -586,7 +586,7 @@ server.get('/api/incidents/delays/all', async (request, reply) => {
     try {
         const alerts = wazeService.getAlerts();
         const jams = wazeService.getJams();
-        const historicalData = historicalService.getGlobalHistory(24);
+        const historicalData = historicalService.getGlobalSnapshots(24);
 
         const delayResults = delayCalculationService.calculateBatchDelays(
             alerts,
@@ -625,14 +625,87 @@ server.get('/api/incidents/delays/all', async (request, reply) => {
 });
 
 /**
+ * Calcula la distancia entre dos puntos geográficos (Haversine) en metros
+ */
+function calculateDistanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371000; // Radio de la Tierra en metros
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+/**
+ * Agrupa incidentes por calle y proximidad geográfica para evitar duplicados
+ */
+function groupIncidentsByProximity(incidents: typeof wazeService extends { getAlerts: () => infer R } ? (R extends (infer T)[] ? T[] : never) : never, proximityThreshold: number = 200) {
+    const groups: Array<{
+        primary: typeof incidents[0];
+        related: typeof incidents[0][];
+        allLocations: Array<{ lat: number; lng: number; id: string }>;
+    }> = [];
+
+    const processed = new Set<string>();
+
+    for (const incident of incidents) {
+        if (processed.has(incident.id)) continue;
+
+        // Buscar incidentes relacionados (misma calle O proximidad geográfica)
+        const related: typeof incidents[0][] = [];
+        const allLocations: Array<{ lat: number; lng: number; id: string }> = [
+            { lat: incident.location.lat, lng: incident.location.lng, id: incident.id }
+        ];
+
+        for (const other of incidents) {
+            if (other.id === incident.id || processed.has(other.id)) continue;
+
+            const sameStreet = incident.street && other.street &&
+                incident.street.toLowerCase() === other.street.toLowerCase();
+
+            const distance = calculateDistanceMeters(
+                incident.location.lat, incident.location.lng,
+                other.location.lat, other.location.lng
+            );
+
+            const sameType = incident.type.toLowerCase() === other.type.toLowerCase();
+
+            // Agrupar si: (misma calle Y mismo tipo) O (muy cerca Y mismo tipo)
+            if (sameType && (sameStreet || distance <= proximityThreshold)) {
+                related.push(other);
+                allLocations.push({ lat: other.location.lat, lng: other.location.lng, id: other.id });
+                processed.add(other.id);
+            }
+        }
+
+        processed.add(incident.id);
+
+        // Elegir el incidente "primario" (el más reciente o con más confianza)
+        const allIncidents = [incident, ...related];
+        const primary = allIncidents.reduce((best, current) => {
+            const bestScore = (best.confidence || 0) + (best.reliability || 0);
+            const currentScore = (current.confidence || 0) + (current.reliability || 0);
+            return currentScore > bestScore ? current : best;
+        }, incident);
+
+        groups.push({ primary, related, allLocations });
+    }
+
+    return groups;
+}
+
+/**
  * GET /api/incidents/blocking-analysis
  * Análisis completo de incidentes bloqueantes con cálculo mejorado de demora
+ * Incluye deduplicación por calle y proximidad geográfica
  */
 server.get('/api/incidents/blocking-analysis', async (request, reply) => {
     try {
         const alerts = wazeService.getAlerts();
         const jams = wazeService.getJams();
-        const historicalData = historicalService.getGlobalHistory(24);
+        const historicalData = historicalService.getGlobalSnapshots(24);
 
         // Filtrar solo incidentes que podrían ser bloqueantes
         const blockingTypes = ['ROAD_CLOSED', 'road_closed', 'ACCIDENT', 'accident', 'HAZARD', 'hazard'];
@@ -641,28 +714,62 @@ server.get('/api/incidents/blocking-analysis', async (request, reply) => {
             a.severity >= 4
         );
 
-        const analyses = potentialBlockingIncidents.map(incident => {
+        // Agrupar incidentes para evitar duplicados
+        const groupedIncidents = groupIncidentsByProximity(potentialBlockingIncidents, 200);
+
+        const analyses = groupedIncidents.map(group => {
+            const incident = group.primary;
             const delayResult = delayCalculationService.calculateIncidentDelay(
                 incident,
                 jams,
                 historicalData
             );
 
-            // Encontrar jams relacionados directamente
-            const linkedJams = jams.filter(j => j.blockingAlertUuid === incident.id);
+            // Encontrar jams relacionados directamente (de todos los incidentes del grupo)
+            const allIncidentIds = [incident.id, ...group.related.map(r => r.id)];
+            const linkedJams = jams.filter(j => allIncidentIds.includes(j.blockingAlertUuid || ''));
             const totalLength = linkedJams.reduce((sum, j) => sum + j.length, 0);
+
+            // Encontrar jams cercanos (excluyendo los vinculados)
+            const linkedJamIds = new Set(linkedJams.map(j => j.id));
+            const nearbyJams = jams.filter(j => {
+                if (linkedJamIds.has(j.id)) return false;
+                const distance = calculateDistanceMeters(
+                    incident.location.lat,
+                    incident.location.lng,
+                    j.location.lat,
+                    j.location.lng
+                );
+                return distance <= 300; // Radio de 300 metros
+            });
+
+            // Obtener calles afectadas de jams vinculados y cercanos
+            const affectedStreets = [...new Set([
+                ...linkedJams.map(j => j.street),
+                ...nearbyJams.map(j => j.street)
+            ].filter(Boolean))] as string[];
+
+            // Obtener info del polígono
+            const polygon = incident.polygonId ? REAL_POLYGONS.find(p => p.id === incident.polygonId) : null;
+
+            // Calcular antigüedad más antigua del grupo
+            const allTimestamps = [incident.timestamp, ...group.related.map(r => r.timestamp)];
+            const oldestTimestamp = allTimestamps.reduce((oldest, current) =>
+                new Date(current) < new Date(oldest) ? current : oldest
+            );
 
             return {
                 incident: {
                     id: incident.id,
                     type: incident.type,
                     subtype: incident.subtype,
+                    description: incident.description, // Contiene reportDescription si está disponible
                     street: incident.street,
                     city: incident.city,
                     severity: incident.severity,
                     polygonId: incident.polygonId,
                     location: incident.location,
-                    timestamp: incident.timestamp,
+                    timestamp: oldestTimestamp, // Usar la fecha más antigua
                 },
                 delay: delayResult,
                 linkedJams: linkedJams.length,
@@ -671,19 +778,34 @@ server.get('/api/incidents/blocking-analysis', async (request, reply) => {
                 impactScore: Math.round(
                     (delayResult.totalDelayMinutes * 0.4) +
                     (linkedJams.length * 10) +
-                    (totalLength / 100)
+                    (totalLength / 100) +
+                    (group.related.length * 5) // Bonus por múltiples reportes
                 ),
+                // Información del grupo para deduplicación
+                reportCount: 1 + group.related.length,
+                allLocations: group.allLocations,
+                relatedIncidentIds: group.related.map(r => r.id),
+                // Nuevos campos: grupo y tramos afectados
+                nearbyJams: nearbyJams.length,
+                polygonName: polygon?.name || null,
+                polygonGroup: polygon?.group || null,
+                affectedStreets: affectedStreets,
             };
         });
 
         // Ordenar por impacto
         analyses.sort((a, b) => b.impactScore - a.impactScore);
 
+        const totalOriginalIncidents = potentialBlockingIncidents.length;
+        const totalGroupedIncidents = analyses.length;
+
         return {
             count: analyses.length,
             analyses: analyses.slice(0, 20), // Top 20
             summary: {
-                totalIncidents: analyses.length,
+                totalIncidents: totalGroupedIncidents,
+                totalReports: totalOriginalIncidents,
+                duplicatesRemoved: totalOriginalIncidents - totalGroupedIncidents,
                 totalDelayMinutes: analyses.reduce((sum, a) => sum + a.delay.totalDelayMinutes, 0),
                 avgConfidence: analyses.length > 0
                     ? Math.round(analyses.reduce((sum, a) => sum + a.delay.confidence, 0) / analyses.length)

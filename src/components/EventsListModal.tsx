@@ -278,19 +278,21 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-8 bg-gray-50">
-          {/* Incidentes Section */}
-          {incidents.length > 0 && (activeFilter === 'all' || activeFilter === 'incidents') && (
-            <div className="mb-8">
-              <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-t-xl shadow-md">
-                <h3 className="text-xl font-black flex items-center gap-3">
-                  <span className="text-2xl">⚠️</span>
-                  <span>Incidentes de Waze</span>
-                  <span className="ml-auto bg-white/30 px-3 py-1 rounded-full text-sm font-bold">
-                    {incidents.length}
-                  </span>
-                </h3>
-              </div>
-              <div className="space-y-4 bg-white p-6 rounded-b-xl shadow-lg">
+          {/* Layout de dos columnas cuando se muestran ambos tipos */}
+          {activeFilter === 'all' && incidents.length > 0 && alerts.length > 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Columna Izquierda: Incidentes reportados por usuarios de Waze */}
+              <div className="flex flex-col">
+                <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-t-xl shadow-md">
+                  <h3 className="text-xl font-black flex items-center gap-3">
+                    <span className="text-2xl">⚠️</span>
+                    <span>Incidentes reportados por usuarios de Waze</span>
+                    <span className="ml-auto bg-white/30 px-3 py-1 rounded-full text-sm font-bold">
+                      {incidents.length}
+                    </span>
+                  </h3>
+                </div>
+                <div className="space-y-4 bg-white p-6 rounded-b-xl shadow-lg flex-1 overflow-y-auto max-h-[calc(90vh-200px)]">
                 {incidents
                   // Deduplicar por ID antes de renderizar
                   .filter((incident, index, self) =>
@@ -434,23 +436,21 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                     </div>
                   );
                 })}
+                </div>
               </div>
-            </div>
-          )}
 
-          {/* Alertas del Sistema Section */}
-          {alerts.length > 0 && (activeFilter === 'all' || activeFilter === 'alerts') && (
-            <div className="mb-6">
-              <div className="bg-gradient-to-r from-red-600 to-pink-600 text-white px-6 py-3 rounded-t-xl shadow-md">
-                <h3 className="text-xl font-black flex items-center gap-3">
-                  <span className="text-2xl">🚨</span>
-                  <span>Alertas del Sistema</span>
-                  <span className="ml-auto bg-white/30 px-3 py-1 rounded-full text-sm font-bold">
-                    {alerts.length}
-                  </span>
-                </h3>
-              </div>
-              <div className="space-y-4 bg-white p-6 rounded-b-xl shadow-lg">
+              {/* Columna Derecha: Alertas automaticas de Waze */}
+              <div className="flex flex-col">
+                <div className="bg-gradient-to-r from-red-600 to-pink-600 text-white px-6 py-3 rounded-t-xl shadow-md">
+                  <h3 className="text-xl font-black flex items-center gap-3">
+                    <span className="text-2xl">🚨</span>
+                    <span>Alertas automaticas de Waze</span>
+                    <span className="ml-auto bg-white/30 px-3 py-1 rounded-full text-sm font-bold">
+                      {alerts.length}
+                    </span>
+                  </h3>
+                </div>
+                <div className="space-y-4 bg-white p-6 rounded-b-xl shadow-lg flex-1 overflow-y-auto max-h-[calc(90vh-200px)]">
                 {alerts
                   // Deduplicar por ID antes de renderizar
                   .filter((alert, index, self) =>
@@ -533,8 +533,248 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                     </div>
                   );
                 })}
+                </div>
               </div>
             </div>
+          ) : (
+            <>
+              {/* Vista de una sola columna cuando se filtra por tipo específico */}
+              {/* Incidentes Section */}
+              {incidents.length > 0 && (activeFilter === 'all' || activeFilter === 'incidents') && (
+                <div className="mb-8">
+                  <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-t-xl shadow-md">
+                    <h3 className="text-xl font-black flex items-center gap-3">
+                      <span className="text-2xl">⚠️</span>
+                      <span>Incidentes reportados por usuarios de Waze</span>
+                      <span className="ml-auto bg-white/30 px-3 py-1 rounded-full text-sm font-bold">
+                        {incidents.length}
+                      </span>
+                    </h3>
+                  </div>
+                  <div className="space-y-4 bg-white p-6 rounded-b-xl shadow-lg">
+                    {incidents
+                      .filter((incident, index, self) =>
+                        index === self.findIndex((i) => i.id === incident.id)
+                      )
+                      .sort((a, b) => {
+                        if (b.severity !== a.severity) {
+                          return b.severity - a.severity;
+                        }
+                        return (b.reliability || 0) - (a.reliability || 0);
+                      })
+                      .map((incident, index) => {
+                        const emoji = getIncidentEmoji(incident.type, incident.subtype);
+                        const typeDescription = getIncidentDescription(incident.type, incident.subtype);
+
+                        return (
+                          <div
+                            key={`incident-${incident.id}-${index}`}
+                            onClick={() => onEventClick(incident, 'incident')}
+                            className="border-2 rounded-xl p-5 bg-gradient-to-br from-white to-gray-50 hover:from-blue-50 hover:to-indigo-50 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-[1.02] hover:border-blue-400"
+                          >
+                            <div className="flex items-start gap-5">
+                              <div className="text-5xl flex-shrink-0 drop-shadow-md">{emoji}</div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-3 mb-3">
+                                  <div>
+                                    <h4 className="font-black text-gray-900 text-xl mb-1">
+                                      {typeDescription}
+                                    </h4>
+                                  </div>
+                                  <span className={`px-4 py-2 rounded-full text-xs font-black border-2 shadow-md ${getSeverityColor(incident.severity)}`}>
+                                    {getSeverityLabel(incident.severity)}
+                                  </span>
+                                </div>
+                                <div className="space-y-3">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm bg-white/70 rounded-lg p-4 border border-gray-200">
+                                    {incident.street && (
+                                      <div className="flex items-start gap-2">
+                                        <span className="text-blue-600 font-bold">📍</span>
+                                        <div>
+                                          <span className="text-gray-500 font-semibold text-xs">Dirección:</span>
+                                          <p className="text-gray-900 font-medium">{incident.street}</p>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {incident.city && (
+                                      <div className="flex items-start gap-2">
+                                        <span className="text-blue-600 font-bold">🏙️</span>
+                                        <div>
+                                          <span className="text-gray-500 font-semibold text-xs">Ciudad:</span>
+                                          <p className="text-gray-900 font-medium">{incident.city}</p>
+                                        </div>
+                                      </div>
+                                    )}
+                                    <div className="flex items-start gap-2">
+                                      <span className="text-blue-600 font-bold">🗺️</span>
+                                      <div>
+                                        <span className="text-gray-500 font-semibold text-xs">Coordenadas:</span>
+                                        <p className="text-gray-900 font-mono text-xs font-medium">
+                                          {formatCoordinates(incident.location.lat, incident.location.lng)}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                      <span className="text-blue-600 font-bold">🕐</span>
+                                      <div>
+                                        <span className="text-gray-500 font-semibold text-xs">Reportado:</span>
+                                        <p className="text-gray-900 font-medium text-xs">
+                                          {new Date(incident.timestamp).toLocaleString('es-AR')}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setExpandedEvent({ id: incident.id, type: 'incident' });
+                                    }}
+                                    className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 hover:from-blue-700 hover:via-purple-700 hover:to-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-[1.02] flex items-center justify-center gap-3 group"
+                                  >
+                                    <span className="text-2xl group-hover:scale-125 transition-transform duration-300">
+                                      🗺️
+                                    </span>
+                                    <span className="tracking-wide">
+                                      Ver Ubicación en Minimapa
+                                    </span>
+                                    <span className="text-2xl group-hover:translate-x-1 transition-transform duration-300">
+                                      →
+                                    </span>
+                                  </button>
+                                </div>
+                                {incident.nThumbsUp !== undefined && (
+                                  <div className="mt-3 pt-3 border-t-2 border-dashed border-gray-300">
+                                    <div className="flex items-center gap-3 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-3 shadow-md">
+                                      <span className="text-3xl">👍</span>
+                                      <div className="flex-1">
+                                        <p className="text-xs text-gray-600 font-semibold">Confirmado por Wazers</p>
+                                        <p className="text-2xl font-black text-green-700">
+                                          {incident.nThumbsUp} {incident.nThumbsUp === 1 ? 'usuario' : 'usuarios'}
+                                        </p>
+                                      </div>
+                                      {incident.nThumbsUp > 5 && (
+                                        <span className="px-3 py-1 bg-green-600 text-white rounded-full text-xs font-bold shadow-sm">
+                                          ✓ Alta confianza
+                                        </span>
+                                      )}
+                                      {incident.nThumbsUp === 0 && (
+                                        <span className="px-3 py-1 bg-gray-400 text-white rounded-full text-xs font-bold shadow-sm">
+                                          Sin confirmar
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                                {incident.description &&
+                                 incident.description !== incident.subtype &&
+                                 !/^[A-Z_]+$/.test(incident.description) && (
+                                  <div className="mt-2 text-sm text-gray-600 italic">
+                                    "{incident.description}"
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+              {/* Alertas automaticas de Waze Section */}
+              {alerts.length > 0 && (activeFilter === 'all' || activeFilter === 'alerts') && (
+                <div className="mb-6">
+                  <div className="bg-gradient-to-r from-red-600 to-pink-600 text-white px-6 py-3 rounded-t-xl shadow-md">
+                    <h3 className="text-xl font-black flex items-center gap-3">
+                      <span className="text-2xl">🚨</span>
+                      <span>Alertas automaticas de Waze</span>
+                      <span className="ml-auto bg-white/30 px-3 py-1 rounded-full text-sm font-bold">
+                        {alerts.length}
+                      </span>
+                    </h3>
+                  </div>
+                  <div className="space-y-4 bg-white p-6 rounded-b-xl shadow-lg">
+                    {alerts
+                      .filter((alert, index, self) =>
+                        index === self.findIndex((a) => a.id === alert.id)
+                      )
+                      .sort((a, b) => {
+                        const severityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
+                        return (severityOrder[b.severity] || 0) - (severityOrder[a.severity] || 0);
+                      })
+                      .map((alert, index) => {
+                        const severityConfig = {
+                          critical: { label: 'CRÍTICA', color: 'bg-red-100 border-red-400 text-red-900', icon: '🚨' },
+                          high: { label: 'ALTA', color: 'bg-orange-100 border-orange-400 text-orange-900', icon: '⚠️' },
+                          medium: { label: 'MEDIA', color: 'bg-yellow-100 border-yellow-400 text-yellow-900', icon: '⚡' },
+                          low: { label: 'BAJA', color: 'bg-blue-100 border-blue-400 text-blue-900', icon: 'ℹ️' },
+                        }[alert.severity];
+
+                        return (
+                          <div
+                            key={`alert-${alert.id}-${index}`}
+                            onClick={() => onEventClick(alert, 'alert')}
+                            className={`border-2 rounded-xl p-5 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-[1.02] ${severityConfig.color}`}
+                          >
+                            <div className="flex items-start gap-4">
+                              <div className="text-4xl">{severityConfig.icon}</div>
+                              <div className="flex-1">
+                                <div className="flex items-start justify-between gap-3 mb-2">
+                                  <h4 className="font-bold text-lg">{alert.message}</h4>
+                                  <span className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${severityConfig.color}`}>
+                                    {severityConfig.label}
+                                  </span>
+                                </div>
+                                <div className="text-sm space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold">📍 Ubicación:</span>
+                                    <span>{alert.location} - {alert.polygonName}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold">🕐 Detectada:</span>
+                                    <span>{new Date(alert.timestamp).toLocaleString('es-AR')}</span>
+                                  </div>
+                                  {alert.data && Object.keys(alert.data).length > 0 && (
+                                    <div className="mt-2 pt-2 border-t flex gap-3 text-xs">
+                                      {alert.data.criticalJamsCount && (
+                                        <span className="font-semibold">
+                                          🚦 {alert.data.criticalJamsCount} puntos críticos
+                                        </span>
+                                      )}
+                                      {alert.data.avgDelayMinutes !== undefined && (
+                                        <span className="font-semibold">
+                                          ⏱️ +{alert.data.avgDelayMinutes} min demora
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setExpandedEvent({ id: alert.id, type: 'alert' });
+                                  }}
+                                  className="w-full mt-3 bg-gradient-to-r from-red-600 via-pink-600 to-rose-600 hover:from-red-700 hover:via-pink-700 hover:to-rose-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-[1.02] flex items-center justify-center gap-3 group"
+                                >
+                                  <span className="text-2xl group-hover:scale-125 transition-transform duration-300">
+                                    🗺️
+                                  </span>
+                                  <span className="tracking-wide">
+                                    Ver Ubicación en Minimapa
+                                  </span>
+                                  <span className="text-2xl group-hover:translate-x-1 transition-transform duration-300">
+                                    →
+                                  </span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* Empty State */}

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, lazy, Suspense, useCallback, memo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useQueryClient } from '@tanstack/react-query';
 import { useWazeData } from '../hooks/useWazeData';
 import type { GlobalKPIs } from '../types';
 import { PolygonState, IncidentType, Severity } from '../types';
@@ -25,6 +26,7 @@ const GroupTrafficComparison = lazy(() => import('../components/GroupTrafficComp
 
 const Dashboard: React.FC = () => {
     const location = useLocation();
+    const queryClient = useQueryClient();
     const { polygons, incidents, jams, alerts, alertStats, isLoading, isError, lastUpdate, globalKPIs: backendKPIs } = useWazeData();
     const historicalData = useHistoricalData(24);
     const trendsData = useTrends();
@@ -91,6 +93,12 @@ const Dashboard: React.FC = () => {
             setCurrentView('map');
         }
     }, []);
+
+    // Función para forzar actualización de todos los feeds
+    const handleRefreshAll = useCallback(async () => {
+        // Invalidar todas las queries para forzar refetch
+        await queryClient.invalidateQueries();
+    }, [queryClient]);
 
     const filteredPolygons = useMemo(() => {
         if (!selectedGroup) return polygons;
@@ -239,7 +247,7 @@ const Dashboard: React.FC = () => {
             case 'events':
                 return (
                     <div className="space-y-4">
-                        {/* Monitor de Alertas del Sistema */}
+                        {/* Monitor de Alertas automaticas de Waze */}
                         <AlertsMonitor alerts={alerts} />
 
                         {/* Incidentes que Bloquean el Tráfico - Ahora con cálculo mejorado de demoras */}
@@ -285,7 +293,7 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* Header Moderno */}
-            <ModernHeader lastUpdate={lastUpdate} />
+            <ModernHeader lastUpdate={lastUpdate} onRefresh={handleRefreshAll} />
 
             {/* Navegación Moderna */}
             <ModernNavigation

@@ -117,7 +117,7 @@ export const MAIN_TYPE_TRANSLATIONS: Record<string, string> = {
     road_closed: "Corte de ruta",
     roadclosed: "Corte de ruta",
     misc: "Otro",
-    // Alertas del sistema
+    // Alertas automaticas de Waze
     congestion: "Congestión",
     speed: "Velocidad",
     incident: "Incidente",

@@ -141,14 +141,22 @@ export interface DelayCalculationResult {
         linked: number;
         nearby: number;
     };
-    primaryMethod: 'linked' | 'proximity' | 'detour' | 'historical';
+    primaryMethod: 'linked' | 'proximity' | 'detour' | 'minimal';
     details: string;
+    // Nuevos campos de calidad de datos
+    dataQuality?: 'high' | 'medium' | 'low';
+    rawDataUsed?: {
+        totalJamsConsidered: number;
+        avgJamSpeed: number | null;
+        totalAffectedLength: number;
+    };
 }
 
 export interface BlockingAnalysisIncident {
     id: string;
     type: string;
     subtype?: string;
+    description?: string; // reportDescription de Waze (descripción del usuario)
     street?: string;
     city?: string;
     severity: number;
@@ -164,6 +172,15 @@ export interface BlockingAnalysisItem {
     affectedLength: number;
     affectedLengthKm: string;
     impactScore: number;
+    // Campos de agrupación/deduplicación
+    reportCount: number;
+    allLocations: Array<{ lat: number; lng: number; id: string }>;
+    relatedIncidentIds: string[];
+    // Nuevos campos para grupo y tramos afectados
+    nearbyJams: number;
+    polygonName: string | null;
+    polygonGroup: string | null;
+    affectedStreets: string[];
 }
 
 export interface BlockingAnalysisResponse {
@@ -171,6 +188,8 @@ export interface BlockingAnalysisResponse {
     analyses: BlockingAnalysisItem[];
     summary: {
         totalIncidents: number;
+        totalReports: number;
+        duplicatesRemoved: number;
         totalDelayMinutes: number;
         avgConfidence: number;
     };
