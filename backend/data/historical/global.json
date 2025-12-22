@@ -1,165 +1,5 @@
 [
   {
-    "timestamp": "2025-12-11T19:40:10.570Z",
-    "totalJams": 0,
-    "totalIncidents": 0,
-    "avgSpeed": null,
-    "avgDelay": 0,
-    "criticalKm": 0,
-    "affectedPolygons": 0,
-    "criticalPolygons": 0
-  },
-  {
-    "timestamp": "2025-12-11T19:40:58.776Z",
-    "totalJams": 0,
-    "totalIncidents": 0,
-    "avgSpeed": null,
-    "avgDelay": 0,
-    "criticalKm": 0,
-    "affectedPolygons": 0,
-    "criticalPolygons": 0
-  },
-  {
-    "timestamp": "2025-12-11T19:44:01.947Z",
-    "totalJams": 0,
-    "totalIncidents": 0,
-    "avgSpeed": null,
-    "avgDelay": 0,
-    "criticalKm": 0,
-    "affectedPolygons": 0,
-    "criticalPolygons": 0
-  },
-  {
-    "timestamp": "2025-12-11T19:45:59.452Z",
-    "totalJams": 0,
-    "totalIncidents": 0,
-    "avgSpeed": null,
-    "avgDelay": 0,
-    "criticalKm": 0,
-    "affectedPolygons": 0,
-    "criticalPolygons": 0
-  },
-  {
-    "timestamp": "2025-12-12T09:52:41.630Z",
-    "totalJams": 25,
-    "totalIncidents": 48,
-    "avgSpeed": 10,
-    "avgDelay": 42,
-    "criticalKm": 3.94,
-    "affectedPolygons": 9,
-    "criticalPolygons": 1
-  },
-  {
-    "timestamp": "2025-12-12T11:26:55.449Z",
-    "totalJams": 0,
-    "totalIncidents": 0,
-    "avgSpeed": null,
-    "avgDelay": 0,
-    "criticalKm": 0,
-    "affectedPolygons": 0,
-    "criticalPolygons": 0
-  },
-  {
-    "timestamp": "2025-12-12T12:26:55.465Z",
-    "totalJams": 24,
-    "totalIncidents": 46,
-    "avgSpeed": 11,
-    "avgDelay": 40,
-    "criticalKm": 4.53,
-    "affectedPolygons": 9,
-    "criticalPolygons": 1
-  },
-  {
-    "timestamp": "2025-12-12T13:26:55.480Z",
-    "totalJams": 23,
-    "totalIncidents": 39,
-    "avgSpeed": 15,
-    "avgDelay": 30,
-    "criticalKm": 3.41,
-    "affectedPolygons": 8,
-    "criticalPolygons": 1
-  },
-  {
-    "timestamp": "2025-12-12T13:49:13.411Z",
-    "totalJams": 0,
-    "totalIncidents": 0,
-    "avgSpeed": null,
-    "avgDelay": 0,
-    "criticalKm": 0,
-    "affectedPolygons": 0,
-    "criticalPolygons": 0
-  },
-  {
-    "timestamp": "2025-12-12T14:01:16.299Z",
-    "totalJams": 0,
-    "totalIncidents": 0,
-    "avgSpeed": null,
-    "avgDelay": 0,
-    "criticalKm": 0,
-    "affectedPolygons": 0,
-    "criticalPolygons": 0
-  },
-  {
-    "timestamp": "2025-12-12T14:03:04.117Z",
-    "totalJams": 0,
-    "totalIncidents": 0,
-    "avgSpeed": null,
-    "avgDelay": 0,
-    "criticalKm": 0,
-    "affectedPolygons": 0,
-    "criticalPolygons": 0
-  },
-  {
-    "timestamp": "2025-12-12T15:03:04.122Z",
-    "totalJams": 21,
-    "totalIncidents": 44,
-    "avgSpeed": 9,
-    "avgDelay": 35,
-    "criticalKm": 4.03,
-    "affectedPolygons": 5,
-    "criticalPolygons": 2
-  },
-  {
-    "timestamp": "2025-12-12T16:03:04.129Z",
-    "totalJams": 24,
-    "totalIncidents": 46,
-    "avgSpeed": 16,
-    "avgDelay": 27,
-    "criticalKm": 2.98,
-    "affectedPolygons": 7,
-    "criticalPolygons": 1
-  },
-  {
-    "timestamp": "2025-12-12T17:03:04.137Z",
-    "totalJams": 22,
-    "totalIncidents": 53,
-    "avgSpeed": 21,
-    "avgDelay": 17,
-    "criticalKm": 2.98,
-    "affectedPolygons": 5,
-    "criticalPolygons": 1
-  },
-  {
-    "timestamp": "2025-12-12T18:03:04.145Z",
-    "totalJams": 21,
-    "totalIncidents": 58,
-    "avgSpeed": 16,
-    "avgDelay": 27,
-    "criticalKm": 4.1,
-    "affectedPolygons": 6,
-    "criticalPolygons": 2
-  },
-  {
-    "timestamp": "2025-12-15T13:21:51.592Z",
-    "totalJams": 0,
-    "totalIncidents": 0,
-    "avgSpeed": null,
-    "avgDelay": 0,
-    "criticalKm": 0,
-    "affectedPolygons": 0,
-    "criticalPolygons": 0
-  },
-  {
     "timestamp": "2025-12-15T13:22:26.069Z",
     "totalJams": 0,
     "totalIncidents": 0,
@@ -1678,5 +1518,165 @@
     "criticalKm": 4.07,
     "affectedPolygons": 6,
     "criticalPolygons": 2
+  },
+  {
+    "timestamp": "2025-12-22T17:48:44.369Z",
+    "totalJams": 0,
+    "totalIncidents": 0,
+    "avgSpeed": null,
+    "avgDelay": 0,
+    "criticalKm": 0,
+    "affectedPolygons": 0,
+    "criticalPolygons": 0
+  },
+  {
+    "timestamp": "2025-12-22T17:48:44.378Z",
+    "totalJams": 0,
+    "totalIncidents": 0,
+    "avgSpeed": null,
+    "avgDelay": 0,
+    "criticalKm": 0,
+    "affectedPolygons": 0,
+    "criticalPolygons": 0
+  },
+  {
+    "timestamp": "2025-12-22T17:48:44.438Z",
+    "totalJams": 0,
+    "totalIncidents": 0,
+    "avgSpeed": null,
+    "avgDelay": 0,
+    "criticalKm": 0,
+    "affectedPolygons": 0,
+    "criticalPolygons": 0
+  },
+  {
+    "timestamp": "2025-12-22T17:48:44.765Z",
+    "totalJams": 0,
+    "totalIncidents": 0,
+    "avgSpeed": null,
+    "avgDelay": 0,
+    "criticalKm": 0,
+    "affectedPolygons": 0,
+    "criticalPolygons": 0
+  },
+  {
+    "timestamp": "2025-12-22T17:48:49.123Z",
+    "totalJams": 0,
+    "totalIncidents": 0,
+    "avgSpeed": null,
+    "avgDelay": 0,
+    "criticalKm": 0,
+    "affectedPolygons": 0,
+    "criticalPolygons": 0
+  },
+  {
+    "timestamp": "2025-12-22T17:48:49.175Z",
+    "totalJams": 0,
+    "totalIncidents": 0,
+    "avgSpeed": null,
+    "avgDelay": 0,
+    "criticalKm": 0,
+    "affectedPolygons": 0,
+    "criticalPolygons": 0
+  },
+  {
+    "timestamp": "2025-12-22T17:48:49.238Z",
+    "totalJams": 0,
+    "totalIncidents": 0,
+    "avgSpeed": null,
+    "avgDelay": 0,
+    "criticalKm": 0,
+    "affectedPolygons": 0,
+    "criticalPolygons": 0
+  },
+  {
+    "timestamp": "2025-12-22T17:48:49.288Z",
+    "totalJams": 0,
+    "totalIncidents": 0,
+    "avgSpeed": null,
+    "avgDelay": 0,
+    "criticalKm": 0,
+    "affectedPolygons": 0,
+    "criticalPolygons": 0
+  },
+  {
+    "timestamp": "2025-12-22T17:48:49.592Z",
+    "totalJams": 0,
+    "totalIncidents": 0,
+    "avgSpeed": null,
+    "avgDelay": 0,
+    "criticalKm": 0,
+    "affectedPolygons": 0,
+    "criticalPolygons": 0
+  },
+  {
+    "timestamp": "2025-12-22T17:48:51.954Z",
+    "totalJams": 0,
+    "totalIncidents": 0,
+    "avgSpeed": null,
+    "avgDelay": 0,
+    "criticalKm": 0,
+    "affectedPolygons": 0,
+    "criticalPolygons": 0
+  },
+  {
+    "timestamp": "2025-12-22T17:49:22.137Z",
+    "totalJams": 0,
+    "totalIncidents": 0,
+    "avgSpeed": null,
+    "avgDelay": 0,
+    "criticalKm": 0,
+    "affectedPolygons": 0,
+    "criticalPolygons": 0
+  },
+  {
+    "timestamp": "2025-12-22T17:49:22.181Z",
+    "totalJams": 0,
+    "totalIncidents": 0,
+    "avgSpeed": null,
+    "avgDelay": 0,
+    "criticalKm": 0,
+    "affectedPolygons": 0,
+    "criticalPolygons": 0
+  },
+  {
+    "timestamp": "2025-12-22T17:49:22.189Z",
+    "totalJams": 0,
+    "totalIncidents": 0,
+    "avgSpeed": null,
+    "avgDelay": 0,
+    "criticalKm": 0,
+    "affectedPolygons": 0,
+    "criticalPolygons": 0
+  },
+  {
+    "timestamp": "2025-12-22T17:49:22.274Z",
+    "totalJams": 0,
+    "totalIncidents": 0,
+    "avgSpeed": null,
+    "avgDelay": 0,
+    "criticalKm": 0,
+    "affectedPolygons": 0,
+    "criticalPolygons": 0
+  },
+  {
+    "timestamp": "2025-12-22T17:49:22.558Z",
+    "totalJams": 0,
+    "totalIncidents": 0,
+    "avgSpeed": null,
+    "avgDelay": 0,
+    "criticalKm": 0,
+    "affectedPolygons": 0,
+    "criticalPolygons": 0
+  },
+  {
+    "timestamp": "2025-12-22T17:49:24.262Z",
+    "totalJams": 0,
+    "totalIncidents": 0,
+    "avgSpeed": null,
+    "avgDelay": 0,
+    "criticalKm": 0,
+    "affectedPolygons": 0,
+    "criticalPolygons": 0
   }
 ]

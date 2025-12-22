@@ -1,5 +1,7 @@
 # Dependencies
 node_modules
+backend/
+!backend/data
 backend/node_modules
 
 # Build outputs

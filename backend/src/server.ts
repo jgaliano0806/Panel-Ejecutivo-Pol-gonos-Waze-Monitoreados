@@ -821,6 +821,54 @@ server.get('/api/incidents/blocking-analysis', async (request, reply) => {
 // --- Endpoints de Velocidad Externa ---
 
 /**
+ * Calcula el centro aproximado de un polígono desde los datos de Waze
+ * Si el polígono tiene coordenadas configuradas, las usa.
+ * Si no, calcula el centro desde los incidentes y jams activos del polígono.
+ * Si no hay datos, usa las coordenadas por defecto de Córdoba.
+ */
+function calculatePolygonCenter(polygonId: string): { lat: number; lon: number } {
+    const polygon = REAL_POLYGONS.find(p => p.id === polygonId);
+
+    // Si el polígono tiene coordenadas configuradas, usarlas
+    if (polygon?.coordinates?.lat && polygon?.coordinates?.lon) {
+        return {
+            lat: polygon.coordinates.lat,
+            lon: polygon.coordinates.lon
+        };
+    }
+
+    // Intentar calcular desde los datos de Waze
+    const alerts = wazeService.getAlerts().filter(a => a.polygonId === polygonId);
+    const jams = wazeService.getJams().filter(j => j.polygonId === polygonId);
+
+    const locations: Array<{ lat: number; lon: number }> = [];
+
+    // Agregar ubicaciones de alertas
+    alerts.forEach(alert => {
+        if (alert.location?.lat && alert.location?.lng) {
+            locations.push({ lat: alert.location.lat, lon: alert.location.lng });
+        }
+    });
+
+    // Agregar ubicaciones de jams
+    jams.forEach(jam => {
+        if (jam.location?.lat && jam.location?.lng) {
+            locations.push({ lat: jam.location.lat, lon: jam.location.lng });
+        }
+    });
+
+    // Si hay ubicaciones, calcular el centro promedio
+    if (locations.length > 0) {
+        const avgLat = locations.reduce((sum, loc) => sum + loc.lat, 0) / locations.length;
+        const avgLon = locations.reduce((sum, loc) => sum + loc.lon, 0) / locations.length;
+        return { lat: avgLat, lon: avgLon };
+    }
+
+    // Fallback: coordenadas por defecto de Córdoba
+    return { lat: -31.4173, lon: -64.1833 };
+}
+
+/**
  * GET /api/speed/comparison/:polygonId
  * Compara velocidad de Waze con fuentes externas
  */
@@ -838,10 +886,10 @@ server.get('/api/speed/comparison/:polygonId', async (request, reply) => {
         const trafficMetrics = apiService.getTrafficMetricsByPolygon(polygonId);
         const wazeSpeed = trafficMetrics?.avgSpeed || null;
 
-        // Calcular centro del polígono (aproximado)
-        // En producción, esto debería venir de la config del polígono
-        const centerLat = polygon.coordinates?.lat || -31.4173; // Córdoba por defecto
-        const centerLon = polygon.coordinates?.lon || -64.1833;
+        // Calcular centro del polígono (desde config, datos de Waze, o fallback)
+        const center = calculatePolygonCenter(polygonId);
+        const centerLat = center.lat;
+        const centerLon = center.lon;
 
         const comparison = await externalTrafficService.getSpeedComparison(
             polygonId,
@@ -878,8 +926,10 @@ server.get('/api/speed/comparison/all', async (request, reply) => {
                 const polygon = REAL_POLYGONS.find(p => p.id === metrics.polygonId);
                 if (!polygon) return null;
 
-                const centerLat = polygon.coordinates?.lat || -31.4173;
-                const centerLon = polygon.coordinates?.lon || -64.1833;
+                // Calcular centro del polígono (desde config, datos de Waze, o fallback)
+                const center = calculatePolygonCenter(metrics.polygonId);
+                const centerLat = center.lat;
+                const centerLon = center.lon;
 
                 try {
                     return await externalTrafficService.getSpeedComparison(
