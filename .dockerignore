@@ -52,12 +52,18 @@ tmp
 temp
 *.tmp
 
-# Scripts
+# Scripts (excluir todos excepto los de docker)
+# Excluir scripts .sh en raíz
+*.sh
+# Excluir scripts .sh en subdirectorios (pero docker/ será incluido después)
+**/*.sh
+# Incluir explícitamente la carpeta docker y sus scripts
+!docker/
+!docker/**
 scripts
 *.ps1
 *.bat
-*.sh
-!docker/*.sh
+
 
 
 

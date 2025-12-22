@@ -40,8 +40,8 @@ RUN npm run build
 # Stage 3: Production Image
 FROM node:20-alpine AS production
 
-# Instalar nginx para servir frontend
-RUN apk add --no-cache nginx
+# Instalar nginx y curl para health check
+RUN apk add --no-cache nginx curl
 
 WORKDIR /app
 
@@ -77,12 +77,13 @@ EXPOSE 80 3001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
+  CMD curl -f http://localhost:3001/health || exit 1
 
 # Ejecutar como usuario no-root
 USER nodejs
 
 CMD ["/start.sh"]
+
 
 
 
