@@ -5,6 +5,7 @@ import { ApiService } from './services/apiService';
 import { alertService } from './services/alertService';
 import { aggregationService } from './services/aggregationService';
 import { historicalService } from './services/historicalService';
+import { dbService } from './database/dbService';
 import { dataQualityService } from './services/dataQualityService';
 import { incidentStatsService } from './services/incidentStatsService';
 import { externalTrafficService } from './services/externalTrafficService';
@@ -62,6 +63,7 @@ server.addHook('onSend', async (request, reply) => {
 
 server.get('/health', async () => {
     try {
+        const dbConnected = await dbService.testConnection();
         return {
             status: 'ok',
             uptime: process.uptime(),
@@ -69,6 +71,7 @@ server.get('/health', async () => {
             memory: process.memoryUsage(),
             alertsCount: wazeService.getAlerts().length,
             jamsCount: wazeService.getJams().length,
+            database: dbConnected ? 'connected' : 'disconnected',
         };
     } catch (error) {
         server.log.error({ error }, 'Error en /health');
@@ -290,7 +293,7 @@ server.get('/api/metrics/top-critical', async (request, reply) => {
 server.get('/api/historical/global', async (request, reply) => {
     try {
         const hours = parseInt((request.query as any)?.hours || '24');
-        const snapshots = historicalService.getGlobalSnapshots(hours);
+        const snapshots = await historicalService.getGlobalSnapshots(hours);
         return snapshots || [];
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/historical/global');
@@ -306,7 +309,7 @@ server.get('/api/historical/polygon/:polygonId', async (request, reply) => {
     try {
         const { polygonId } = request.params as { polygonId: string };
         const hours = parseInt((request.query as any)?.hours || '24');
-        const snapshots = historicalService.getPolygonSnapshots(polygonId, hours);
+        const snapshots = await historicalService.getPolygonSnapshots(polygonId, hours);
         return snapshots;
     } catch (error) {
         reply.code(500).send({ error: 'Failed to get polygon historical data' });
@@ -315,11 +318,17 @@ server.get('/api/historical/polygon/:polygonId', async (request, reply) => {
 
 server.get('/api/historical/trends', async (request, reply) => {
     try {
+        const [totalJams, avgSpeed, criticalKm, avgDelay] = await Promise.all([
+            historicalService.calculateTrends('totalJams'),
+            historicalService.calculateTrends('avgSpeed'),
+            historicalService.calculateTrends('criticalKm'),
+            historicalService.calculateTrends('avgDelay'),
+        ]);
         return {
-            totalJams: historicalService.calculateTrends('totalJams') || 0,
-            avgSpeed: historicalService.calculateTrends('avgSpeed') || 0,
-            criticalKm: historicalService.calculateTrends('criticalKm') || 0,
-            avgDelay: historicalService.calculateTrends('avgDelay') || 0,
+            totalJams: totalJams || { current: 0, trend: 'stable', percentChange: 0 },
+            avgSpeed: avgSpeed || { current: 0, trend: 'stable', percentChange: 0 },
+            criticalKm: criticalKm || { current: 0, trend: 'stable', percentChange: 0 },
+            avgDelay: avgDelay || { current: 0, trend: 'stable', percentChange: 0 },
         };
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/historical/trends');
@@ -333,7 +342,7 @@ server.get('/api/historical/trends', async (request, reply) => {
 
 server.get('/api/historical/availability', async (request, reply) => {
     try {
-        return historicalService.getDataAvailability();
+        return await historicalService.getDataAvailability();
     } catch (error) {
         reply.code(500).send({ error: 'Failed to get data availability' });
     }
@@ -556,7 +565,7 @@ server.get('/api/incidents/delay/:incidentId', async (request, reply) => {
         }
 
         // Obtener datos históricos si están disponibles
-        const historicalData = historicalService.getGlobalSnapshots(24);
+        const historicalData = await historicalService.getGlobalSnapshots(24);
 
         const delayResult = delayCalculationService.calculateIncidentDelay(
             incident,
@@ -586,7 +595,7 @@ server.get('/api/incidents/delays/all', async (request, reply) => {
     try {
         const alerts = wazeService.getAlerts();
         const jams = wazeService.getJams();
-        const historicalData = historicalService.getGlobalSnapshots(24);
+        const historicalData = await historicalService.getGlobalSnapshots(24);
 
         const delayResults = delayCalculationService.calculateBatchDelays(
             alerts,
@@ -705,7 +714,7 @@ server.get('/api/incidents/blocking-analysis', async (request, reply) => {
     try {
         const alerts = wazeService.getAlerts();
         const jams = wazeService.getJams();
-        const historicalData = historicalService.getGlobalSnapshots(24);
+        const historicalData = await historicalService.getGlobalSnapshots(24);
 
         // Filtrar solo incidentes que podrían ser bloqueantes
         const blockingTypes = ['ROAD_CLOSED', 'road_closed', 'ACCIDENT', 'accident', 'HAZARD', 'hazard'];

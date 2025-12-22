@@ -1,108 +1,47 @@
-import fs from 'fs';
-import path from 'path';
 import { HistoricalSnapshot, PolygonHistoricalData, TrendData, InternalJam, InternalAlert } from '../types';
 import { REAL_POLYGONS } from '../config/realPolygons';
+import { dbService } from '../database/dbService';
 
 /**
- * Servicio de Histórico de Datos
+ * Servicio de Histórico de Datos con PostgreSQL
  * Almacena snapshots cada hora y provee análisis de tendencias
  */
 export class HistoricalService {
-    private readonly dataDir: string;
     private readonly maxSnapshots = 168; // 7 días × 24 horas
-    private globalSnapshots: HistoricalSnapshot[] = [];
-    private polygonSnapshots: Map<string, HistoricalSnapshot[]> = new Map();
 
     constructor() {
-        // Directorio para almacenar datos históricos
-        this.dataDir = path.join(process.cwd(), 'data', 'historical');
-        this.ensureDataDirectory();
-        this.loadSnapshots();
+        // Verificar conexión a la base de datos al inicializar
+        this.initializeDatabase();
     }
 
     /**
-     * Asegura que el directorio de datos existe
+     * Inicializa la base de datos (crea tablas si no existen)
      */
-    private ensureDataDirectory() {
-        if (!fs.existsSync(this.dataDir)) {
-            fs.mkdirSync(this.dataDir, { recursive: true });
-            console.log(`📁 Directorio de histórico creado: ${this.dataDir}`);
-        }
-    }
-
-    /**
-     * Carga snapshots desde disco
-     */
-    private loadSnapshots() {
+    private async initializeDatabase() {
         try {
-            // Cargar snapshots globales
-            const globalPath = path.join(this.dataDir, 'global.json');
-            if (fs.existsSync(globalPath)) {
-                const data = JSON.parse(fs.readFileSync(globalPath, 'utf-8')) as HistoricalSnapshot[];
-                this.globalSnapshots = data.map((s) => ({
-                    ...s,
-                    timestamp: new Date(s.timestamp)
-                }));
-                console.log(`📊 Cargados ${this.globalSnapshots.length} snapshots globales`);
-            }
-
-            // Cargar snapshots por polígono
-            const polygonPath = path.join(this.dataDir, 'polygons.json');
-            if (fs.existsSync(polygonPath)) {
-                const data = JSON.parse(fs.readFileSync(polygonPath, 'utf-8')) as Record<string, HistoricalSnapshot[]>;
-                for (const [polygonId, snapshots] of Object.entries(data)) {
-                    this.polygonSnapshots.set(
-                        polygonId,
-                        snapshots.map(s => ({
-                            ...s,
-                            timestamp: new Date(s.timestamp)
-                        }))
-                    );
-                }
-                console.log(`📊 Cargados snapshots de ${this.polygonSnapshots.size} polígonos`);
-            }
+            await dbService.testConnection();
+            await dbService.initializeSchema();
+            console.log('✅ Base de datos histórica inicializada');
         } catch (error) {
-            console.error('❌ Error cargando snapshots:', error);
-        }
-    }
-
-    /**
-     * Guarda snapshots a disco
-     */
-    private saveSnapshots() {
-        try {
-            // Guardar snapshots globales
-            const globalPath = path.join(this.dataDir, 'global.json');
-            fs.writeFileSync(globalPath, JSON.stringify(this.globalSnapshots, null, 2));
-
-            // Guardar snapshots por polígono
-            const polygonData: Record<string, HistoricalSnapshot[]> = {};
-            for (const [polygonId, snapshots] of this.polygonSnapshots.entries()) {
-                polygonData[polygonId] = snapshots;
-            }
-            const polygonPath = path.join(this.dataDir, 'polygons.json');
-            fs.writeFileSync(polygonPath, JSON.stringify(polygonData, null, 2));
-
-            console.log(`💾 Snapshots guardados exitosamente`);
-        } catch (error) {
-            console.error('❌ Error guardando snapshots:', error);
+            console.error('❌ Error inicializando base de datos:', error);
+            // Continuar sin base de datos (modo fallback)
         }
     }
 
     /**
      * Crea un snapshot global del sistema
      */
-    createGlobalSnapshot(jams: InternalJam[], incidents: InternalAlert[]) {
+    async createGlobalSnapshot(jams: InternalJam[], incidents: InternalAlert[]): Promise<HistoricalSnapshot> {
         // Calcular métricas
         const totalLength = jams.reduce((sum, j) => sum + j.length, 0);
         const criticalJams = jams.filter(j => j.level && j.level >= 4);
         const criticalLength = criticalJams.reduce((sum, j) => sum + j.length, 0);
-        
+
         const jamsWithSpeed = jams.filter(j => j.speed > 0);
         const avgSpeed = jamsWithSpeed.length > 0
             ? jamsWithSpeed.reduce((sum, j) => sum + j.speed, 0) / jamsWithSpeed.length
             : null;
-        
+
         const avgDelay = jams.length > 0
             ? jams.reduce((sum, j) => sum + j.delay, 0) / jams.length
             : 0;
@@ -121,12 +60,28 @@ export class HistoricalService {
             criticalPolygons,
         };
 
-        // Agregar snapshot
-        this.globalSnapshots.push(snapshot);
+        // Guardar en base de datos
+        try {
+            await dbService.query(
+                `INSERT INTO historical_snapshots
+                (timestamp, total_jams, total_incidents, avg_speed, avg_delay, critical_km, affected_polygons, critical_polygons)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                [
+                    snapshot.timestamp,
+                    snapshot.totalJams,
+                    snapshot.totalIncidents,
+                    snapshot.avgSpeed,
+                    snapshot.avgDelay,
+                    snapshot.criticalKm,
+                    snapshot.affectedPolygons,
+                    snapshot.criticalPolygons,
+                ]
+            );
 
-        // Limitar a maxSnapshots
-        if (this.globalSnapshots.length > this.maxSnapshots) {
-            this.globalSnapshots = this.globalSnapshots.slice(-this.maxSnapshots);
+            // Limpiar snapshots antiguos (más de 7 días)
+            await this.cleanupOldSnapshots();
+        } catch (error) {
+            console.error('❌ Error guardando snapshot global:', error);
         }
 
         return snapshot;
@@ -135,7 +90,7 @@ export class HistoricalService {
     /**
      * Crea snapshots para cada polígono
      */
-    createPolygonSnapshots(jams: InternalJam[], incidents: InternalAlert[]) {
+    async createPolygonSnapshots(jams: InternalJam[], incidents: InternalAlert[]) {
         for (const polygon of REAL_POLYGONS) {
             const polygonJams = jams.filter(j => j.polygonId === polygon.id);
             const polygonIncidents = incidents.filter(i => i.polygonId === polygon.id);
@@ -144,12 +99,12 @@ export class HistoricalService {
 
             const criticalJams = polygonJams.filter(j => j.level && j.level >= 4);
             const criticalLength = criticalJams.reduce((sum, j) => sum + j.length, 0);
-            
+
             const jamsWithSpeed = polygonJams.filter(j => j.speed > 0);
             const avgSpeed = jamsWithSpeed.length > 0
-                ? jamsWithSpeed.reduce((sum, j) => sum + j.speed, 0) / jamsWithSpeed.length
+                ? polygonJams.reduce((sum, j) => sum + j.speed, 0) / jamsWithSpeed.length
                 : null;
-            
+
             const avgDelay = polygonJams.reduce((sum, j) => sum + j.delay, 0) / polygonJams.length;
 
             const snapshot: HistoricalSnapshot = {
@@ -163,51 +118,193 @@ export class HistoricalService {
                 criticalPolygons: criticalLength >= 1000 ? 1 : 0,
             };
 
-            // Obtener o crear array de snapshots
-            let snapshots = this.polygonSnapshots.get(polygon.id) || [];
-            snapshots.push(snapshot);
-
-            // Limitar a maxSnapshots
-            if (snapshots.length > this.maxSnapshots) {
-                snapshots = snapshots.slice(-this.maxSnapshots);
+            // Guardar en base de datos
+            try {
+                await dbService.query(
+                    `INSERT INTO polygon_snapshots
+                    (polygon_id, timestamp, total_jams, total_incidents, avg_speed, avg_delay, critical_km, affected_polygons, critical_polygons)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                    [
+                        polygon.id,
+                        snapshot.timestamp,
+                        snapshot.totalJams,
+                        snapshot.totalIncidents,
+                        snapshot.avgSpeed,
+                        snapshot.avgDelay,
+                        snapshot.criticalKm,
+                        snapshot.affectedPolygons,
+                        snapshot.criticalPolygons,
+                    ]
+                );
+            } catch (error) {
+                console.error(`❌ Error guardando snapshot del polígono ${polygon.id}:`, error);
             }
-
-            this.polygonSnapshots.set(polygon.id, snapshots);
         }
     }
 
     /**
      * Guarda snapshots completos (global + polígonos)
      */
-    saveCurrentState(jams: InternalJam[], incidents: InternalAlert[]) {
-        this.createGlobalSnapshot(jams, incidents);
-        this.createPolygonSnapshots(jams, incidents);
-        this.saveSnapshots();
+    async saveCurrentState(jams: InternalJam[], incidents: InternalAlert[]) {
+        await this.createGlobalSnapshot(jams, incidents);
+        await this.createPolygonSnapshots(jams, incidents);
         console.log(`📸 Snapshot guardado: ${new Date().toISOString()}`);
     }
 
     /**
      * Obtiene snapshots globales
      */
-    getGlobalSnapshots(hours: number = 24): HistoricalSnapshot[] {
-        const cutoff = Date.now() - (hours * 3600000);
-        return this.globalSnapshots.filter(s => s.timestamp.getTime() > cutoff);
+    async getGlobalSnapshots(hours: number = 24): Promise<HistoricalSnapshot[]> {
+        try {
+            const cutoff = new Date(Date.now() - (hours * 3600000));
+            const result = await dbService.query<HistoricalSnapshot>(
+                `SELECT
+                    timestamp,
+                    total_jams as "totalJams",
+                    total_incidents as "totalIncidents",
+                    avg_speed as "avgSpeed",
+                    avg_delay as "avgDelay",
+                    critical_km as "criticalKm",
+                    affected_polygons as "affectedPolygons",
+                    critical_polygons as "criticalPolygons"
+                FROM historical_snapshots
+                WHERE timestamp > $1
+                ORDER BY timestamp DESC
+                LIMIT $2`,
+                [cutoff, this.maxSnapshots]
+            );
+
+            return result.rows.map((row: any) => ({
+                ...row,
+                timestamp: new Date(row.timestamp),
+            }));
+        } catch (error) {
+            console.error('❌ Error obteniendo snapshots globales:', error);
+            return [];
+        }
     }
 
     /**
      * Obtiene snapshots de un polígono
      */
-    getPolygonSnapshots(polygonId: string, hours: number = 24): HistoricalSnapshot[] {
-        const snapshots = this.polygonSnapshots.get(polygonId) || [];
-        const cutoff = Date.now() - (hours * 3600000);
-        return snapshots.filter(s => s.timestamp.getTime() > cutoff);
+    async getPolygonSnapshots(polygonId: string, hours: number = 24): Promise<HistoricalSnapshot[]> {
+        try {
+            const cutoff = new Date(Date.now() - (hours * 3600000));
+            const result = await dbService.query<HistoricalSnapshot>(
+                `SELECT
+                    timestamp,
+                    total_jams as "totalJams",
+                    total_incidents as "totalIncidents",
+                    avg_speed as "avgSpeed",
+                    avg_delay as "avgDelay",
+                    critical_km as "criticalKm",
+                    affected_polygons as "affectedPolygons",
+                    critical_polygons as "criticalPolygons"
+                FROM polygon_snapshots
+                WHERE polygon_id = $1 AND timestamp > $2
+                ORDER BY timestamp DESC
+                LIMIT $3`,
+                [polygonId, cutoff, this.maxSnapshots]
+            );
+
+            return result.rows.map((row: any) => ({
+                ...row,
+                timestamp: new Date(row.timestamp),
+            }));
+        } catch (error) {
+            console.error(`❌ Error obteniendo snapshots del polígono ${polygonId}:`, error);
+            return [];
+        }
     }
 
     /**
      * Calcula tendencias comparando periodos
      */
-    calculateTrends(metric: 'totalJams' | 'avgSpeed' | 'criticalKm' | 'avgDelay'): TrendData {
-        if (this.globalSnapshots.length === 0) {
+    async calculateTrends(metric: 'totalJams' | 'avgSpeed' | 'criticalKm' | 'avgDelay'): Promise<TrendData> {
+        try {
+            const now = Date.now();
+            const hourAgo = new Date(now - 3600000);
+            const dayAgo = new Date(now - 86400000);
+            const weekAgo = new Date(now - 604800000);
+
+            // Mapear nombre de métrica a columna SQL
+            const metricMap: Record<string, string> = {
+                totalJams: 'total_jams',
+                avgSpeed: 'avg_speed',
+                criticalKm: 'critical_km',
+                avgDelay: 'avg_delay',
+            };
+
+            const column = metricMap[metric] || 'total_jams';
+
+            // Obtener valor actual
+            const currentResult = await dbService.query<{ value: number }>(
+                `SELECT ${column} as value
+                FROM historical_snapshots
+                ORDER BY timestamp DESC
+                LIMIT 1`
+            );
+
+            const current = currentResult.rows[0]?.value || 0;
+
+            // Obtener valores históricos
+            const hourAgoResult = await dbService.query<{ value: number }>(
+                `SELECT ${column} as value
+                FROM historical_snapshots
+                WHERE timestamp <= $1
+                ORDER BY timestamp DESC
+                LIMIT 1`,
+                [hourAgo]
+            );
+
+            const dayAgoResult = await dbService.query<{ value: number }>(
+                `SELECT ${column} as value
+                FROM historical_snapshots
+                WHERE timestamp <= $1
+                ORDER BY timestamp DESC
+                LIMIT 1`,
+                [dayAgo]
+            );
+
+            const weekAgoResult = await dbService.query<{ value: number }>(
+                `SELECT ${column} as value
+                FROM historical_snapshots
+                WHERE timestamp <= $1
+                ORDER BY timestamp DESC
+                LIMIT 1`,
+                [weekAgo]
+            );
+
+            const hourAgoValue = hourAgoResult.rows[0]?.value || null;
+            const dayAgoValue = dayAgoResult.rows[0]?.value || null;
+            const weekAgoValue = weekAgoResult.rows[0]?.value || null;
+
+            // Calcular tendencia
+            let trend: 'improving' | 'worsening' | 'stable' = 'stable';
+            let percentChange = 0;
+
+            if (hourAgoValue !== null && typeof hourAgoValue === 'number' && typeof current === 'number') {
+                const change = current - hourAgoValue;
+                percentChange = hourAgoValue !== 0 ? (change / hourAgoValue) * 100 : 0;
+
+                // Para velocidad, aumento es mejora; para otros, aumento es empeoramiento
+                if (metric === 'avgSpeed') {
+                    trend = change > 2 ? 'improving' : change < -2 ? 'worsening' : 'stable';
+                } else {
+                    trend = change > (hourAgoValue * 0.1) ? 'worsening' : change < -(hourAgoValue * 0.1) ? 'improving' : 'stable';
+                }
+            }
+
+            return {
+                current: typeof current === 'number' ? current : 0,
+                hourAgo: typeof hourAgoValue === 'number' ? hourAgoValue : null,
+                dayAgo: typeof dayAgoValue === 'number' ? dayAgoValue : null,
+                weekAgo: typeof weekAgoValue === 'number' ? weekAgoValue : null,
+                trend,
+                percentChange: Number(percentChange.toFixed(1)),
+            };
+        } catch (error) {
+            console.error('❌ Error calculando tendencias:', error);
             return {
                 current: 0,
                 hourAgo: null,
@@ -217,60 +314,6 @@ export class HistoricalService {
                 percentChange: 0,
             };
         }
-
-        const now = Date.now();
-        const current = this.globalSnapshots[this.globalSnapshots.length - 1][metric] || 0;
-        
-        // Buscar snapshot más cercano a cada periodo
-        const hourAgo = this.findClosestSnapshot(now - 3600000)?.[metric] || null;
-        const dayAgo = this.findClosestSnapshot(now - 86400000)?.[metric] || null;
-        const weekAgo = this.findClosestSnapshot(now - 604800000)?.[metric] || null;
-
-        // Calcular tendencia (comparar con hace 1 hora)
-        let trend: 'improving' | 'worsening' | 'stable' = 'stable';
-        let percentChange = 0;
-
-        if (hourAgo !== null && typeof hourAgo === 'number' && typeof current === 'number') {
-            const change = current - hourAgo;
-            percentChange = hourAgo !== 0 ? (change / hourAgo) * 100 : 0;
-
-            // Para velocidad, aumento es mejora; para otros, aumento es empeoramiento
-            if (metric === 'avgSpeed') {
-                trend = change > 2 ? 'improving' : change < -2 ? 'worsening' : 'stable';
-            } else {
-                trend = change > (hourAgo * 0.1) ? 'worsening' : change < -(hourAgo * 0.1) ? 'improving' : 'stable';
-            }
-        }
-
-        return {
-            current: typeof current === 'number' ? current : 0,
-            hourAgo: typeof hourAgo === 'number' ? hourAgo : null,
-            dayAgo: typeof dayAgo === 'number' ? dayAgo : null,
-            weekAgo: typeof weekAgo === 'number' ? weekAgo : null,
-            trend,
-            percentChange: Number(percentChange.toFixed(1)),
-        };
-    }
-
-    /**
-     * Encuentra el snapshot más cercano a un timestamp
-     */
-    private findClosestSnapshot(targetTime: number): HistoricalSnapshot | null {
-        if (this.globalSnapshots.length === 0) return null;
-
-        let closest = this.globalSnapshots[0];
-        let minDiff = Math.abs(closest.timestamp.getTime() - targetTime);
-
-        for (const snapshot of this.globalSnapshots) {
-            const diff = Math.abs(snapshot.timestamp.getTime() - targetTime);
-            if (diff < minDiff) {
-                minDiff = diff;
-                closest = snapshot;
-            }
-        }
-
-        // Solo retornar si está dentro de 1 hora del target
-        return minDiff < 3600000 ? closest : null;
     }
 
     /**
@@ -284,7 +327,7 @@ export class HistoricalService {
             const polygonJams = jams.filter(j => j.polygonId === polygonId);
             const criticalJams = polygonJams.filter(j => j.level && j.level >= 4);
             const criticalLength = criticalJams.reduce((sum, j) => sum + j.length, 0);
-            
+
             if (criticalLength >= 1000) count++;
         }
 
@@ -294,21 +337,58 @@ export class HistoricalService {
     /**
      * Obtiene resumen de disponibilidad de datos
      */
-    getDataAvailability() {
-        const now = Date.now();
-        const oneHourAgo = now - 3600000;
-        const oneDayAgo = now - 86400000;
-        const oneWeekAgo = now - 604800000;
+    async getDataAvailability() {
+        try {
+            const result = await dbService.query<{
+                total_snapshots: number;
+                oldest_snapshot: Date;
+                newest_snapshot: Date;
+            }>(
+                `SELECT
+                    COUNT(*) as total_snapshots,
+                    MIN(timestamp) as oldest_snapshot,
+                    MAX(timestamp) as newest_snapshot
+                FROM historical_snapshots`
+            );
 
-        return {
-            totalSnapshots: this.globalSnapshots.length,
-            oldestSnapshot: this.globalSnapshots[0]?.timestamp,
-            newestSnapshot: this.globalSnapshots[this.globalSnapshots.length - 1]?.timestamp,
-            hasHourData: this.globalSnapshots.some(s => s.timestamp.getTime() > oneHourAgo),
-            hasDayData: this.globalSnapshots.some(s => s.timestamp.getTime() > oneDayAgo),
-            hasWeekData: this.globalSnapshots.some(s => s.timestamp.getTime() > oneWeekAgo),
-            polygonsWithData: this.polygonSnapshots.size,
-        };
+            const row = result.rows[0];
+            const now = Date.now();
+            const oneHourAgo = now - 3600000;
+            const oneDayAgo = now - 86400000;
+            const oneWeekAgo = now - 604800000;
+
+            return {
+                totalSnapshots: row?.total_snapshots || 0,
+                oldestSnapshot: row?.oldest_snapshot || null,
+                newestSnapshot: row?.newest_snapshot || null,
+                hasHourData: row?.newest_snapshot ? new Date(row.newest_snapshot).getTime() > oneHourAgo : false,
+                hasDayData: row?.newest_snapshot ? new Date(row.newest_snapshot).getTime() > oneDayAgo : false,
+                hasWeekData: row?.oldest_snapshot ? new Date(row.oldest_snapshot).getTime() < oneWeekAgo : false,
+                polygonsWithData: 0, // Se puede calcular con una query adicional si es necesario
+            };
+        } catch (error) {
+            console.error('❌ Error obteniendo disponibilidad de datos:', error);
+            return {
+                totalSnapshots: 0,
+                oldestSnapshot: null,
+                newestSnapshot: null,
+                hasHourData: false,
+                hasDayData: false,
+                hasWeekData: false,
+                polygonsWithData: 0,
+            };
+        }
+    }
+
+    /**
+     * Limpia snapshots antiguos (más de 7 días)
+     */
+    private async cleanupOldSnapshots() {
+        try {
+            await dbService.query('SELECT cleanup_old_snapshots()');
+        } catch (error) {
+            console.error('❌ Error limpiando snapshots antiguos:', error);
+        }
     }
 
     /**
@@ -320,9 +400,9 @@ export class HistoricalService {
         this.saveCurrentState(data.jams, data.incidents);
 
         // Configurar guardado cada hora
-        setInterval(() => {
+        setInterval(async () => {
             const data = getDataFn();
-            this.saveCurrentState(data.jams, data.incidents);
+            await this.saveCurrentState(data.jams, data.incidents);
         }, 3600000); // 1 hora
 
         console.log('⏰ Auto-guardado de histórico configurado (cada 1 hora)');
