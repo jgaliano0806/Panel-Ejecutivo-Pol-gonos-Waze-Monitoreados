@@ -242,8 +242,8 @@ const Dashboard: React.FC = () => {
                         {/* Monitor de Alertas del Sistema */}
                         <AlertsMonitor alerts={alerts} />
 
-                        {/* Incidentes que Bloquean el Tráfico */}
-                        <BlockingIncidents incidents={incidents} jams={jams} />
+                        {/* Incidentes que Bloquean el Tráfico - Ahora con cálculo mejorado de demoras */}
+                        <BlockingIncidents />
                     </div>
                 );
         }

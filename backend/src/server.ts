@@ -8,6 +8,7 @@ import { historicalService } from './services/historicalService';
 import { dataQualityService } from './services/dataQualityService';
 import { incidentStatsService } from './services/incidentStatsService';
 import { externalTrafficService } from './services/externalTrafficService';
+import { delayCalculationService } from './services/delayCalculationService';
 import { REAL_POLYGONS } from './config/realPolygons';
 import dotenv from 'dotenv';
 
@@ -531,6 +532,167 @@ server.get('/api/incidents/types-summary', async (request, reply) => {
         return summary;
     } catch (error) {
         reply.code(500).send({ error: 'Failed to get incident types summary' });
+    }
+});
+
+// --- Endpoints de Cálculo Mejorado de Demoras ---
+
+/**
+ * GET /api/incidents/delay/:incidentId
+ * Calcula la demora mejorada para un incidente específico
+ * Usa: proximidad geográfica, estimación de desvío, y datos históricos
+ */
+server.get('/api/incidents/delay/:incidentId', async (request, reply) => {
+    try {
+        const { incidentId } = request.params as { incidentId: string };
+
+        const alerts = wazeService.getAlerts();
+        const jams = wazeService.getJams();
+        const incident = alerts.find(a => a.id === incidentId);
+
+        if (!incident) {
+            reply.code(404).send({ error: 'Incident not found' });
+            return;
+        }
+
+        // Obtener datos históricos si están disponibles
+        const historicalData = historicalService.getGlobalHistory(24);
+
+        const delayResult = delayCalculationService.calculateIncidentDelay(
+            incident,
+            jams,
+            historicalData
+        );
+
+        return {
+            incidentId,
+            incidentType: incident.type,
+            incidentSubtype: incident.subtype,
+            location: incident.location,
+            street: incident.street,
+            ...delayResult,
+        };
+    } catch (error) {
+        server.log.error({ error }, 'Error calculating incident delay');
+        reply.code(500).send({ error: 'Failed to calculate incident delay' });
+    }
+});
+
+/**
+ * GET /api/incidents/delays/all
+ * Calcula demoras mejoradas para todos los incidentes activos
+ */
+server.get('/api/incidents/delays/all', async (request, reply) => {
+    try {
+        const alerts = wazeService.getAlerts();
+        const jams = wazeService.getJams();
+        const historicalData = historicalService.getGlobalHistory(24);
+
+        const delayResults = delayCalculationService.calculateBatchDelays(
+            alerts,
+            jams,
+            historicalData
+        );
+
+        // Convertir Map a objeto para la respuesta JSON
+        const results: any[] = [];
+        delayResults.forEach((delay, incidentId) => {
+            const incident = alerts.find(a => a.id === incidentId);
+            if (incident) {
+                results.push({
+                    incidentId,
+                    incidentType: incident.type,
+                    incidentSubtype: incident.subtype,
+                    street: incident.street,
+                    polygonId: incident.polygonId,
+                    ...delay,
+                });
+            }
+        });
+
+        // Ordenar por demora total descendente
+        results.sort((a, b) => b.totalDelaySeconds - a.totalDelaySeconds);
+
+        return {
+            count: results.length,
+            totalNetworkDelay: results.reduce((sum, r) => sum + r.totalDelaySeconds, 0),
+            incidents: results,
+        };
+    } catch (error) {
+        server.log.error({ error }, 'Error calculating batch delays');
+        reply.code(500).send({ error: 'Failed to calculate batch delays' });
+    }
+});
+
+/**
+ * GET /api/incidents/blocking-analysis
+ * Análisis completo de incidentes bloqueantes con cálculo mejorado de demora
+ */
+server.get('/api/incidents/blocking-analysis', async (request, reply) => {
+    try {
+        const alerts = wazeService.getAlerts();
+        const jams = wazeService.getJams();
+        const historicalData = historicalService.getGlobalHistory(24);
+
+        // Filtrar solo incidentes que podrían ser bloqueantes
+        const blockingTypes = ['ROAD_CLOSED', 'road_closed', 'ACCIDENT', 'accident', 'HAZARD', 'hazard'];
+        const potentialBlockingIncidents = alerts.filter(a =>
+            blockingTypes.some(t => a.type.toLowerCase().includes(t.toLowerCase())) ||
+            a.severity >= 4
+        );
+
+        const analyses = potentialBlockingIncidents.map(incident => {
+            const delayResult = delayCalculationService.calculateIncidentDelay(
+                incident,
+                jams,
+                historicalData
+            );
+
+            // Encontrar jams relacionados directamente
+            const linkedJams = jams.filter(j => j.blockingAlertUuid === incident.id);
+            const totalLength = linkedJams.reduce((sum, j) => sum + j.length, 0);
+
+            return {
+                incident: {
+                    id: incident.id,
+                    type: incident.type,
+                    subtype: incident.subtype,
+                    street: incident.street,
+                    city: incident.city,
+                    severity: incident.severity,
+                    polygonId: incident.polygonId,
+                    location: incident.location,
+                    timestamp: incident.timestamp,
+                },
+                delay: delayResult,
+                linkedJams: linkedJams.length,
+                affectedLength: totalLength,
+                affectedLengthKm: (totalLength / 1000).toFixed(2),
+                impactScore: Math.round(
+                    (delayResult.totalDelayMinutes * 0.4) +
+                    (linkedJams.length * 10) +
+                    (totalLength / 100)
+                ),
+            };
+        });
+
+        // Ordenar por impacto
+        analyses.sort((a, b) => b.impactScore - a.impactScore);
+
+        return {
+            count: analyses.length,
+            analyses: analyses.slice(0, 20), // Top 20
+            summary: {
+                totalIncidents: analyses.length,
+                totalDelayMinutes: analyses.reduce((sum, a) => sum + a.delay.totalDelayMinutes, 0),
+                avgConfidence: analyses.length > 0
+                    ? Math.round(analyses.reduce((sum, a) => sum + a.delay.confidence, 0) / analyses.length)
+                    : 0,
+            },
+        };
+    } catch (error) {
+        server.log.error({ error }, 'Error in blocking analysis');
+        reply.code(500).send({ error: 'Failed to get blocking analysis' });
     }
 });
 

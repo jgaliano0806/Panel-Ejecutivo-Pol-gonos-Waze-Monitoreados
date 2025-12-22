@@ -123,6 +123,70 @@ export const useTrends = () => {
     });
 };
 
+// --- Tipos para análisis de demoras mejorado ---
+
+export interface DelayBreakdown {
+    linkedJamsDelay: number;
+    proximityDelay: number;
+    detourDelay: number;
+    historicalDelta: number;
+}
+
+export interface DelayCalculationResult {
+    totalDelaySeconds: number;
+    totalDelayMinutes: number;
+    breakdown: DelayBreakdown;
+    confidence: number;
+    consideredJams: {
+        linked: number;
+        nearby: number;
+    };
+    primaryMethod: 'linked' | 'proximity' | 'detour' | 'historical';
+    details: string;
+}
+
+export interface BlockingAnalysisIncident {
+    id: string;
+    type: string;
+    subtype?: string;
+    street?: string;
+    city?: string;
+    severity: number;
+    polygonId: string | null;
+    location: { lat: number; lng: number };
+    timestamp: Date;
+}
+
+export interface BlockingAnalysisItem {
+    incident: BlockingAnalysisIncident;
+    delay: DelayCalculationResult;
+    linkedJams: number;
+    affectedLength: number;
+    affectedLengthKm: string;
+    impactScore: number;
+}
+
+export interface BlockingAnalysisResponse {
+    count: number;
+    analyses: BlockingAnalysisItem[];
+    summary: {
+        totalIncidents: number;
+        totalDelayMinutes: number;
+        avgConfidence: number;
+    };
+}
+
+/**
+ * Hook para obtener análisis de incidentes bloqueantes con cálculo mejorado de demoras
+ */
+export const useBlockingAnalysis = () => {
+    return useQuery<BlockingAnalysisResponse>({
+        queryKey: ['blocking-analysis'],
+        queryFn: () => fetcher<BlockingAnalysisResponse>('/incidents/blocking-analysis'),
+        refetchInterval: REFRESH_INTERVALS.realTimeData,
+    });
+};
+
 /**
  * Hook principal que combina todos los datos
  * AHORA USA DATOS REALES DEL BACKEND (no mock)

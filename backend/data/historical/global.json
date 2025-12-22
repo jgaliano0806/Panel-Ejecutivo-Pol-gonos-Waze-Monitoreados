@@ -1478,5 +1478,45 @@
     "criticalKm": 3.6,
     "affectedPolygons": 6,
     "criticalPolygons": 1
+  },
+  {
+    "timestamp": "2025-12-22T14:24:01.316Z",
+    "totalJams": 0,
+    "totalIncidents": 0,
+    "avgSpeed": null,
+    "avgDelay": 0,
+    "criticalKm": 0,
+    "affectedPolygons": 0,
+    "criticalPolygons": 0
+  },
+  {
+    "timestamp": "2025-12-22T14:24:01.543Z",
+    "totalJams": 0,
+    "totalIncidents": 0,
+    "avgSpeed": null,
+    "avgDelay": 0,
+    "criticalKm": 0,
+    "affectedPolygons": 0,
+    "criticalPolygons": 0
+  },
+  {
+    "timestamp": "2025-12-22T14:24:38.005Z",
+    "totalJams": 0,
+    "totalIncidents": 0,
+    "avgSpeed": null,
+    "avgDelay": 0,
+    "criticalKm": 0,
+    "affectedPolygons": 0,
+    "criticalPolygons": 0
+  },
+  {
+    "timestamp": "2025-12-22T14:24:38.415Z",
+    "totalJams": 0,
+    "totalIncidents": 0,
+    "avgSpeed": null,
+    "avgDelay": 0,
+    "criticalKm": 0,
+    "affectedPolygons": 0,
+    "criticalPolygons": 0
   }
 ]
