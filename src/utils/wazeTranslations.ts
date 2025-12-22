@@ -4,6 +4,7 @@
 
 export const WAZE_TRANSLATIONS = {
     accident: {
+        ACCIDENT: "Siniestro vial",
         ACCIDENT_MINOR: "Siniestro vial leve",
         ACCIDENT_MAJOR: "Siniestro vial grave",
         NO_SUBTYPE: "Siniestro sin clasificar"
@@ -104,6 +105,7 @@ export const IRREGULARITY_TYPE_TRANSLATIONS: Record<string, string> = {
 
 // Mapeo de tipos principales a español
 export const MAIN_TYPE_TRANSLATIONS: Record<string, string> = {
+    // Tipos principales en minúsculas
     accident: "Siniestro vial",
     jam: "Congestión",
     hazard: "Peligro",
@@ -111,10 +113,29 @@ export const MAIN_TYPE_TRANSLATIONS: Record<string, string> = {
     hazard_on_shoulder: "Peligro en banquina",
     hazard_weather: "Peligro climático",
     weatherhazard: "Peligro climático",
-    construction: "Obra",
+    construction: "Obra vial",
     road_closed: "Corte de ruta",
     roadclosed: "Corte de ruta",
-    misc: "Otro"
+    misc: "Otro",
+    // Alertas del sistema
+    congestion: "Congestión",
+    speed: "Velocidad",
+    incident: "Incidente",
+    // Tipos en mayúsculas (como vienen de Waze)
+    ACCIDENT: "Siniestro vial",
+    JAM: "Congestión",
+    HAZARD: "Peligro",
+    CONSTRUCTION: "Obra vial",
+    ROAD_CLOSED: "Corte de ruta",
+    WEATHERHAZARD: "Peligro climático",
+    MISC: "Otro",
+    // Tipos adicionales de alertas
+    high_congestion: "Alta congestión",
+    critical_congestion: "Congestión crítica",
+    low_speed: "Velocidad reducida",
+    critical_speed: "Velocidad crítica",
+    multiple_incidents: "Múltiples incidentes",
+    blocking_incident: "Incidente bloqueante"
 };
 
 /**
@@ -146,7 +167,22 @@ export function getSubtypeTranslation(type: string, subtype: string): string {
  * Obtiene la traducción del tipo principal
  */
 export function getMainTypeTranslation(type: string): string {
-    return MAIN_TYPE_TRANSLATIONS[type] || type;
+    // Buscar primero tal cual viene
+    if (MAIN_TYPE_TRANSLATIONS[type]) {
+        return MAIN_TYPE_TRANSLATIONS[type];
+    }
+    // Buscar en minúsculas
+    const lowerType = type.toLowerCase();
+    if (MAIN_TYPE_TRANSLATIONS[lowerType]) {
+        return MAIN_TYPE_TRANSLATIONS[lowerType];
+    }
+    // Buscar en mayúsculas
+    const upperType = type.toUpperCase();
+    if (MAIN_TYPE_TRANSLATIONS[upperType]) {
+        return MAIN_TYPE_TRANSLATIONS[upperType];
+    }
+    // Si no se encuentra, retornar el original
+    return type;
 }
 
 /**

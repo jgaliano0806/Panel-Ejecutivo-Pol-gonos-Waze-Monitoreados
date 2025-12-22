@@ -16,7 +16,7 @@ dist-ssr
 build
 *.local
 
-# Environment variables - ¡NUNCA commitear!
+# Environment variables - NEVER commit!
 .env
 .env.*
 !.env.example
@@ -27,6 +27,7 @@ backend/.env.*
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 .idea
 .DS_Store
 *.suo
@@ -45,6 +46,9 @@ Thumbs.db
 # Testing
 coverage
 .nyc_output
+test-results
+playwright-report
+playwright/.cache
 
 # Temporary files
 tmp
@@ -53,3 +57,10 @@ temp
 *.swp
 *.swo
 *~
+
+# Docker
+.docker
+
+# Misc
+*.bak
+*.backup

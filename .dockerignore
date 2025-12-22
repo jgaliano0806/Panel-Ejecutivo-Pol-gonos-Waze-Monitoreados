@@ -1,0 +1,63 @@
+# Dependencies
+node_modules
+backend/node_modules
+
+# Build outputs
+dist
+backend/dist
+build
+*.local
+
+# Development files
+*.log
+*.md
+!README.md
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Test files
+coverage
+.nyc_output
+tests
+*.test.ts
+*.spec.ts
+
+# Documentation (development only)
+docs
+
+# Docker files (avoid recursive copy)
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# Scripts
+scripts
+*.ps1
+*.bat
+*.sh
+!docker/*.sh
+
+
+

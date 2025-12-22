@@ -1,7 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { wazeService } from './services/wazeService';
-import { apiService } from './services/apiService';
+import { ApiService } from './services/apiService';
 import { alertService } from './services/alertService';
 import { aggregationService } from './services/aggregationService';
 import { historicalService } from './services/historicalService';
@@ -12,6 +12,9 @@ import { REAL_POLYGONS } from './config/realPolygons';
 import dotenv from 'dotenv';
 
 dotenv.config();
+
+// Instancia del servicio de API (evita problemas de import/export en TS runtime)
+const apiService = new ApiService();
 
 const server = Fastify({
     logger: true,
@@ -28,7 +31,7 @@ server.register(cors, {
 });
 
 // Hook global de manejo de errores
-server.setErrorHandler((error, request, reply) => {
+server.setErrorHandler((error: Error, request, reply) => {
     server.log.error({
         error: error.message,
         stack: error.stack,
@@ -75,12 +78,21 @@ server.get('/health', async () => {
     }
 });
 
+// Endpoint de prueba simple
+server.get('/api/test', async () => {
+    return { message: 'Backend is running!', timestamp: new Date().toISOString() };
+});
+
 server.get('/api/polygons', async (request, reply) => {
     try {
         const polygons = apiService.getPolygonsStatus();
+        if (!polygons || !Array.isArray(polygons)) {
+            server.log.warn({ url: request.url }, 'getPolygonsStatus retornó valor inválido');
+            return [];
+        }
         return polygons;
     } catch (error) {
-        server.log.error({ error, url: request.url }, 'Error en /api/polygons');
+        server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error en /api/polygons');
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         reply.code(500).send({
             error: 'Failed to get polygons status',
@@ -162,17 +174,17 @@ server.get('/api/traffic-metrics/:polygonId', async (request, reply) => {
     try {
         const { polygonId } = request.params as { polygonId: string };
         const metrics = apiService.getTrafficMetricsByPolygon(polygonId);
-        
+
         if (!metrics) {
             reply.code(404).send({ error: 'Polygon not found' });
             return;
         }
-        
+
         return metrics;
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/traffic-metrics/:polygonId');
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        reply.code(500).send({ 
+        reply.code(500).send({
             error: 'Failed to get polygon traffic metrics',
             message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
         });
@@ -188,7 +200,7 @@ server.get('/api/alerts', async (request, reply) => {
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/alerts');
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        reply.code(500).send({ 
+        reply.code(500).send({
             error: 'Failed to get alerts',
             message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
         });
@@ -278,9 +290,14 @@ server.get('/api/historical/global', async (request, reply) => {
     try {
         const hours = parseInt((request.query as any)?.hours || '24');
         const snapshots = historicalService.getGlobalSnapshots(hours);
-        return snapshots;
+        return snapshots || [];
     } catch (error) {
-        reply.code(500).send({ error: 'Failed to get historical data' });
+        server.log.error({ error, url: request.url }, 'Error en /api/historical/global');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        reply.code(500).send({
+            error: 'Failed to get historical data',
+            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        });
     }
 });
 
@@ -298,13 +315,18 @@ server.get('/api/historical/polygon/:polygonId', async (request, reply) => {
 server.get('/api/historical/trends', async (request, reply) => {
     try {
         return {
-            totalJams: historicalService.calculateTrends('totalJams'),
-            avgSpeed: historicalService.calculateTrends('avgSpeed'),
-            criticalKm: historicalService.calculateTrends('criticalKm'),
-            avgDelay: historicalService.calculateTrends('avgDelay'),
+            totalJams: historicalService.calculateTrends('totalJams') || 0,
+            avgSpeed: historicalService.calculateTrends('avgSpeed') || 0,
+            criticalKm: historicalService.calculateTrends('criticalKm') || 0,
+            avgDelay: historicalService.calculateTrends('avgDelay') || 0,
         };
     } catch (error) {
-        reply.code(500).send({ error: 'Failed to get trends' });
+        server.log.error({ error, url: request.url }, 'Error en /api/historical/trends');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        reply.code(500).send({
+            error: 'Failed to get trends',
+            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        });
     }
 });
 
@@ -567,7 +589,7 @@ server.get('/api/speed/comparison/all', async (request, reply) => {
             .slice(0, limit);
 
         // Obtener comparaciones en paralelo (con límite para no sobrecargar)
-        const comparisons = await Promise.all(
+        const comparisons = (await Promise.all(
             topPolygons.map(async (metrics) => {
                 const polygon = REAL_POLYGONS.find(p => p.id === metrics.polygonId);
                 if (!polygon) return null;
@@ -589,7 +611,7 @@ server.get('/api/speed/comparison/all', async (request, reply) => {
                     return null;
                 }
             })
-        );
+        )) as Array<any>;
 
         return comparisons.filter(c => c !== null);
     } catch (error) {
@@ -602,16 +624,40 @@ server.get('/api/speed/comparison/all', async (request, reply) => {
 
 const start = async () => {
     try {
-        // Iniciar ingesta de Waze
-        wazeService.startIngestionCycle();
+        console.log('🔧 Inicializando servicios...');
+
+        // Verificar que los servicios estén inicializados
+        console.log('✓ wazeService inicializado');
+        console.log('✓ apiService inicializado');
+        console.log('✓ alertService inicializado');
+
+        // Iniciar ingesta de Waze (no bloquea el arranque del servidor)
+        try {
+            wazeService.startIngestionCycle();
+            console.log('✓ Ciclo de ingesta iniciado');
+        } catch (ingestionError) {
+            console.error('⚠️ Error al iniciar ciclo de ingesta (continuando):', ingestionError);
+        }
 
         const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
         await server.listen({ port, host: '0.0.0.0' });
         console.log(`🚀 Backend server running on http://localhost:${port}`);
+        console.log(`📊 Health check: http://localhost:${port}/health`);
     } catch (err) {
+        console.error('❌ Error fatal al iniciar servidor:', err);
         server.log.error(err);
         process.exit(1);
     }
 };
+
+// Manejar errores no capturados
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('❌ Uncaught Exception:', error);
+    process.exit(1);
+});
 
 start();

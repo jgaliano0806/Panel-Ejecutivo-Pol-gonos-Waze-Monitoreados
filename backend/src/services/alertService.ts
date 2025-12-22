@@ -274,7 +274,7 @@ export class AlertService {
         // MEJORA: Filtrar incidentes de baja calidad antes de evaluar
         const highQualityIncidents = dataQualityService.filterHighQualityIncidents(allIncidents);
         const filteredCount = allIncidents.length - highQualityIncidents.length;
-        
+
         if (filteredCount > 0) {
             console.log(`🔍 Filtrados ${filteredCount} incidentes de baja calidad (confidence/reliability bajo)`);
         }

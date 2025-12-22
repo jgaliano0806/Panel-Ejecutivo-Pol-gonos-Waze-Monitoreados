@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Home, Map, AlertCircle } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Badge } from '../ui/badge';
 import { cn } from '../../lib/utils';
 
@@ -17,18 +18,23 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
   onViewChange,
   criticalAlertsCount = 0,
 }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const tabs = [
     {
       id: 'home' as ViewType,
       label: 'Inicio',
       icon: Home,
       color: 'from-primary-600 to-primary-700', // Verde corporativo
+      path: '/',
     },
     {
       id: 'map' as ViewType,
       label: 'Mapa y Zonas',
       icon: Map,
       color: 'from-primary-500 to-primary-600', // Verde corporativo
+      path: '/mapa',
     },
     {
       id: 'events' as ViewType,
@@ -36,45 +42,68 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
       icon: AlertCircle,
       color: 'from-warning-400 to-warning-500', // Amarillo corporativo
       badge: criticalAlertsCount > 0 ? criticalAlertsCount : undefined,
+      path: '/alertas',
     },
   ];
 
+  // Determinar la vista actual basada en la URL
+  const getActiveView = () => {
+    if (location.pathname === '/' || location.pathname === '/dashboard') return 'home';
+    if (location.pathname === '/mapa') return 'map';
+    if (location.pathname === '/alertas') return 'events';
+    return currentView;
+  };
+
+  const activeView = getActiveView();
+
+  const handleTabClick = (tab: typeof tabs[0]) => {
+    onViewChange(tab.id);
+    navigate(tab.path);
+  };
+
   return (
-    <nav className="bg-white border-b-2 border-yellow-400 shadow-md sticky top-[88px] z-30">
-      <div className="max-w-[1850px] mx-auto px-6">
-        <div className="flex space-x-2">
+    <nav className="bg-gradient-to-r from-white via-gray-50 to-white border-b-4 border-yellow-400 shadow-xl sticky top-[96px] z-30 backdrop-blur-sm">
+      <div className="max-w-[1900px] mx-auto px-8">
+        <div className="flex space-x-3 py-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
-            const isActive = currentView === tab.id;
+            const isActive = activeView === tab.id;
 
             return (
               <motion.button
                 key={tab.id}
-                onClick={() => onViewChange(tab.id)}
+                onClick={() => handleTabClick(tab)}
                 className={cn(
-                  "relative py-4 px-6 font-bold text-sm flex items-center gap-3 transition-all duration-200",
+                  "relative py-4 px-8 font-bold text-sm flex items-center gap-3 transition-all duration-300 rounded-t-xl",
                   isActive
-                    ? "text-blue-600"
-                    : "text-gray-500 hover:text-gray-700"
+                    ? "text-primary-700 bg-white"
+                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-50/50"
                 )}
-                whileHover={{ y: -2 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ y: -3, scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
               >
                 {/* Icon con gradiente en activo */}
-                <div className={cn(
-                  "p-2 rounded-lg transition-all duration-200",
-                  isActive
-                    ? `bg-gradient-to-br ${tab.color} shadow-lg`
-                    : "bg-gray-100"
-                )}>
+                <motion.div
+                  className={cn(
+                    "p-2.5 rounded-xl transition-all duration-300 shadow-md",
+                    isActive
+                      ? `bg-gradient-to-br ${tab.color}`
+                      : "bg-gradient-to-br from-gray-100 to-gray-200"
+                  )}
+                  whileHover={{ scale: 1.1 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                >
                   <Icon className={cn(
                     "w-5 h-5",
                     isActive ? "text-white" : "text-gray-600"
                   )} />
-                </div>
+                </motion.div>
 
                 {/* Label */}
-                <span>{tab.label}</span>
+                <span className={cn(
+                  "text-base",
+                  isActive && "font-black"
+                )}>{tab.label}</span>
 
                 {/* Badge de alertas */}
                 {tab.badge && (
@@ -83,8 +112,13 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
                     animate={{ scale: 1 }}
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   >
-                    <Badge variant="critical" size="sm">
-                      {tab.badge}
+                    <Badge variant="critical" size="sm" className="shadow-lg shadow-red-500/30">
+                      <motion.span
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                      >
+                        {tab.badge}
+                      </motion.span>
                     </Badge>
                   </motion.div>
                 )}
@@ -93,11 +127,11 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
                 {isActive && (
                   <motion.div
                     className={cn(
-                      "absolute bottom-0 left-0 right-0 h-1 rounded-t-full",
+                      "absolute bottom-0 left-0 right-0 h-1.5 rounded-t-full shadow-lg",
                       `bg-gradient-to-r ${tab.color}`
                     )}
                     layoutId="activeTab"
-                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
                   />
                 )}
 
@@ -105,14 +139,35 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
                 {isActive && (
                   <motion.div
                     className={cn(
-                      "absolute inset-0 rounded-lg opacity-20",
+                      "absolute inset-0 rounded-t-xl",
                       `bg-gradient-to-br ${tab.color}`
                     )}
                     animate={{
-                      opacity: [0.1, 0.3, 0.1],
+                      opacity: [0.05, 0.15, 0.05],
                     }}
-                    transition={{ duration: 2, repeat: Infinity }}
+                    transition={{ duration: 3, repeat: Infinity }}
                   />
+                )}
+
+                {/* Shine effect */}
+                {isActive && (
+                  <motion.div
+                    className="absolute inset-0 rounded-t-xl overflow-hidden"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  >
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                      animate={{
+                        x: ['-200%', '200%'],
+                      }}
+                      transition={{
+                        duration: 3,
+                        repeat: Infinity,
+                        repeatDelay: 2,
+                      }}
+                    />
+                  </motion.div>
                 )}
               </motion.button>
             );

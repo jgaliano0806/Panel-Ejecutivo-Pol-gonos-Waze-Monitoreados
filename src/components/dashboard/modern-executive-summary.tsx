@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { GlobalKPIs, AlertStats, Incident, TrafficAlert, Polygon } from '../../types';
+import { IncidentType } from '../../types';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { cn } from '../../lib/utils';
-import { TrendingUp, TrendingDown, AlertTriangle, Target, Construction, MapPin } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Target, Construction, MapPin, Car } from 'lucide-react';
 import { EventsListModal } from '../EventsListModal';
+import { NETWORK_CONFIG } from '../../config/constants';
+
+// Usar grupos RAC desde configuración centralizada
+const RAC_GROUPS = NETWORK_CONFIG.racGroups;
 
 interface ModernExecutiveSummaryProps {
   kpis: GlobalKPIs;
@@ -18,7 +23,7 @@ interface ModernExecutiveSummaryProps {
   onEventSelect?: (incident: Incident) => void;
 }
 
-export const ModernExecutiveSummary: React.FC<ModernExecutiveSummaryProps> = ({
+export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(({
   kpis,
   alertStats,
   totalPolygons,
@@ -29,20 +34,62 @@ export const ModernExecutiveSummary: React.FC<ModernExecutiveSummaryProps> = ({
   onEventSelect,
 }) => {
   const [showEventsModal, setShowEventsModal] = useState(false);
+  const [modalFilter, setModalFilter] = useState<'all' | 'rac-accidents'>('all');
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
 
-  const handleEventClick = (event: Incident | TrafficAlert, type: 'incident' | 'alert') => {
+  // Memoizar handler para evitar recreación
+  const handleEventClick = useCallback((event: Incident | TrafficAlert, type: 'incident' | 'alert') => {
     setShowEventsModal(false);
     if (type === 'incident' && onEventSelect) {
       onEventSelect(event as Incident);
     }
-  };
+  }, [onEventSelect]);
 
-  // Calcular totales reales
-  const totalEvents = incidents.length + (alerts.length || 0);
-  const criticalIncidents = incidents.filter(i => i.severity >= 4).length;
-  const criticalAlerts = (alerts || []).filter(a => a.severity === 'critical').length;
-  const totalCritical = criticalIncidents + criticalAlerts;
+  // Memoizar cálculos pesados
+  const totalEvents = useMemo(() =>
+    incidents.length + alerts.length,
+    [incidents.length, alerts.length]
+  );
+
+  const criticalIncidents = useMemo(() =>
+    incidents.filter(i => i.severity >= 4).length,
+    [incidents]
+  );
+
+  const criticalAlerts = useMemo(() =>
+    alerts.filter(a => a.severity === 'critical').length,
+    [alerts]
+  );
+
+  const totalCritical = useMemo(() =>
+    criticalIncidents + criticalAlerts,
+    [criticalIncidents, criticalAlerts]
+  );
+
+  // Filtrar solo ACCIDENTES en polígonos de la RAC
+  const racAccidents = useMemo(() => {
+    // Obtener IDs de polígonos que pertenecen a la RAC
+    const racPolygonIds = polygons
+      .filter(p => RAC_GROUPS.includes(p.group))
+      .map(p => p.id);
+
+    // Filtrar incidentes: solo accidentes en la RAC
+    return incidents.filter(i =>
+      i.type === IncidentType.ACCIDENT &&
+      i.polygonId &&
+      racPolygonIds.includes(i.polygonId)
+    );
+  }, [incidents, polygons]);
+
+  const racCriticalAccidents = useMemo(() =>
+    racAccidents.filter(i => i.severity >= 4).length,
+    [racAccidents]
+  );
+
+  const racHighAccidents = useMemo(() =>
+    racAccidents.filter(i => i.severity >= 3).length,
+    [racAccidents]
+  );
 
   const metrics = [
     {
@@ -74,16 +121,16 @@ export const ModernExecutiveSummary: React.FC<ModernExecutiveSummaryProps> = ({
     },
     {
       id: 'incidents',
-      label: 'Incidentes de Waze',
-      value: incidents.length,
-      numericValue: incidents.length,
-      subtext: `${criticalIncidents} críticos • ${incidents.filter(i => i.severity >= 3).length} altos`,
-      icon: AlertTriangle,
-      gradient: criticalIncidents > 0 ? 'from-orange-600 via-red-600 to-red-700' : 'from-warning-400 via-warning-500 to-warning-600',
-      bgGradient: criticalIncidents > 0 ? 'from-orange-50 to-red-50' : 'from-warning-50 to-yellow-50',
+      label: 'Accidentes en RAC',
+      value: racAccidents.length,
+      numericValue: racAccidents.length,
+      subtext: `${racCriticalAccidents} críticos • ${racHighAccidents} altos`,
+      icon: Car,
+      gradient: racCriticalAccidents > 0 ? 'from-orange-600 via-red-600 to-red-700' : 'from-warning-400 via-warning-500 to-warning-600',
+      bgGradient: racCriticalAccidents > 0 ? 'from-orange-50 to-red-50' : 'from-warning-50 to-yellow-50',
       trend: 0,
       isClickable: true,
-      pulse: criticalIncidents > 0,
+      pulse: racCriticalAccidents > 0,
     },
     {
       id: 'critical',
@@ -176,7 +223,12 @@ export const ModernExecutiveSummary: React.FC<ModernExecutiveSummaryProps> = ({
                   whileHover={isClickable ? { scale: 1.05, y: -5 } : {}}
                   onHoverStart={() => setHoveredCard(index)}
                   onHoverEnd={() => setHoveredCard(null)}
-                  onClick={() => isClickable && setShowEventsModal(true)}
+                  onClick={() => {
+                    if (isClickable) {
+                      setModalFilter(metric.id === 'incidents' ? 'rac-accidents' : 'all');
+                      setShowEventsModal(true);
+                    }
+                  }}
                   className={cn(
                     "relative overflow-hidden rounded-2xl p-6 cursor-pointer transition-all duration-300",
                     `bg-gradient-to-br ${metric.bgGradient}`,
@@ -358,8 +410,8 @@ export const ModernExecutiveSummary: React.FC<ModernExecutiveSummaryProps> = ({
       {/* Modal de Eventos */}
       {showEventsModal && (
         <EventsListModal
-          incidents={incidents}
-          alerts={alerts}
+          incidents={modalFilter === 'rac-accidents' ? racAccidents : incidents}
+          alerts={modalFilter === 'rac-accidents' ? [] : alerts}
           polygons={polygons}
           onClose={() => setShowEventsModal(false)}
           onEventClick={handleEventClick}
@@ -367,4 +419,16 @@ export const ModernExecutiveSummary: React.FC<ModernExecutiveSummaryProps> = ({
       )}
     </>
   );
-};
+}, (prevProps, nextProps) => {
+  // Comparación personalizada para evitar re-renders innecesarios
+  return (
+    prevProps.kpis.fluidityPercentage === nextProps.kpis.fluidityPercentage &&
+    prevProps.kpis.activeIncidents === nextProps.kpis.activeIncidents &&
+    prevProps.totalPolygons === nextProps.totalPolygons &&
+    prevProps.criticalPolygons === nextProps.criticalPolygons &&
+    prevProps.incidents.length === nextProps.incidents.length &&
+    prevProps.alerts.length === nextProps.alerts.length
+  );
+});
+
+ModernExecutiveSummary.displayName = 'ModernExecutiveSummary';

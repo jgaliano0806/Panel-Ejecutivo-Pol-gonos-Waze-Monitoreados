@@ -1,4 +1,6 @@
-import React, { useState, useMemo, lazy, Suspense, useCallback, memo } from 'react';
+import React, { useState, useMemo, lazy, Suspense, useCallback, memo, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useWazeData } from '../hooks/useWazeData';
 import type { GlobalKPIs } from '../types';
 import { PolygonState, IncidentType, Severity } from '../types';
@@ -22,12 +24,24 @@ const TrendsChart = lazy(() => import('../components/TrendsChart').then(m => ({ 
 const GroupTrafficComparison = lazy(() => import('../components/GroupTrafficComparison').then(m => ({ default: m.GroupTrafficComparison })));
 
 const Dashboard: React.FC = () => {
+    const location = useLocation();
     const { polygons, incidents, jams, alerts, alertStats, isLoading, isError, lastUpdate, globalKPIs: backendKPIs } = useWazeData();
     const historicalData = useHistoricalData(24);
     const trendsData = useTrends();
     const [selectedPolygon, setSelectedPolygon] = useState<string | null>(null);
     const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
     const [currentView, setCurrentView] = useState<'home' | 'map' | 'events'>('home');
+
+    // Sincronizar vista con URL
+    useEffect(() => {
+        if (location.pathname === '/' || location.pathname === '/dashboard') {
+            setCurrentView('home');
+        } else if (location.pathname === '/mapa') {
+            setCurrentView('map');
+        } else if (location.pathname === '/alertas') {
+            setCurrentView('events');
+        }
+    }, [location.pathname]);
 
     // Usar KPIs del backend
     const globalKPIs: GlobalKPIs = useMemo(() => {
@@ -58,6 +72,7 @@ const Dashboard: React.FC = () => {
         };
     }, [polygons, incidents, backendKPIs]);
 
+    // Handlers memoizados para evitar re-renders innecesarios
     const handlePolygonChange = useCallback((id: string | null) => {
         setSelectedPolygon(id);
     }, []);
@@ -68,6 +83,13 @@ const Dashboard: React.FC = () => {
 
     const handleCloseDetail = useCallback(() => {
         setSelectedPolygon(null);
+    }, []);
+
+    const handleEventSelect = useCallback((incident: any) => {
+        if (incident.polygonId) {
+            setSelectedPolygon(incident.polygonId);
+            setCurrentView('map');
+        }
     }, []);
 
     const filteredPolygons = useMemo(() => {
@@ -104,13 +126,7 @@ const Dashboard: React.FC = () => {
                             incidents={incidents}
                             alerts={alerts}
                             polygons={polygons}
-                            onEventSelect={(incident) => {
-                                // Cambiar a vista de mapa y seleccionar el polígono del incidente
-                                if (incident.polygonId) {
-                                    setSelectedPolygon(incident.polygonId);
-                                    setCurrentView('map');
-                                }
-                            }}
+                            onEventSelect={handleEventSelect}
                         />
 
                         {/* Grid Principal: Top Críticos + Estado de Red */}
@@ -259,7 +275,15 @@ const Dashboard: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-primary-50/20 to-green-50/20">
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 via-green-50/20 to-yellow-50/30">
+            {/* Decorative Background Pattern */}
+            <div className="fixed inset-0 opacity-[0.03] pointer-events-none z-0">
+                <div className="absolute inset-0" style={{
+                    backgroundImage: `radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0)`,
+                    backgroundSize: '32px 32px'
+                }} />
+            </div>
+
             {/* Header Moderno */}
             <ModernHeader lastUpdate={lastUpdate} />
 
@@ -271,37 +295,58 @@ const Dashboard: React.FC = () => {
             />
 
             {/* Main Content */}
-            <main className="max-w-[1850px] mx-auto px-4 py-6">
+            <main className="relative max-w-[1900px] mx-auto px-8 py-8 z-10">
                 {/* Badge de Alertas (solo si hay críticas) */}
                 {alertStats && alertStats.bySeverity.critical > 0 && currentView !== 'events' && (
-                    <div className="mb-4">
+                    <motion.div
+                        className="mb-6"
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5 }}
+                    >
                         <AlertsBadge
                             stats={alertStats}
                             onClick={() => setCurrentView('events')}
                         />
-                    </div>
+                    </motion.div>
                 )}
 
-                {renderContent()}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
+                >
+                    {renderContent()}
+                </motion.div>
 
                 {/* Panel de Detalle (modal lateral) */}
                 {selectedPolygonData && (
-                    <div
-                        className="fixed inset-0 z-50 flex justify-end bg-black/50"
+                    <motion.div
+                        className="fixed inset-0 z-50 flex justify-end"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
                         onClick={handleCloseDetail}
                     >
-                        <div
-                            className="w-full max-w-2xl h-full bg-white shadow-2xl p-6 overflow-y-auto"
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                        <motion.div
+                            className="relative w-full max-w-2xl h-full bg-white shadow-2xl overflow-y-auto"
+                            initial={{ x: '100%' }}
+                            animate={{ x: 0 }}
+                            exit={{ x: '100%' }}
+                            transition={{ type: "spring", damping: 30, stiffness: 300 }}
                             onClick={e => e.stopPropagation()}
                         >
-                            <PolygonDetail
-                                polygon={selectedPolygonData}
-                                incidents={incidents}
-                                jams={jams}
-                                onClose={handleCloseDetail}
-                            />
-                        </div>
-                    </div>
+                            <div className="p-6">
+                                <PolygonDetail
+                                    polygon={selectedPolygonData}
+                                    incidents={incidents}
+                                    jams={jams}
+                                    onClose={handleCloseDetail}
+                                />
+                            </div>
+                        </motion.div>
+                    </motion.div>
                 )}
             </main>
 

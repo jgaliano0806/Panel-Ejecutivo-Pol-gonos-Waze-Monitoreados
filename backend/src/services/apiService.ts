@@ -297,82 +297,86 @@ export class ApiService {
         try {
             const jams = wazeService.getJams();
 
-        // Agrupar jams por polígono usando Map para O(1)
-        const jamsByPolygon = new Map<string, typeof jams>();
+            // Agrupar jams por polígono usando Map para O(1)
+            const jamsByPolygon = new Map<string, typeof jams>();
 
-        for (const jam of jams) {
-            if (!jam.polygonId) continue;
-            if (!jamsByPolygon.has(jam.polygonId)) {
-                jamsByPolygon.set(jam.polygonId, []);
+            for (const jam of jams) {
+                if (!jam.polygonId) continue;
+                if (!jamsByPolygon.has(jam.polygonId)) {
+                    jamsByPolygon.set(jam.polygonId, []);
+                }
+                jamsByPolygon.get(jam.polygonId)!.push(jam);
             }
-            jamsByPolygon.get(jam.polygonId)!.push(jam);
-        }
 
-        // Calcular métricas para cada polígono
-        const metrics: PolygonTrafficMetrics[] = [];
+            // Calcular métricas para cada polígono
+            const metrics: PolygonTrafficMetrics[] = [];
 
-        for (const polygon of REAL_POLYGONS) {
-            const polygonJams = jamsByPolygon.get(polygon.id) || [];
+            for (const polygon of REAL_POLYGONS) {
+                const polygonJams = jamsByPolygon.get(polygon.id) || [];
 
-            if (polygonJams.length === 0) {
+                if (polygonJams.length === 0) {
+                    metrics.push({
+                        polygonId: polygon.id,
+                        minSpeed: null,
+                        maxSpeed: null,
+                        avgSpeed: null,
+                        slowPoints: 0,
+                        moderatePoints: 0,
+                        fastPoints: 0,
+                        stoppedPoints: 0,
+                        congestionIndex: 0,
+                        totalJams: 0,
+                        lastUpdate: wazeService.getLastUpdate()
+                    });
+                    continue;
+                }
+
+                // Calcular velocidades
+                const speeds = polygonJams.map(jam => jam.speed);
+                const minSpeed = Math.min(...speeds);
+                const maxSpeed = Math.max(...speeds);
+                const avgSpeed = speeds.reduce((sum, s) => sum + s, 0) / speeds.length;
+
+                // Contar por categorías
+                let slowPoints = 0;
+                let moderatePoints = 0;
+                let fastPoints = 0;
+                let stoppedPoints = 0;
+
+                for (const jam of polygonJams) {
+                    if (jam.speed > 40) fastPoints++;
+                    else if (jam.speed >= 20) moderatePoints++;
+                    else if (jam.speed >= 10) slowPoints++;
+                    else stoppedPoints++;
+                }
+
+                // Calcular índice de congestión
+                const freeFlowSpeed = 60;
+                const congestionIndex = Math.max(0, Math.min(100,
+                    Math.round(((freeFlowSpeed - avgSpeed) / freeFlowSpeed) * 100)
+                ));
+
                 metrics.push({
                     polygonId: polygon.id,
-                    minSpeed: null,
-                    maxSpeed: null,
-                    avgSpeed: null,
-                    slowPoints: 0,
-                    moderatePoints: 0,
-                    fastPoints: 0,
-                    stoppedPoints: 0,
-                    congestionIndex: 0,
-                    totalJams: 0,
+                    minSpeed: Math.round(minSpeed),
+                    maxSpeed: Math.round(maxSpeed),
+                    avgSpeed: Math.round(avgSpeed * 10) / 10,
+                    slowPoints,
+                    moderatePoints,
+                    fastPoints,
+                    stoppedPoints,
+                    congestionIndex,
+                    totalJams: polygonJams.length,
                     lastUpdate: wazeService.getLastUpdate()
                 });
-                continue;
             }
 
-            // Calcular velocidades
-            const speeds = polygonJams.map(jam => jam.speed);
-            const minSpeed = Math.min(...speeds);
-            const maxSpeed = Math.max(...speeds);
-            const avgSpeed = speeds.reduce((sum, s) => sum + s, 0) / speeds.length;
-
-            // Contar por categorías
-            let slowPoints = 0;
-            let moderatePoints = 0;
-            let fastPoints = 0;
-            let stoppedPoints = 0;
-
-            for (const jam of polygonJams) {
-                if (jam.speed > 40) fastPoints++;
-                else if (jam.speed >= 20) moderatePoints++;
-                else if (jam.speed >= 10) slowPoints++;
-                else stoppedPoints++;
-            }
-
-            // Calcular índice de congestión
-            const freeFlowSpeed = 60;
-            const congestionIndex = Math.max(0, Math.min(100,
-                Math.round(((freeFlowSpeed - avgSpeed) / freeFlowSpeed) * 100)
-            ));
-
-            metrics.push({
-                polygonId: polygon.id,
-                minSpeed: Math.round(minSpeed),
-                maxSpeed: Math.round(maxSpeed),
-                avgSpeed: Math.round(avgSpeed * 10) / 10,
-                slowPoints,
-                moderatePoints,
-                fastPoints,
-                stoppedPoints,
-                congestionIndex,
-                totalJams: polygonJams.length,
-                lastUpdate: wazeService.getLastUpdate()
-            });
+            // Ordenar por congestionIndex descendente
+            return metrics.sort((a, b) => b.congestionIndex - a.congestionIndex);
+        } catch (error) {
+            console.error('Error en getAllTrafficMetrics:', error);
+            return [];
         }
-
-        // Ordenar por congestionIndex descendente
-        return metrics.sort((a, b) => b.congestionIndex - a.congestionIndex);
     }
 }
 

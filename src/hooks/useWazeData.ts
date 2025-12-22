@@ -2,12 +2,13 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import type { GlobalKPIs, Incident, TrafficJam, PolygonTrafficMetrics, TrafficAlert, AlertStats, HistoricalSnapshot, AllTrends } from '../types';
 import { realCordobaPolygons } from '../data/mock/realCordobaPolygons';
+import { REFRESH_INTERVALS, API_CONFIG } from '../config/constants';
 
 /**
  * Hook para consumir la API del Backend
  */
 
-const API_BASE = '/api'; // Usando proxy de Vite
+const API_BASE = API_CONFIG.baseUrl;
 
 // Fetcher genérico con mejor manejo de errores
 const fetcher = async <T>(url: string): Promise<T> => {
@@ -45,7 +46,7 @@ export const usePolygonsStatus = () => {
     return useQuery<BackendPolygonStatus[]>({
         queryKey: ['polygons'],
         queryFn: () => fetcher<BackendPolygonStatus[]>('/polygons'),
-        refetchInterval: 30000,
+        refetchInterval: REFRESH_INTERVALS.realTimeData,
     });
 };
 
@@ -53,7 +54,7 @@ export const useGlobalKPIs = () => {
     return useQuery<GlobalKPIs>({
         queryKey: ['kpis'],
         queryFn: () => fetcher<GlobalKPIs>('/kpis/global'),
-        refetchInterval: 30000,
+        refetchInterval: REFRESH_INTERVALS.globalKpis,
     });
 };
 
@@ -61,7 +62,7 @@ export const useAllIncidents = () => {
     return useQuery<Incident[]>({
         queryKey: ['incidents'],
         queryFn: () => fetcher<Incident[]>('/incidents/all'),
-        refetchInterval: 30000,
+        refetchInterval: REFRESH_INTERVALS.realTimeData,
     });
 };
 
@@ -69,7 +70,7 @@ export const useAllJams = () => {
     return useQuery<TrafficJam[]>({
         queryKey: ['jams'],
         queryFn: () => fetcher<TrafficJam[]>('/jams/all'),
-        refetchInterval: 30000,
+        refetchInterval: REFRESH_INTERVALS.realTimeData,
     });
 };
 
@@ -78,7 +79,7 @@ export const usePolygonDetail = (id: string | null) => {
         queryKey: ['polygon', id],
         queryFn: () => fetcher<any>(`/polygons/${id}`),
         enabled: !!id,
-        refetchInterval: 30000,
+        refetchInterval: REFRESH_INTERVALS.realTimeData,
     });
 };
 
@@ -86,7 +87,7 @@ export const useTrafficMetrics = () => {
     return useQuery<PolygonTrafficMetrics[]>({
         queryKey: ['traffic-metrics'],
         queryFn: () => fetcher<PolygonTrafficMetrics[]>('/traffic-metrics'),
-        refetchInterval: 30000,
+        refetchInterval: REFRESH_INTERVALS.trafficMetrics,
     });
 };
 
@@ -94,7 +95,7 @@ export const useAlerts = () => {
     return useQuery<TrafficAlert[]>({
         queryKey: ['alerts'],
         queryFn: () => fetcher<TrafficAlert[]>('/alerts'),
-        refetchInterval: 30000,
+        refetchInterval: REFRESH_INTERVALS.realTimeData,
     });
 };
 
@@ -102,7 +103,7 @@ export const useAlertStats = () => {
     return useQuery<AlertStats>({
         queryKey: ['alert-stats'],
         queryFn: () => fetcher<AlertStats>('/alerts/stats'),
-        refetchInterval: 30000,
+        refetchInterval: REFRESH_INTERVALS.alertStats,
     });
 };
 
@@ -110,7 +111,7 @@ export const useHistoricalData = (hours: number = 24) => {
     return useQuery<HistoricalSnapshot[]>({
         queryKey: ['historical', hours],
         queryFn: () => fetcher<HistoricalSnapshot[]>(`/historical/global?hours=${hours}`),
-        refetchInterval: 300000, // 5 minutos (datos históricos no cambian tan rápido)
+        refetchInterval: REFRESH_INTERVALS.historicalData,
     });
 };
 
@@ -118,7 +119,7 @@ export const useTrends = () => {
     return useQuery<AllTrends>({
         queryKey: ['trends'],
         queryFn: () => fetcher<AllTrends>('/historical/trends'),
-        refetchInterval: 60000, // 1 minuto
+        refetchInterval: REFRESH_INTERVALS.trends,
     });
 };
 

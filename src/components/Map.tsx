@@ -12,6 +12,7 @@ import {
     getRoadTypeTranslation
 } from '../utils/wazeTranslations';
 import { getPolygonById } from '../utils/polygonHelpers';
+import { MAP_CONFIG } from '../config/constants';
 
 
 // Helper para calcular dirección del flujo
@@ -144,8 +145,8 @@ const Map: React.FC<MapProps> = ({
     selectedPolygon,
     onPolygonClick
 }) => {
-    // Centro aproximado de Córdoba, Argentina
-    const center: [number, number] = [-31.4201, -64.1888];
+    // Centro del mapa desde configuración
+    const center: [number, number] = [MAP_CONFIG.defaultCenter.lat, MAP_CONFIG.defaultCenter.lng];
 
     // Flag para indicar carga inicial
     const [initialLoad, setInitialLoad] = React.useState(true);
@@ -185,7 +186,7 @@ const Map: React.FC<MapProps> = ({
         <div className="card p-0 overflow-hidden h-[850px]">
             <MapContainer
                 center={center}
-                zoom={12}
+                zoom={MAP_CONFIG.defaultZoom}
                 style={{ height: '100%', width: '100%' }}
                 className="z-0"
             >

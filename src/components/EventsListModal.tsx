@@ -1,23 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { Incident, TrafficAlert, Polygon } from '../types';
-import { getIncidentDescription, getIncidentEmoji } from '../utils/wazeTranslations';
-import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
+import { getIncidentDescription, getIncidentEmoji, getSubtypeTranslation, getMainTypeTranslation } from '../utils/wazeTranslations';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
 
-// API Key de Google Maps - Debe estar configurada en .env
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+// Fix para los iconos de Leaflet
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
-// Verificar que la API key esté configurada
-if (!GOOGLE_MAPS_API_KEY) {
-  console.warn('⚠️ VITE_GOOGLE_MAPS_API_KEY no está configurada en .env');
-}
+// Configurar iconos de Leaflet
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
 
-// Estilos del mapa
-const mapContainerStyle = {
-  width: '100%',
-  height: '100%'
-};
-
-// Agregar estilos de animación y ocultar mensajes de desarrollo de Google Maps
+// Agregar estilos de animación
 const style = document.createElement('style');
 style.textContent = `
   @keyframes scaleIn {
@@ -49,26 +50,63 @@ style.textContent = `
     }
   }
 
-  /* Ocultar mensajes de desarrollo de Google Maps */
-  .gm-style-cc,
-  .gm-style-cc > div,
-  .gm-style-cc > div > div,
-  .gm-style > div:first-child > div:last-child > div:first-child,
-  .gm-style > div:first-child > div:last-child > div:first-child > div,
-  div[style*="background-color: white"][style*="font-weight: 500"][style*="font-family: Roboto"],
-  div[style*="Esta página no puede cargar Google Maps correctamente"] {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    height: 0 !important;
-    width: 0 !important;
-    overflow: hidden !important;
+  @keyframes pulse-marker {
+    0%, 100% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
+    }
+    50% {
+      transform: scale(1.1);
+      box-shadow: 0 0 0 15px rgba(220, 38, 38, 0);
+    }
   }
 `;
-if (!document.head.querySelector('style[data-google-maps-hide]')) {
-  style.setAttribute('data-google-maps-hide', 'true');
+if (!document.head.querySelector('style[data-minimap-animations]')) {
+  style.setAttribute('data-minimap-animations', 'true');
   document.head.appendChild(style);
 }
+
+// Componente para centrar el mapa automáticamente
+const MapCenterUpdater: React.FC<{ center: [number, number] }> = ({ center }) => {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, 16);
+  }, [center, map]);
+  return null;
+};
+
+// Crear icono personalizado para el marcador
+const createCustomIcon = (severity: number) => {
+  const color = severity >= 4 ? '#dc2626' : severity >= 3 ? '#ea580c' : '#fbbf24';
+
+  return L.divIcon({
+    className: 'custom-marker',
+    html: `
+      <div style="
+        width: 40px;
+        height: 40px;
+        background: ${color};
+        border: 4px solid white;
+        border-radius: 50%;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: pulse-marker 2s infinite;
+      ">
+        <div style="
+          width: 12px;
+          height: 12px;
+          background: white;
+          border-radius: 50%;
+        "></div>
+      </div>
+    `,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    popupAnchor: [0, -20],
+  });
+};
 
 interface EventsListModalProps {
   incidents: Incident[];
@@ -86,8 +124,18 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
   onEventClick,
 }) => {
   const [expandedEvent, setExpandedEvent] = useState<{ id: string; type: 'incident' | 'alert' } | null>(null);
-  const [showInfoWindow, setShowInfoWindow] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'incidents' | 'alerts'>('all');
+
+  // Cerrar minimapa con tecla ESC
+  useEffect(() => {
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && expandedEvent) {
+        setExpandedEvent(null);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [expandedEvent]);
 
   // Encontrar el evento expandido (incidente o alerta)
   const currentExpandedIncident = expandedEvent && expandedEvent.type === 'incident'
@@ -244,6 +292,10 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
               </div>
               <div className="space-y-4 bg-white p-6 rounded-b-xl shadow-lg">
                 {incidents
+                  // Deduplicar por ID antes de renderizar
+                  .filter((incident, index, self) =>
+                    index === self.findIndex((i) => i.id === incident.id)
+                  )
                   .sort((a, b) => {
                     // Ordenar por severidad (mayor a menor)
                     if (b.severity !== a.severity) {
@@ -252,16 +304,15 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                     // Si tienen misma severidad, por confiabilidad
                     return (b.reliability || 0) - (a.reliability || 0);
                   })
-                  .map((incident) => {
+                  .map((incident, index) => {
                   const emoji = getIncidentEmoji(incident.type, incident.subtype);
                   const typeDescription = getIncidentDescription(incident.type, incident.subtype);
 
                   // NO mostrar subtipo si la descripción ya lo incluye
-                  const showSubtype = false; // Siempre ocultar el subtipo raw
 
                   return (
                     <div
-                      key={incident.id}
+                      key={`incident-${incident.id}-${index}`}
                       onClick={() => onEventClick(incident, 'incident')}
                       className="border-2 rounded-xl p-5 bg-gradient-to-br from-white to-gray-50 hover:from-blue-50 hover:to-indigo-50 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-[1.02] hover:border-blue-400"
                     >
@@ -401,12 +452,16 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
               </div>
               <div className="space-y-4 bg-white p-6 rounded-b-xl shadow-lg">
                 {alerts
+                  // Deduplicar por ID antes de renderizar
+                  .filter((alert, index, self) =>
+                    index === self.findIndex((a) => a.id === alert.id)
+                  )
                   .sort((a, b) => {
                     // Ordenar por severidad: critical > high > medium > low
                     const severityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
                     return (severityOrder[b.severity] || 0) - (severityOrder[a.severity] || 0);
                   })
-                  .map((alert) => {
+                  .map((alert, index) => {
                   const severityConfig = {
                     critical: { label: 'CRÍTICA', color: 'bg-red-100 border-red-400 text-red-900', icon: '🚨' },
                     high: { label: 'ALTA', color: 'bg-orange-100 border-orange-400 text-orange-900', icon: '⚠️' },
@@ -416,7 +471,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
 
                   return (
                     <div
-                      key={alert.id}
+                      key={`alert-${alert.id}-${index}`}
                       onClick={() => onEventClick(alert, 'alert')}
                       className={`border-2 rounded-xl p-5 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-[1.02] ${severityConfig.color}`}
                     >
@@ -504,13 +559,14 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
           )}
         </div>
 
-        {/* Modal Flotante del Minimapa - Fuera del listado */}
-        {(currentExpandedIncident || currentExpandedAlert) && eventCoordinates && (
+        {/* Portal para el Modal Flotante del Minimapa - Renderizado fuera del DOM principal */}
+        {(currentExpandedIncident || currentExpandedAlert) && eventCoordinates && createPortal(
           <div
-            className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fadeIn"
+            className="fixed inset-0 flex items-center justify-center p-4 animate-fade-in"
             style={{
-              background: 'rgba(0, 0, 0, 0.75)',
-              backdropFilter: 'blur(8px)'
+              zIndex: 99999,
+              background: 'rgba(0, 0, 0, 0.85)',
+              backdropFilter: 'blur(10px)'
             }}
             onClick={(e) => {
               e.stopPropagation();
@@ -518,16 +574,17 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
             }}
           >
             <div
-              className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[85vh] overflow-hidden flex flex-col animate-scaleIn"
+              className="bg-white rounded-3xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-scale-in"
               onClick={(e) => e.stopPropagation()}
               style={{
-                animation: 'scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                animation: 'scaleIn 0.3s ease-out',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.1)',
+                border: '3px solid rgba(59, 130, 246, 0.3)'
               }}
             >
               {(() => {
                 // Determinar si es incidente o alerta
                 const isIncident = !!currentExpandedIncident;
-                const event = currentExpandedIncident || currentExpandedAlert;
 
                 let emoji: string;
                 let typeDescription: string;
@@ -599,7 +656,8 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                             e.stopPropagation();
                             setExpandedEvent(null);
                           }}
-                          className="text-white hover:bg-white/20 rounded-full p-3 transition-all duration-300 hover:scale-110 hover:rotate-90 group"
+                          className="text-white bg-white/10 hover:bg-white/30 rounded-full p-3 transition-all duration-300 hover:scale-125 hover:rotate-90 group backdrop-blur-sm border-2 border-white/30 hover:border-white/60"
+                          title="Cerrar minimapa (ESC)"
                         >
                           <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -608,145 +666,83 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                       </div>
                     </div>
 
-                    {/* Contenido Scrolleable */}
-                    <div className="flex-1 overflow-y-auto">
-                      {/* Mapa con efecto de entrada */}
-                      <div
-                        className="relative overflow-hidden"
-                        style={{ height: '400px' }}
-                      >
-                        {/* Overlay con gradiente */}
-                        <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-black/20 to-transparent z-10 pointer-events-none"></div>
-
-                        {GOOGLE_MAPS_API_KEY ? (
-                          <LoadScript
-                            googleMapsApiKey={GOOGLE_MAPS_API_KEY}
-                            loadingElement={
-                              <div className="flex items-center justify-center h-full bg-gray-50">
-                                <div className="text-center">
-                                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary-600 border-t-transparent"></div>
-                                  <p className="mt-2 text-sm text-gray-600">Cargando mapa...</p>
-                                </div>
-                              </div>
-                            }
-                            onLoad={() => {
-                              // Callback cuando el script se carga correctamente
-                              console.log('✅ Google Maps cargado correctamente');
-                            }}
-                            onError={(error) => {
-                              console.error('❌ Error al cargar Google Maps:', error);
-                            }}
+                    {/* Layout de 2 columnas: Mapa + Info */}
+                    <div className="flex-1 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 150px)' }}>
+                      <div className="grid grid-cols-1 lg:grid-cols-5 gap-0 h-full">
+                        {/* MINIMAPA - 3/5 del espacio */}
+                        <div className="lg:col-span-3 relative h-full" style={{ minHeight: '500px' }}>
+                          <MapContainer
+                            center={[eventCoordinates.lat, eventCoordinates.lng]}
+                            zoom={16}
+                            style={{ width: '100%', height: '100%', minHeight: '500px' }}
+                            scrollWheelZoom={true}
+                            zoomControl={true}
                           >
-                            <GoogleMap
-                              mapContainerStyle={mapContainerStyle}
-                              center={eventCoordinates}
-                              zoom={17}
-                              options={{
-                                zoomControl: true,
-                                streetViewControl: true,
-                                mapTypeControl: true,
-                                fullscreenControl: true,
-                                disableDefaultUI: false,
-                                gestureHandling: 'cooperative',
-                                // Configuraciones para evitar mensajes de desarrollo
-                                mapTypeId: 'roadmap',
-                              }}
-                              onLoad={(map) => {
-                                // Ocultar mensajes de desarrollo después de que el mapa se carga
-                                const hideMessages = () => {
-                                  // Ocultar todos los elementos que contengan el mensaje de desarrollo
-                                  const allDivs = document.querySelectorAll('div');
-                                  allDivs.forEach((div) => {
-                                    const text = div.textContent || '';
-                                    const style = (div as HTMLElement).getAttribute('style') || '';
-
-                                    if (text.includes('Esta página no puede cargar Google Maps') ||
-                                        text.includes('¿Eres el propietario de este sitio web?') ||
-                                        text.includes('Aceptar') ||
-                                        (style.includes('background-color: white') && style.includes('font-weight: 500') && style.includes('Roboto'))) {
-                                      (div as HTMLElement).style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; width: 0 !important; overflow: hidden !important; pointer-events: none !important; position: absolute !important; left: -9999px !important; top: -9999px !important;';
-                                      (div as HTMLElement).remove();
-                                    }
-                                  });
-
-                                  // Ocultar elementos con clases específicas de Google Maps
-                                  document.querySelectorAll('.gm-style-cc, .gm-style-cc > div, .gm-style-cc > div > div').forEach((el) => {
-                                    (el as HTMLElement).style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
-                                  });
-                                };
-
-                                // Ejecutar inmediatamente y luego periódicamente
-                                setTimeout(hideMessages, 100);
-                                setTimeout(hideMessages, 500);
-                                setTimeout(hideMessages, 1000);
-
-                                // Observer para detectar nuevos elementos que aparezcan
-                                const observer = new MutationObserver(hideMessages);
-                                observer.observe(document.body, {
-                                  childList: true,
-                                  subtree: true,
-                                  attributes: true,
-                                });
-
-                                // Limpiar observer después de 10 segundos
-                                setTimeout(() => observer.disconnect(), 10000);
-                              }}
-                            >
-                            <Marker
-                              position={eventCoordinates}
-                              onClick={() => setShowInfoWindow(true)}
-                              animation={window.google?.maps?.Animation?.DROP}
+                            <MapCenterUpdater center={[eventCoordinates.lat, eventCoordinates.lng]} />
+                            <TileLayer
+                              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                             />
-
-                            {showInfoWindow && (
-                              <InfoWindow
-                                position={eventCoordinates}
-                                onCloseClick={() => setShowInfoWindow(false)}
-                              >
-                                <div className="p-3">
-                                  <p className="font-black text-2xl mb-2 text-center">{emoji}</p>
-                                  <p className="font-bold text-lg mb-2">{typeDescription}</p>
+                            <Marker
+                              position={[eventCoordinates.lat, eventCoordinates.lng]}
+                              icon={createCustomIcon(isIncident && currentExpandedIncident ? currentExpandedIncident.severity : 4)}
+                            >
+                              <Popup>
+                                <div className="p-2 min-w-[200px]">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-3xl">{emoji}</span>
+                                    <div>
+                                      <p className="font-black text-base">{typeDescription}</p>
+                                      {isIncident && currentExpandedIncident && (
+                                        <span className={`text-xs font-bold ${
+                                          currentExpandedIncident.severity >= 4 ? 'text-red-600' :
+                                          currentExpandedIncident.severity >= 3 ? 'text-orange-600' : 'text-yellow-600'
+                                        }`}>
+                                          {getSeverityLabel(currentExpandedIncident.severity)}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
                                   {isIncident && currentExpandedIncident?.street && (
-                                    <p className="text-sm text-gray-700">{currentExpandedIncident.street}</p>
+                                    <p className="text-sm text-gray-700 mb-1">📍 {currentExpandedIncident.street}</p>
                                   )}
                                   {isIncident && currentExpandedIncident?.city && (
-                                    <p className="text-xs text-gray-500 mt-1">{currentExpandedIncident.city}</p>
+                                    <p className="text-xs text-gray-500">🏙️ {currentExpandedIncident.city}</p>
                                   )}
                                   {!isIncident && currentExpandedAlert && (
                                     <>
-                                      <p className="text-sm text-gray-700">{currentExpandedAlert.location}</p>
-                                      <p className="text-xs text-gray-500 mt-1">{currentExpandedAlert.polygonName}</p>
+                                      <p className="text-sm text-gray-700 mb-1">📍 {currentExpandedAlert.location}</p>
+                                      <p className="text-xs text-gray-500">🗺️ {currentExpandedAlert.polygonName}</p>
                                     </>
                                   )}
                                 </div>
-                              </InfoWindow>
-                            )}
-                            </GoogleMap>
-                          </LoadScript>
-                        ) : (
-                          <div className="flex items-center justify-center h-full bg-gray-100">
-                            <div className="text-center p-8">
-                              <div className="text-6xl mb-4">🗺️</div>
-                              <p className="text-lg font-bold text-gray-700 mb-2">API Key de Google Maps no configurada</p>
-                              <p className="text-sm text-gray-500">
-                                Por favor configura VITE_GOOGLE_MAPS_API_KEY en tu archivo .env
-                              </p>
+                              </Popup>
+                            </Marker>
+                          </MapContainer>
+
+                          {/* Badge flotante con tipo de evento */}
+                          <div className="absolute top-4 left-4 z-10">
+                            <div className={`px-4 py-2 rounded-full backdrop-blur-md shadow-xl font-bold text-sm flex items-center gap-2 ${
+                              isIncident && currentExpandedIncident?.severity >= 4
+                                ? 'bg-red-600/90 text-white'
+                                : isIncident && currentExpandedIncident?.severity >= 3
+                                ? 'bg-orange-500/90 text-white'
+                                : 'bg-blue-600/90 text-white'
+                            }`}>
+                              <span className="text-xl">{emoji}</span>
+                              <span>{isIncident ? 'INCIDENTE' : 'ALERTA'}</span>
                             </div>
                           </div>
-                        )}
-                      </div>
-
-                      {/* Información Detallada con Cards Mejoradas */}
-                      <div className="p-8 bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
-                        <div className="flex items-center gap-3 mb-6">
-                          <div className="flex-1 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-indigo-500 rounded-full"></div>
-                          <h4 className="font-black text-2xl text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
-                            📋 Detalles Completos
-                          </h4>
-                          <div className="flex-1 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-blue-500 rounded-full"></div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* PANEL DE INFORMACIÓN - 2/5 del espacio */}
+                        <div className="lg:col-span-2 bg-gradient-to-br from-gray-50 to-blue-50 p-6 overflow-y-auto h-full">
+                          <h4 className="font-black text-xl text-gray-800 mb-4 flex items-center gap-2">
+                            <span className="text-2xl">📋</span>
+                            Información Detallada
+                          </h4>
+
+                          <div className="space-y-3">
                           {/* Card Ubicación Principal */}
                           {(isIncident && currentExpandedIncident?.street) || (!isIncident && currentExpandedAlert) ? (
                             <div className="md:col-span-2 bg-gradient-to-br from-white to-blue-50 rounded-2xl p-5 border-2 border-blue-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
@@ -833,6 +829,171 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                               </div>
                             </div>
                           )}
+
+                          {/* ===== INFORMACIÓN ADICIONAL DEL FEED ===== */}
+
+                          {/* Card Confiabilidad y Métricas (INCIDENTES) */}
+                          {isIncident && currentExpandedIncident && (
+                            <>
+                              {/* Reliability & Confidence */}
+                              {(currentExpandedIncident.reliability !== undefined || currentExpandedIncident.confidence !== undefined) && (
+                                <div className="bg-gradient-to-br from-white to-purple-50 rounded-2xl p-5 border-2 border-purple-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                                  <div className="flex items-center gap-3 mb-4">
+                                    <span className="text-3xl">📊</span>
+                                    <p className="text-gray-700 font-bold">MÉTRICAS DE CALIDAD</p>
+                                  </div>
+                                  <div className="space-y-3">
+                                    {currentExpandedIncident.reliability !== undefined && (
+                                      <div className="bg-white/60 rounded-lg p-3">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <p className="text-gray-600 font-semibold text-sm">Confiabilidad</p>
+                                          <p className="text-purple-700 font-black text-xl">{currentExpandedIncident.reliability}/10</p>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                          <div
+                                            className="bg-gradient-to-r from-purple-500 to-purple-700 h-2 rounded-full transition-all duration-500"
+                                            style={{ width: `${(currentExpandedIncident.reliability / 10) * 100}%` }}
+                                          ></div>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {currentExpandedIncident.confidence !== undefined && (
+                                      <div className="bg-white/60 rounded-lg p-3">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <p className="text-gray-600 font-semibold text-sm">Nivel de Confianza</p>
+                                          <p className="text-indigo-700 font-black text-xl">{currentExpandedIncident.confidence}/10</p>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                          <div
+                                            className="bg-gradient-to-r from-indigo-500 to-indigo-700 h-2 rounded-full transition-all duration-500"
+                                            style={{ width: `${(currentExpandedIncident.confidence / 10) * 100}%` }}
+                                          ></div>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Report Rating */}
+                              {currentExpandedIncident.reportRating !== undefined && (
+                                <div className="bg-gradient-to-br from-white to-yellow-50 rounded-2xl p-5 border-2 border-yellow-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                                  <div className="flex items-center gap-3 mb-3">
+                                    <span className="text-3xl">⭐</span>
+                                    <div className="flex-1">
+                                      <p className="text-gray-500 font-bold text-sm mb-1">RATING DEL REPORTE</p>
+                                      <div className="flex items-center gap-3">
+                                        <p className="text-yellow-700 font-black text-3xl">{currentExpandedIncident.reportRating}</p>
+                                        <div className="flex gap-1">
+                                          {Array.from({ length: 10 }).map((_, i) => (
+                                            <div
+                                              key={i}
+                                              className={`w-2 h-8 rounded-full ${
+                                                i < currentExpandedIncident.reportRating!
+                                                  ? 'bg-gradient-to-t from-yellow-400 to-yellow-600'
+                                                  : 'bg-gray-200'
+                                              }`}
+                                            />
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Subtipo y Descripción */}
+                              {(currentExpandedIncident.subtype || currentExpandedIncident.description) && (
+                                <div className="md:col-span-2 bg-gradient-to-br from-white to-cyan-50 rounded-2xl p-5 border-2 border-cyan-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                                  <div className="flex items-start gap-4">
+                                    <span className="text-4xl">ℹ️</span>
+                                    <div className="flex-1">
+                                      <p className="text-gray-500 font-bold text-sm mb-3">INFORMACIÓN ADICIONAL</p>
+                                      {currentExpandedIncident.subtype && (
+                                        <div className="mb-3">
+                                          <p className="text-gray-600 font-semibold text-xs mb-1">Clasificación:</p>
+                                          <p className="text-cyan-800 font-bold text-base">
+                                            {getSubtypeTranslation(currentExpandedIncident.type, currentExpandedIncident.subtype)}
+                                          </p>
+                                        </div>
+                                      )}
+                                      {currentExpandedIncident.description && (
+                                        <div className="bg-white/60 rounded-lg p-3">
+                                          <p className="text-gray-600 font-semibold text-xs mb-2">Descripción:</p>
+                                          <p className="text-gray-800 leading-relaxed">
+                                            {getMainTypeTranslation(currentExpandedIncident.description.toLowerCase()) !== currentExpandedIncident.description.toLowerCase()
+                                              ? getMainTypeTranslation(currentExpandedIncident.description.toLowerCase())
+                                              : currentExpandedIncident.description}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+
+                          {/* Card Estado de Reconocimiento (ALERTAS) */}
+                          {!isIncident && currentExpandedAlert && (
+                            <>
+                              <div className="md:col-span-2 bg-gradient-to-br from-white to-indigo-50 rounded-2xl p-5 border-2 border-indigo-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                                <div className="flex items-start gap-4">
+                                  <span className="text-4xl">{currentExpandedAlert.isAcknowledged ? '✅' : '🔔'}</span>
+                                  <div className="flex-1">
+                                    <p className="text-gray-500 font-bold text-sm mb-3">ESTADO DE RECONOCIMIENTO</p>
+                                    <div className="space-y-3">
+                                      <div className={`px-4 py-3 rounded-lg ${
+                                        currentExpandedAlert.isAcknowledged
+                                          ? 'bg-green-100 border-2 border-green-300'
+                                          : 'bg-orange-100 border-2 border-orange-300'
+                                      }`}>
+                                        <p className={`font-black text-lg ${
+                                          currentExpandedAlert.isAcknowledged ? 'text-green-800' : 'text-orange-800'
+                                        }`}>
+                                          {currentExpandedAlert.isAcknowledged ? '✓ RECONOCIDA' : '⚠️ PENDIENTE DE RECONOCIMIENTO'}
+                                        </p>
+                                      </div>
+                                      {currentExpandedAlert.isAcknowledged && currentExpandedAlert.acknowledgedAt && (
+                                        <div className="bg-white/60 rounded-lg p-3 space-y-2">
+                                          <div>
+                                            <p className="text-gray-600 font-semibold text-xs">Reconocida el:</p>
+                                            <p className="text-gray-800 font-bold">
+                                              {new Date(currentExpandedAlert.acknowledgedAt).toLocaleString('es-AR', {
+                                                dateStyle: 'long',
+                                                timeStyle: 'short'
+                                              })}
+                                            </p>
+                                          </div>
+                                          {currentExpandedAlert.acknowledgedBy && (
+                                            <div>
+                                              <p className="text-gray-600 font-semibold text-xs">Por:</p>
+                                              <p className="text-gray-800 font-bold">{currentExpandedAlert.acknowledgedBy}</p>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Tipo de Alerta */}
+                              {currentExpandedAlert.type && (
+                                <div className="bg-gradient-to-br from-white to-rose-50 rounded-2xl p-5 border-2 border-rose-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-3xl">🏷️</span>
+                                    <div className="flex-1">
+                                      <p className="text-gray-500 font-bold text-sm mb-1">TIPO DE ALERTA</p>
+                                      <p className="text-rose-800 font-black text-lg uppercase">
+                                        {getMainTypeTranslation(currentExpandedAlert.type.toLowerCase())}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -846,11 +1007,13 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                         </p>
                       </div>
                     </div>
+                  </div>
                   </>
                 );
               })()}
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* Footer */}
