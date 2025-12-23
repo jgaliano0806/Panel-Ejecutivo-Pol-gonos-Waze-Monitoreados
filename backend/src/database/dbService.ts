@@ -126,15 +126,40 @@ export class DatabaseService {
         const path = require('path');
 
         try {
-            const schemaPath = path.join(__dirname, 'schema.sql');
+            // Intentar diferentes rutas posibles
+            let schemaPath = path.join(__dirname, 'schema.sql');
+
+            // Si no existe, intentar desde el directorio de trabajo
+            if (!fs.existsSync(schemaPath)) {
+                schemaPath = path.join(process.cwd(), 'backend', 'src', 'database', 'schema.sql');
+            }
+
+            // Si aún no existe, intentar desde el directorio actual
+            if (!fs.existsSync(schemaPath)) {
+                schemaPath = path.join(process.cwd(), 'src', 'database', 'schema.sql');
+            }
+
+            if (!fs.existsSync(schemaPath)) {
+                console.warn('⚠️  No se encontró schema.sql, las tablas deben crearse manualmente');
+                return;
+            }
+
             const schema = fs.readFileSync(schemaPath, 'utf-8');
 
-            // Ejecutar el esquema
-            await this.query(schema);
+            // Ejecutar el esquema (dividir por ; para ejecutar cada comando)
+            const commands = schema.split(';').filter((cmd: string) => cmd.trim().length > 0);
+
+            for (const command of commands) {
+                const trimmed = command.trim();
+                if (trimmed && !trimmed.startsWith('--')) {
+                    await this.query(trimmed);
+                }
+            }
+
             console.log('✅ Esquema de base de datos inicializado');
         } catch (error) {
             console.error('❌ Error inicializando esquema:', error);
-            throw error;
+            // No lanzar error, permitir que continúe (las tablas pueden existir)
         }
     }
 
