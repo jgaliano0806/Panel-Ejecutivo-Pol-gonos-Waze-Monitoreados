@@ -92,10 +92,8 @@ export function calculateFluidityIndex(
     : 0;
 
   // Cálculo de Velocity Factor (Score de Velocidad)
-  // Si tenemos segmentos fluidos explícitos, el score debería subir
-  const globalAvgSpeed = validJams.length > 0
-    ? validJams.reduce((sum, j) => sum + j.speed, 0) / validJams.length
-    : 0; // Si no hay jams, asumimos que no hay datos (o fluido ideal, pero fluidityIndex es sobre datos reportados)
+  // Nota: globalAvgSpeed calculado pero no usado actualmente
+  // Disponible para análisis futuro si se necesita
 
   // Calcular avgSpeed global ponderado (incluye detenidos como 0)
   // Si no hay jams de Waze pero hay segmentos fluidos de TVT, asumimos velocidad óptima (60 km/h)

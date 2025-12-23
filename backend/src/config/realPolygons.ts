@@ -16,7 +16,8 @@ export interface RealPolygonConfig {
 }
 
 // Función helper para asignar grupos automáticamente según el nombre
-const getGroupFromName = (name: string): string => {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _getGroupFromName = (name: string): string => {
     if (name.startsWith('A-019') || name.startsWith('A - 019')) return 'Autovía A-019';
     if (name.includes('RP E53')) return 'Ruta Provincial E53';
     if (name.includes('RP E55')) return 'Ruta Provincial E55';

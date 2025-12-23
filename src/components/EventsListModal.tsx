@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { Incident, TrafficAlert, Polygon } from '../types';
 import { getIncidentDescription, getIncidentEmoji, getSubtypeTranslation, getMainTypeTranslation } from '../utils/wazeTranslations';
@@ -11,6 +11,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
 // Configurar iconos de Leaflet
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,

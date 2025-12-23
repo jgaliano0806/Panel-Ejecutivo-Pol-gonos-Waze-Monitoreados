@@ -1,5 +1,7 @@
 import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
 
 dotenv.config();
 
@@ -63,7 +65,7 @@ export class DatabaseService {
     /**
      * Ejecuta una query
      */
-    public async query<T extends QueryResultRow = any>(text: string, params?: any[]): Promise<QueryResult<T>> {
+    public async query<T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]): Promise<QueryResult<T>> {
         if (!this.pool) {
             throw new Error('Pool de PostgreSQL no inicializado');
         }
@@ -109,7 +111,7 @@ export class DatabaseService {
      */
     public async testConnection(): Promise<boolean> {
         try {
-            const result = await this.query('SELECT NOW()');
+            await this.query('SELECT NOW()');
             console.log('✅ Conexión a PostgreSQL exitosa');
             return true;
         } catch (error) {
@@ -122,9 +124,6 @@ export class DatabaseService {
      * Ejecuta el esquema SQL (crea tablas)
      */
     public async initializeSchema(): Promise<void> {
-        const fs = require('fs');
-        const path = require('path');
-
         try {
             // Intentar diferentes rutas posibles
             let schemaPath = path.join(__dirname, 'schema.sql');

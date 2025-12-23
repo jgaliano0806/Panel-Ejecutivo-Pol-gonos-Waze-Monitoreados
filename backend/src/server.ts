@@ -116,7 +116,7 @@ server.get('/api/polygons/:id', async (request, reply) => {
     }
 
     return detail;
-    } catch (error) {
+    } catch (_error) {
         reply.code(500).send({ error: 'Failed to get polygon detail' });
     }
 });
@@ -227,8 +227,8 @@ server.get('/api/alerts/stats', async (request, reply) => {
 server.get('/api/alerts/severity/:severity', async (request, reply) => {
     try {
         const { severity } = request.params as { severity: string };
-        return alertService.getAlertsBySeverity(severity as any);
-    } catch (error) {
+        return alertService.getAlertsBySeverity(severity as 'critical' | 'high' | 'medium' | 'low');
+    } catch (_error) {
         reply.code(500).send({ error: 'Failed to get alerts by severity' });
     }
 });
@@ -237,7 +237,7 @@ server.get('/api/alerts/polygon/:polygonId', async (request, reply) => {
     try {
         const { polygonId } = request.params as { polygonId: string };
         return alertService.getAlertsByPolygon(polygonId);
-    } catch (error) {
+    } catch (_error) {
         reply.code(500).send({ error: 'Failed to get alerts by polygon' });
     }
 });
@@ -277,7 +277,7 @@ server.get('/api/metrics/global', async (request, reply) => {
 
 server.get('/api/metrics/top-critical', async (request, reply) => {
     try {
-        const limit = parseInt((request.query as any)?.limit || '10');
+        const limit = parseInt((request.query as { limit?: string })?.limit || '10');
         const jams = wazeService.getJams();
         const incidents = wazeService.getAlerts();
 
@@ -292,7 +292,7 @@ server.get('/api/metrics/top-critical', async (request, reply) => {
 
 server.get('/api/historical/global', async (request, reply) => {
     try {
-        const hours = parseInt((request.query as any)?.hours || '24');
+        const hours = parseInt((request.query as { hours?: string })?.hours || '24');
         const snapshots = await historicalService.getGlobalSnapshots(hours);
         return snapshots || [];
     } catch (error) {
@@ -308,10 +308,10 @@ server.get('/api/historical/global', async (request, reply) => {
 server.get('/api/historical/polygon/:polygonId', async (request, reply) => {
     try {
         const { polygonId } = request.params as { polygonId: string };
-        const hours = parseInt((request.query as any)?.hours || '24');
+        const hours = parseInt((request.query as { hours?: string })?.hours || '24');
         const snapshots = await historicalService.getPolygonSnapshots(polygonId, hours);
         return snapshots;
-    } catch (error) {
+    } catch (_error) {
         reply.code(500).send({ error: 'Failed to get polygon historical data' });
     }
 });
@@ -421,11 +421,11 @@ server.get('/api/data-quality/incidents/prioritized', async (request, reply) => 
  */
 server.get('/api/data-quality/incidents/stale', async (request, reply) => {
     try {
-        const maxAge = parseInt((request.query as any)?.maxAge || '30'); // minutos
+        const maxAge = parseInt((request.query as { maxAge?: string })?.maxAge || '30'); // minutos
         const incidents = wazeService.getAlerts();
         const stale = dataQualityService.detectStaleIncidents(incidents, maxAge);
         return stale;
-    } catch (error) {
+    } catch (_error) {
         reply.code(500).send({ error: 'Failed to detect stale incidents' });
     }
 });
@@ -921,7 +921,7 @@ server.get('/api/speed/comparison/:polygonId', async (request, reply) => {
  */
 server.get('/api/speed/comparison/all', async (request, reply) => {
     try {
-        const limit = parseInt((request.query as any)?.limit || '10');
+        const limit = parseInt((request.query as { limit?: string })?.limit || '10');
 
         // Obtener polígonos con tráfico
         const allMetrics = apiService.getAllTrafficMetrics();

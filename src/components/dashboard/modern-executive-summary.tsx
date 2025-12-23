@@ -5,7 +5,7 @@ import { IncidentType } from '../../types';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { cn } from '../../lib/utils';
-import { TrendingUp, TrendingDown, AlertTriangle, Target, Construction, MapPin, Car } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Target, MapPin, Car } from 'lucide-react';
 import { EventsListModal } from '../EventsListModal';
 import { NETWORK_CONFIG } from '../../config/constants';
 
@@ -25,7 +25,7 @@ interface ModernExecutiveSummaryProps {
 
 export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(({
   kpis,
-  alertStats,
+  alertStats: _alertStats,
   totalPolygons,
   criticalPolygons,
   incidents = [],

@@ -14,7 +14,7 @@ interface ExecutiveSummaryProps {
 
 export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   kpis,
-  alertStats,
+  alertStats: _alertStats,
   totalPolygons,
   criticalPolygons,
   incidents = [],

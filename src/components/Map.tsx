@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
+import { useRelativeTime } from '../hooks/useRelativeTime';
 import { MapContainer, TileLayer, Polygon as LeafletPolygon, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { Polygon, Incident, TrafficJam } from '../types';
@@ -138,6 +139,16 @@ const MapController: React.FC<{
         return null;
     };
 
+// Componente para mostrar tiempo relativo sin usar Date.now() en render
+const RelativeTime: React.FC<{ timestamp: string | Date }> = ({ timestamp }) => {
+    const minutesAgo = useRelativeTime(timestamp);
+    const timeString = typeof timestamp === 'string'
+        ? new Date(timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+        : timestamp.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+
+    return <span className="text-sm">🕐 {timeString} • {minutesAgo} min</span>;
+};
+
 const Map: React.FC<MapProps> = ({
     polygons,
     incidents,
@@ -263,7 +274,7 @@ const Map: React.FC<MapProps> = ({
                                         } text-white`}>
                                         <div className="flex items-center justify-between">
                                             <h3 className="font-black text-lg">{emoji} {description.toUpperCase()}</h3>
-                                            <span className="text-sm">🕐 {new Date(incident.timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} • {Math.round((Date.now() - new Date(incident.timestamp).getTime()) / 60000)} min</span>
+                                            <RelativeTime timestamp={incident.timestamp} />
                                         </div>
                                     </div>
 
@@ -421,7 +432,7 @@ const Map: React.FC<MapProps> = ({
                                         } text-white`}>
                                         <div className="flex items-center justify-between">
                                             <h3 className="font-black text-lg">🚦 {jamLevelText.toUpperCase()}</h3>
-                                            <span className="text-sm">🕐 {new Date(jam.timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} • {Math.round((Date.now() - new Date(jam.timestamp).getTime()) / 60000)} min</span>
+                                            <RelativeTime timestamp={jam.timestamp} />
                                         </div>
                                     </div>
 

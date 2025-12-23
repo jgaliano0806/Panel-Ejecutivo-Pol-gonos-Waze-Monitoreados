@@ -6,7 +6,7 @@ interface CongestionIndexCardProps {
   metrics: PolygonTrafficMetrics | null;
 }
 
-export const CongestionIndexCard: React.FC<CongestionIndexCardProps> = ({ polygonId, metrics }) => {
+export const CongestionIndexCard: React.FC<CongestionIndexCardProps> = ({ polygonId: _polygonId, metrics }) => {
   // Sin datos
   if (!metrics || metrics.totalJams === 0) {
     return (

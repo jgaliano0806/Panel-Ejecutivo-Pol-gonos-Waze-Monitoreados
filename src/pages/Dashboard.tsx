@@ -1,11 +1,10 @@
-import React, { useState, useMemo, lazy, Suspense, useCallback, memo, useEffect } from 'react';
+import React, { useState, useMemo, lazy, Suspense, useCallback, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
 import { useWazeData } from '../hooks/useWazeData';
 import type { GlobalKPIs } from '../types';
 import { PolygonState, IncidentType, Severity } from '../types';
-import Header from '../components/Header';
 import { ModernHeader } from '../components/layout/modern-header';
 import { ModernNavigation } from '../components/layout/modern-navigation';
 import Filters from '../components/Filters';
@@ -29,7 +28,7 @@ const Dashboard: React.FC = () => {
     const queryClient = useQueryClient();
     const { polygons, incidents, jams, alerts, alertStats, isLoading, isError, lastUpdate, globalKPIs: backendKPIs } = useWazeData();
     const historicalData = useHistoricalData(24);
-    const trendsData = useTrends();
+    const _trendsData = useTrends(); // Disponible para uso futuro
     const [selectedPolygon, setSelectedPolygon] = useState<string | null>(null);
     const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
     const [currentView, setCurrentView] = useState<'home' | 'map' | 'events'>('home');

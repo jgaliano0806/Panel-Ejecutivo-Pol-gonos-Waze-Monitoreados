@@ -234,8 +234,8 @@ class DelayCalculationService {
      */
     private calculateTotal(
         breakdown: DelayCalculationResult['breakdown'],
-        linkedCount: number,
-        nearbyCount: number
+        _linkedCount: number,
+        _nearbyCount: number
     ): number {
         let total = 0;
 

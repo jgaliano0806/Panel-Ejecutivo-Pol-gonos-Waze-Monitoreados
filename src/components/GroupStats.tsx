@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, Activity, TrendingUp, MapPin } from 'lucide-react';
+import { Activity, MapPin } from 'lucide-react';
 
 interface GroupStat {
     group: string;
@@ -32,17 +32,17 @@ export const GroupStats: React.FC<GroupStatsProps> = ({ stats }) => {
                 <Activity className="w-5 h-5 text-blue-600" />
                 Estadísticas por Grupo
             </h2>
-            
+
             <div className="space-y-3 max-h-96 overflow-y-auto">
                 {sortedStats.map((stat) => {
                     const totalIssues = stat.alertCount + stat.jamCount;
-                    const fluidityPercent = stat.polygonCount > 0 
-                        ? Math.round((stat.fluidCount / stat.polygonCount) * 100) 
+                    const fluidityPercent = stat.polygonCount > 0
+                        ? Math.round((stat.fluidCount / stat.polygonCount) * 100)
                         : 0;
-                    
+
                     return (
-                        <div 
-                            key={stat.group} 
+                        <div
+                            key={stat.group}
                             className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"
                         >
                             <div className="flex items-start justify-between mb-2">
@@ -53,19 +53,19 @@ export const GroupStats: React.FC<GroupStatsProps> = ({ stats }) => {
                                         {stat.polygonCount} {stat.polygonCount === 1 ? 'polígono' : 'polígonos'}
                                     </p>
                                 </div>
-                                
+
                                 {/* Badge de fluidez */}
                                 <div className={`px-2 py-1 rounded text-xs font-medium ${
-                                    fluidityPercent >= 80 
-                                        ? 'bg-green-100 text-green-800' 
-                                        : fluidityPercent >= 50 
-                                        ? 'bg-yellow-100 text-yellow-800' 
+                                    fluidityPercent >= 80
+                                        ? 'bg-green-100 text-green-800'
+                                        : fluidityPercent >= 50
+                                        ? 'bg-yellow-100 text-yellow-800'
                                         : 'bg-red-100 text-red-800'
                                 }`}>
                                     {fluidityPercent}% fluido
                                 </div>
                             </div>
-                            
+
                             {/* Métricas */}
                             <div className="grid grid-cols-3 gap-2 mt-3">
                                 <div className="bg-red-50 rounded px-2 py-1.5 text-center">
@@ -81,12 +81,12 @@ export const GroupStats: React.FC<GroupStatsProps> = ({ stats }) => {
                                     <div className="text-xs text-purple-600">Críticos</div>
                                 </div>
                             </div>
-                            
+
                             {/* Barra de progreso */}
                             {totalIssues > 0 && (
                                 <div className="mt-3">
                                     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                                        <div 
+                                        <div
                                             className="h-full bg-gradient-to-r from-red-500 to-orange-500 transition-all duration-300"
                                             style={{ width: `${Math.min((totalIssues / 20) * 100, 100)}%` }}
                                         />

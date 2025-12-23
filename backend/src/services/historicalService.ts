@@ -1,4 +1,4 @@
-import { HistoricalSnapshot, PolygonHistoricalData, TrendData, InternalJam, InternalAlert } from '../types';
+import { HistoricalSnapshot, TrendData, InternalJam, InternalAlert } from '../types';
 import { REAL_POLYGONS } from '../config/realPolygons';
 import { dbService } from '../database/dbService';
 
@@ -33,7 +33,6 @@ export class HistoricalService {
      */
     async createGlobalSnapshot(jams: InternalJam[], incidents: InternalAlert[]): Promise<HistoricalSnapshot> {
         // Calcular métricas
-        const totalLength = jams.reduce((sum, j) => sum + j.length, 0);
         const criticalJams = jams.filter(j => j.level && j.level >= 4);
         const criticalLength = criticalJams.reduce((sum, j) => sum + j.length, 0);
 
@@ -174,7 +173,7 @@ export class HistoricalService {
                 [cutoff, this.maxSnapshots]
             );
 
-            return result.rows.map((row: any) => ({
+            return result.rows.map((row) => ({
                 ...row,
                 timestamp: new Date(row.timestamp),
             }));
@@ -207,7 +206,7 @@ export class HistoricalService {
                 [polygonId, cutoff, this.maxSnapshots]
             );
 
-            return result.rows.map((row: any) => ({
+            return result.rows.map((row) => ({
                 ...row,
                 timestamp: new Date(row.timestamp),
             }));
