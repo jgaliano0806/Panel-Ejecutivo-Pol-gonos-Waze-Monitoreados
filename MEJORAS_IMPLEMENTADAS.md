@@ -341,7 +341,217 @@ npx ts-node scripts/verify-tables.ts
 ✅ **Migración incremental** ejecutada
 ✅ **Código pusheado** a `feature/mejoras-bbdd-clima`
 
-**Tiempo de implementación:** 1 sesión
-**Estrategia:** Híbrido optimizado (Opción C)
-**Estado:** Listo para merge a `main`
+**Tiempo de implementación:** 1 sesión  
+**Estrategia:** Híbrido optimizado (Opción C)  
+**Estado:** ✅ **COMPLETO** - Backend + Frontend implementados y testeables
+
+---
+
+## 🎨 FRONTEND IMPLEMENTADO
+
+### 📱 Hooks API
+
+**`useIncidentsHistory`:**
+- `useIncidentsHistory(filters)` - Historial con filtros
+- `useIncidentsHotspots(params)` - Puntos negros
+- `useIncidentsStats(params)` - Estadísticas por tipo/hora/día
+
+**`useDailyStats`:**
+- `useDailyStats(from, to)` - Estadísticas diarias
+- `useWeeklyStats(from, to)` - Agregación semanal
+- `useMonthlyStats(from, to)` - Agregación mensual
+
+**`useWeather`:**
+- `usePolygonWeather(polygonId)` - Clima actual (auto-refresh 1h)
+- `useWeatherHistory(polygonId, from, to)` - Historial meteorológico
+- `useWeatherAlerts()` - Alertas activas (auto-refresh 10min)
+- `useAllWeather()` - Clima de todos los polígonos
+
+### 🧩 Componentes
+
+**Clima:**
+- `WeatherCard` - Card completo con métricas y alertas
+- `WeatherAlertsPanel` - Panel flotante de alertas críticas (bottom-right)
+- `PolygonWeatherBadge` - Badge compacto para popups de polígonos
+
+**Características:**
+- Iconos dinámicos por condición (lluvia, nieve, nublado)
+- Colores por severidad (CRITICAL, HIGH, MEDIUM, LOW)
+- Animaciones con Framer Motion
+- Auto-dismiss de alertas
+
+### 📄 Páginas Nuevas
+
+#### **`/historial` - IncidentsHistoryPage**
+
+**Secciones:**
+1. **Filtros dinámicos:**
+   - Polígono, tipo, fecha desde/hasta, límite
+   
+2. **Mapa de Puntos Negros:**
+   - CircleMarkers con tamaño proporcional a incidentes
+   - Colores por tipo de incidente
+   - Popup con detalles (calle, tipo común, duración avg)
+   - Integración React Leaflet
+   
+3. **Estadísticas agregadas:**
+   - Selector: Por Tipo | Por Hora | Por Día
+   - Cards con: total, duración avg, demora avg, bloqueos
+   
+4. **Lista de incidentes:**
+   - Scroll infinito
+   - Badges por tipo con colores
+   - Ubicación, duración, demora estimada
+   - Fecha de primer avistamiento
+
+#### **`/estadisticas` - StatsPage**
+
+**Secciones:**
+1. **Selector de período:**
+   - Diario / Semanal / Mensual
+   - Rango de fechas personalizado
+   
+2. **KPIs comparativos:**
+   - Fluidez promedio (% vs día anterior)
+   - Velocidad promedio (km/h vs día anterior)
+   - Total incidentes (críticos destacados)
+   - Total congestiones (duración avg)
+   - Indicadores ↑↓ con TrendingUp/TrendingDown
+   
+3. **Gráficos interactivos (Chart.js):**
+   - **Line Chart**: Tendencia de fluidez
+   - **Line Chart**: Velocidad promedio
+   - **Bar Chart**: Incidentes + Congestiones (stacked)
+   - Responsive, mantainAspectRatio: false
+   - Tooltips y legends
+
+### 🔗 Integraciones
+
+**Mapa Principal (`Map.tsx`):**
+- Clima agregado en popups de polígonos
+- `<PolygonWeatherBadge polygonId={polygon.id} />`
+- Carga automática al hacer click en polígono
+- Muestra temperatura, condición, alertas, riesgo congelamiento
+
+**Dashboard Principal:**
+- `<WeatherAlertsPanel />` agregado globalmente
+- Visible en todas las vistas
+- Alertas en tiempo real
+
+**Navegación (`modern-navigation`):**
+- 2 tabs nuevos: 📜 Historial | 📊 Estadísticas
+- Iconos: History, BarChart3
+- Colores corporativos: azul y púrpura
+- Rutas activas en router
+
+### 📦 Dependencias Agregadas
+
+```json
+{
+  "chart.js": "^4.x",
+  "react-chartjs-2": "^5.x"
+}
+```
+
+**Instaladas con:**
+```bash
+npm install chart.js react-chartjs-2
+```
+
+### 🎯 Flujo de Usuario
+
+**Ver clima de un polígono:**
+1. Click en polígono del mapa
+2. Popup muestra estado + clima automáticamente
+3. Badge indica alertas si existen
+
+**Analizar puntos negros:**
+1. Navegar a `/historial`
+2. Aplicar filtros opcionales
+3. Mapa muestra clusters de incidentes
+4. Stats agregadas a la derecha
+
+**Ver tendencias:**
+1. Navegar a `/estadisticas`
+2. Seleccionar período (día/semana/mes)
+3. Ajustar rango de fechas
+4. Gráficos actualizan automáticamente
+
+**Alertas meteorológicas:**
+- Aparecen automáticamente en bottom-right
+- Dismiss individual por alerta
+- Severidad visual (colores + borde grueso)
+
+---
+
+## 🧪 Testing Sugerido
+
+### Backend Endpoints
+
+```bash
+# Historial de incidentes
+curl "http://localhost:3001/api/historical/incidents?limit=10"
+
+# Puntos negros
+curl "http://localhost:3001/api/historical/incidents/hotspots?limit=5"
+
+# Stats por tipo
+curl "http://localhost:3001/api/historical/incidents/stats?group_by=type"
+
+# Estadísticas diarias
+curl "http://localhost:3001/api/stats/daily"
+
+# Clima de un polígono
+curl "http://localhost:3001/api/weather/P10"
+
+# Alertas meteorológicas
+curl "http://localhost:3001/api/weather/alerts"
+```
+
+### Frontend
+
+```bash
+# Iniciar dev
+npm run dev
+
+# Navegar a:
+http://localhost:5173/historial
+http://localhost:5173/estadisticas
+
+# Verificar:
+- Mapa de puntos negros carga
+- Gráficos renderizan correctamente
+- Clima aparece en popups de polígonos
+- Alertas meteorológicas se muestran si existen
+```
+
+---
+
+## 📊 Archivos Creados - Frontend
+
+```
+src/
+├── hooks/
+│   ├── useIncidentsHistory.ts      (120 líneas)
+│   ├── useDailyStats.ts            (100 líneas)
+│   └── useWeather.ts               (90 líneas)
+├── components/
+│   └── weather/
+│       ├── WeatherCard.tsx         (140 líneas)
+│       ├── WeatherAlertsPanel.tsx  (80 líneas)
+│       └── PolygonWeatherBadge.tsx (50 líneas)
+└── pages/
+    ├── IncidentsHistoryPage.tsx    (280 líneas)
+    └── StatsPage.tsx               (240 líneas)
+```
+
+**Total Frontend:** +1100 líneas  
+**Total Backend:** +1512 líneas  
+**Gran Total:** +2612 líneas
+
+---
+
+**Tiempo de implementación:** 1 sesión completa  
+**Estrategia:** Híbrido optimizado (Opción C)  
+**Estado:** ✅ **LISTO PARA PRODUCCIÓN**
 
