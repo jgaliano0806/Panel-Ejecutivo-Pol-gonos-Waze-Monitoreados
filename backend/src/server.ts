@@ -10,6 +10,9 @@ import { dataQualityService } from './services/dataQualityService';
 import { incidentStatsService } from './services/incidentStatsService';
 import { externalTrafficService } from './services/externalTrafficService';
 import { delayCalculationService } from './services/delayCalculationService';
+import { IncidentsHistoryService } from './services/incidentsHistoryService';
+import { DailyStatsService } from './services/dailyStatsService';
+import { WeatherService } from './services/weatherService';
 import { REAL_POLYGONS } from './config/realPolygons';
 import dotenv from 'dotenv';
 
@@ -17,6 +20,9 @@ dotenv.config();
 
 // Instancia del servicio de API (evita problemas de import/export en TS runtime)
 const apiService = new ApiService();
+const incidentsHistoryService = new IncidentsHistoryService();
+const dailyStatsService = new DailyStatsService();
+const weatherService = new WeatherService();
 
 const server = Fastify({
     logger: true,
@@ -960,6 +966,276 @@ server.get('/api/speed/comparison/all', async (request, reply) => {
     } catch (error) {
         server.log.error(error);
         reply.code(500).send({ error: 'Failed to get speed comparisons' });
+    }
+});
+
+// ===========================================
+// ENDPOINTS: HISTORIAL DE INCIDENTES
+// ===========================================
+
+// GET /api/historical/incidents - Obtener historial de incidentes
+server.get('/api/historical/incidents', async (request, reply) => {
+    try {
+        const { polygon_id, type, from, to, limit } = request.query as {
+            polygon_id?: string;
+            type?: string;
+            from?: string;
+            to?: string;
+            limit?: string;
+        };
+
+        const incidents = await incidentsHistoryService.getIncidents({
+            polygon_id,
+            type,
+            from: from ? new Date(from) : undefined,
+            to: to ? new Date(to) : undefined,
+            limit: limit ? parseInt(limit) : 100
+        });
+
+        reply.send(incidents);
+    } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        server.log.error(err, 'Error getting incidents history');
+        reply.code(500).send({ error: 'Failed to get incidents history' });
+    }
+});
+
+// GET /api/historical/incidents/hotspots - Puntos negros
+server.get('/api/historical/incidents/hotspots', async (request, reply) => {
+    try {
+        const { min_incidents, radius_meters, from, to, limit } = request.query as {
+            min_incidents?: string;
+            radius_meters?: string;
+            from?: string;
+            to?: string;
+            limit?: string;
+        };
+
+        const hotspots = await incidentsHistoryService.getHotspots({
+            min_incidents: min_incidents ? parseInt(min_incidents) : 5,
+            radius_meters: radius_meters ? parseInt(radius_meters) : 500,
+            from: from ? new Date(from) : undefined,
+            to: to ? new Date(to) : undefined,
+            limit: limit ? parseInt(limit) : 10
+        });
+
+        reply.send(hotspots);
+    } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        server.log.error(err, 'Error getting hotspots');
+        reply.code(500).send({ error: 'Failed to get hotspots' });
+    }
+});
+
+// GET /api/historical/incidents/stats - Estadísticas de incidentes
+server.get('/api/historical/incidents/stats', async (request, reply) => {
+    try {
+        const { polygon_id, group_by, from, to } = request.query as {
+            polygon_id?: string;
+            group_by?: 'type' | 'hour' | 'day';
+            from?: string;
+            to?: string;
+        };
+
+        if (!group_by || !['type', 'hour', 'day'].includes(group_by)) {
+            reply.code(400).send({ error: 'group_by must be one of: type, hour, day' });
+            return;
+        }
+
+        const stats = await incidentsHistoryService.getIncidentStats({
+            polygon_id,
+            group_by,
+            from: from ? new Date(from) : undefined,
+            to: to ? new Date(to) : undefined
+        });
+
+        reply.send(stats);
+    } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        server.log.error(err, 'Error getting incident stats');
+        reply.code(500).send({ error: 'Failed to get incident stats' });
+    }
+});
+
+// ===========================================
+// ENDPOINTS: ESTADÍSTICAS DIARIAS
+// ===========================================
+
+// GET /api/stats/daily - Estadísticas diarias
+server.get('/api/stats/daily', async (request, reply) => {
+    try {
+        const { from, to } = request.query as {
+            from?: string;
+            to?: string;
+        };
+
+        const fromDate = from ? new Date(from) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const toDate = to ? new Date(to) : new Date();
+
+        const stats = await dailyStatsService.getDailyStats(fromDate, toDate);
+        reply.send(stats);
+    } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        server.log.error(err, 'Error getting daily stats');
+        reply.code(500).send({ error: 'Failed to get daily stats' });
+    }
+});
+
+// GET /api/stats/weekly - Estadísticas semanales
+server.get('/api/stats/weekly', async (request, reply) => {
+    try {
+        const { from, to } = request.query as {
+            from?: string;
+            to?: string;
+        };
+
+        const fromDate = from ? new Date(from) : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+        const toDate = to ? new Date(to) : new Date();
+
+        const stats = await dailyStatsService.getWeeklyStats(fromDate, toDate);
+        reply.send(stats);
+    } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        server.log.error(err, 'Error getting weekly stats');
+        reply.code(500).send({ error: 'Failed to get weekly stats' });
+    }
+});
+
+// GET /api/stats/monthly - Estadísticas mensuales
+server.get('/api/stats/monthly', async (request, reply) => {
+    try {
+        const { from, to } = request.query as {
+            from?: string;
+            to?: string;
+        };
+
+        const fromDate = from ? new Date(from) : new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+        const toDate = to ? new Date(to) : new Date();
+
+        const stats = await dailyStatsService.getMonthlyStats(fromDate, toDate);
+        reply.send(stats);
+    } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        server.log.error(err, 'Error getting monthly stats');
+        reply.code(500).send({ error: 'Failed to get monthly stats' });
+    }
+});
+
+// ===========================================
+// ENDPOINTS: CLIMA (POC)
+// ===========================================
+
+// GET /api/weather/:polygon_id - Obtener clima actual de un polígono
+server.get('/api/weather/:polygon_id', async (request, reply) => {
+    try {
+        const { polygon_id } = request.params as { polygon_id: string };
+
+        // Buscar el polígono en la configuración
+        const polygon = REAL_POLYGONS.find(p => p.id === polygon_id);
+        if (!polygon) {
+            reply.code(404).send({ error: 'Polygon not found' });
+            return;
+        }
+
+        // Calcular centro del polígono
+        const lats = polygon.coordinates.map(c => c.lat);
+        const lons = polygon.coordinates.map(c => c.lon);
+        const centerLat = lats.reduce((a, b) => a + b, 0) / lats.length;
+        const centerLon = lons.reduce((a, b) => a + b, 0) / lons.length;
+
+        // Obtener datos del clima
+        const weatherData = await weatherService.fetchWeatherForPolygon(
+            polygon_id,
+            centerLat,
+            centerLon
+        );
+
+        if (!weatherData) {
+            reply.code(503).send({ error: 'Weather service unavailable' });
+            return;
+        }
+
+        // Guardar en base de datos
+        await weatherService.saveWeatherData(weatherData);
+
+        reply.send(weatherData);
+    } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        server.log.error(err, 'Error getting weather data');
+        reply.code(500).send({ error: 'Failed to get weather data' });
+    }
+});
+
+// GET /api/weather/:polygon_id/history - Historial de clima
+server.get('/api/weather/:polygon_id/history', async (request, reply) => {
+    try {
+        const { polygon_id } = request.params as { polygon_id: string };
+        const { from, to } = request.query as {
+            from?: string;
+            to?: string;
+        };
+
+        const fromDate = from ? new Date(from) : new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const toDate = to ? new Date(to) : new Date();
+
+        const history = await weatherService.getWeatherHistory(
+            polygon_id,
+            fromDate,
+            toDate
+        );
+
+        reply.send(history);
+    } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        server.log.error(err, 'Error getting weather history');
+        reply.code(500).send({ error: 'Failed to get weather history' });
+    }
+});
+
+// GET /api/weather/alerts - Alertas meteorológicas activas
+server.get('/api/weather/alerts', async (request, reply) => {
+    try {
+        const alerts = await weatherService.getActiveWeatherAlerts();
+        reply.send(alerts);
+    } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        server.log.error(err, 'Error getting weather alerts');
+        reply.code(500).send({ error: 'Failed to get weather alerts' });
+    }
+});
+
+// GET /api/weather/all - Clima de todos los polígonos
+server.get('/api/weather/all', async (request, reply) => {
+    try {
+        const weatherPromises = REAL_POLYGONS.map(async (polygon) => {
+            const lats = polygon.coordinates.map(c => c.lat);
+            const lons = polygon.coordinates.map(c => c.lon);
+            const centerLat = lats.reduce((a, b) => a + b, 0) / lats.length;
+            const centerLon = lons.reduce((a, b) => a + b, 0) / lons.length;
+
+            const weather = await weatherService.fetchWeatherForPolygon(
+                polygon.id,
+                centerLat,
+                centerLon
+            );
+
+            if (weather) {
+                await weatherService.saveWeatherData(weather);
+            }
+
+            return {
+                polygon_id: polygon.id,
+                polygon_name: polygon.name,
+                weather
+            };
+        });
+
+        const results = await Promise.all(weatherPromises);
+        reply.send(results);
+    } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        server.log.error(err, 'Error getting all weather data');
+        reply.code(500).send({ error: 'Failed to get all weather data' });
     }
 });
 
