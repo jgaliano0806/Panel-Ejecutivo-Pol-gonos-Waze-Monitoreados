@@ -2,20 +2,37 @@
  * Traducciones de tipos y subtipos de Waze al español
  */
 
+/**
+ * Traducciones completas basadas en los iconos oficiales de Waze
+ * Fuente: App Waze versión española
+ */
 export const WAZE_TRANSLATIONS = {
+    // === ACCIDENTES (Informar sobre accidente) ===
     accident: {
-        ACCIDENT: "Siniestro vial",
-        ACCIDENT_MINOR: "Siniestro vial leve",
-        ACCIDENT_MAJOR: "Siniestro vial grave",
-        NO_SUBTYPE: "Siniestro sin clasificar"
+        ACCIDENT: "Accidente",
+        ACCIDENT_MINOR: "Accidente leve",
+        ACCIDENT_MAJOR: "Colisión múltiple",
+        ACCIDENT_OTHER_SIDE: "Accidente al otro lado",
+        NO_SUBTYPE: "Accidente"
     },
+
+    // === TRÁFICO / ATASCOS ===
     jam: {
         JAM_LIGHT_TRAFFIC: "Tránsito lento",
         JAM_MODERATE_TRAFFIC: "Tránsito denso",
         JAM_HEAVY_TRAFFIC: "Embotellamiento",
         JAM_STAND_STILL_TRAFFIC: "Tránsito detenido",
-        NO_SUBTYPE: "Congestión genérica"
+        NO_SUBTYPE: "Congestión"
     },
+
+    // === PELIGROS EN CALZADA (Informar sobre un peligro) ===
+    hazard: {
+        HAZARD: "Peligro",
+        HAZARD_ON_ROAD: "Peligro en calzada",
+        HAZARD_ON_SHOULDER: "Auto en orilla",
+        NO_SUBTYPE: "Peligro"
+    },
+
     hazard_on_road: {
         HAZARD_ON_ROAD: "Peligro en calzada",
         HAZARD_ON_ROAD_OBJECT: "Objeto en calzada",
@@ -24,42 +41,79 @@ export const WAZE_TRANSLATIONS = {
         HAZARD_ON_ROAD_LANE_CLOSED: "Carril cerrado",
         HAZARD_ON_ROAD_OIL: "Derrame de aceite",
         HAZARD_ON_ROAD_ICE: "Hielo en calzada",
-        HAZARD_ON_ROAD_CONSTRUCTION: "Obra en ejecución",
+        HAZARD_ON_ROAD_CONSTRUCTION: "Obras",
         HAZARD_ON_ROAD_CAR_STOPPED: "Vehículo detenido en carril",
-        HAZARD_ON_ROAD_TRAFFIC_LIGHT_FAULT: "Semáforo averiado"
+        HAZARD_ON_ROAD_TRAFFIC_LIGHT_FAULT: "Semáforo averiado",
+        NO_SUBTYPE: "Peligro en calzada"
     },
+
     hazard_on_shoulder: {
-        HAZARD_ON_SHOULDER: "Peligro en banquina",
-        HAZARD_ON_SHOULDER_CAR_STOPPED: "Vehículo en banquina",
+        HAZARD_ON_SHOULDER: "Auto en orilla",
+        HAZARD_ON_SHOULDER_CAR_STOPPED: "Auto en orilla",
         HAZARD_ON_SHOULDER_ANIMALS: "Animales en banquina",
-        HAZARD_ON_SHOULDER_MISSING_SIGN: "Señal faltante"
+        HAZARD_ON_SHOULDER_MISSING_SIGN: "Señal faltante",
+        NO_SUBTYPE: "Auto en orilla"
     },
+
+    // === MAL TIEMPO (Informar sobre mal tiempo) ===
     hazard_weather: {
-        HAZARD_WEATHER: "Peligro climático",
+        HAZARD_WEATHER: "Mal tiempo",
         HAZARD_WEATHER_FOG: "Niebla",
         HAZARD_WEATHER_HAIL: "Granizo",
-        HAZARD_WEATHER_HEAVY_RAIN: "Lluvia intensa",
-        HAZARD_WEATHER_HEAVY_SNOW: "Nevada",
+        HAZARD_WEATHER_HEAVY_RAIN: "Mal tiempo",
+        HAZARD_WEATHER_HEAVY_SNOW: "Nieve en el camino",
         HAZARD_WEATHER_FLOOD: "Inundación",
-        HAZARD_WEATHER_MONSOON: "Lluvia monzónica",
+        HAZARD_WEATHER_MONSOON: "Lluvia intensa",
         HAZARD_WEATHER_TORNADO: "Tornado",
         HAZARD_WEATHER_HEAT_WAVE: "Ola de calor",
         HAZARD_WEATHER_HURRICANE: "Huracán",
-        HAZARD_WEATHER_FREEZING_RAIN: "Lluvia congelante"
+        HAZARD_WEATHER_FREEZING_RAIN: "Camino con hielo",
+        HAZARD_WEATHER_SLIPPERY_ROAD: "Camino resbaladizo",
+        NO_SUBTYPE: "Mal tiempo"
     },
+
+    // === OBRAS (Construcción) ===
     construction: {
-        CONSTRUCTION: "Obra vial",
-        NO_SUBTYPE: "Obra sin especificar"
+        CONSTRUCTION: "Obras",
+        NO_SUBTYPE: "Obras"
     },
+
+    // === CIERRE DE CAMINO ===
     road_closed: {
-        ROAD_CLOSED: "Corte total",
+        ROAD_CLOSED: "Cierre",
         ROAD_CLOSED_HAZARD: "Cierre por peligro",
-        ROAD_CLOSED_CONSTRUCTION: "Cierre por obra",
+        ROAD_CLOSED_CONSTRUCTION: "Cierre por obras",
         ROAD_CLOSED_EVENT: "Cierre por evento",
-        NO_SUBTYPE: "Corte sin especificar"
+        NO_SUBTYPE: "Cierre"
     },
+
+    // === CARRIL BLOQUEADO ===
+    lane_closed: {
+        LANE_CLOSED: "Carril bloqueado",
+        LANE_CLOSED_LEFT: "Carril izquierdo bloqueado",
+        LANE_CLOSED_RIGHT: "Carril derecho bloqueado",
+        LANE_CLOSED_CENTER: "Carril central bloqueado",
+        NO_SUBTYPE: "Carril bloqueado"
+    },
+
+    // === POLICÍA (Informar sobre control policial) ===
+    police: {
+        POLICE: "Policía",
+        POLICE_VISIBLE: "Policía visible",
+        POLICE_HIDDEN: "Policía oculto",
+        POLICE_SPEED_TRAP: "Radar móvil",
+        POLICE_OTHER_SIDE: "Policía al otro lado",
+        NO_SUBTYPE: "Control policial"
+    },
+
+    // === OTROS ===
     misc: {
-        MISC: "Incidente no categorizado",
+        MISC: "Otro incidente",
+        MAP_ERROR: "Error en el mapa",
+        FUEL_PRICES: "Precios de combustible",
+        ROADSIDE_ASSISTANCE: "Asistencia en la ruta",
+        MAP_CHAT: "Chat del mapa",
+        PLACE: "Lugar",
         NO_SUBTYPE: "Sin clasificar"
     }
 } as const;
@@ -103,6 +157,77 @@ export const IRREGULARITY_TYPE_TRANSLATIONS: Record<string, string> = {
     "HUGE": "Anomalía masiva"
 };
 
+/**
+ * Mapeo directo de subtipos RAW a traducciones
+ * Esto permite buscar cualquier subtipo directamente sin conocer el tipo padre
+ */
+export const SUBTYPE_DIRECT_TRANSLATIONS: Record<string, string> = {
+    // Accidentes
+    'ACCIDENT': 'Accidente',
+    'ACCIDENT_MINOR': 'Accidente leve',
+    'ACCIDENT_MAJOR': 'Colisión múltiple',
+
+    // Tráfico
+    'JAM_LIGHT_TRAFFIC': 'Tránsito lento',
+    'JAM_MODERATE_TRAFFIC': 'Tránsito denso',
+    'JAM_HEAVY_TRAFFIC': 'Embotellamiento',
+    'JAM_STAND_STILL_TRAFFIC': 'Tránsito detenido',
+
+    // Peligros en calzada
+    'HAZARD_ON_ROAD': 'Peligro en calzada',
+    'HAZARD_ON_ROAD_OBJECT': 'Objeto en calzada',
+    'HAZARD_ON_ROAD_POT_HOLE': 'Bache',
+    'HAZARD_ON_ROAD_ROAD_KILL': 'Animal muerto en calzada',
+    'HAZARD_ON_ROAD_LANE_CLOSED': 'Carril cerrado',
+    'HAZARD_ON_ROAD_OIL': 'Derrame de aceite',
+    'HAZARD_ON_ROAD_ICE': 'Hielo en calzada',
+    'HAZARD_ON_ROAD_CONSTRUCTION': 'Obras',
+    'HAZARD_ON_ROAD_CAR_STOPPED': 'Vehículo detenido en carril',
+    'HAZARD_ON_ROAD_TRAFFIC_LIGHT_FAULT': 'Semáforo averiado',
+
+    // Peligros en banquina
+    'HAZARD_ON_SHOULDER': 'Auto en orilla',
+    'HAZARD_ON_SHOULDER_CAR_STOPPED': 'Auto en orilla',
+    'HAZARD_ON_SHOULDER_ANIMALS': 'Animales en banquina',
+    'HAZARD_ON_SHOULDER_MISSING_SIGN': 'Señal faltante',
+
+    // Clima
+    'HAZARD_WEATHER': 'Mal tiempo',
+    'HAZARD_WEATHER_FOG': 'Niebla',
+    'HAZARD_WEATHER_HAIL': 'Granizo',
+    'HAZARD_WEATHER_HEAVY_RAIN': 'Mal tiempo',
+    'HAZARD_WEATHER_HEAVY_SNOW': 'Nieve en el camino',
+    'HAZARD_WEATHER_FLOOD': 'Inundación',
+    'HAZARD_WEATHER_MONSOON': 'Lluvia intensa',
+    'HAZARD_WEATHER_TORNADO': 'Tornado',
+    'HAZARD_WEATHER_HEAT_WAVE': 'Ola de calor',
+    'HAZARD_WEATHER_HURRICANE': 'Huracán',
+    'HAZARD_WEATHER_FREEZING_RAIN': 'Camino con hielo',
+    'HAZARD_WEATHER_SLIPPERY_ROAD': 'Camino resbaladizo',
+
+    // Camino cerrado
+    'ROAD_CLOSED': 'Cierre',
+    'ROAD_CLOSED_HAZARD': 'Cierre por peligro',
+    'ROAD_CLOSED_CONSTRUCTION': 'Cierre por obras',
+    'ROAD_CLOSED_EVENT': 'Cierre por evento',
+
+    // Carril bloqueado
+    'LANE_CLOSED': 'Carril bloqueado',
+    'LANE_CLOSED_LEFT': 'Carril izquierdo bloqueado',
+    'LANE_CLOSED_RIGHT': 'Carril derecho bloqueado',
+    'LANE_CLOSED_CENTER': 'Carril central bloqueado',
+
+    // Policía
+    'POLICE': 'Policía',
+    'POLICE_VISIBLE': 'Policía visible',
+    'POLICE_HIDDEN': 'Policía oculto',
+    'POLICE_SPEED_TRAP': 'Radar móvil',
+    'POLICE_OTHER_SIDE': 'Policía al otro lado',
+
+    // Construcción
+    'CONSTRUCTION': 'Obras',
+};
+
 // Mapeo de tipos principales a español
 export const MAIN_TYPE_TRANSLATIONS: Record<string, string> = {
     // Tipos principales en minúsculas
@@ -142,7 +267,13 @@ export const MAIN_TYPE_TRANSLATIONS: Record<string, string> = {
  * Obtiene la traducción de un subtipo de incidente
  */
 export function getSubtypeTranslation(type: string, subtype: string): string {
-    // Primero intentar con el tipo proporcionado
+    // Primero intentar con el mapeo directo de subtipos (más rápido)
+    const upperSubtype = subtype.toUpperCase();
+    if (SUBTYPE_DIRECT_TRANSLATIONS[upperSubtype]) {
+        return SUBTYPE_DIRECT_TRANSLATIONS[upperSubtype];
+    }
+
+    // Luego intentar con el tipo proporcionado
     const typeKey = type as keyof typeof WAZE_TRANSLATIONS;
     if (typeKey in WAZE_TRANSLATIONS) {
         const translations = WAZE_TRANSLATIONS[typeKey] as Record<string, string>;
@@ -151,8 +282,7 @@ export function getSubtypeTranslation(type: string, subtype: string): string {
         }
     }
 
-    // Si no funciona, intentar extraer el tipo del subtipo
-    // Por ejemplo: "HAZARD_ON_ROAD_CONSTRUCTION" -> buscar en "hazard_on_road"
+    // Si no funciona, buscar en todas las categorías
     for (const translations of Object.values(WAZE_TRANSLATIONS)) {
         const typedTranslations = translations as Record<string, string>;
         if (typedTranslations[subtype]) {
@@ -160,7 +290,19 @@ export function getSubtypeTranslation(type: string, subtype: string): string {
         }
     }
 
-    return subtype;
+    // Último recurso: convertir el subtipo a formato legible
+    return formatSubtypeToReadable(subtype);
+}
+
+/**
+ * Convierte un subtipo RAW a formato legible
+ * Ejemplo: "HAZARD_ON_SHOULDER_CAR_STOPPED" -> "Peligro en banquina - auto detenido"
+ */
+function formatSubtypeToReadable(subtype: string): string {
+    return subtype
+        .toLowerCase()
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase());
 }
 
 /**

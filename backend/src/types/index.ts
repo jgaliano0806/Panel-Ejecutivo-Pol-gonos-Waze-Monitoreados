@@ -191,6 +191,7 @@ export interface InternalJam {
     roadType?: number;
     turnType?: string;
     blockingAlertUuid?: string;
+    line?: Array<{ x: number; y: number }>; // Línea completa del jam para dibujar en mapa
     source: 'waze' | 'tvt'; // Fuente de datos: Waze feeds (con coords) o TVT feeds (sin coords)
 }
 

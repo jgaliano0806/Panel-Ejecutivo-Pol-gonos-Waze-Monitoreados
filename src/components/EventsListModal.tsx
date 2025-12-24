@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import type { Incident, TrafficAlert, Polygon } from '../types';
-import { getIncidentDescription, getIncidentEmoji, getSubtypeTranslation, getMainTypeTranslation } from '../utils/wazeTranslations';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import type { Incident, TrafficAlert, Polygon, TrafficJam } from '../types';
+import { getIncidentDescription, getSubtypeTranslation, getMainTypeTranslation, getJamLevelTranslation } from '../utils/wazeTranslations';
+import { WazeIcon } from './WazeIcon';
+import { getWazePartnerHubIconUrl } from '../utils/wazeIcons';
+import { MapContainer, TileLayer, Marker, Popup, Polygon as LeafletPolygon, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
 // Fix para los iconos de Leaflet
@@ -61,6 +63,23 @@ style.textContent = `
       box-shadow: 0 0 0 15px rgba(220, 38, 38, 0);
     }
   }
+
+  /* Estilos para marcadores de Waze */
+  .custom-incident-marker {
+    background: transparent !important;
+    border: none !important;
+  }
+  .waze-marker-icon {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .waze-marker-icon img {
+    object-fit: contain;
+  }
+  .critical-marker {
+    animation: pulse-marker 1.5s ease-in-out infinite;
+  }
 `;
 if (!document.head.querySelector('style[data-minimap-animations]')) {
   style.setAttribute('data-minimap-animations', 'true');
@@ -68,39 +87,36 @@ if (!document.head.querySelector('style[data-minimap-animations]')) {
 }
 
 // Componente para centrar el mapa automáticamente
-const MapCenterUpdater: React.FC<{ center: [number, number] }> = ({ center }) => {
+const MapCenterUpdater: React.FC<{ center: [number, number]; zoom?: number }> = ({ center, zoom = 16 }) => {
   const map = useMap();
   useEffect(() => {
-    map.setView(center, 16);
-  }, [center, map]);
+    map.setView(center, zoom);
+  }, [center, zoom, map]);
   return null;
 };
 
-// Crear icono personalizado para el marcador
-const createCustomIcon = (severity: number) => {
+// Crear icono de Waze para el marcador
+const createWazeMarker = (type: string, subtype: string | undefined, severity: number) => {
+  const iconUrl = getWazePartnerHubIconUrl(type, subtype);
   const color = severity >= 4 ? '#dc2626' : severity >= 3 ? '#ea580c' : '#fbbf24';
+  const isCritical = severity >= 4;
 
   return L.divIcon({
-    className: 'custom-marker',
+    className: `custom-incident-marker ${isCritical ? 'critical-marker' : ''}`,
     html: `
-      <div style="
+      <div class="waze-marker-icon" style="
+        background-color: white;
         width: 40px;
         height: 40px;
-        background: ${color};
-        border: 4px solid white;
         border-radius: 50%;
+        border: 3px solid ${color};
         box-shadow: 0 4px 15px rgba(0,0,0,0.4);
         display: flex;
         align-items: center;
         justify-content: center;
-        animation: pulse-marker 2s infinite;
+        ${isCritical ? 'animation: pulse-marker 1.5s ease-in-out infinite;' : ''}
       ">
-        <div style="
-          width: 12px;
-          height: 12px;
-          background: white;
-          border-radius: 50%;
-        "></div>
+        <img src="${iconUrl}" alt="${type}" style="width: 24px; height: 24px; object-fit: contain; display: block !important; visibility: visible !important; opacity: 1 !important;" onerror="this.onerror=null; this.src='https://web-assets.waze.com/webapps/partnerhub-web/1.1.1333/assets/icons/alerts/hazard.svg'; this.style.display='block'; this.style.visibility='visible'; this.style.opacity='1';" crossorigin="anonymous" />
       </div>
     `,
     iconSize: [40, 40],
@@ -109,10 +125,36 @@ const createCustomIcon = (severity: number) => {
   });
 };
 
+// Crear iconos de atascos con SVG de Waze
+const createJamMarker = (color: string, size: number = 24) => {
+  const WAZE_ICON_BASE = 'https://web-assets.waze.com/webapps/partnerhub-web/1.1.1333/assets/icons/alerts';
+  return L.divIcon({
+    className: 'custom-jam-marker',
+    html: `
+      <div class="waze-jam-marker" style="
+        background-color: white;
+        width: ${size}px;
+        height: ${size}px;
+        border-radius: 50%;
+        border: 3px solid ${color};
+        box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      ">
+        <img src="${WAZE_ICON_BASE}/jam.svg" alt="jam" style="width: ${size - 8}px; height: ${size - 8}px;" />
+      </div>
+    `,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+};
+
 interface EventsListModalProps {
   incidents: Incident[];
   alerts: TrafficAlert[];
   polygons?: Polygon[];
+  jams?: TrafficJam[];
   onClose: () => void;
   onEventClick: (event: Incident | TrafficAlert, type: 'incident' | 'alert') => void;
 }
@@ -121,6 +163,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
   incidents,
   alerts,
   polygons = [],
+  jams = [],
   onClose,
   onEventClick,
 }) => {
@@ -221,7 +264,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
         <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 text-white px-8 py-6 flex items-center justify-between border-b-4 border-blue-800">
           <div>
             <h2 className="text-3xl font-black mb-2 flex items-center gap-3">
-              <span className="text-4xl">📋</span>
+              <WazeIcon type="stats" uiIcon size="xl" />
               Eventos Activos en Tiempo Real
             </h2>
             <div className="flex items-center gap-4 text-sm">
@@ -249,7 +292,10 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                     : 'bg-white/20 text-white hover:bg-white/30'
                 }`}
               >
-                ⚠️ {incidents.length} Incidentes
+                <span className="flex items-center gap-2">
+                    <WazeIcon type="alert" uiIcon size="sm" />
+                    {incidents.length} Incidentes
+                </span>
               </button>
               <button
                 onClick={(e) => {
@@ -262,7 +308,10 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                     : 'bg-white/20 text-white hover:bg-white/30'
                 }`}
               >
-                🚨 {alerts.length} Alertas
+                <span className="flex items-center gap-2">
+                  <WazeIcon type="alert" uiIcon size="sm" />
+                  {alerts.length} Alertas
+                </span>
               </button>
             </div>
           </div>
@@ -286,7 +335,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
               <div className="flex flex-col">
                 <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-t-xl shadow-md">
                   <h3 className="text-xl font-black flex items-center gap-3">
-                    <span className="text-2xl">⚠️</span>
+                    <WazeIcon type="alert" uiIcon size="md" className="text-white" />
                     <span>Incidentes reportados por usuarios de Waze</span>
                     <span className="ml-auto bg-white/30 px-3 py-1 rounded-full text-sm font-bold">
                       {incidents.length}
@@ -308,7 +357,6 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                     return (b.reliability || 0) - (a.reliability || 0);
                   })
                   .map((incident, index) => {
-                  const emoji = getIncidentEmoji(incident.type, incident.subtype);
                   const typeDescription = getIncidentDescription(incident.type, incident.subtype);
 
                   // NO mostrar subtipo si la descripción ya lo incluye
@@ -321,7 +369,9 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                     >
                       <div className="flex items-start gap-5">
                         {/* Icon */}
-                        <div className="text-5xl flex-shrink-0 drop-shadow-md">{emoji}</div>
+                        <div className="flex-shrink-0 drop-shadow-md">
+                          <WazeIcon type={incident.type} subtype={incident.subtype} size="xl" />
+                        </div>
 
                         {/* Main Info */}
                         <div className="flex-1 min-w-0">
@@ -341,7 +391,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm bg-white/70 rounded-lg p-4 border border-gray-200">
                               {incident.street && (
                                 <div className="flex items-start gap-2">
-                                  <span className="text-blue-600 font-bold">📍</span>
+                                  <WazeIcon type="map" uiIcon size="sm" className="text-blue-600" />
                                   <div>
                                     <span className="text-gray-500 font-semibold text-xs">Dirección:</span>
                                     <p className="text-gray-900 font-medium">{incident.street}</p>
@@ -350,7 +400,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                               )}
                               {incident.city && (
                                 <div className="flex items-start gap-2">
-                                  <span className="text-blue-600 font-bold">🏙️</span>
+                                  <WazeIcon type="map" uiIcon size="sm" className="text-blue-600" />
                                   <div>
                                     <span className="text-gray-500 font-semibold text-xs">Ciudad:</span>
                                     <p className="text-gray-900 font-medium">{incident.city}</p>
@@ -358,7 +408,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                 </div>
                               )}
                               <div className="flex items-start gap-2">
-                                <span className="text-blue-600 font-bold">🗺️</span>
+                                <WazeIcon type="map" uiIcon size="sm" className="text-blue-600" />
                                 <div>
                                   <span className="text-gray-500 font-semibold text-xs">Coordenadas:</span>
                                   <p className="text-gray-900 font-mono text-xs font-medium">
@@ -367,7 +417,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                 </div>
                               </div>
                               <div className="flex items-start gap-2">
-                                <span className="text-blue-600 font-bold">🕐</span>
+                                <WazeIcon type="time" uiIcon size="sm" className="text-blue-600" />
                                 <div>
                                   <span className="text-gray-500 font-semibold text-xs">Reportado:</span>
                                   <p className="text-gray-900 font-medium text-xs">
@@ -385,8 +435,8 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                               }}
                               className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 hover:from-blue-700 hover:via-purple-700 hover:to-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-[1.02] flex items-center justify-center gap-3 group"
                             >
-                              <span className="text-2xl group-hover:scale-125 transition-transform duration-300">
-                                🗺️
+                              <span className="group-hover:scale-125 transition-transform duration-300">
+                                <WazeIcon type="map" uiIcon size="lg" />
                               </span>
                               <span className="tracking-wide">
                                 Ver Ubicación en Minimapa
@@ -403,7 +453,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                           {incident.nThumbsUp !== undefined && (
                             <div className="mt-3 pt-3 border-t-2 border-dashed border-gray-300">
                               <div className="flex items-center gap-3 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-3 shadow-md">
-                                <span className="text-3xl">👍</span>
+                                <WazeIcon type="check" uiIcon size="lg" />
                                 <div className="flex-1">
                                   <p className="text-xs text-gray-600 font-semibold">Confirmado por Wazers</p>
                                   <p className="text-2xl font-black text-green-700">
@@ -444,7 +494,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
               <div className="flex flex-col">
                 <div className="bg-gradient-to-r from-red-600 to-pink-600 text-white px-6 py-3 rounded-t-xl shadow-md">
                   <h3 className="text-xl font-black flex items-center gap-3">
-                    <span className="text-2xl">🚨</span>
+                    <WazeIcon type="alert" uiIcon size="md" className="text-white" />
                     <span>Alertas automaticas de Waze</span>
                     <span className="ml-auto bg-white/30 px-3 py-1 rounded-full text-sm font-bold">
                       {alerts.length}
@@ -464,10 +514,10 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                   })
                   .map((alert, index) => {
                   const severityConfig = {
-                    critical: { label: 'CRÍTICA', color: 'bg-red-100 border-red-400 text-red-900', icon: '🚨' },
-                    high: { label: 'ALTA', color: 'bg-orange-100 border-orange-400 text-orange-900', icon: '⚠️' },
-                    medium: { label: 'MEDIA', color: 'bg-yellow-100 border-yellow-400 text-yellow-900', icon: '⚡' },
-                    low: { label: 'BAJA', color: 'bg-blue-100 border-blue-400 text-blue-900', icon: 'ℹ️' },
+                    critical: { label: 'CRÍTICA', color: 'bg-red-100 border-red-400 text-red-900', iconType: 'critical' },
+                    high: { label: 'ALTA', color: 'bg-orange-100 border-orange-400 text-orange-900', iconType: 'warning' },
+                    medium: { label: 'MEDIA', color: 'bg-yellow-100 border-yellow-400 text-yellow-900', iconType: 'warning' },
+                    low: { label: 'BAJA', color: 'bg-blue-100 border-blue-400 text-blue-900', iconType: 'alert' },
                   }[alert.severity];
 
                   return (
@@ -477,7 +527,9 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                       className={`border-2 rounded-xl p-5 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-[1.02] ${severityConfig.color}`}
                     >
                       <div className="flex items-start gap-4">
-                        <div className="text-4xl">{severityConfig.icon}</div>
+                        <div>
+                          <WazeIcon type={severityConfig.iconType} uiIcon size="xl" />
+                        </div>
                         <div className="flex-1">
                           <div className="flex items-start justify-between gap-3 mb-2">
                             <h4 className="font-bold text-lg">{alert.message}</h4>
@@ -488,23 +540,31 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
 
                           <div className="text-sm space-y-1">
                             <div className="flex items-center gap-2">
-                              <span className="font-semibold">📍 Ubicación:</span>
+                              <span className="font-semibold flex items-center gap-1">
+                                <WazeIcon type="map" uiIcon size="sm" />
+                                Ubicación:
+                              </span>
                               <span>{alert.location} - {alert.polygonName}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="font-semibold">🕐 Detectada:</span>
+                              <span className="font-semibold flex items-center gap-1">
+                                <WazeIcon type="time" uiIcon size="sm" />
+                                Detectada:
+                              </span>
                               <span>{new Date(alert.timestamp).toLocaleString('es-AR')}</span>
                             </div>
                             {alert.data && Object.keys(alert.data).length > 0 && (
                               <div className="mt-2 pt-2 border-t flex gap-3 text-xs">
                                 {alert.data.criticalJamsCount && (
-                                  <span className="font-semibold">
-                                    🚦 {alert.data.criticalJamsCount} puntos críticos
+                                  <span className="font-semibold flex items-center gap-1">
+                                    <WazeIcon type="jam" size="sm" />
+                                    {alert.data.criticalJamsCount} puntos críticos
                                   </span>
                                 )}
                                 {alert.data.avgDelayMinutes !== undefined && (
-                                  <span className="font-semibold">
-                                    ⏱️ +{alert.data.avgDelayMinutes} min demora
+                                  <span className="font-semibold flex items-center gap-1">
+                                    <WazeIcon type="time" uiIcon size="sm" />
+                                    +{alert.data.avgDelayMinutes} min demora
                                   </span>
                                 )}
                               </div>
@@ -519,8 +579,8 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                             }}
                             className="w-full mt-3 bg-gradient-to-r from-red-600 via-pink-600 to-rose-600 hover:from-red-700 hover:via-pink-700 hover:to-rose-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-[1.02] flex items-center justify-center gap-3 group"
                           >
-                            <span className="text-2xl group-hover:scale-125 transition-transform duration-300">
-                              🗺️
+                            <span className="group-hover:scale-125 transition-transform duration-300">
+                              <WazeIcon type="map" uiIcon size="lg" />
                             </span>
                             <span className="tracking-wide">
                               Ver Ubicación en Minimapa
@@ -564,7 +624,6 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                         return (b.reliability || 0) - (a.reliability || 0);
                       })
                       .map((incident, index) => {
-                        const emoji = getIncidentEmoji(incident.type, incident.subtype);
                         const typeDescription = getIncidentDescription(incident.type, incident.subtype);
 
                         return (
@@ -574,7 +633,9 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                             className="border-2 rounded-xl p-5 bg-gradient-to-br from-white to-gray-50 hover:from-blue-50 hover:to-indigo-50 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-[1.02] hover:border-blue-400"
                           >
                             <div className="flex items-start gap-5">
-                              <div className="text-5xl flex-shrink-0 drop-shadow-md">{emoji}</div>
+                              <div className="flex-shrink-0 drop-shadow-md">
+                                <WazeIcon type={incident.type} subtype={incident.subtype} size="xl" />
+                              </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-start justify-between gap-3 mb-3">
                                   <div>
@@ -590,7 +651,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm bg-white/70 rounded-lg p-4 border border-gray-200">
                                     {incident.street && (
                                       <div className="flex items-start gap-2">
-                                        <span className="text-blue-600 font-bold">📍</span>
+                                        <WazeIcon type="map" uiIcon size="sm" className="text-blue-600" />
                                         <div>
                                           <span className="text-gray-500 font-semibold text-xs">Dirección:</span>
                                           <p className="text-gray-900 font-medium">{incident.street}</p>
@@ -599,7 +660,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                     )}
                                     {incident.city && (
                                       <div className="flex items-start gap-2">
-                                        <span className="text-blue-600 font-bold">🏙️</span>
+                                        <WazeIcon type="map" uiIcon size="sm" className="text-blue-600" />
                                         <div>
                                           <span className="text-gray-500 font-semibold text-xs">Ciudad:</span>
                                           <p className="text-gray-900 font-medium">{incident.city}</p>
@@ -607,7 +668,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                       </div>
                                     )}
                                     <div className="flex items-start gap-2">
-                                      <span className="text-blue-600 font-bold">🗺️</span>
+                                      <WazeIcon type="map" uiIcon size="sm" className="text-blue-600" />
                                       <div>
                                         <span className="text-gray-500 font-semibold text-xs">Coordenadas:</span>
                                         <p className="text-gray-900 font-mono text-xs font-medium">
@@ -616,7 +677,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                       </div>
                                     </div>
                                     <div className="flex items-start gap-2">
-                                      <span className="text-blue-600 font-bold">🕐</span>
+                                      <WazeIcon type="time" uiIcon size="sm" className="text-blue-600" />
                                       <div>
                                         <span className="text-gray-500 font-semibold text-xs">Reportado:</span>
                                         <p className="text-gray-900 font-medium text-xs">
@@ -632,8 +693,8 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                     }}
                                     className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 hover:from-blue-700 hover:via-purple-700 hover:to-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-[1.02] flex items-center justify-center gap-3 group"
                                   >
-                                    <span className="text-2xl group-hover:scale-125 transition-transform duration-300">
-                                      🗺️
+                                    <span className="group-hover:scale-125 transition-transform duration-300">
+                                      <WazeIcon type="map" uiIcon size="lg" />
                                     </span>
                                     <span className="tracking-wide">
                                       Ver Ubicación en Minimapa
@@ -718,7 +779,9 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                             className={`border-2 rounded-xl p-5 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-[1.02] ${severityConfig.color}`}
                           >
                             <div className="flex items-start gap-4">
-                              <div className="text-4xl">{severityConfig.icon}</div>
+                              <div>
+                                <WazeIcon type={severityConfig.iconType} uiIcon size="xl" />
+                              </div>
                               <div className="flex-1">
                                 <div className="flex items-start justify-between gap-3 mb-2">
                                   <h4 className="font-bold text-lg">{alert.message}</h4>
@@ -728,18 +791,27 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                 </div>
                                 <div className="text-sm space-y-1">
                                   <div className="flex items-center gap-2">
-                                    <span className="font-semibold">📍 Ubicación:</span>
+                                    <span className="font-semibold flex items-center gap-1">
+                                      <WazeIcon type="map" uiIcon size="sm" />
+                                      Ubicación:
+                                    </span>
                                     <span>{alert.location} - {alert.polygonName}</span>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <span className="font-semibold">🕐 Detectada:</span>
+                                    <span className="font-semibold flex items-center gap-1">
+                                      <WazeIcon type="time" uiIcon size="sm" />
+                                      Detectada:
+                                    </span>
                                     <span>{new Date(alert.timestamp).toLocaleString('es-AR')}</span>
                                   </div>
                                   {alert.data && Object.keys(alert.data).length > 0 && (
                                     <div className="mt-2 pt-2 border-t flex gap-3 text-xs">
                                       {alert.data.criticalJamsCount && (
                                         <span className="font-semibold">
-                                          🚦 {alert.data.criticalJamsCount} puntos críticos
+                                          <span className="flex items-center gap-1">
+                                            <WazeIcon type="jam" size="sm" />
+                                            {alert.data.criticalJamsCount} puntos críticos
+                                          </span>
                                         </span>
                                       )}
                                       {alert.data.avgDelayMinutes !== undefined && (
@@ -827,22 +899,26 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                 // Determinar si es incidente o alerta
                 const isIncident = !!currentExpandedIncident;
 
-                let emoji: string;
+                let iconType: string;
+                let iconSubtype: string | undefined;
+                let isUIIcon: boolean = false;
                 let typeDescription: string;
                 let eventData: any;
 
                 if (isIncident && currentExpandedIncident) {
-                  emoji = getIncidentEmoji(currentExpandedIncident.type, currentExpandedIncident.subtype);
+                  iconType = currentExpandedIncident.type;
+                  iconSubtype = currentExpandedIncident.subtype;
                   typeDescription = getIncidentDescription(currentExpandedIncident.type, currentExpandedIncident.subtype);
                   eventData = currentExpandedIncident;
                 } else if (currentExpandedAlert) {
                   const severityConfig = {
-                    critical: { icon: '🚨', label: 'CRÍTICA' },
-                    high: { icon: '⚠️', label: 'ALTA' },
-                    medium: { icon: '⚡', label: 'MEDIA' },
-                    low: { icon: 'ℹ️', label: 'BAJA' },
+                    critical: { iconType: 'critical', label: 'CRÍTICA' },
+                    high: { iconType: 'warning', label: 'ALTA' },
+                    medium: { iconType: 'warning', label: 'MEDIA' },
+                    low: { iconType: 'alert', label: 'BAJA' },
                   }[currentExpandedAlert.severity];
-                  emoji = severityConfig.icon;
+                  iconType = severityConfig.iconType;
+                  isUIIcon = true;
                   typeDescription = currentExpandedAlert.message;
                   eventData = currentExpandedAlert;
                 } else {
@@ -859,8 +935,8 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
 
                       <div className="relative z-10 flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <div className="text-5xl drop-shadow-lg animate-bounce" style={{ animationDuration: '2s' }}>
-                            {emoji}
+                          <div className="drop-shadow-lg animate-bounce" style={{ animationDuration: '2s' }}>
+                            <WazeIcon type={iconType} subtype={iconSubtype} uiIcon={isUIIcon} size="xl" />
                           </div>
                           <div>
                             <h3 className="text-2xl font-black mb-1">{typeDescription}</h3>
@@ -912,54 +988,263 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                       <div className="grid grid-cols-1 lg:grid-cols-5 gap-0 h-full">
                         {/* MINIMAPA - 3/5 del espacio */}
                         <div className="lg:col-span-3 relative h-full" style={{ minHeight: '500px' }}>
-                          <MapContainer
-                            center={[eventCoordinates.lat, eventCoordinates.lng]}
-                            zoom={16}
-                            style={{ width: '100%', height: '100%', minHeight: '500px' }}
-                            scrollWheelZoom={true}
-                            zoomControl={true}
-                          >
-                            <MapCenterUpdater center={[eventCoordinates.lat, eventCoordinates.lng]} />
-                            <TileLayer
-                              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                            />
-                            <Marker
-                              position={[eventCoordinates.lat, eventCoordinates.lng]}
-                              icon={createCustomIcon(isIncident && currentExpandedIncident ? currentExpandedIncident.severity : 4)}
-                            >
-                              <Popup>
-                                <div className="p-2 min-w-[200px]">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <span className="text-3xl">{emoji}</span>
-                                    <div>
-                                      <p className="font-black text-base">{typeDescription}</p>
-                                      {isIncident && currentExpandedIncident && (
-                                        <span className={`text-xs font-bold ${
-                                          currentExpandedIncident.severity >= 4 ? 'text-red-600' :
-                                          currentExpandedIncident.severity >= 3 ? 'text-orange-600' : 'text-yellow-600'
-                                        }`}>
-                                          {getSeverityLabel(currentExpandedIncident.severity)}
-                                        </span>
+                          {(() => {
+                            // Obtener el polígono asociado
+                            const polygonId = isIncident && currentExpandedIncident
+                              ? currentExpandedIncident.polygonId
+                              : currentExpandedAlert?.polygonId;
+
+                            const associatedPolygon = polygonId
+                              ? polygons.find(p => p.id === polygonId)
+                              : null;
+
+                            // Filtrar incidentes y jams del polígono
+                            const polygonIncidents = polygonId
+                              ? incidents.filter(i => i.polygonId === polygonId)
+                              : [];
+
+                            const polygonJams = polygonId
+                              ? jams.filter(j => j.polygonId === polygonId)
+                              : [];
+
+                            // Calcular centro del polígono o usar coordenadas del evento
+                            let mapCenter: [number, number] = [eventCoordinates.lat, eventCoordinates.lng];
+                            let mapZoom = 16;
+
+                            if (associatedPolygon && associatedPolygon.geometry?.coordinates?.[0]) {
+                              const coords = associatedPolygon.geometry.coordinates[0];
+                              const lats = coords.map(c => c[1]);
+                              const lngs = coords.map(c => c[0]);
+                              mapCenter = [
+                                (Math.min(...lats) + Math.max(...lats)) / 2,
+                                (Math.min(...lngs) + Math.max(...lngs)) / 2
+                              ];
+                              mapZoom = 14;
+                            }
+
+                            return (
+                              <MapContainer
+                                center={mapCenter}
+                                zoom={mapZoom}
+                                style={{ width: '100%', height: '100%', minHeight: '500px' }}
+                                scrollWheelZoom={true}
+                                zoomControl={true}
+                              >
+                                <MapCenterUpdater center={mapCenter} zoom={mapZoom} />
+                                <TileLayer
+                                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                />
+
+                                {/* Renderizar polígono si existe */}
+                                {associatedPolygon && associatedPolygon.geometry?.coordinates?.[0] && (
+                                  <LeafletPolygon
+                                    positions={associatedPolygon.geometry.coordinates[0].map(
+                                      c => [c[1], c[0]] as [number, number]
+                                    )}
+                                    pathOptions={{
+                                      color: '#3b82f6',
+                                      fillColor: '#3b82f6',
+                                      fillOpacity: 0.2,
+                                      weight: 3,
+                                    }}
+                                  />
+                                )}
+
+                                {/* Renderizar todos los incidentes del polígono */}
+                                {polygonIncidents.map((incident) => {
+                                  const incidentIconType = incident.type;
+                                  const incidentIconSubtype = incident.subtype;
+                                  return (
+                                    <Marker
+                                      key={`incident-${incident.id}`}
+                                      position={[incident.location.lat, incident.location.lng]}
+                                      icon={createWazeMarker(
+                                        incidentIconType,
+                                        incidentIconSubtype,
+                                        incident.severity
                                       )}
-                                    </div>
-                                  </div>
-                                  {isIncident && currentExpandedIncident?.street && (
-                                    <p className="text-sm text-gray-700 mb-1">📍 {currentExpandedIncident.street}</p>
-                                  )}
-                                  {isIncident && currentExpandedIncident?.city && (
-                                    <p className="text-xs text-gray-500">🏙️ {currentExpandedIncident.city}</p>
-                                  )}
-                                  {!isIncident && currentExpandedAlert && (
+                                    >
+                                      <Popup>
+                                        <div className="p-2 min-w-[200px]">
+                                          <div className="flex items-center gap-2 mb-2">
+                                            <WazeIcon type={incidentIconType} subtype={incidentIconSubtype} size="lg" />
+                                            <div>
+                                              <p className="font-black text-base">
+                                                {getIncidentDescription(incident.type, incident.subtype)}
+                                              </p>
+                                              <span className={`text-xs font-bold ${
+                                                incident.severity >= 4 ? 'text-red-600' :
+                                                  incident.severity >= 3 ? 'text-orange-600' : 'text-yellow-600'
+                                              }`}>
+                                                {getSeverityLabel(incident.severity)}
+                                              </span>
+                                            </div>
+                                          </div>
+                                          {incident.street && (
+                                            <p className="text-sm text-gray-700 mb-1 flex items-center gap-1">
+                                              <WazeIcon type="map" uiIcon size="sm" />
+                                              {incident.street}
+                                            </p>
+                                          )}
+                                        </div>
+                                      </Popup>
+                                    </Marker>
+                                  );
+                                })}
+
+                                {/* Renderizar líneas de congestión y cierres de ruta */}
+                                {(() => {
+                                  // Agrupar jams por blockingAlertUuid para cierres de ruta
+                                  const roadClosedGroups = new globalThis.Map<string, TrafficJam[]>();
+                                  const normalJams: TrafficJam[] = [];
+
+                                  polygonJams.forEach(jam => {
+                                    // Detectar si es un cierre de ruta
+                                    const isRoadClosed = jam.speed === 0 || jam.blockingAlertUuid ||
+                                      polygonIncidents.some(inc =>
+                                        inc.id === jam.blockingAlertUuid &&
+                                        (inc.type.toLowerCase() === 'roadclosed' || inc.type.toLowerCase() === 'road_closed')
+                                      );
+
+                                    if (isRoadClosed && jam.blockingAlertUuid) {
+                                      if (!roadClosedGroups.has(jam.blockingAlertUuid)) {
+                                        roadClosedGroups.set(jam.blockingAlertUuid, []);
+                                      }
+                                      roadClosedGroups.get(jam.blockingAlertUuid)!.push(jam);
+                                    } else if (isRoadClosed && jam.speed === 0) {
+                                      // Cierre de ruta sin blockingAlertUuid (speed = 0)
+                                      if (!roadClosedGroups.has(`speed-zero-${jam.id}`)) {
+                                        roadClosedGroups.set(`speed-zero-${jam.id}`, []);
+                                      }
+                                      roadClosedGroups.get(`speed-zero-${jam.id}`)!.push(jam);
+                                    } else {
+                                      normalJams.push(jam);
+                                    }
+                                  });
+
+                                  return (
                                     <>
-                                      <p className="text-sm text-gray-700 mb-1">📍 {currentExpandedAlert.location}</p>
-                                      <p className="text-xs text-gray-500">🗺️ {currentExpandedAlert.polygonName}</p>
+                                      {/* Renderizar cierres de ruta agrupados con líneas rojas y blancas */}
+                                      {Array.from(roadClosedGroups.entries()).map(([alertId, jams]) => {
+                                        return jams.map((jam) => {
+                                          // Verificar si tiene datos de línea
+                                          if (!jam.line || jam.line.length < 2) return null;
+
+                                          // Convertir coordenadas de Waze (x=lng, y=lat) a formato Leaflet [lat, lng]
+                                          const positions = jam.line.map(point => [point.y, point.x] as [number, number]);
+
+                                          // Estilo de barricada: rayas rojas y blancas alternadas
+                                          return (
+                                            <React.Fragment key={`roadclosed-${jam.id}`}>
+                                              {/* Línea base blanca */}
+                                              <Polyline
+                                                positions={positions}
+                                                pathOptions={{
+                                                  color: '#ffffff',
+                                                  weight: 10,
+                                                  opacity: 1,
+                                                  lineCap: 'butt',
+                                                  lineJoin: 'round'
+                                                }}
+                                              />
+                                              {/* Línea roja con patrón de rayas */}
+                                              <Polyline
+                                                positions={positions}
+                                                pathOptions={{
+                                                  color: '#dc2626',
+                                                  weight: 10,
+                                                  opacity: 1,
+                                                  lineCap: 'butt',
+                                                  lineJoin: 'round',
+                                                  dashArray: '15, 15'
+                                                }}
+                                              />
+                                              {/* Borde negro para mejor contraste */}
+                                              <Polyline
+                                                positions={positions}
+                                                pathOptions={{
+                                                  color: '#000000',
+                                                  weight: 12,
+                                                  opacity: 0.4,
+                                                  lineCap: 'butt',
+                                                  lineJoin: 'round'
+                                                }}
+                                              />
+                                            </React.Fragment>
+                                          );
+                                        });
+                                      })}
+
+                                      {/* Renderizar líneas normales de congestión */}
+                                      {normalJams.map((jam) => {
+                                        // Verificar si tiene datos de línea
+                                        if (!jam.line || jam.line.length < 2) return null;
+
+                                        // Convertir coordenadas de Waze (x=lng, y=lat) a formato Leaflet [lat, lng]
+                                        const positions = jam.line.map(point => [point.y, point.x] as [number, number]);
+
+                                        // Líneas normales de congestión según velocidad
+                                        const lineColor =
+                                          jam.speed < 10 ? '#dc2626' :  // rojo
+                                            jam.speed < 20 ? '#ea580c' :  // naranja
+                                              jam.speed < 30 ? '#d97706' :  // amarillo oscuro
+                                                '#16a34a';                     // verde
+
+                                        return (
+                                          <Polyline
+                                            key={`line-${jam.id}`}
+                                            positions={positions}
+                                            pathOptions={{
+                                              color: lineColor,
+                                              weight: 6,
+                                              opacity: 0.8,
+                                              lineCap: 'round',
+                                              lineJoin: 'round'
+                                            }}
+                                          />
+                                        );
+                                      })}
                                     </>
-                                  )}
-                                </div>
-                              </Popup>
-                            </Marker>
-                          </MapContainer>
+                                  );
+                                })()}
+
+                                {/* Renderizar marcadores de jams */}
+                                {polygonJams.map((jam) => {
+                                  const jamLevel = jam.level ?? 0;
+                                  const jamSize = jamLevel >= 4 ? 32 : jamLevel >= 3 ? 28 : jamLevel >= 2 ? 26 : 24;
+                                  let jamColor: string;
+                                  if (jam.speed < 10) jamColor = '#dc2626';
+                                  else if (jam.speed < 20) jamColor = '#ef4444';
+                                  else if (jam.speed < 30) jamColor = '#f97316';
+                                  else if (jam.speed < 40) jamColor = '#eab308';
+                                  else jamColor = '#22c55e';
+
+                                  return (
+                                    <Marker
+                                      key={`jam-marker-${jam.id}`}
+                                      position={[jam.location.lat, jam.location.lng]}
+                                      icon={createJamMarker(jamColor, jamSize)}
+                                    >
+                                      <Popup>
+                                        <div className="p-2 min-w-[200px]">
+                                          <p className="font-bold text-base">
+                                            {getJamLevelTranslation(jam.level ?? 0)}
+                                          </p>
+                                          <p className="text-sm text-gray-600">
+                                            Velocidad: {jam.speed} km/h
+                                          </p>
+                                          <p className="text-sm text-gray-600">
+                                            Demora: {Math.round(jam.delay / 60)} min
+                                          </p>
+                                        </div>
+                                      </Popup>
+                                    </Marker>
+                                  );
+                                })}
+                              </MapContainer>
+                            );
+                          })()}
 
                           {/* Badge flotante con tipo de evento */}
                           <div className="absolute top-4 left-4 z-10">
@@ -970,7 +1255,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                 ? 'bg-orange-500/90 text-white'
                                 : 'bg-blue-600/90 text-white'
                             }`}>
-                              <span className="text-xl">{emoji}</span>
+                              <WazeIcon type={iconType} subtype={iconSubtype} uiIcon={isUIIcon} size="md" />
                               <span>{isIncident ? 'INCIDENTE' : 'ALERTA'}</span>
                             </div>
                           </div>
@@ -979,7 +1264,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                         {/* PANEL DE INFORMACIÓN - 2/5 del espacio */}
                         <div className="lg:col-span-2 bg-gradient-to-br from-gray-50 to-blue-50 p-6 overflow-y-auto h-full">
                           <h4 className="font-black text-xl text-gray-800 mb-4 flex items-center gap-2">
-                            <span className="text-2xl">📋</span>
+                            <WazeIcon type="stats" uiIcon size="lg" />
                             Información Detallada
                           </h4>
 
@@ -988,7 +1273,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                           {(isIncident && currentExpandedIncident?.street) || (!isIncident && currentExpandedAlert) ? (
                             <div className="md:col-span-2 bg-gradient-to-br from-white to-blue-50 rounded-2xl p-5 border-2 border-blue-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
                               <div className="flex items-start gap-4">
-                                <span className="text-4xl">📍</span>
+                                <WazeIcon type="map" uiIcon size="xl" />
                                 <div className="flex-1">
                                   <p className="text-gray-500 font-bold text-sm mb-2">UBICACIÓN</p>
                                   {isIncident && currentExpandedIncident?.street && (
@@ -1014,7 +1299,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                           {eventCoordinates && (
                             <div className="bg-gradient-to-br from-white to-emerald-50 rounded-2xl p-5 border-2 border-emerald-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
                               <div className="flex items-center gap-3 mb-3">
-                                <span className="text-3xl">🌍</span>
+                                <WazeIcon type="map" uiIcon size="lg" />
                                 <p className="text-gray-700 font-bold">COORDENADAS GPS</p>
                               </div>
                               <div className="space-y-2 bg-white/50 rounded-lg p-3">
@@ -1034,7 +1319,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                           {eventData && (
                             <div className="bg-gradient-to-br from-white to-orange-50 rounded-2xl p-5 border-2 border-orange-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
                               <div className="flex items-center gap-3 mb-3">
-                                <span className="text-3xl">🕐</span>
+                                <WazeIcon type="time" uiIcon size="lg" />
                                 <p className="text-gray-700 font-bold">FECHA Y HORA</p>
                               </div>
                               <div className="bg-white/50 rounded-lg p-3">
@@ -1053,7 +1338,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                             <div className="md:col-span-2 bg-gradient-to-br from-white to-green-50 rounded-2xl p-5 border-2 border-green-300 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4">
-                                  <span className="text-5xl">👍</span>
+                                  <WazeIcon type="check" uiIcon size="xl" />
                                   <div>
                                     <p className="text-gray-500 font-bold text-sm mb-1">CONFIRMADO POR WAZERS</p>
                                     <p className="text-green-700 font-black text-3xl">
@@ -1080,7 +1365,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                               {(currentExpandedIncident.reliability !== undefined || currentExpandedIncident.confidence !== undefined) && (
                                 <div className="bg-gradient-to-br from-white to-purple-50 rounded-2xl p-5 border-2 border-purple-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
                                   <div className="flex items-center gap-3 mb-4">
-                                    <span className="text-3xl">📊</span>
+                                    <WazeIcon type="stats" uiIcon size="lg" />
                                     <p className="text-gray-700 font-bold">MÉTRICAS DE CALIDAD</p>
                                   </div>
                                   <div className="space-y-3">
@@ -1120,7 +1405,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                               {currentExpandedIncident.reportRating !== undefined && (
                                 <div className="bg-gradient-to-br from-white to-yellow-50 rounded-2xl p-5 border-2 border-yellow-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
                                   <div className="flex items-center gap-3 mb-3">
-                                    <span className="text-3xl">⭐</span>
+                                    <WazeIcon type="stats" uiIcon size="lg" />
                                     <div className="flex-1">
                                       <p className="text-gray-500 font-bold text-sm mb-1">RATING DEL REPORTE</p>
                                       <div className="flex items-center gap-3">
@@ -1199,7 +1484,11 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                             <>
                               <div className="md:col-span-2 bg-gradient-to-br from-white to-indigo-50 rounded-2xl p-5 border-2 border-indigo-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
                                 <div className="flex items-start gap-4">
-                                  <span className="text-4xl">{currentExpandedAlert.isAcknowledged ? '✅' : '🔔'}</span>
+                                  <WazeIcon
+                                    type={currentExpandedAlert.isAcknowledged ? "check" : "alert"}
+                                    uiIcon
+                                    size="xl"
+                                  />
                                   <div className="flex-1">
                                     <p className="text-gray-500 font-bold text-sm mb-3">ESTADO DE RECONOCIMIENTO</p>
                                     <div className="space-y-3">
@@ -1208,10 +1497,20 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                           ? 'bg-green-100 border-2 border-green-300'
                                           : 'bg-orange-100 border-2 border-orange-300'
                                       }`}>
-                                        <p className={`font-black text-lg ${
+                                        <p className={`font-black text-lg flex items-center gap-2 ${
                                           currentExpandedAlert.isAcknowledged ? 'text-green-800' : 'text-orange-800'
                                         }`}>
-                                          {currentExpandedAlert.isAcknowledged ? '✓ RECONOCIDA' : '⚠️ PENDIENTE DE RECONOCIMIENTO'}
+                                          {currentExpandedAlert.isAcknowledged ? (
+                                            <>
+                                              <WazeIcon type="check" uiIcon size="sm" />
+                                              RECONOCIDA
+                                            </>
+                                          ) : (
+                                            <>
+                                              <WazeIcon type="warning" uiIcon size="sm" />
+                                              PENDIENTE DE RECONOCIMIENTO
+                                            </>
+                                          )}
                                         </p>
                                       </div>
                                       {currentExpandedAlert.isAcknowledged && currentExpandedAlert.acknowledgedAt && (
@@ -1242,11 +1541,24 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                               {currentExpandedAlert.type && (
                                 <div className="bg-gradient-to-br from-white to-rose-50 rounded-2xl p-5 border-2 border-rose-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
                                   <div className="flex items-center gap-3">
-                                    <span className="text-3xl">🏷️</span>
+                                    <WazeIcon type="alert" uiIcon size="lg" />
                                     <div className="flex-1">
                                       <p className="text-gray-500 font-bold text-sm mb-1">TIPO DE ALERTA</p>
                                       <p className="text-rose-800 font-black text-lg uppercase">
-                                        {getMainTypeTranslation(currentExpandedAlert.type.toLowerCase())}
+                                        {(() => {
+                                          // Intentar traducir el tipo de alerta
+                                          const translated = getMainTypeTranslation(currentExpandedAlert.type.toLowerCase());
+                                          // Si no se tradujo (devuelve el mismo valor), usar el mensaje de la alerta o una descripción genérica
+                                          if (translated === currentExpandedAlert.type.toLowerCase() || translated === currentExpandedAlert.type) {
+                                            // Intentar extraer información del mensaje
+                                            if (currentExpandedAlert.message) {
+                                              // Si el mensaje contiene información útil, usarla
+                                              return currentExpandedAlert.message.split(':')[0].trim();
+                                            }
+                                            return 'Alerta de Tráfico';
+                                          }
+                                          return translated;
+                                        })()}
                                       </p>
                                     </div>
                                   </div>
@@ -1261,7 +1573,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                     {/* Footer del Modal */}
                     <div className="bg-gradient-to-r from-gray-100 to-gray-200 px-8 py-4 border-t-2 border-gray-300">
                       <div className="flex items-center justify-center gap-3">
-                        <span className="text-2xl">💡</span>
+                        <WazeIcon type="alert" uiIcon size="md" />
                         <p className="text-gray-700 font-semibold text-sm">
                           Haz zoom o mueve el mapa para explorar el área
                         </p>
@@ -1279,7 +1591,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
         {/* Footer */}
         <div className="bg-gradient-to-r from-gray-100 to-gray-200 px-8 py-4 border-t-2 border-gray-300">
           <div className="flex items-center justify-center gap-3 text-sm text-gray-700">
-            <span className="text-2xl">💡</span>
+            <WazeIcon type="alert" uiIcon size="md" />
             <p className="font-semibold">
               <strong className="text-blue-600">Tip:</strong> Haz click en cualquier evento para ver su ubicación exacta en el mapa
             </p>

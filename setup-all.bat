@@ -58,7 +58,7 @@ if not exist ".env" (
     echo DB_PORT=5432>> .env
     echo DB_NAME=panel_waze>> .env
     echo DB_USER=postgres>> .env
-    echo DB_PASSWORD=postgres>> .env
+    echo DB_PASSWORD=CASISA>> .env
     echo.>> .env
     echo # Configuracion del servidor>> .env
     echo NODE_ENV=development>> .env
@@ -112,7 +112,14 @@ if !POSTGRES_READY! EQU 0 (
     if !ERRORLEVEL! EQU 0 (
         echo    PostgreSQL local detectado
         echo    Verificando conexion...
-        set PGPASSWORD=postgres
+        :: Leer contraseña del .env si existe, sino usar CASISA por defecto
+        set DB_PASSWORD=CASISA
+        if exist "%ROOT%\backend\.env" (
+            for /f "tokens=2 delims==" %%a in ('findstr /C:"DB_PASSWORD" "%ROOT%\backend\.env" 2^>nul') do (
+                set DB_PASSWORD=%%a
+            )
+        )
+        set PGPASSWORD=!DB_PASSWORD!
         psql -U postgres -h localhost -p 5432 -d postgres -c "SELECT 1;" >nul 2>&1
         if !ERRORLEVEL! EQU 0 (
             echo    OK: PostgreSQL local esta corriendo
@@ -154,7 +161,14 @@ if !POSTGRES_READY! EQU 1 (
 
     where psql >nul 2>&1
     if !ERRORLEVEL! EQU 0 (
-        set PGPASSWORD=postgres
+        :: Leer contraseña del .env si existe, sino usar CASISA por defecto
+        set DB_PASSWORD=CASISA
+        if exist "%ROOT%\backend\.env" (
+            for /f "tokens=2 delims==" %%a in ('findstr /C:"DB_PASSWORD" "%ROOT%\backend\.env" 2^>nul') do (
+                set DB_PASSWORD=%%a
+            )
+        )
+        set PGPASSWORD=!DB_PASSWORD!
         echo    Verificando base de datos "panel_waze"...
         psql -U postgres -h localhost -p 5432 -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='panel_waze'" 2>nul | findstr /C:"1" >nul 2>&1
         if !ERRORLEVEL! EQU 0 (

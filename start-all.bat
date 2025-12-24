@@ -22,7 +22,7 @@ echo.
 :: Detener procesos en puerto 3001 (Backend)
 echo    Verificando puerto 3001 (Backend)...
 for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":3001" ^| findstr "LISTENING"') do (
-    set PID=%%a
+    set "PID=%%a"
     if defined PID (
         echo    Puerto 3001 ocupado por PID: !PID!
         echo    Deteniendo proceso...
@@ -36,7 +36,7 @@ for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":3001" ^| findstr "LI
 :: Detener procesos en puerto 5173 (Frontend)
 echo    Verificando puerto 5173 (Frontend)...
 for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":5173" ^| findstr "LISTENING"') do (
-    set PID=%%a
+    set "PID=%%a"
     if defined PID (
         echo    Puerto 5173 ocupado por PID: !PID!
         echo    Deteniendo proceso...
@@ -89,25 +89,48 @@ if %ERRORLEVEL% EQU 0 (
 
 :: Si Docker no funciona, verificar PostgreSQL local
 if !POSTGRES_OK! EQU 0 (
-    where psql >nul 2>&1
+    :: Primero verificar si el puerto 5432 está en uso (PostgreSQL corriendo)
+    netstat -an | findstr ":5432" | findstr "LISTENING" >nul 2>&1
     if !ERRORLEVEL! EQU 0 (
-        set PGPASSWORD=postgres
-        psql -U postgres -h localhost -p 5432 -d postgres -c "SELECT 1;" >nul 2>&1
-        if !ERRORLEVEL! EQU 0 (
-            echo    OK: PostgreSQL local esta corriendo
-            set POSTGRES_OK=1
-        ) else (
-            echo    ADVERTENCIA: PostgreSQL no responde
-            echo    Intentando iniciar servicio...
-            net start postgresql-x64-16 >nul 2>&1
-            if !ERRORLEVEL! EQU 0 (
-                echo    OK: Servicio PostgreSQL iniciado
-                timeout /t 3 /nobreak >nul
-                set POSTGRES_OK=1
-            )
-        )
+        echo    OK: PostgreSQL detectado en puerto 5432
+        set POSTGRES_OK=1
     ) else (
-        echo    ADVERTENCIA: PostgreSQL no detectado
+        :: Si el puerto no está en uso, verificar con psql si está disponible
+        where psql >nul 2>&1
+        if !ERRORLEVEL! EQU 0 (
+            :: Leer contraseña del .env si existe, sino usar CASISA por defecto
+            set DB_PASSWORD=CASISA
+            if exist "%ROOT%\backend\.env" (
+                for /f "tokens=2 delims==" %%a in ('findstr /C:"DB_PASSWORD" "%ROOT%\backend\.env" 2^>nul') do (
+                    set DB_PASSWORD=%%a
+                )
+            )
+            set PGPASSWORD=!DB_PASSWORD!
+            psql -U postgres -h localhost -p 5432 -d postgres -c "SELECT 1;" >nul 2>&1
+            if !ERRORLEVEL! EQU 0 (
+                echo    OK: PostgreSQL local esta corriendo
+                set POSTGRES_OK=1
+            ) else (
+                echo    ADVERTENCIA: PostgreSQL no responde
+                echo    Intentando iniciar servicio...
+                net start postgresql-x64-16 >nul 2>&1
+                if !ERRORLEVEL! EQU 0 (
+                    echo    OK: Servicio PostgreSQL iniciado
+                    timeout /t 3 /nobreak >nul
+                    set POSTGRES_OK=1
+                ) else (
+                    net start postgresql-x64-15 >nul 2>&1
+                    if !ERRORLEVEL! EQU 0 (
+                        echo    OK: Servicio PostgreSQL iniciado
+                        timeout /t 3 /nobreak >nul
+                        set POSTGRES_OK=1
+                    )
+                )
+            )
+        ) else (
+            echo    ADVERTENCIA: PostgreSQL no detectado (psql no disponible en PATH)
+            echo    NOTA: Si PostgreSQL esta corriendo, puedes ignorar esta advertencia
+        )
     )
 )
 echo.
@@ -116,22 +139,36 @@ echo.
 :: PASO 2: Configurar Backend
 :: ============================================
 echo [2/4] Configurando Backend...
-if not exist "%ROOT%\backend\.env" (
+cd /d "%ROOT%\backend"
+if not exist ".env" (
     echo    Archivo .env no encontrado, creando...
-    cd /d "%ROOT%\backend"
     echo # Configuracion de PostgreSQL> .env
     echo DB_HOST=localhost>> .env
     echo DB_PORT=5432>> .env
     echo DB_NAME=panel_waze>> .env
     echo DB_USER=postgres>> .env
-    echo DB_PASSWORD=postgres>> .env
+    echo DB_PASSWORD=CASISA>> .env
     echo.>> .env
     echo # Configuracion del servidor>> .env
     echo NODE_ENV=development>> .env
     echo PORT=3001>> .env
     echo    OK: Archivo .env creado
 ) else (
-    echo    OK: Archivo .env encontrado
+    echo    Archivo .env encontrado, verificando configuracion...
+    findstr /C:"DB_PASSWORD" .env >nul 2>&1
+    if !ERRORLEVEL! NEQ 0 (
+        echo    Agregando configuracion de PostgreSQL...
+        echo.>> .env
+        echo # Configuracion de PostgreSQL>> .env
+        echo DB_HOST=localhost>> .env
+        echo DB_PORT=5432>> .env
+        echo DB_NAME=panel_waze>> .env
+        echo DB_USER=postgres>> .env
+        echo DB_PASSWORD=CASISA>> .env
+        echo    OK: Configuracion agregada
+    ) else (
+        echo    OK: Configuracion de PostgreSQL ya existe
+    )
 )
 echo.
 

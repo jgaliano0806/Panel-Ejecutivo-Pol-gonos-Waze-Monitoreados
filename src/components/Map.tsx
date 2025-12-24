@@ -7,14 +7,16 @@ import { PolygonState } from '../types';
 import { getPolygonColor, getPolygonOpacity } from '../utils/polygonCalculations';
 import {
     getIncidentDescription,
-    getIncidentEmoji,
     getIncidentColor,
     getJamLevelTranslation,
     getRoadTypeTranslation
 } from '../utils/wazeTranslations';
+// Iconos SVG de Waze se cargan directamente desde el Partner Hub
+import { getWazePartnerHubIconUrl } from '../utils/wazeIcons';
 import { getPolygonById } from '../utils/polygonHelpers';
 import { MAP_CONFIG } from '../config/constants';
 import { PolygonWeatherBadge } from './weather/PolygonWeatherBadge';
+import { WazeIcon } from './WazeIcon';
 
 
 // Helper para calcular dirección del flujo
@@ -44,39 +46,201 @@ L.Icon.Default.mergeOptions({
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Crear iconos dinámicos con emojis
-const createEmojiMarker = (emoji: string, color: string) => L.divIcon({
-    className: 'custom-incident-marker',
-    html: `<div style="
-        background-color: white;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        border: 3px solid ${color};
-        box-shadow: 0 3px 6px rgba(0,0,0,0.4);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 18px;
-    ">${emoji}</div>`,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-});
+// Inyectar estilos para los marcadores personalizados
+const injectMarkerStyles = () => {
+    if (document.getElementById('waze-marker-styles')) return;
 
-const createJamIcon = (color: string) => L.divIcon({
-    className: 'custom-jam-marker',
-    html: `<div style="background-color: ${color}; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; opacity: 0.9;"></div>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
-});
+    const style = document.createElement('style');
+    style.id = 'waze-marker-styles';
+    style.textContent = `
+        .custom-incident-marker,
+        .custom-jam-marker {
+            background: transparent !important;
+            border: none !important;
+        }
+        .custom-incident-marker > div,
+        .custom-jam-marker > div {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        .waze-marker-icon {
+            background-color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.5);
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            transition: transform 0.2s ease;
+            cursor: pointer;
+        }
+        .waze-marker-icon:hover {
+            transform: scale(1.2);
+            z-index: 9999 !important;
+        }
+        .waze-marker-icon img {
+            width: 22px !important;
+            height: 22px !important;
+            object-fit: contain !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            pointer-events: none;
+        }
+        .waze-jam-marker {
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        .waze-jam-marker:hover {
+            transform: scale(1.2);
+            z-index: 9999 !important;
+        }
+        .waze-jam-marker img {
+            object-fit: contain;
+        }
+        @keyframes pulse-marker {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 3px 10px rgba(0,0,0,0.5);
+            }
+            50% {
+                transform: scale(1.15);
+                box-shadow: 0 5px 20px rgba(220, 38, 38, 0.7);
+            }
+        }
+        .critical-marker {
+            animation: pulse-marker 1.5s ease-in-out infinite;
+        }
+
+        /* Marcador especial para cierres de ruta */
+        .custom-roadclosed-marker {
+            background: transparent !important;
+            border: none !important;
+        }
+        .roadclosed-marker-icon {
+            background: linear-gradient(135deg, #dc2626 25%, #ffffff 25%, #ffffff 50%, #dc2626 50%, #dc2626 75%, #ffffff 75%);
+            background-size: 8px 8px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 3px solid #991b1b;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.5);
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            animation: pulse-marker 1.5s ease-in-out infinite;
+        }
+        .roadclosed-marker-icon img {
+            width: 26px;
+            height: 26px;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+        }
+    `;
+    document.head.appendChild(style);
+};
+
+// Ejecutar al cargar
+injectMarkerStyles();
+
+// URLs base de iconos de Waze Partner Hub
+const WAZE_ICON_BASE = 'https://web-assets.waze.com/webapps/partnerhub-web/1.1.1333/assets/icons/alerts';
+
+// Mapeo de tipos a iconos de Waze
+const getWazeIconUrl = (type: string): string => {
+    const iconMap: Record<string, string> = {
+        'accident': `${WAZE_ICON_BASE}/accident.svg`,
+        'jam': `${WAZE_ICON_BASE}/jam.svg`,
+        'hazard': `${WAZE_ICON_BASE}/hazard.svg`,
+        'construction': `${WAZE_ICON_BASE}/construction.svg`,
+        'roadclosed': `${WAZE_ICON_BASE}/road-closed.svg`,
+        'road_closed': `${WAZE_ICON_BASE}/road-closed.svg`,
+        'weatherhazard': `${WAZE_ICON_BASE}/weather.svg`,
+        'police': `${WAZE_ICON_BASE}/police.svg`,
+    };
+    return iconMap[type.toLowerCase()] || `${WAZE_ICON_BASE}/hazard.svg`;
+};
+
+// Crear marcador especial para cierres de ruta (estilo barricada)
+const createRoadClosedMarker = () => {
+    return L.divIcon({
+        className: 'custom-roadclosed-marker',
+        html: `
+            <div class="roadclosed-marker-icon">
+                <img src="${WAZE_ICON_BASE}/road-closed.svg" alt="road closed" />
+            </div>
+        `,
+        iconSize: [44, 44],
+        iconAnchor: [22, 22],
+    });
+};
+
+// Crear iconos con SVG de Waze (usando subtipo si está disponible)
+const createWazeMarker = (type: string, subtype: string | undefined, color: string, isCritical: boolean = false) => {
+    // Usar getWazePartnerHubIconUrl que maneja subtipos correctamente
+    const iconUrl = getWazePartnerHubIconUrl(type, subtype);
+    // Fallback a hazard si la URL no es válida
+    const fallbackUrl = `${WAZE_ICON_BASE}/hazard.svg`;
+
+    return L.divIcon({
+        className: 'custom-incident-marker',
+        html: `
+            <div class="waze-marker-icon ${isCritical ? 'critical-marker' : ''}" style="border: 3px solid ${color};">
+                <img
+                    src="${iconUrl}"
+                    alt="${type}"
+                    style="width: 22px; height: 22px; object-fit: contain; display: block !important; visibility: visible !important; opacity: 1 !important;"
+                    onerror="this.onerror=null; this.src='${fallbackUrl}'; this.style.display='block'; this.style.visibility='visible'; this.style.opacity='1';"
+                    loading="eager"
+                    crossorigin="anonymous"
+                />
+            </div>
+        `,
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
+    });
+};
+
+// Crear iconos de atascos con SVG de Waze
+const createJamMarker = (color: string, size: number = 24) => {
+    return L.divIcon({
+        className: 'custom-jam-marker',
+        html: `
+            <div class="waze-jam-marker" style="
+                background-color: white;
+                width: ${size}px;
+                height: ${size}px;
+                border-radius: 50%;
+                border: 3px solid ${color};
+                box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            ">
+                <img src="${WAZE_ICON_BASE}/jam.svg" alt="jam" style="width: ${size - 8}px; height: ${size - 8}px;" />
+            </div>
+        `,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+    });
+};
 
 // Cache simple para evitar recrear objetos Leaflet idénticos
 const MARKER_CACHE: Record<string, L.DivIcon> = {};
 
-const getCachedEmojiMarker = (emoji: string, color: string) => {
-    const key = `${emoji}-${color}`;
+const getCachedWazeMarker = (type: string, subtype: string | undefined, color: string, isCritical: boolean = false) => {
+    const key = `waze-${type}-${subtype || 'no-subtype'}-${color}-${isCritical}`;
     if (!MARKER_CACHE[key]) {
-        MARKER_CACHE[key] = createEmojiMarker(emoji, color);
+        MARKER_CACHE[key] = createWazeMarker(type, subtype, color, isCritical);
+    }
+    return MARKER_CACHE[key];
+};
+
+const getCachedJamMarker = (color: string, size: number) => {
+    const key = `jam-${color}-${size}`;
+    if (!MARKER_CACHE[key]) {
+        MARKER_CACHE[key] = createJamMarker(color, size);
     }
     return MARKER_CACHE[key];
 };
@@ -147,7 +311,12 @@ const RelativeTime: React.FC<{ timestamp: string | Date }> = ({ timestamp }) => 
         ? new Date(timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
         : timestamp.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 
-    return <span className="text-sm">🕐 {timeString} • {minutesAgo} min</span>;
+    return (
+        <span className="text-sm flex items-center gap-1">
+            <WazeIcon type="time" uiIcon size="sm" className="inline-block" />
+            {timeString} • {minutesAgo} min
+        </span>
+    );
 };
 
 const Map: React.FC<MapProps> = ({
@@ -169,17 +338,38 @@ const Map: React.FC<MapProps> = ({
         }
     }, [polygons]);
 
-    // Obtener icono dinámico para incidentes
+    // Obtener icono dinámico para incidentes usando SVG de Waze
     const getIncidentMarker = (incident: Incident) => {
-        const emoji = getIncidentEmoji(incident.type, incident.subtype);
+        // Marcador especial para cierres de ruta
+        const typeLower = incident.type.toLowerCase();
+        if (typeLower === 'roadclosed' || typeLower === 'road_closed') {
+            return createRoadClosedMarker();
+        }
+
         const color = getIncidentColor(incident.type);
-        return getCachedEmojiMarker(emoji, color);
+        const isCritical = incident.severity >= 4;
+        return getCachedWazeMarker(incident.type, incident.subtype, color, isCritical);
     };
 
+    // Obtener icono dinámico para atascos
     const getJamMarker = (jam: TrafficJam) => {
-        if (jam.speed < 15) return createJamIcon('#ef4444');
-        if (jam.speed < 30) return createJamIcon('#eab308');
-        return createJamIcon('#22c55e');
+        // Si es un cierre de ruta (velocidad 0 o tiene alerta bloqueante), usar marcador especial
+        if (jam.speed === 0 || jam.blockingAlertUuid) {
+            return createRoadClosedMarker();
+        }
+
+        // Tamaño basado en nivel de congestión
+        const level = jam.level ?? 0;
+        const size = level >= 4 ? 32 : level >= 3 ? 28 : level >= 2 ? 26 : 24;
+
+        let color: string;
+        if (jam.speed < 10) color = '#dc2626';      // Rojo oscuro - detenido
+        else if (jam.speed < 20) color = '#ef4444'; // Rojo - muy lento
+        else if (jam.speed < 30) color = '#f97316'; // Naranja - lento
+        else if (jam.speed < 40) color = '#eab308'; // Amarillo - moderado
+        else color = '#22c55e';                     // Verde - fluido
+
+        return getCachedJamMarker(color, size);
     };
 
     // Memoizar incidentes filtrados
@@ -256,7 +446,6 @@ const Map: React.FC<MapProps> = ({
 
                 {/* Renderizar marcadores de incidentes */}
                 {filteredIncidents.map((incident) => {
-                    const emoji = getIncidentEmoji(incident.type);
                     const description = getIncidentDescription(incident.type, incident.subtype);
                     const polygon = incident.polygonId ? getPolygonById(polygons, incident.polygonId) : null;
 
@@ -275,7 +464,10 @@ const Map: React.FC<MapProps> = ({
                                                 'bg-gradient-to-r from-gray-500 to-gray-600'
                                         } text-white`}>
                                         <div className="flex items-center justify-between">
-                                            <h3 className="font-black text-lg">{emoji} {description.toUpperCase()}</h3>
+                                            <h3 className="font-black text-lg flex items-center gap-2">
+                                                <WazeIcon type={incident.type} subtype={incident.subtype} size="sm" className="text-white" />
+                                                {description.toUpperCase()}
+                                            </h3>
                                             <RelativeTime timestamp={incident.timestamp} />
                                         </div>
                                     </div>
@@ -290,7 +482,13 @@ const Map: React.FC<MapProps> = ({
                                                     incident.severity >= 2 ? 'bg-yellow-100 border-yellow-600' :
                                                         'bg-gray-100 border-gray-600'
                                                 }`}>
-                                                <span className="text-4xl mb-2">⚠️</span>
+                                                <div className="mb-2">
+                                                    <WazeIcon
+                                                        type={incident.severity >= 4 ? "critical" : "warning"}
+                                                        uiIcon
+                                                        size="xl"
+                                                    />
+                                                </div>
                                                 <p className="text-xs text-gray-700 font-bold uppercase mb-1">Severidad</p>
                                                 <p className={`text-2xl font-black ${incident.severity >= 4 ? 'text-red-800' :
                                                     incident.severity >= 3 ? 'text-orange-800' :
@@ -301,22 +499,26 @@ const Map: React.FC<MapProps> = ({
                                                             incident.severity >= 2 ? 'MEDIA' : 'BAJA'}
                                                 </p>
                                                 {incident.nThumbsUp !== undefined && incident.nThumbsUp > 0 && (
-                                                    <p className="text-sm font-bold text-green-700 mt-2">✓ {incident.nThumbsUp} confirmaciones</p>
+                                                    <p className="text-sm font-bold text-green-700 mt-2 flex items-center gap-1">
+                                                        <WazeIcon type="check" uiIcon size="sm" />
+                                                        {incident.nThumbsUp} confirmaciones
+                                                    </p>
                                                 )}
                                             </div>
 
-                                            {/* Ubicación Unificada */}
+                                                {/* Ubicación Unificada */}
                                             <div className="bg-gradient-to-br from-blue-50 to-white border-3 border-blue-600 rounded-xl p-3 shadow-xl">
                                                 {/* Tramo y Grupo */}
                                                 {polygon && (
                                                     <div className="mb-3">
                                                         <div className="flex items-center gap-2 mb-1.5">
-                                                            <span className="text-2xl">🗺️</span>
+                                                            <WazeIcon type="map" uiIcon size="sm" />
                                                             <p className="text-xs text-blue-700 font-bold uppercase">Tramo</p>
                                                         </div>
                                                         <p className="text-lg text-blue-900 font-black leading-tight mb-1">{polygon.name}</p>
-                                                        <p className="text-xs text-blue-600 font-semibold bg-blue-100 inline-block px-2 py-0.5 rounded">
-                                                            📂 {polygon.group}
+                                                        <p className="text-xs text-blue-600 font-semibold bg-blue-100 inline-flex items-center gap-1 px-2 py-0.5 rounded">
+                                                            <WazeIcon type="map" uiIcon size="sm" />
+                                                            {polygon.group}
                                                         </p>
                                                     </div>
                                                 )}
@@ -352,14 +554,18 @@ const Map: React.FC<MapProps> = ({
                                             <div className="grid grid-cols-3 gap-3">
                                                 {incident.reportRating !== undefined && (
                                                     <div className="flex flex-col items-center justify-center bg-blue-50 border-2 border-blue-600 rounded-lg p-3 shadow-md">
-                                                        <span className="text-3xl mb-1">📊</span>
+                                                        <div className="mb-1">
+                                                            <WazeIcon type="stats" uiIcon size="lg" />
+                                                        </div>
                                                         <p className="text-xs text-blue-700 font-bold mb-1">RATING</p>
                                                         <p className="text-2xl font-black text-blue-900">{incident.reportRating}<span className="text-base">/10</span></p>
                                                     </div>
                                                 )}
                                                 {incident.reliability !== undefined && (
                                                     <div className="flex flex-col items-center justify-center bg-indigo-50 border-2 border-indigo-600 rounded-lg p-3 shadow-md">
-                                                        <span className="text-3xl mb-1">✓</span>
+                                                        <div className="mb-1">
+                                                            <WazeIcon type="check" uiIcon size="lg" />
+                                                        </div>
                                                         <p className="text-xs text-indigo-700 font-bold mb-1">CONFIABILIDAD</p>
                                                         <p className="text-2xl font-black text-indigo-900">{incident.reliability}<span className="text-base">/10</span></p>
                                                     </div>
@@ -380,35 +586,124 @@ const Map: React.FC<MapProps> = ({
                     );
                 })}
 
-                {/* Renderizar líneas de congestión */}
-                {filteredJams.map((jam) => {
-                    // Verificar si tiene datos de línea
-                    if (!jam.line || jam.line.length < 2) return null;
+                {/* Renderizar líneas de congestión y cierres de ruta */}
+                {(() => {
+                    // Agrupar jams por blockingAlertUuid para cierres de ruta
+                    const roadClosedGroups = new globalThis.Map<string, TrafficJam[]>();
+                    const normalJams: TrafficJam[] = [];
 
-                    // Convertir coordenadas de Waze (x=lng, y=lat) a formato Leaflet [lat, lng]
-                    const positions = jam.line.map(point => [point.y, point.x] as [number, number]);
+                    filteredJams.forEach(jam => {
+                        // Detectar si es un cierre de ruta
+                        const isRoadClosed = jam.speed === 0 || jam.blockingAlertUuid ||
+                            filteredIncidents.some(inc =>
+                                inc.id === jam.blockingAlertUuid &&
+                                (inc.type.toLowerCase() === 'roadclosed' || inc.type.toLowerCase() === 'road_closed')
+                            );
 
-                    // Color según velocidad
-                    const lineColor =
-                        jam.speed < 10 ? '#dc2626' :  // rojo
-                            jam.speed < 20 ? '#ea580c' :  // naranja
-                                jam.speed < 30 ? '#d97706' :  // amarillo oscuro
-                                    '#16a34a';                     // verde
+                        if (isRoadClosed && jam.blockingAlertUuid) {
+                            if (!roadClosedGroups.has(jam.blockingAlertUuid)) {
+                                roadClosedGroups.set(jam.blockingAlertUuid, []);
+                            }
+                            roadClosedGroups.get(jam.blockingAlertUuid)!.push(jam);
+                        } else if (isRoadClosed && jam.speed === 0) {
+                            // Cierre de ruta sin blockingAlertUuid (speed = 0)
+                            if (!roadClosedGroups.has(`speed-zero-${jam.id}`)) {
+                                roadClosedGroups.set(`speed-zero-${jam.id}`, []);
+                            }
+                            roadClosedGroups.get(`speed-zero-${jam.id}`)!.push(jam);
+                        } else {
+                            normalJams.push(jam);
+                        }
+                    });
 
                     return (
-                        <Polyline
-                            key={`line-${jam.id}`}
-                            positions={positions}
-                            pathOptions={{
-                                color: lineColor,
-                                weight: 5,
-                                opacity: 0.6,
-                                lineCap: 'round',
-                                lineJoin: 'round'
-                            }}
-                        />
+                        <>
+                            {/* Renderizar cierres de ruta agrupados */}
+                            {Array.from(roadClosedGroups.entries()).map(([alertId, jams]) => {
+                                return jams.map((jam) => {
+                                    // Verificar si tiene datos de línea
+                                    if (!jam.line || jam.line.length < 2) return null;
+
+                                    // Convertir coordenadas de Waze (x=lng, y=lat) a formato Leaflet [lat, lng]
+                                    const positions = jam.line.map(point => [point.y, point.x] as [number, number]);
+
+                                    // Estilo de barricada: rayas rojas y blancas alternadas
+                                    return (
+                                        <React.Fragment key={`roadclosed-${jam.id}`}>
+                                            {/* Línea base blanca */}
+                                            <Polyline
+                                                positions={positions}
+                                                pathOptions={{
+                                                    color: '#ffffff',
+                                                    weight: 10,
+                                                    opacity: 1,
+                                                    lineCap: 'butt',
+                                                    lineJoin: 'round'
+                                                }}
+                                            />
+                                            {/* Línea roja con patrón de rayas */}
+                                            <Polyline
+                                                positions={positions}
+                                                pathOptions={{
+                                                    color: '#dc2626',
+                                                    weight: 10,
+                                                    opacity: 1,
+                                                    lineCap: 'butt',
+                                                    lineJoin: 'round',
+                                                    dashArray: '15, 15'
+                                                }}
+                                            />
+                                            {/* Borde negro para mejor contraste */}
+                                            <Polyline
+                                                positions={positions}
+                                                pathOptions={{
+                                                    color: '#000000',
+                                                    weight: 12,
+                                                    opacity: 0.4,
+                                                    lineCap: 'butt',
+                                                    lineJoin: 'round'
+                                                }}
+                                            />
+                                        </React.Fragment>
+                                    );
+                                });
+                            })}
+
+                            {/* Renderizar líneas normales de congestión */}
+                            {normalJams.map((jam) => {
+                                // Verificar si tiene datos de línea
+                                if (!jam.line || jam.line.length < 2) return null;
+
+                                // Convertir coordenadas de Waze (x=lng, y=lat) a formato Leaflet [lat, lng]
+                                const positions = jam.line.map(point => [point.y, point.x] as [number, number]);
+
+                                // Líneas normales de congestión según velocidad
+                                const lineColor =
+                                    jam.speed < 10 ? '#dc2626' :  // rojo
+                                        jam.speed < 20 ? '#ea580c' :  // naranja
+                                            jam.speed < 30 ? '#d97706' :  // amarillo oscuro
+                                                '#16a34a';                     // verde
+
+                                return (
+                                    <Polyline
+                                        key={`line-${jam.id}`}
+                                        positions={positions}
+                                        pathOptions={{
+                                            color: lineColor,
+                                            weight: 6,
+                                            opacity: 0.8,
+                                            lineCap: 'round',
+                                            lineJoin: 'round'
+                                        }}
+                                    />
+                                );
+                            })}
+                        </>
                     );
-                })}
+                })()}
+
+                {/* Nota: Los cierres de ruta se visualizan a través de los jams con blockingAlertUuid o speed=0 */}
+                {/* Las líneas con patrón de barricada ya se renderizan en la sección de jams */}
 
                 {/* Renderizar marcadores de atascos */}
                 {filteredJams.map((jam) => {
@@ -433,7 +728,10 @@ const Map: React.FC<MapProps> = ({
                                                 'bg-gradient-to-r from-green-600 to-green-700'
                                         } text-white`}>
                                         <div className="flex items-center justify-between">
-                                            <h3 className="font-black text-lg">🚦 {jamLevelText.toUpperCase()}</h3>
+                                            <h3 className="font-black text-lg flex items-center gap-2">
+                                                <WazeIcon type="jam" size="sm" className="text-white" />
+                                                {jamLevelText.toUpperCase()}
+                                            </h3>
                                             <RelativeTime timestamp={jam.timestamp} />
                                         </div>
                                     </div>
@@ -475,7 +773,9 @@ const Map: React.FC<MapProps> = ({
 
                                             {/* Nivel */}
                                             <div className="flex flex-col items-center justify-center bg-gray-100 border-3 border-gray-600 rounded-xl p-4 shadow-xl">
-                                                <span className="text-3xl mb-1">⚡</span>
+                                                <div className="mb-1">
+                                                    <WazeIcon type="traffic" uiIcon size="lg" />
+                                                </div>
                                                 <p className="text-xs text-gray-700 font-bold uppercase mb-1">Nivel</p>
                                                 <p className={`text-xl font-black ${(jam.level ?? 0) >= 4 ? 'text-red-800' :
                                                     (jam.level ?? 0) >= 3 ? 'text-orange-800' :
@@ -493,7 +793,7 @@ const Map: React.FC<MapProps> = ({
                                                 {polygon && (
                                                     <div className="mb-2">
                                                         <div className="flex items-center gap-2 mb-1">
-                                                            <span className="text-xl">🗺️</span>
+                                                            <WazeIcon type="map" uiIcon size="sm" />
                                                             <p className="text-xs text-blue-700 font-bold uppercase">Tramo</p>
                                                         </div>
                                                         <p className="text-base text-blue-900 font-black leading-tight mb-1">{polygon.name}</p>

@@ -1,7 +1,6 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { wazeService } from './services/wazeService';
-import { ApiService } from './services/apiService';
 import { alertService } from './services/alertService';
 import { aggregationService } from './services/aggregationService';
 import { historicalService } from './services/historicalService';
@@ -10,19 +9,25 @@ import { dataQualityService } from './services/dataQualityService';
 import { incidentStatsService } from './services/incidentStatsService';
 import { externalTrafficService } from './services/externalTrafficService';
 import { delayCalculationService } from './services/delayCalculationService';
-import { IncidentsHistoryService } from './services/incidentsHistoryService';
-import { DailyStatsService } from './services/dailyStatsService';
-import { WeatherService } from './services/weatherService';
+import { incidentsHistoryService } from './services/incidentsHistoryService';
+import { dailyStatsService } from './services/dailyStatsService';
+import { weatherService } from './services/weatherService';
+import { apiService } from './services/apiService';
 import { REAL_POLYGONS } from './config/realPolygons';
 import dotenv from 'dotenv';
+import path from 'path';
+import multipart from '@fastify/multipart';
+import fastifyStatic from '@fastify/static';
+import fs from 'fs';
+import { roadAccidentService } from './services/roadAccidentService';
 
 dotenv.config();
 
 // Instancia del servicio de API (evita problemas de import/export en TS runtime)
-const apiService = new ApiService();
-const incidentsHistoryService = new IncidentsHistoryService();
-const dailyStatsService = new DailyStatsService();
-const weatherService = new WeatherService();
+// const apiService = new ApiService(); // Removed: now imported as singleton
+// const incidentsHistoryService = new IncidentsHistoryService(); // Removed: now imported as singleton
+// const dailyStatsService = new DailyStatsService(); // Removed: now imported as singleton
+// const weatherService = new WeatherService(); // Removed: now imported as singleton
 
 const server = Fastify({
     logger: true,
@@ -36,6 +41,19 @@ const server = Fastify({
 server.register(cors, {
     origin: process.env.FRONTEND_URL || true,
     credentials: true,
+});
+
+// Registrar multipart para subida de archivos
+server.register(multipart, {
+    limits: {
+        fileSize: 50 * 1024 * 1024, // 50MB
+    }
+});
+
+// Registrar static para servir archivos multimedia
+server.register(fastifyStatic, {
+    root: path.join(__dirname, '../public'),
+    prefix: '/public/',
 });
 
 // Hook global de manejo de errores
@@ -956,7 +974,7 @@ server.get('/api/speed/comparison/all', async (request, reply) => {
                     );
                 } catch (error) {
                     const err = error instanceof Error ? error : new Error(String(error));
-                    server.log.error(err, `Error getting speed for ${polygon.name}`);
+                    server.log.error(err, 'Error getting speed for ' + polygon.name);
                     return null;
                 }
             })
@@ -1137,15 +1155,34 @@ server.get('/api/weather/:polygon_id', async (request, reply) => {
             return;
         }
 
-        // Obtener coordenadas del polígono
-        if (!polygon.coordinates) {
-            reply.code(400).send({ error: 'Polygon coordinates not available' });
+        // Primero intentar obtener datos guardados en la base de datos
+        const savedWeather = await weatherService.getLatestWeather(polygon_id);
+        if (savedWeather) {
+            reply.send(savedWeather);
             return;
         }
+
+        // Si no hay datos guardados, intentar obtener del API si tiene coordenadas
+        if (!polygon.coordinates) {
+            // Retornar datos por defecto si no hay coordenadas ni datos guardados
+            reply.send({
+                polygon_id,
+                timestamp: new Date(),
+                temperature_celsius: null,
+                weather_description: 'Sin datos disponibles',
+                precipitation_mm: 0,
+                wind_speed_kmh: null,
+                visibility_meters: 10000,
+                is_freezing_risk: false,
+                has_weather_alert: false
+            });
+            return;
+        }
+
         const centerLat = polygon.coordinates.lat;
         const centerLon = polygon.coordinates.lon;
 
-        // Obtener datos del clima
+        // Obtener datos del clima del API
         const weatherData = await weatherService.fetchWeatherForPolygon(
             polygon_id,
             centerLat,
@@ -1198,11 +1235,13 @@ server.get('/api/weather/:polygon_id/history', async (request, reply) => {
 server.get('/api/weather/alerts', async (request, reply) => {
     try {
         const alerts = await weatherService.getActiveWeatherAlerts();
-        reply.send(alerts);
+        // Siempre retornar un array, incluso si está vacío
+        reply.send(alerts || []);
     } catch (error: unknown) {
         const err = error instanceof Error ? error : new Error(String(error));
         server.log.error(err, 'Error getting weather alerts');
-        reply.code(500).send({ error: 'Failed to get weather alerts' });
+        // En caso de error, retornar array vacío en lugar de 500 para no romper el frontend
+        reply.send([]);
     }
 });
 
@@ -1239,7 +1278,274 @@ server.get('/api/weather/all', async (request, reply) => {
     }
 });
 
-// --- Arranque ---
+// ============================================================================
+// 📊 ENDPOINTS DE RISK SCORING
+// ============================================================================
+
+import { riskScoringService } from './services/riskScoringService';
+import { getAllGroups } from './config/realPolygons';
+
+// Obtener lista de grupos disponibles
+server.get('/api/risk/groups', async (request, reply) => {
+    try {
+        const groups = getAllGroups();
+        return { groups };
+    } catch (error: unknown) {
+        console.error('Error obteniendo grupos:', error);
+        if (error instanceof Error) {
+            server.log.error(error.stack || error.message);
+        }
+        return reply.code(500).send({ error: 'Error obteniendo grupos' });
+    }
+});
+
+// Calcular scores para todos los polígonos (admin endpoint)
+server.post('/api/risk/calculate', async (request, reply) => {
+    try {
+        await riskScoringService.calculateAllRiskScores();
+        return { success: true, message: 'Risk scores calculados exitosamente' };
+    } catch (error: unknown) {
+        console.error('Error calculando risk scores:', error);
+        if (error instanceof Error) {
+            server.log.error(error.stack || error.message);
+        }
+        return reply.code(500).send({ error: 'Error calculando risk scores' });
+    }
+});
+
+// Obtener resumen global de riesgos por grupo
+server.get('/api/risk/summary', async (request, reply) => {
+    try {
+        const summaries = await riskScoringService.getGroupRiskSummaries();
+        // Serializar correctamente asegurando que todos los valores numéricos sean válidos
+        const serialized = summaries.map(s => ({
+            group_name: s.group_name,
+            polygon_count: s.polygon_count || 0,
+            avg_risk_score: isNaN(s.avg_risk_score) ? 0 : Number(s.avg_risk_score.toFixed(2)),
+            max_risk_score: isNaN(s.max_risk_score) ? 0 : Number(s.max_risk_score.toFixed(2)),
+            critical_polygons: s.critical_polygons || 0,
+            risk_distribution: {
+                low: s.risk_distribution.low || 0,
+                moderate: s.risk_distribution.moderate || 0,
+                high: s.risk_distribution.high || 0,
+                critical: s.risk_distribution.critical || 0,
+                severe: s.risk_distribution.severe || 0,
+            }
+        }));
+        return reply.send({ summaries: serialized, timestamp: new Date().toISOString() });
+    } catch (error: unknown) {
+        console.error('Error obteniendo resumen de riesgos:', error);
+        if (error instanceof Error) {
+            server.log.error(error.stack || error.message);
+        }
+        return reply.code(500).send({ error: 'Error obteniendo resumen', message: error instanceof Error ? error.message : String(error) });
+    }
+});
+
+// Obtener scores por grupo específico
+server.get<{ Querystring: { group?: string } }>('/api/risk/scores', async (request, reply) => {
+    try {
+        const { group } = request.query;
+        const scores = await riskScoringService.getRiskScoresByGroup(group);
+        return { scores, group: group || 'all', timestamp: new Date().toISOString() };
+    } catch (error: unknown) {
+        console.error('Error obteniendo scores por grupo:', error);
+        if (error instanceof Error) {
+            server.log.error(error.stack || error.message);
+        }
+        return reply.code(500).send({ error: 'Error obteniendo scores' });
+    }
+});
+
+// Obtener score de un polígono específico
+server.get<{ Params: { polygon_id: string } }>('/api/risk/polygon/:polygon_id', async (request, reply) => {
+    try {
+        const { polygon_id } = request.params;
+        const score = await riskScoringService.getPolygonRiskScore(polygon_id);
+
+        if (!score) {
+            return reply.code(404).send({ error: 'Score no encontrado para este polígono' });
+        }
+
+        return score;
+    } catch (error: unknown) {
+        console.error('Error obteniendo score de polígono:', error);
+        if (error instanceof Error) {
+            server.log.error(error.stack || error.message);
+        }
+        return reply.code(500).send({ error: 'Error obteniendo score' });
+    }
+});
+
+// Recalcular score de un polígono específico
+server.post<{ Params: { polygon_id: string } }>('/api/risk/polygon/:polygon_id/recalculate', async (request, reply) => {
+    try {
+        const { polygon_id } = request.params;
+        const score = await riskScoringService.calculatePolygonRiskScore(polygon_id);
+        return score;
+    } catch (error: unknown) {
+        console.error('Error recalculando score:', error);
+        if (error instanceof Error) {
+            server.log.error(error.stack || error.message);
+        }
+        return reply.code(500).send({ error: 'Error recalculando score' });
+    }
+});
+
+// ============================================================================
+// 🚗 ENDPOINTS DE SINIESTROS VIALES (ROAD ACCIDENTS)
+// ============================================================================
+
+// GET /api/accidents - Listar siniestros viales
+server.get('/api/accidents', async (request, reply) => {
+    try {
+        const { from, to, limit, offset } = request.query as {
+            from?: string;
+            to?: string;
+            limit?: string;
+            offset?: string;
+        };
+
+        const accidents = await roadAccidentService.getAccidents({
+            from: from ? new Date(from) : undefined,
+            to: to ? new Date(to) : undefined,
+            limit: limit ? parseInt(limit) : 50,
+            offset: offset ? parseInt(offset) : 0
+        });
+
+        return accidents;
+    } catch (error) {
+        server.log.error(error);
+        return reply.code(500).send({ error: 'Error obteniendo siniestros viales' });
+    }
+});
+
+// GET /api/accidents/:id - Detalle de un siniestro
+server.get('/api/accidents/:id', async (request, reply) => {
+    try {
+        const { id } = request.params as { id: string };
+        const accident = await roadAccidentService.getAccidentById(id);
+
+        if (!accident) {
+            return reply.code(404).send({ error: 'Siniestro no encontrado' });
+        }
+
+        return accident;
+    } catch (error) {
+        server.log.error(error);
+        return reply.code(500).send({ error: 'Error obteniendo detalle del siniestro' });
+    }
+});
+
+// POST /api/accidents - Crear un nuevo registro de siniestro
+server.post('/api/accidents', async (request, reply) => {
+    try {
+        const data = request.body as any;
+
+        // Si no se provee clima, intentar obtener el más reciente para la ubicación
+        if (!data.weather_data && data.polygonId) {
+            data.weather_data = await weatherService.getLatestWeather(data.polygonId);
+        }
+
+        const accident = await roadAccidentService.createAccident({
+            incident_id: data.incident_id,
+            waze_data: data.waze_data || {},
+            weather_data: data.weather_data || {},
+            type: data.type,
+            subtype: data.subtype,
+            severity: data.severity,
+            street: data.street,
+            location_lat: data.location_lat,
+            location_lng: data.location_lng,
+            operator_notes: data.operator_notes,
+            accident_at: data.accident_at ? new Date(data.accident_at) : new Date()
+        });
+
+        return accident;
+    } catch (error) {
+        server.log.error(error);
+        return reply.code(500).send({ error: 'Error creando el registro de siniestro' });
+    }
+});
+
+// POST /api/accidents/:id/media - Subir archivos multimedia para un siniestro
+server.post('/api/accidents/:id/media', async (request, reply) => {
+    try {
+        const { id } = request.params as { id: string };
+        const accident = await roadAccidentService.getAccidentById(id);
+
+        if (!accident) {
+            return reply.code(404).send({ error: 'Siniestro no encontrado' });
+        }
+
+        const parts = request.files();
+        const uploadedMedia = [];
+
+        for await (const part of parts) {
+            const fileName = Date.now() + '-' + part.filename;
+
+            // Subir usando el servicio (que ahora es agnóstico al almacenamiento)
+            const publicPath = await roadAccidentService.uploadMediaFile(fileName, part.file);
+
+            // Determinar tipo de archivo
+            const fileType = part.mimetype.startsWith('video/') ? 'video' : 'image';
+
+            // Registrar en base de datos
+            const mediaRecord = await roadAccidentService.addMedia({
+                accident_id: id,
+                file_path: publicPath,
+                file_type: fileType,
+                original_name: part.filename,
+                // Nota: ya no podemos usar fs.statSync fácilmente con streams
+                // pero el database lo tiene como opcional
+            });
+
+            uploadedMedia.push(mediaRecord);
+        }
+
+        return { success: true, media: uploadedMedia };
+    } catch (error) {
+        server.log.error(error);
+        return reply.code(500).send({ error: 'Error subiendo archivos multimedia' });
+    }
+});
+
+// PATCH /api/accidents/:id - Actualizar notas de un siniestro
+server.patch('/api/accidents/:id', async (request, reply) => {
+    try {
+        const { id } = request.params as { id: string };
+        const updates = request.body as any;
+
+        const updated = await roadAccidentService.updateAccident(id, updates);
+        if (!updated) {
+            return reply.code(404).send({ error: 'Siniestro no encontrado' });
+        }
+
+        return updated;
+    } catch (error) {
+        server.log.error(error);
+        return reply.code(500).send({ error: 'Error actualizando siniestro' });
+    }
+});
+
+// DELETE /api/accidents/:id - Eliminar registro de siniestro
+server.delete('/api/accidents/:id', async (request, reply) => {
+    try {
+        const { id } = request.params as { id: string };
+
+        // Opcional: Podríamos eliminar los archivos físicos aquí también
+
+        const success = await roadAccidentService.deleteAccident(id);
+        if (!success) {
+            return reply.code(404).send({ error: 'Siniestro no encontrado' });
+        }
+
+        return { success: true, message: 'Registro eliminado' };
+    } catch (error) {
+        server.log.error(error);
+        return reply.code(500).send({ error: 'Error eliminando siniestro' });
+    }
+});
 
 const start = async () => {
     try {
@@ -1260,8 +1566,8 @@ const start = async () => {
 
         const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
         await server.listen({ port, host: '0.0.0.0' });
-        console.log(`🚀 Backend server running on http://localhost:${port}`);
-        console.log(`📊 Health check: http://localhost:${port}/health`);
+        console.log('Backend server running on http://localhost:' + port);
+        console.log('Health check: http://localhost:' + port + '/health');
     } catch (err) {
         console.error('❌ Error fatal al iniciar servidor:', err);
         server.log.error(err);

@@ -241,3 +241,83 @@ div[style*="¿Eres el propietario de este sitio web?"] {
   outline-offset: 2px;
   border-radius: 0.5rem;
 }
+
+/* ===== ESTILOS DE MARCADORES LEAFLET ===== */
+
+/* Resetear estilos default de Leaflet para marcadores personalizados */
+.leaflet-marker-icon.custom-incident-marker,
+.leaflet-marker-icon.custom-jam-marker {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Iconos de incidentes de Waze */
+.waze-marker-icon {
+  background-color: white;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 20px;
+  line-height: 1;
+  transition: transform 0.2s ease;
+  cursor: pointer;
+}
+
+.waze-marker-icon:hover {
+  transform: scale(1.15);
+  z-index: 1000 !important;
+}
+
+/* Iconos de atascos */
+.waze-jam-icon {
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Animación para marcadores críticos */
+@keyframes pulse-marker {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 5px 15px rgba(220, 38, 38, 0.6);
+  }
+}
+
+.critical-marker {
+  animation: pulse-marker 1.5s ease-in-out infinite;
+}
+
+/* Popups de Leaflet personalizados */
+.leaflet-popup-content-wrapper {
+  padding: 0 !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  width: auto !important;
+}
+
+.leaflet-popup-tip {
+  background: white !important;
+}
+
+.custom-popup .leaflet-popup-content-wrapper {
+  border: 2px solid #333;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+/* Asegurar visibilidad de emojis en marcadores */
+.waze-marker-icon {
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji", "EmojiSymbols", sans-serif;
+}

@@ -341,8 +341,8 @@ npx ts-node scripts/verify-tables.ts
 ✅ **Migración incremental** ejecutada
 ✅ **Código pusheado** a `feature/mejoras-bbdd-clima`
 
-**Tiempo de implementación:** 1 sesión  
-**Estrategia:** Híbrido optimizado (Opción C)  
+**Tiempo de implementación:** 1 sesión
+**Estrategia:** Híbrido optimizado (Opción C)
 **Estado:** ✅ **COMPLETO** - Backend + Frontend implementados y testeables
 
 ---
@@ -387,17 +387,17 @@ npx ts-node scripts/verify-tables.ts
 **Secciones:**
 1. **Filtros dinámicos:**
    - Polígono, tipo, fecha desde/hasta, límite
-   
+
 2. **Mapa de Puntos Negros:**
    - CircleMarkers con tamaño proporcional a incidentes
    - Colores por tipo de incidente
    - Popup con detalles (calle, tipo común, duración avg)
    - Integración React Leaflet
-   
+
 3. **Estadísticas agregadas:**
    - Selector: Por Tipo | Por Hora | Por Día
    - Cards con: total, duración avg, demora avg, bloqueos
-   
+
 4. **Lista de incidentes:**
    - Scroll infinito
    - Badges por tipo con colores
@@ -410,14 +410,14 @@ npx ts-node scripts/verify-tables.ts
 1. **Selector de período:**
    - Diario / Semanal / Mensual
    - Rango de fechas personalizado
-   
+
 2. **KPIs comparativos:**
    - Fluidez promedio (% vs día anterior)
    - Velocidad promedio (km/h vs día anterior)
    - Total incidentes (críticos destacados)
    - Total congestiones (duración avg)
    - Indicadores ↑↓ con TrendingUp/TrendingDown
-   
+
 3. **Gráficos interactivos (Chart.js):**
    - **Line Chart**: Tendencia de fluidez
    - **Line Chart**: Velocidad promedio
@@ -545,13 +545,13 @@ src/
     └── StatsPage.tsx               (240 líneas)
 ```
 
-**Total Frontend:** +1100 líneas  
-**Total Backend:** +1512 líneas  
+**Total Frontend:** +1100 líneas
+**Total Backend:** +1512 líneas
 **Gran Total:** +2612 líneas
 
 ---
 
-**Tiempo de implementación:** 1 sesión completa  
-**Estrategia:** Híbrido optimizado (Opción C)  
+**Tiempo de implementación:** 1 sesión completa
+**Estrategia:** Híbrido optimizado (Opción C)
 **Estado:** ✅ **LISTO PARA PRODUCCIÓN**
 

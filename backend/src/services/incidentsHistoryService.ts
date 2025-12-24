@@ -235,3 +235,7 @@ export class IncidentsHistoryService {
     }
 }
 
+export const incidentsHistoryService = new IncidentsHistoryService();
+
+
+

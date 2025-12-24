@@ -1,11 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Home, Map, AlertCircle, History, BarChart3 } from 'lucide-react';
+import { Home, Map, AlertCircle, History, BarChart3, ShieldAlert, Car } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Badge } from '../ui/badge';
 import { cn } from '../../lib/utils';
 
-type ViewType = 'home' | 'map' | 'events' | 'history' | 'stats';
+export type ViewType = 'home' | 'map' | 'events' | 'history' | 'stats' | 'risks' | 'accidents';
 
 interface ModernNavigationProps {
   currentView: ViewType;
@@ -37,12 +37,26 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
       path: '/mapa',
     },
     {
+      id: 'risks' as ViewType,
+      label: 'Análisis de Riesgos',
+      icon: ShieldAlert,
+      color: 'from-red-500 to-red-600',
+      path: '/riesgos',
+    },
+    {
       id: 'events' as ViewType,
       label: 'Alertas y Eventos',
       icon: AlertCircle,
       color: 'from-warning-400 to-warning-500',
       badge: criticalAlertsCount > 0 ? criticalAlertsCount : undefined,
       path: '/alertas',
+    },
+    {
+      id: 'accidents' as ViewType,
+      label: 'Siniestros Viales',
+      icon: Car,
+      color: 'from-orange-600 to-red-600',
+      path: '/siniestros',
     },
     {
       id: 'history' as ViewType,
@@ -64,7 +78,9 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
   const getActiveView = () => {
     if (location.pathname === '/' || location.pathname === '/dashboard') return 'home';
     if (location.pathname === '/mapa') return 'map';
+    if (location.pathname === '/riesgos') return 'risks';
     if (location.pathname === '/alertas') return 'events';
+    if (location.pathname === '/siniestros') return 'accidents';
     if (location.pathname === '/historial') return 'history';
     if (location.pathname === '/estadisticas') return 'stats';
     return currentView;

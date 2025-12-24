@@ -109,7 +109,7 @@ export const IncidentsHistoryPage: React.FC = () => {
                                     key={idx}
                                     center={[hotspot.latitude, hotspot.longitude]}
                                     radius={Math.min(hotspot.incident_count * 2, 30)}
-                                    pathOptions={{ 
+                                    pathOptions={{
                                         color: getIncidentTypeColor(hotspot.most_common_type),
                                         fillColor: getIncidentTypeColor(hotspot.most_common_type),
                                         fillOpacity: 0.5
@@ -215,8 +215,8 @@ export const IncidentsHistoryPage: React.FC = () => {
                                             </div>
                                             <div className="flex items-center gap-1">
                                                 <Clock className="w-4 h-4" />
-                                                {incident.duration_minutes 
-                                                    ? `${incident.duration_minutes} min` 
+                                                {incident.duration_minutes
+                                                    ? `${incident.duration_minutes} min`
                                                     : 'En curso'
                                                 }
                                             </div>
@@ -242,4 +242,6 @@ export const IncidentsHistoryPage: React.FC = () => {
         </div>
     );
 };
+
+
 

@@ -198,3 +198,7 @@ export class DailyStatsService {
     }
 }
 
+export const dailyStatsService = new DailyStatsService();
+
+
+

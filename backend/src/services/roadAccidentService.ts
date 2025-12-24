@@ -1,0 +1,218 @@
+import { dbService } from '../database/dbService';
+import { v4 as uuidv4 } from 'uuid';
+import { LocalStorageProvider } from './storage/localStorageProvider';
+import { IStorageProvider } from './storage/storageProvider';
+
+export interface RoadAccident {
+    id?: string;
+    incident_id?: string;
+    waze_data: any;
+    weather_data: any;
+    type?: string;
+    subtype?: string;
+    severity?: number;
+    street?: string;
+    location_lat: number;
+    location_lng: number;
+    operator_notes?: string;
+    accident_at?: Date;
+    created_at?: Date;
+    updated_at?: Date;
+    media?: AccidentMedia[];
+}
+
+export interface AccidentMedia {
+    id?: string;
+    accident_id: string;
+    file_path: string;
+    file_type: 'image' | 'video';
+    original_name?: string;
+    file_size_bytes?: number;
+    created_at?: Date;
+}
+
+export class RoadAccidentService {
+    private static instance: RoadAccidentService;
+    private storage: IStorageProvider;
+
+    private constructor() {
+        // Inicializar con proveedor local, fácil de cambiar a BlobStorage en el futuro
+        this.storage = new LocalStorageProvider();
+    }
+
+    public static getInstance(): RoadAccidentService {
+        if (!RoadAccidentService.instance) {
+            RoadAccidentService.instance = new RoadAccidentService();
+        }
+        return RoadAccidentService.instance;
+    }
+
+    /**
+     * Sube un archivo usando el proveedor de almacenamiento configurado
+     */
+    async uploadMediaFile(fileName: string, content: Buffer | NodeJS.ReadableStream): Promise<string> {
+        return this.storage.uploadFile(fileName, content);
+    }
+
+    /**
+     * Crea un nuevo registro de siniestro vial
+     */
+    async createAccident(data: RoadAccident): Promise<RoadAccident> {
+        const query = `
+            INSERT INTO road_accidents (
+                incident_id, waze_data, weather_data, type, subtype,
+                severity, street, location_lat, location_lng,
+                operator_notes, accident_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            RETURNING *
+        `;
+
+        const values = [
+            data.incident_id || null,
+            JSON.stringify(data.waze_data),
+            JSON.stringify(data.weather_data),
+            data.type || 'ACCIDENT',
+            data.subtype || null,
+            data.severity || null,
+            data.street || null,
+            data.location_lat,
+            data.location_lng,
+            data.operator_notes || null,
+            data.accident_at || new Date()
+        ];
+
+        const result = await dbService.query(query, values);
+        return result.rows[0] as RoadAccident;
+    }
+
+    /**
+     * Obtiene una lista de siniestros viales con filtros
+     */
+    async getAccidents(filters: {
+        from?: Date;
+        to?: Date;
+        limit?: number;
+        offset?: number;
+    } = {}): Promise<RoadAccident[]> {
+        let query = `
+            SELECT a.*,
+                   COALESCE(json_agg(m.*) FILTER (WHERE m.id IS NOT NULL), '[]') as media
+            FROM road_accidents a
+            LEFT JOIN accident_media m ON a.id = m.accident_id
+            WHERE 1=1
+        `;
+        const params: any[] = [];
+        let pIndex = 1;
+
+        if (filters.from) {
+            query += ` AND a.accident_at >= $${pIndex++}`;
+            params.push(filters.from);
+        }
+        if (filters.to) {
+            query += ` AND a.accident_at <= $${pIndex++}`;
+            params.push(filters.to);
+        }
+
+        query += ` GROUP BY a.id ORDER BY a.accident_at DESC`;
+
+        if (filters.limit) {
+            query += ` LIMIT $${pIndex++}`;
+            params.push(filters.limit);
+        }
+        if (filters.offset) {
+            query += ` OFFSET $${pIndex++}`;
+            params.push(filters.offset);
+        }
+
+        const result = await dbService.query(query, params);
+        return result.rows as RoadAccident[];
+    }
+
+    /**
+     * Obtiene un siniestro específico por ID
+     */
+    async getAccidentById(id: string): Promise<RoadAccident | null> {
+        const query = `
+            SELECT a.*,
+                   COALESCE(json_agg(m.*) FILTER (WHERE m.id IS NOT NULL), '[]') as media
+            FROM road_accidents a
+            LEFT JOIN accident_media m ON a.id = m.accident_id
+            WHERE a.id = $1
+            GROUP BY a.id
+        `;
+        const result = await dbService.query(query, [id]);
+        return (result.rows[0] as RoadAccident) || null;
+    }
+
+    /**
+     * Registra un nuevo archivo multimedia para un accidente
+     */
+    async addMedia(media: AccidentMedia): Promise<AccidentMedia> {
+        const query = `
+            INSERT INTO accident_media (
+                accident_id, file_path, file_type,
+                original_name, file_size_bytes
+            ) VALUES ($1, $2, $3, $4, $5)
+            RETURNING *
+        `;
+
+        const values = [
+            media.accident_id,
+            media.file_path,
+            media.file_type,
+            media.original_name || null,
+            media.file_size_bytes || null
+        ];
+
+        const result = await dbService.query(query, values);
+        return result.rows[0] as AccidentMedia;
+    }
+
+    /**
+     * Actualiza las notas u otros datos de un accidente
+     */
+    async updateAccident(id: string, updates: Partial<RoadAccident>): Promise<RoadAccident | null> {
+        const allowedUpdates = ['operator_notes', 'type', 'subtype', 'severity'];
+        const keys = Object.keys(updates).filter(k => allowedUpdates.includes(k));
+
+        if (keys.length === 0) return this.getAccidentById(id);
+
+        const setClause = keys.map((k, i) => `${k} = $${i + 2}`).join(', ');
+        const query = `UPDATE road_accidents SET ${setClause}, updated_at = NOW() WHERE id = $1 RETURNING *`;
+        const values = [id, ...keys.map(k => (updates as any)[k])];
+
+        const result = await dbService.query(query, values);
+        return (result.rows[0] as RoadAccident) || null;
+    }
+
+    /**
+     * Elimina un accidente y sus registros de media, incluyendo archivos físicos
+     */
+    async deleteAccident(id: string): Promise<boolean> {
+        // 1. Obtener lista de archivos asociados
+        const mediaQuery = `SELECT file_path FROM accident_media WHERE accident_id = $1`;
+        const mediaResult = await dbService.query(mediaQuery, [id]);
+        const mediaFiles = mediaResult.rows;
+
+        // 2. Eliminar de la base de datos
+        // El cascade en el schema borra los registros de accident_media automáticamente.
+        const deleteQuery = `DELETE FROM road_accidents WHERE id = $1`;
+        const result = await dbService.query(deleteQuery, [id]);
+
+        if ((result.rowCount ?? 0) > 0) {
+            // 3. Eliminar archivos físicos a través del proveedor de almacenamiento
+            for (const media of mediaFiles) {
+                try {
+                    await this.storage.deleteFile(media.file_path);
+                } catch (err) {
+                    console.error('Error eliminando archivo físico:', err);
+                }
+            }
+            return true;
+        }
+
+        return false;
+    }
+}
+
+export const roadAccidentService = RoadAccidentService.getInstance();

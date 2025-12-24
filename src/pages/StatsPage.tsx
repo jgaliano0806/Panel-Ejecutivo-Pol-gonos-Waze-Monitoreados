@@ -161,10 +161,10 @@ export const StatsPage: React.FC = () => {
                             <span className="text-sm text-gray-500">Fluidez Promedio</span>
                             {calculateChange(latestStats.avg_fluidity_percentage, previousStats?.avg_fluidity_percentage) !== null && (
                                 <div className={`flex items-center text-xs ${
-                                    calculateChange(latestStats.avg_fluidity_percentage, previousStats?.avg_fluidity_percentage)! > 0 
+                                    calculateChange(latestStats.avg_fluidity_percentage, previousStats?.avg_fluidity_percentage)! > 0
                                         ? 'text-green-600' : 'text-red-600'
                                 }`}>
-                                    {calculateChange(latestStats.avg_fluidity_percentage, previousStats?.avg_fluidity_percentage)! > 0 
+                                    {calculateChange(latestStats.avg_fluidity_percentage, previousStats?.avg_fluidity_percentage)! > 0
                                         ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />
                                     }
                                     {Math.abs(calculateChange(latestStats.avg_fluidity_percentage, previousStats?.avg_fluidity_percentage)!).toFixed(1)}%
@@ -181,10 +181,10 @@ export const StatsPage: React.FC = () => {
                             <span className="text-sm text-gray-500">Velocidad Promedio</span>
                             {calculateChange(latestStats.avg_speed, previousStats?.avg_speed) !== null && (
                                 <div className={`flex items-center text-xs ${
-                                    calculateChange(latestStats.avg_speed, previousStats?.avg_speed)! > 0 
+                                    calculateChange(latestStats.avg_speed, previousStats?.avg_speed)! > 0
                                         ? 'text-green-600' : 'text-red-600'
                                 }`}>
-                                    {calculateChange(latestStats.avg_speed, previousStats?.avg_speed)! > 0 
+                                    {calculateChange(latestStats.avg_speed, previousStats?.avg_speed)! > 0
                                         ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />
                                     }
                                     {Math.abs(calculateChange(latestStats.avg_speed, previousStats?.avg_speed)!).toFixed(1)}%
@@ -257,4 +257,6 @@ export const StatsPage: React.FC = () => {
         </div>
     );
 };
+
+
 

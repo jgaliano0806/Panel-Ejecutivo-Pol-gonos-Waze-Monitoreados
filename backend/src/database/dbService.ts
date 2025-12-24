@@ -139,26 +139,20 @@ export class DatabaseService {
             }
 
             if (!fs.existsSync(schemaPath)) {
-                console.warn('⚠️  No se encontró schema.sql, las tablas deben crearse manualmente');
+                console.warn('⚠️ No se encontró schema.sql, las tablas deben crearse manualmente');
                 return;
             }
 
             const schema = fs.readFileSync(schemaPath, 'utf-8');
 
-            // Ejecutar el esquema (dividir por ; para ejecutar cada comando)
-            const commands = schema.split(';').filter((cmd: string) => cmd.trim().length > 0);
-
-            for (const command of commands) {
-                const trimmed = command.trim();
-                if (trimmed && !trimmed.startsWith('--')) {
-                    await this.query(trimmed);
-                }
+            // Ejecutar el esquema completo en una sola query (mejor manejo de funciones/procedimientos)
+            if (schema.trim()) {
+                await this.query(schema);
+                console.log('✅ Esquema de base de datos inicializado (Bloque completo)');
             }
-
-            console.log('✅ Esquema de base de datos inicializado');
         } catch (error) {
             console.error('❌ Error inicializando esquema:', error);
-            // No lanzar error, permitir que continúe (las tablas pueden existir)
+            // No lanzar error, permitir que continúe si las tablas ya existen o el error es menor
         }
     }
 

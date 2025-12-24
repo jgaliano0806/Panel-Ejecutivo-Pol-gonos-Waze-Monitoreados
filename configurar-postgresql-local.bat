@@ -68,7 +68,14 @@ if !ERRORLEVEL! EQU 0 (
 )
 
 :: Verificar si ya esta corriendo
-set PGPASSWORD=postgres
+:: Leer contraseña del .env si existe, sino usar CASISA por defecto
+set DB_PASSWORD=CASISA
+if exist "%ROOT%\backend\.env" (
+    for /f "tokens=2 delims==" %%a in ('findstr /C:"DB_PASSWORD" "%ROOT%\backend\.env" 2^>nul') do (
+        set DB_PASSWORD=%%a
+    )
+)
+set PGPASSWORD=!DB_PASSWORD!
 psql -U postgres -h localhost -p 5432 -d postgres -c "SELECT 1;" >nul 2>&1
 if !ERRORLEVEL! EQU 0 (
     echo    OK: PostgreSQL ya esta corriendo
@@ -88,7 +95,14 @@ echo.
 :: PASO 3: Verificar conexion
 :: ============================================
 echo [3/4] Verificando conexion...
-set PGPASSWORD=postgres
+:: Leer contraseña del .env si existe, sino usar CASISA por defecto
+set DB_PASSWORD=CASISA
+if exist "%ROOT%\backend\.env" (
+    for /f "tokens=2 delims==" %%a in ('findstr /C:"DB_PASSWORD" "%ROOT%\backend\.env" 2^>nul') do (
+        set DB_PASSWORD=%%a
+    )
+)
+set PGPASSWORD=!DB_PASSWORD!
 psql -U postgres -h localhost -p 5432 -d postgres -c "SELECT version();" >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
     echo    ERROR: No se pudo conectar a PostgreSQL
@@ -113,7 +127,7 @@ echo [4/4] Configurando base de datos...
 cd /d "%ROOT%\backend"
 
 :: Leer contrasena del .env si existe
-set DB_PASSWORD=postgres
+set DB_PASSWORD=CASISA
 if exist ".env" (
     for /f "tokens=2 delims==" %%a in ('findstr /C:"DB_PASSWORD" .env 2^>nul') do (
         set DB_PASSWORD=%%a

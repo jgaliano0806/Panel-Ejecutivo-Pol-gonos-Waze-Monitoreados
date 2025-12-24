@@ -235,15 +235,21 @@ export class WeatherService {
     }
 
     async getActiveWeatherAlerts(): Promise<WeatherData[]> {
-        const query = `
-            SELECT * FROM polygon_weather_data
-            WHERE has_weather_alert = TRUE
-            AND timestamp >= NOW() - INTERVAL '1 hour'
-            ORDER BY timestamp DESC
-        `;
+        try {
+            const query = `
+                SELECT * FROM polygon_weather_data
+                WHERE has_weather_alert = true
+                AND timestamp >= NOW() - INTERVAL '1 hour'
+                ORDER BY timestamp DESC
+            `;
 
-        const result = await this.db.query(query);
-        return result.rows as WeatherData[];
+            const result = await this.db.query(query);
+            return result.rows as WeatherData[];
+        } catch (error) {
+            console.error('Error getting active weather alerts:', error);
+            // Retornar array vacío en caso de error para no romper el frontend
+            return [];
+        }
     }
 
     // Cálculo aproximado de temperatura de carretera
@@ -353,4 +359,8 @@ export class WeatherService {
         return alerts[0];
     }
 }
+
+export const weatherService = new WeatherService();
+
+
 

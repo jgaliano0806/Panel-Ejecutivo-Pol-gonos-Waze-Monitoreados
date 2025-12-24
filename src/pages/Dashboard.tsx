@@ -6,7 +6,7 @@ import { useWazeData } from '../hooks/useWazeData';
 import type { GlobalKPIs } from '../types';
 import { PolygonState, IncidentType, Severity } from '../types';
 import { ModernHeader } from '../components/layout/modern-header';
-import { ModernNavigation } from '../components/layout/modern-navigation';
+import { ModernNavigation, type ViewType } from '../components/layout/modern-navigation';
 import Filters from '../components/Filters';
 import Footer from '../components/Footer';
 import PolygonDetail from '../components/PolygonDetail';
@@ -29,10 +29,11 @@ const Dashboard: React.FC = () => {
     const queryClient = useQueryClient();
     const { polygons, incidents, jams, alerts, alertStats, isLoading, isError, lastUpdate, globalKPIs: backendKPIs } = useWazeData();
     const historicalData = useHistoricalData(24);
-    const _trendsData = useTrends(); // Disponible para uso futuro
+    useTrends(); // Disponible para uso futuro
     const [selectedPolygon, setSelectedPolygon] = useState<string | null>(null);
     const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
-    const [currentView, setCurrentView] = useState<'home' | 'map' | 'events'>('home');
+    const [currentView, setCurrentView] = useState<ViewType>('home');
+    const [singlePolygonMode, setSinglePolygonMode] = useState(false); // Modo de tramo único desde RiskDashboard
 
     // Sincronizar vista con URL
     useEffect(() => {
@@ -44,6 +45,19 @@ const Dashboard: React.FC = () => {
             setCurrentView('events');
         }
     }, [location.pathname]);
+
+    // Procesar navegación desde RiskDashboard (polígono y filtro seleccionado)
+    useEffect(() => {
+        const state = location.state as { selectedPolygonId?: string; filterType?: string } | null;
+        if (state?.selectedPolygonId) {
+            setSelectedPolygon(state.selectedPolygonId);
+            setSelectedGroup(null); // No filtrar por grupo
+            setSinglePolygonMode(true); // Activar modo de tramo único
+            setCurrentView('map'); // Cambiar a vista de mapa
+            // Limpiar el state para evitar re-selección en navegaciones futuras
+            window.history.replaceState({}, document.title);
+        }
+    }, [location.state]);
 
     // Usar KPIs del backend
     const globalKPIs: GlobalKPIs = useMemo(() => {
@@ -77,7 +91,11 @@ const Dashboard: React.FC = () => {
     // Handlers memoizados para evitar re-renders innecesarios
     const handlePolygonChange = useCallback((id: string | null) => {
         setSelectedPolygon(id);
-    }, []);
+        // Si cambia manualmente, desactivar modo tramo único
+        if (singlePolygonMode) {
+            setSinglePolygonMode(false);
+        }
+    }, [singlePolygonMode]);
 
     const handleGroupChange = useCallback((group: string | null) => {
         setSelectedGroup(group);
@@ -85,6 +103,7 @@ const Dashboard: React.FC = () => {
 
     const handleCloseDetail = useCallback(() => {
         setSelectedPolygon(null);
+        setSinglePolygonMode(false); // Desactivar modo tramo único
     }, []);
 
     const handleEventSelect = useCallback((incident: any) => {
@@ -101,9 +120,29 @@ const Dashboard: React.FC = () => {
     }, [queryClient]);
 
     const filteredPolygons = useMemo(() => {
+        // Modo tramo único: solo mostrar el polígono seleccionado
+        if (singlePolygonMode && selectedPolygon) {
+            return polygons.filter(p => p.id === selectedPolygon);
+        }
+        // Modo normal: filtrar por grupo si está seleccionado
         if (!selectedGroup) return polygons;
         return polygons.filter(p => p.group === selectedGroup);
-    }, [polygons, selectedGroup]);
+    }, [polygons, selectedGroup, singlePolygonMode, selectedPolygon]);
+
+    // Filtrar incidentes y jams según modo
+    const filteredIncidents = useMemo(() => {
+        if (singlePolygonMode && selectedPolygon) {
+            return incidents.filter(i => i.polygonId === selectedPolygon);
+        }
+        return incidents;
+    }, [incidents, singlePolygonMode, selectedPolygon]);
+
+    const filteredJams = useMemo(() => {
+        if (singlePolygonMode && selectedPolygon) {
+            return jams.filter(j => j.polygonId === selectedPolygon);
+        }
+        return jams;
+    }, [jams, singlePolygonMode, selectedPolygon]);
 
     const selectedPolygonData = useMemo(() => {
         if (!selectedPolygon) return null;
@@ -134,6 +173,7 @@ const Dashboard: React.FC = () => {
                             incidents={incidents}
                             alerts={alerts}
                             polygons={polygons}
+                            jams={jams}
                             onEventSelect={handleEventSelect}
                         />
 
@@ -199,26 +239,68 @@ const Dashboard: React.FC = () => {
             case 'map':
                 return (
                     <div className="space-y-4">
-                        {/* Filtros */}
-                        <Filters
-                            polygons={polygons}
-                            selectedPolygon={selectedPolygon}
-                            selectedGroup={selectedGroup}
-                            onPolygonChange={handlePolygonChange}
-                            onGroupChange={handleGroupChange}
-                        />
+                        {/* Indicador de modo tramo único */}
+                        {singlePolygonMode && selectedPolygonData && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="bg-primary-50 border-2 border-primary-300 rounded-xl p-4 flex items-center justify-between"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-primary-100 rounded-lg">
+                                        <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-primary-900">
+                                            Visualizando: {selectedPolygonData.name}
+                                        </p>
+                                        <p className="text-sm text-primary-700">
+                                            {selectedPolygonData.group} • {filteredIncidents.length} incidentes • {filteredJams.length} atascos
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setSinglePolygonMode(false);
+                                        setSelectedPolygon(null);
+                                    }}
+                                    className="px-4 py-2 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 transition-all flex items-center gap-2"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                                    </svg>
+                                    Ver todos los tramos
+                                </button>
+                            </motion.div>
+                        )}
 
-                        {/* Mapa con Estado */}
-                        <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
-                            {/* Estado de Red */}
-                            <div className="xl:col-span-1">
-                                <WazeOMeter jams={jams} />
-                            </div>
+                        {/* Filtros - Solo mostrar si no estamos en modo tramo único */}
+                        {!singlePolygonMode && (
+                            <Filters
+                                polygons={polygons}
+                                selectedPolygon={selectedPolygon}
+                                selectedGroup={selectedGroup}
+                                onPolygonChange={handlePolygonChange}
+                                onGroupChange={handleGroupChange}
+                            />
+                        )}
 
-                            {/* Mapa */}
-                            <div className="xl:col-span-3">
+                        {/* Mapa con Panel de Detalle integrado */}
+                        <div className={`grid gap-4 ${selectedPolygonData ? 'grid-cols-1 lg:grid-cols-10' : 'grid-cols-1 xl:grid-cols-4'}`}>
+                            {/* Estado de Red - Solo visible si no hay polígono seleccionado */}
+                            {!selectedPolygonData && (
+                                <div className="xl:col-span-1">
+                                    <WazeOMeter jams={jams} />
+                                </div>
+                            )}
+
+                            {/* Mapa - 70% cuando hay detalle, 100% si no */}
+                            <div className={selectedPolygonData ? 'lg:col-span-7' : 'xl:col-span-3'}>
                                 <Suspense fallback={
-                                    <div className="card h-[700px] flex items-center justify-center">
+                                    <div className="card h-[600px] flex items-center justify-center">
                                         <div className="text-center">
                                             <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary-600 border-t-transparent"></div>
                                             <p className="mt-2 text-sm text-gray-600">Cargando mapa...</p>
@@ -227,13 +309,27 @@ const Dashboard: React.FC = () => {
                                 }>
                                     <Map
                                         polygons={filteredPolygons}
-                                        incidents={incidents}
-                                        jams={jams}
+                                        incidents={filteredIncidents}
+                                        jams={filteredJams}
                                         selectedPolygon={selectedPolygon}
                                         onPolygonClick={handlePolygonChange}
                                     />
                                 </Suspense>
                             </div>
+
+                            {/* Panel de Detalle - 30% cuando está seleccionado */}
+                            {selectedPolygonData && (
+                                <div className="lg:col-span-3">
+                                    <div className="bg-white rounded-xl shadow-lg h-[600px] overflow-hidden flex flex-col">
+                                        <PolygonDetail
+                                            polygon={selectedPolygonData}
+                                            incidents={filteredIncidents}
+                                            jams={filteredJams}
+                                            onClose={handleCloseDetail}
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Análisis por Grupo */}
@@ -327,35 +423,6 @@ const Dashboard: React.FC = () => {
                     {renderContent()}
                 </motion.div>
 
-                {/* Panel de Detalle (modal lateral) */}
-                {selectedPolygonData && (
-                    <motion.div
-                        className="fixed inset-0 z-50 flex justify-end"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={handleCloseDetail}
-                    >
-                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-                        <motion.div
-                            className="relative w-full max-w-2xl h-full bg-white shadow-2xl overflow-y-auto"
-                            initial={{ x: '100%' }}
-                            animate={{ x: 0 }}
-                            exit={{ x: '100%' }}
-                            transition={{ type: "spring", damping: 30, stiffness: 300 }}
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <div className="p-6">
-                                <PolygonDetail
-                                    polygon={selectedPolygonData}
-                                    incidents={incidents}
-                                    jams={jams}
-                                    onClose={handleCloseDetail}
-                                />
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
             </main>
 
             <Footer />

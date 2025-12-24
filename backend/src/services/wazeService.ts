@@ -14,6 +14,8 @@ import { REAL_POLYGONS, RealPolygonConfig } from '../config/realPolygons';
 import { alertService } from './alertService';
 import { historicalService } from './historicalService';
 import { dataQualityService } from './dataQualityService';
+import { roadAccidentService } from './roadAccidentService';
+import { weatherService } from './weatherService';
 
 /**
  * Servicio de Ingesta de Waze - VERSIÓN MULTI-FEED
@@ -128,6 +130,9 @@ export class WazeService {
             const duration = Date.now() - startTime;
             console.log(`✅ Feed procesado en ${duration}ms. Alertas: ${allAlerts.length}, Jams: ${allJams.length}, Errores: ${errors}/${this.polygons.length}`);
 
+            // --- AUTO-CAPTURA DE SINIESTROS VIALES ---
+            this.autoCaptureAccidents(allAlerts);
+
         } catch (error) {
             console.error('❌ Error crítico en fetchAndProcess:', error instanceof Error ? error.message : error);
         }
@@ -158,7 +163,7 @@ export class WazeService {
 
             if (results[0].status === 'fulfilled') {
                 const data = results[0].value.data;
-                alerts = this.normalizeAlerts(data.alerts || [], polygon.id);
+                alerts = this.normalizeAlerts(data.alerts || [], polygon.id, data.alerts || []);
                 jams = this.normalizeJams(data.jams || [], polygon.id);
             }
 
@@ -186,12 +191,12 @@ export class WazeService {
 
     /**
      * Normaliza alertas raw a formato interno
-     * Ahora recibe el polygonId directamente (ya no necesita GeoService)
+     * Ahora recibe el polygonId directamente
      */
-    private normalizeAlerts(rawAlerts: WazeRawAlert[], polygonId: string): InternalAlert[] {
-        return rawAlerts.map(alert => ({
+    private normalizeAlerts(rawAlerts: WazeRawAlert[], polygonId: string, originalRaw: WazeRawAlert[]): InternalAlert[] {
+        return rawAlerts.map((alert, index) => ({
             id: alert.uuid,
-            polygonId, // Ya sabemos a qué polígono pertenece
+            polygonId,
             type: this.mapIncidentType(alert.type),
             subtype: alert.subtype,
             severity: this.calculateAlertSeverity(alert),
@@ -204,6 +209,7 @@ export class WazeService {
             confidence: alert.confidence,
             reliability: alert.reliability,
             nThumbsUp: alert.nThumbsUp,
+            raw: originalRaw[index] // Guardar 100% de los datos originales
         }));
     }
 
@@ -231,6 +237,7 @@ export class WazeService {
                 roadType: jam.roadType,
                 turnType: jam.turnType,
                 blockingAlertUuid: jam.blockingAlertUuid,
+                line: jam.line, // Línea completa para dibujar en mapa
                 source: 'waze' as const, // Jams de Waze feeds (con coordenadas)
             };
         });
@@ -366,6 +373,59 @@ export class WazeService {
 
     getLastUpdate(): Date {
         return this.lastUpdate;
+    }
+
+    /**
+     * Detecta nuevos accidentes en el feed y los registra automáticamente
+     */
+    private async autoCaptureAccidents(alerts: InternalAlert[]) {
+        try {
+            const accidents = alerts.filter(a => a.type === IncidentType.ACCIDENT);
+            if (accidents.length === 0) return;
+
+            // Obtener siniestros ya registrados para no duplicar (usamos incident_id de Waze)
+            const existingAccidents = await roadAccidentService.getAccidents({ limit: 100 });
+            const existingIds = new Set(existingAccidents.map(a => a.incident_id).filter(id => id !== null));
+
+            for (const accident of accidents) {
+                if (existingIds.has(accident.id)) continue;
+
+                console.log(`🆕 Auto-capturando nuevo accidente detectado: ${accident.street || 'Sin calle'} (${accident.id})`);
+
+                // Obtener clima para el accidente
+                let weatherData = null;
+                if (accident.polygonId) {
+                    weatherData = await weatherService.getLatestWeather(accident.polygonId);
+
+                    // Si no hay clima reciente, intentar fetch directo
+                    if (!weatherData && accident.location) {
+                        weatherData = await weatherService.fetchWeatherForPolygon(
+                            accident.polygonId,
+                            accident.location.lat,
+                            accident.location.lng
+                        );
+                    }
+                }
+
+                // Crear registro formal de siniestro
+                await roadAccidentService.createAccident({
+                    incident_id: accident.id,
+                    waze_data: (accident as any).raw || accident, // Priorizar datos 100% crudos
+                    weather_data: weatherData || {},
+                    type: accident.type,
+                    subtype: accident.subtype,
+                    severity: accident.severity,
+                    street: accident.street,
+                    location_lat: accident.location.lat,
+                    location_lng: accident.location.lng,
+                    accident_at: accident.timestamp
+                });
+
+                console.log(`✅ Siniestro registrado con éxito: ${accident.id}`);
+            }
+        } catch (error) {
+            console.error('⚠️ Error en autoCaptureAccidents:', error);
+        }
     }
 }
 

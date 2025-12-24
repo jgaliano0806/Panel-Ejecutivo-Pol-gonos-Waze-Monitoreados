@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { GlobalKPIs, AlertStats, Incident, TrafficAlert, Polygon } from '../../types';
+import { useNavigate } from 'react-router-dom';
+import type { GlobalKPIs, AlertStats, Incident, TrafficAlert, Polygon, TrafficJam } from '../../types';
 import { IncidentType } from '../../types';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -20,6 +21,7 @@ interface ModernExecutiveSummaryProps {
   incidents?: Incident[];
   alerts?: TrafficAlert[];
   polygons?: Polygon[];
+  jams?: TrafficJam[];
   onEventSelect?: (incident: Incident) => void;
 }
 
@@ -31,8 +33,10 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(({
   incidents = [],
   alerts = [],
   polygons = [],
+  jams = [],
   onEventSelect,
 }) => {
+  const navigate = useNavigate();
   const [showEventsModal, setShowEventsModal] = useState(false);
   const [modalFilter, setModalFilter] = useState<'all' | 'rac-accidents'>('all');
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
@@ -134,15 +138,15 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(({
     },
     {
       id: 'critical',
-      label: 'Polígonos Críticos',
+      label: 'Análisis de Riesgos',
       value: criticalPolygons,
       numericValue: criticalPolygons,
-      subtext: `${((criticalPolygons / totalPolygons) * 100).toFixed(0)}% del total`,
+      subtext: `Tramos en estado crítico • Scoring multifactorial`,
       icon: MapPin,
       gradient: 'from-primary-700 via-primary-800 to-primary-900', // Verde oscuro corporativo
       bgGradient: 'from-primary-100 to-green-100',
       trend: 0,
-      isClickable: false,
+      isClickable: true,
     },
   ];
 
@@ -214,7 +218,7 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(({
             {metrics.map((metric, index) => {
               const Icon = metric.icon;
               const hasEvents = incidents.length > 0 || alerts.length > 0;
-              const isClickable = metric.isClickable && hasEvents;
+              const isClickable = metric.id === 'critical' ? metric.isClickable : (metric.isClickable && hasEvents);
 
               return (
                 <motion.div
@@ -224,7 +228,9 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(({
                   onHoverStart={() => setHoveredCard(index)}
                   onHoverEnd={() => setHoveredCard(null)}
                   onClick={() => {
-                    if (isClickable) {
+                    if (metric.id === 'critical' && isClickable) {
+                      navigate('/riesgos');
+                    } else if (isClickable) {
                       setModalFilter(metric.id === 'incidents' ? 'rac-accidents' : 'all');
                       setShowEventsModal(true);
                     }
@@ -335,7 +341,10 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(({
                           exit={{ opacity: 0, y: 10 }}
                         >
                           <span className="text-xs font-black text-primary-600">
-                            👆 Click para detalles
+                            {metric.id === 'critical'
+                              ? '🛡️ Ver análisis completo de riesgos'
+                              : '👆 Click para detalles'
+                            }
                           </span>
                         </motion.div>
                       )}
@@ -413,6 +422,7 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(({
           incidents={modalFilter === 'rac-accidents' ? racAccidents : incidents}
           alerts={modalFilter === 'rac-accidents' ? [] : alerts}
           polygons={polygons}
+          jams={jams}
           onClose={() => setShowEventsModal(false)}
           onEventClick={handleEventClick}
         />

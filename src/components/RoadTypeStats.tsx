@@ -17,8 +17,8 @@ interface RoadTypeStat {
 
 export const RoadTypeStats: React.FC<RoadTypeStatsProps> = ({ jams }) => {
   const stats = useMemo(() => {
-    const grouped = new Map<number, TrafficJam[]>();
-    
+    const grouped = new globalThis.Map<number, TrafficJam[]>();
+
     for (const jam of jams) {
       if (!jam.roadType) continue;
       if (!grouped.has(jam.roadType)) {
@@ -26,14 +26,14 @@ export const RoadTypeStats: React.FC<RoadTypeStatsProps> = ({ jams }) => {
       }
       grouped.get(jam.roadType)!.push(jam);
     }
-    
+
     const statsArray: RoadTypeStat[] = [];
-    
+
     for (const [roadType, roadJams] of grouped.entries()) {
       const totalSpeed = roadJams.reduce((sum, j) => sum + j.speed, 0);
       const totalDelay = roadJams.reduce((sum, j) => sum + j.delay, 0);
       const totalLength = roadJams.reduce((sum, j) => sum + j.length, 0);
-      
+
       statsArray.push({
         roadType,
         name: getRoadTypeTranslation(roadType),
@@ -43,7 +43,7 @@ export const RoadTypeStats: React.FC<RoadTypeStatsProps> = ({ jams }) => {
         totalLength
       });
     }
-    
+
     return statsArray.sort((a, b) => b.jamCount - a.jamCount).slice(0, 6);
   }, [jams]);
 

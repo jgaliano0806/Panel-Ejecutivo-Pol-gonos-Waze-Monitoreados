@@ -174,3 +174,5 @@ COMMENT ON TABLE polygon_metrics_timeseries IS 'Métricas de polígonos cada 15 
 COMMENT ON TABLE group_performance_daily IS 'Performance diaria comparativa entre grupos de polígonos';
 COMMENT ON TABLE polygon_weather_data IS 'Datos meteorológicos por polígono (Open-Meteo API) con alertas de riesgo';
 
+
+

@@ -29,14 +29,14 @@ export const PolygonWeatherBadge: React.FC<PolygonWeatherBadgeProps> = ({ polygo
                 </div>
                 <span className="font-semibold text-gray-900">{weather.temperature_celsius}°C</span>
             </div>
-            
+
             {weather.has_weather_alert && (
                 <div className="mt-1 flex items-center gap-1 text-xs text-orange-600">
                     <AlertTriangle className="w-3 h-3" />
                     <span>{weather.alert_description}</span>
                 </div>
             )}
-            
+
             {weather.is_freezing_risk && (
                 <div className="mt-1 text-xs text-blue-600 font-medium">
                     ❄️ Riesgo de congelamiento
@@ -45,4 +45,6 @@ export const PolygonWeatherBadge: React.FC<PolygonWeatherBadgeProps> = ({ polygo
         </div>
     );
 };
+
+
 

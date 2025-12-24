@@ -85,7 +85,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ weather, compact = fal
                         <div className="text-sm">
                             <div className="text-gray-500">Visibilidad</div>
                             <div className="font-medium">
-                                {weather.visibility_meters >= 1000 
+                                {weather.visibility_meters >= 1000
                                     ? `${(weather.visibility_meters / 1000).toFixed(1)} km`
                                     : `${weather.visibility_meters} m`
                                 }
@@ -119,4 +119,6 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ weather, compact = fal
         </div>
     );
 };
+
+
 
