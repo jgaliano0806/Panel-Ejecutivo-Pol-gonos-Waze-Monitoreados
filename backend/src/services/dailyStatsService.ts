@@ -102,7 +102,7 @@ export class DailyStatsService {
 
     async getWeeklyStats(from: Date, to: Date): Promise<Record<string, unknown>[]> {
         const query = `
-            SELECT 
+            SELECT
                 DATE_TRUNC('week', date) as week,
                 AVG(avg_fluidity_percentage) as avg_fluidity,
                 AVG(avg_speed) as avg_speed,
@@ -121,7 +121,7 @@ export class DailyStatsService {
 
     async getMonthlyStats(from: Date, to: Date): Promise<Record<string, unknown>[]> {
         const query = `
-            SELECT 
+            SELECT
                 DATE_TRUNC('month', date) as month,
                 AVG(avg_fluidity_percentage) as avg_fluidity,
                 AVG(avg_speed) as avg_speed,
@@ -142,7 +142,7 @@ export class DailyStatsService {
         // Calcular estadísticas del día desde snapshots y otros datos
         const query = `
             WITH polygon_stats AS (
-                SELECT 
+                SELECT
                     polygon_id,
                     AVG(avg_speed) as avg_speed,
                     MIN(avg_speed) as min_speed,
@@ -153,7 +153,7 @@ export class DailyStatsService {
                 GROUP BY polygon_id
             ),
             global_stats AS (
-                SELECT 
+                SELECT
                     AVG(avg_speed) as avg_speed,
                     MIN(avg_speed) as min_speed,
                     SUM(total_jams) as total_jams,
@@ -162,7 +162,7 @@ export class DailyStatsService {
                 WHERE DATE(timestamp) = $1
             ),
             alert_stats AS (
-                SELECT 
+                SELECT
                     COUNT(*) as total_alerts,
                     COUNT(*) FILTER (WHERE severity >= 3) as critical_alerts,
                     AVG(response_time_minutes) as avg_response_time
@@ -173,7 +173,7 @@ export class DailyStatsService {
                 date, avg_speed, min_speed, total_jams, total_incidents,
                 total_alerts, critical_alerts, avg_response_time_minutes
             )
-            SELECT 
+            SELECT
                 $1,
                 g.avg_speed,
                 g.min_speed,

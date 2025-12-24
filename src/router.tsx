@@ -1,5 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
+import { IncidentsHistoryPage } from './pages/IncidentsHistoryPage';
+import { StatsPage } from './pages/StatsPage';
 
 export const router = createBrowserRouter([
   {
@@ -12,15 +14,23 @@ export const router = createBrowserRouter([
   },
   {
     path: '/mapa',
-    element: <Dashboard />, // Por ahora usa el mismo componente
+    element: <Dashboard />,
   },
   {
     path: '/alertas',
-    element: <Dashboard />, // Por ahora usa el mismo componente
+    element: <Dashboard />,
+  },
+  {
+    path: '/historial',
+    element: <IncidentsHistoryPage />,
+  },
+  {
+    path: '/estadisticas',
+    element: <StatsPage />,
   },
   {
     path: '*',
-    element: <Dashboard />, // Redirige cualquier ruta no encontrada al dashboard
+    element: <Dashboard />,
   },
 ]);
 

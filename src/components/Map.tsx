@@ -14,6 +14,7 @@ import {
 } from '../utils/wazeTranslations';
 import { getPolygonById } from '../utils/polygonHelpers';
 import { MAP_CONFIG } from '../config/constants';
+import { PolygonWeatherBadge } from './weather/PolygonWeatherBadge';
 
 
 // Helper para calcular dirección del flujo
@@ -246,6 +247,7 @@ const Map: React.FC<MapProps> = ({
                                                     'Fluido'}
                                         </span>
                                     </p>
+                                    <PolygonWeatherBadge polygonId={polygon.id} />
                                 </div>
                             </Popup>
                         </LeafletPolygon>

@@ -105,7 +105,7 @@ export class WeatherService {
             url.searchParams.append('timezone', 'auto');
 
             const response = await fetch(url.toString());
-            
+
             if (!response.ok) {
                 console.error(`Open-Meteo API error: ${response.status}`);
                 return null;
@@ -277,7 +277,7 @@ export class WeatherService {
     ): boolean {
         // Riesgo si temperatura de carretera cerca o bajo 0°C
         if (roadTemp <= 0) return true;
-        
+
         // Riesgo si hay precipitación y temperatura cercana a 0°C
         if (hasPrecipitation && roadTemp <= 2) return true;
 
@@ -346,7 +346,7 @@ export class WeatherService {
         if (alerts.length === 0) return null;
 
         const severityOrder = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
-        alerts.sort((a, b) => 
+        alerts.sort((a, b) =>
             severityOrder.indexOf(a.severity) - severityOrder.indexOf(b.severity)
         );
 

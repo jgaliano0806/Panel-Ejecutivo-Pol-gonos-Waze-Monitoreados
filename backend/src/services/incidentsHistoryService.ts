@@ -129,7 +129,7 @@ export class IncidentsHistoryService {
 
         let query = `
             WITH clustered_incidents AS (
-                SELECT 
+                SELECT
                     ROUND(latitude::numeric, 4) as lat_cluster,
                     ROUND(longitude::numeric, 4) as lon_cluster,
                     COUNT(*) as incident_count,
@@ -157,7 +157,7 @@ export class IncidentsHistoryService {
                 GROUP BY lat_cluster, lon_cluster
                 HAVING COUNT(*) >= $${paramIndex++}
             )
-            SELECT 
+            SELECT
                 lat_cluster as latitude,
                 lon_cluster as longitude,
                 incident_count,
@@ -200,7 +200,7 @@ export class IncidentsHistoryService {
         }
 
         let query = `
-            SELECT 
+            SELECT
                 ${selectClause},
                 COUNT(*) as total_incidents,
                 AVG(duration_minutes) as avg_duration,

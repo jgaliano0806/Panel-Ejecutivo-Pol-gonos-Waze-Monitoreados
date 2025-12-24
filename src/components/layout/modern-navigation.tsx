@@ -1,11 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Home, Map, AlertCircle } from 'lucide-react';
+import { Home, Map, AlertCircle, History, BarChart3 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Badge } from '../ui/badge';
 import { cn } from '../../lib/utils';
 
-type ViewType = 'home' | 'map' | 'events';
+type ViewType = 'home' | 'map' | 'events' | 'history' | 'stats';
 
 interface ModernNavigationProps {
   currentView: ViewType;
@@ -26,23 +26,37 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
       id: 'home' as ViewType,
       label: 'Inicio',
       icon: Home,
-      color: 'from-primary-600 to-primary-700', // Verde corporativo
+      color: 'from-primary-600 to-primary-700',
       path: '/',
     },
     {
       id: 'map' as ViewType,
       label: 'Mapa y Zonas',
       icon: Map,
-      color: 'from-primary-500 to-primary-600', // Verde corporativo
+      color: 'from-primary-500 to-primary-600',
       path: '/mapa',
     },
     {
       id: 'events' as ViewType,
       label: 'Alertas y Eventos',
       icon: AlertCircle,
-      color: 'from-warning-400 to-warning-500', // Amarillo corporativo
+      color: 'from-warning-400 to-warning-500',
       badge: criticalAlertsCount > 0 ? criticalAlertsCount : undefined,
       path: '/alertas',
+    },
+    {
+      id: 'history' as ViewType,
+      label: 'Historial',
+      icon: History,
+      color: 'from-blue-500 to-blue-600',
+      path: '/historial',
+    },
+    {
+      id: 'stats' as ViewType,
+      label: 'Estadísticas',
+      icon: BarChart3,
+      color: 'from-purple-500 to-purple-600',
+      path: '/estadisticas',
     },
   ];
 
@@ -51,6 +65,8 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
     if (location.pathname === '/' || location.pathname === '/dashboard') return 'home';
     if (location.pathname === '/mapa') return 'map';
     if (location.pathname === '/alertas') return 'events';
+    if (location.pathname === '/historial') return 'history';
+    if (location.pathname === '/estadisticas') return 'stats';
     return currentView;
   };
 

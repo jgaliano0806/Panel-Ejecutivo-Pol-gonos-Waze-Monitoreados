@@ -17,6 +17,7 @@ import { WazeOMeter } from '../components/WazeOMeter';
 import { ModernExecutiveSummary } from '../components/dashboard/modern-executive-summary';
 import { TopCriticalDashboard } from '../components/TopCriticalDashboard';
 import { useHistoricalData, useTrends } from '../hooks/useWazeData';
+import { WeatherAlertsPanel } from '../components/weather/WeatherAlertsPanel';
 
 // Lazy load de componentes pesados
 const Map = lazy(() => import('../components/Map'));
@@ -358,6 +359,7 @@ const Dashboard: React.FC = () => {
             </main>
 
             <Footer />
+            <WeatherAlertsPanel />
         </div>
     );
 };

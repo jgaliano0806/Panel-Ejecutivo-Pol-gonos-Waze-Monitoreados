@@ -4,14 +4,14 @@
 -- ===========================================
 
 -- FASE 0: Mejoras a tabla alerts
-ALTER TABLE alerts 
+ALTER TABLE alerts
     ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMP WITH TIME ZONE,
     ADD COLUMN IF NOT EXISTS resolution_type VARCHAR(50),
     ADD COLUMN IF NOT EXISTS related_incident_ids JSONB DEFAULT '[]'::jsonb,
     ADD COLUMN IF NOT EXISTS response_time_minutes DECIMAL(10,2),
     ADD COLUMN IF NOT EXISTS effectiveness_score INTEGER CHECK (effectiveness_score BETWEEN 1 AND 5);
 
-CREATE INDEX IF NOT EXISTS idx_alerts_resolved 
+CREATE INDEX IF NOT EXISTS idx_alerts_resolved
     ON alerts(resolved_at DESC) WHERE resolved_at IS NOT NULL;
 
 COMMENT ON COLUMN alerts.resolution_type IS 'manual, auto_resolved, false_positive';
@@ -41,13 +41,13 @@ CREATE TABLE IF NOT EXISTS incidents_history (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_incidents_hist_polygon_date 
+CREATE INDEX IF NOT EXISTS idx_incidents_hist_polygon_date
     ON incidents_history(polygon_id, first_seen_at DESC);
-CREATE INDEX IF NOT EXISTS idx_incidents_hist_type_date 
+CREATE INDEX IF NOT EXISTS idx_incidents_hist_type_date
     ON incidents_history(type, first_seen_at DESC);
-CREATE INDEX IF NOT EXISTS idx_incidents_hist_duration 
+CREATE INDEX IF NOT EXISTS idx_incidents_hist_duration
     ON incidents_history(duration_minutes DESC NULLS LAST);
-CREATE INDEX IF NOT EXISTS idx_incidents_hist_location 
+CREATE INDEX IF NOT EXISTS idx_incidents_hist_location
     ON incidents_history(latitude, longitude);
 
 -- FASE 1: Estadísticas diarias
@@ -101,9 +101,9 @@ CREATE TABLE IF NOT EXISTS polygon_metrics_timeseries (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_metrics_polygon_time 
+CREATE INDEX IF NOT EXISTS idx_metrics_polygon_time
     ON polygon_metrics_timeseries(polygon_id, timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_metrics_timestamp 
+CREATE INDEX IF NOT EXISTS idx_metrics_timestamp
     ON polygon_metrics_timeseries(timestamp DESC);
 
 -- FASE 2: Performance por grupo
@@ -127,9 +127,9 @@ CREATE TABLE IF NOT EXISTS group_performance_daily (
     UNIQUE(group_name, date)
 );
 
-CREATE INDEX IF NOT EXISTS idx_group_perf_date 
+CREATE INDEX IF NOT EXISTS idx_group_perf_date
     ON group_performance_daily(date DESC);
-CREATE INDEX IF NOT EXISTS idx_group_perf_name_date 
+CREATE INDEX IF NOT EXISTS idx_group_perf_name_date
     ON group_performance_daily(group_name, date DESC);
 
 -- POC CLIMA: Datos meteorológicos
@@ -158,13 +158,13 @@ CREATE TABLE IF NOT EXISTS polygon_weather_data (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_weather_polygon_time 
+CREATE INDEX IF NOT EXISTS idx_weather_polygon_time
     ON polygon_weather_data(polygon_id, timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_weather_timestamp 
+CREATE INDEX IF NOT EXISTS idx_weather_timestamp
     ON polygon_weather_data(timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_weather_freezing_risk 
+CREATE INDEX IF NOT EXISTS idx_weather_freezing_risk
     ON polygon_weather_data(is_freezing_risk) WHERE is_freezing_risk = TRUE;
-CREATE INDEX IF NOT EXISTS idx_weather_alerts 
+CREATE INDEX IF NOT EXISTS idx_weather_alerts
     ON polygon_weather_data(has_weather_alert) WHERE has_weather_alert = TRUE;
 
 -- Comentarios
