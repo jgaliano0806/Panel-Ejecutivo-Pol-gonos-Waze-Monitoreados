@@ -1162,9 +1162,28 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                         <div className="bg-white/60 rounded-lg p-3">
                                           <p className="text-gray-600 font-semibold text-xs mb-2">Descripción:</p>
                                           <p className="text-gray-800 leading-relaxed">
-                                            {getMainTypeTranslation(currentExpandedIncident.description.toLowerCase()) !== currentExpandedIncident.description.toLowerCase()
-                                              ? getMainTypeTranslation(currentExpandedIncident.description.toLowerCase())
-                                              : currentExpandedIncident.description}
+                                            {(() => {
+                                              const desc = currentExpandedIncident.description;
+                                              // Si parece un subtype (formato HAZARD_ON_SHOULDER_CAR_STOPPED)
+                                              if (/^[A-Z_]+$/.test(desc)) {
+                                                // Intentar traducir como subtype
+                                                const subtypeTranslation = getSubtypeTranslation(
+                                                  currentExpandedIncident.type,
+                                                  desc
+                                                );
+                                                // Si se tradujo, usarlo; si no, intentar como main type
+                                                if (subtypeTranslation !== desc) {
+                                                  return subtypeTranslation;
+                                                }
+                                              }
+                                              // Intentar como main type
+                                              const mainTranslation = getMainTypeTranslation(desc.toLowerCase());
+                                              // Si no se tradujo, intentar con el subtype del incidente
+                                              if (mainTranslation === desc.toLowerCase() && currentExpandedIncident.subtype) {
+                                                return getSubtypeTranslation(currentExpandedIncident.type, currentExpandedIncident.subtype);
+                                              }
+                                              return mainTranslation !== desc.toLowerCase() ? mainTranslation : desc;
+                                            })()}
                                           </p>
                                         </div>
                                       )}

@@ -13,6 +13,7 @@
   <a href="#-instalación-rápida">Instalación</a> •
   <a href="#-desarrollo">Desarrollo</a> •
   <a href="#-api">API</a> •
+  <a href="#-waze-for-cities---feeds-de-datos">Waze Feeds</a> •
   <a href="#-base-de-datos">Base de Datos</a>
 </p>
 
@@ -220,6 +221,140 @@ panel-waze-monitoreados/
 | GET | `/api/incidents/blocking-analysis` | Análisis de incidentes bloqueantes |
 | GET | `/api/incidents/stats/global` | Estadísticas de tipos de incidentes |
 | GET | `/api/data-quality/report` | Reporte de calidad de datos |
+
+---
+
+## 📡 Waze for Cities - Feeds de Datos
+
+### Descripción General
+
+Este sistema consume datos en tiempo real de **Waze for Cities** (Partner Hub) mediante feeds GeoRSS en formato JSON.
+
+**Características:**
+- Actualización cada **2 minutos**
+- **66 polígonos** con feeds individuales
+- Máximo **5,000 eventos** por feed
+- Formatos: JSON (usado) o XML
+
+### Tipos de Feeds
+
+#### 1. Waze Data Feed (Principal)
+Contiene alerts (incidentes) y jams (congestiones).
+
+**Estructura de URL:**
+```
+https://www.waze.com/partnerhub-api/partners/{partner-id}/waze-feeds/{token}?format=1
+```
+
+#### 2. Traffic View Feed - TVT (Opcional)
+Tiempos de viaje históricos vs actuales por segmentos.
+
+**Estructura de URL:**
+```
+https://www.waze.com/partnerhub-api/partners/{partner-id}/tvt-feeds/{token}
+```
+
+### Tipos de Incidentes
+
+| Tipo | Descripción | Ejemplos de Subtipos |
+|------|-------------|----------------------|
+| `ACCIDENT` | Accidentes de tráfico | ACCIDENT_MINOR, ACCIDENT_MAJOR |
+| `ROAD_CLOSED` | Cierre de ruta | ROAD_CLOSED_EVENT, ROAD_CLOSED_CONSTRUCTION |
+| `HAZARD` | Peligros en ruta | HAZARD_ON_ROAD_OBJECT, HAZARD_ON_ROAD_POT_HOLE |
+| `WEATHERHAZARD` | Peligros climáticos | HAZARD_WEATHER_FOG, HAZARD_WEATHER_HEAVY_RAIN |
+| `CONSTRUCTION` | Obras en construcción | CONSTRUCTION |
+| `JAM` | Congestión reportada | JAM_HEAVY_TRAFFIC, JAM_STAND_STILL_TRAFFIC |
+
+### Niveles de Jam (0-5)
+
+| Nivel | Descripción | Velocidad | Estado |
+|-------|-------------|-----------|--------|
+| **0** | Sin congestión | 100% velocidad libre | Flujo libre |
+| **1** | Leve | ~80% velocidad libre | Ligera ralentización |
+| **2** | Moderada | ~60% velocidad libre | Ralentización notable |
+| **3** | Alta | ~40% velocidad libre | Tráfico lento |
+| **4** | Muy alta | ~20% velocidad libre | Muy lento/parado |
+| **5** | Cerrado | 0% | Ruta cerrada |
+
+### Estructura de Datos
+
+#### Alert (Incidente)
+```typescript
+{
+  uuid: string;              // ID único
+  type: string;              // ACCIDENT, ROAD_CLOSED, etc.
+  subtype?: string;          // Subtipo específico
+  location: {
+    x: number;               // Longitud
+    y: number;               // Latitud
+  };
+  street?: string;           // Calle
+  city?: string;             // Ciudad
+  confidence?: number;       // Confianza (0-10)
+  reliability?: number;      // Confiabilidad (0-10)
+  nThumbsUp?: number;        // Confirmaciones de usuarios
+  pubMillis: number;         // Timestamp (epoch ms)
+}
+```
+
+#### Jam (Congestión)
+```typescript
+{
+  uuid: string;              // ID único
+  level: number;             // Nivel 0-5
+  speed: number;             // Velocidad (km/h)
+  delay: number;             // Demora (segundos)
+  length: number;            // Longitud (metros)
+  line: Array<{x, y}>;       // Geometría del jam
+  street?: string;           // Calle
+  blockingAlertUuid?: string; // Incidente causante
+  pubMillis: number;         // Timestamp
+}
+```
+
+### Métricas de Calidad
+
+El sistema utiliza estos campos para validar la calidad de los incidentes:
+
+| Campo | Rango | Uso |
+|-------|-------|-----|
+| `confidence` | 0-10 | Confianza del incidente (≥5 = alta calidad) |
+| `reliability` | 0-10 | Confiabilidad del reportero (≥5 = confiable) |
+| `nThumbsUp` | ≥0 | Confirmaciones de usuarios (≥2 = validado) |
+
+**Filtrado recomendado:**
+- Incidentes de alta calidad: `confidence ≥ 5 AND reliability ≥ 5 AND nThumbsUp ≥ 2`
+- Incidentes críticos: `type = ROAD_CLOSED AND confidence ≥ 7 AND nThumbsUp ≥ 5`
+
+### Límites y Buenas Prácticas
+
+- **Máximo de eventos por feed**: 5,000 (alerts + jams combinados)
+- **Frecuencia de actualización**: 2 minutos (no hacer polling más frecuente)
+- **Timeout recomendado**: 10 segundos
+- **Reintentos**: 3 intentos con backoff exponencial
+
+### Implementación en Este Proyecto
+
+```typescript
+// Ingesta paralela de 66 feeds cada 2 minutos
+wazeService.startIngestionCycle(120000);
+
+// Datos normalizados y asignados a polígonos
+const alerts = wazeService.getAlerts();  // InternalAlert[]
+const jams = wazeService.getJams();      // InternalJam[]
+```
+
+**Archivos relacionados:**
+- [backend/src/services/wazeService.ts](backend/src/services/wazeService.ts) - Servicio de ingesta
+- [backend/src/config/realPolygons.ts](backend/src/config/realPolygons.ts) - Configuración de 66 polígonos
+- [backend/src/types/index.ts](backend/src/types/index.ts) - Tipos TypeScript
+
+### Referencias Oficiales
+
+- [Waze Data Feed Specifications](https://support.google.com/waze/partners/answer/13458165)
+- [Get Traffic Data](https://support.google.com/waze/partners/answer/10618035)
+- [Google Developers - Waze](https://developers.google.com/waze)
+- [Waze for Cities](https://www.waze.com/wazeforcities)
 
 ---
 
