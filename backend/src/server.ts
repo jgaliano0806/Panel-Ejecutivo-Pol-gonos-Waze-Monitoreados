@@ -1137,11 +1137,13 @@ server.get('/api/weather/:polygon_id', async (request, reply) => {
             return;
         }
 
-        // Calcular centro del polígono
-        const lats = polygon.coordinates.map(c => c.lat);
-        const lons = polygon.coordinates.map(c => c.lon);
-        const centerLat = lats.reduce((a, b) => a + b, 0) / lats.length;
-        const centerLon = lons.reduce((a, b) => a + b, 0) / lons.length;
+        // Obtener coordenadas del polígono
+        if (!polygon.coordinates) {
+            reply.code(400).send({ error: 'Polygon coordinates not available' });
+            return;
+        }
+        const centerLat = polygon.coordinates.lat;
+        const centerLon = polygon.coordinates.lon;
 
         // Obtener datos del clima
         const weatherData = await weatherService.fetchWeatherForPolygon(
@@ -1207,11 +1209,9 @@ server.get('/api/weather/alerts', async (request, reply) => {
 // GET /api/weather/all - Clima de todos los polígonos
 server.get('/api/weather/all', async (request, reply) => {
     try {
-        const weatherPromises = REAL_POLYGONS.map(async (polygon) => {
-            const lats = polygon.coordinates.map(c => c.lat);
-            const lons = polygon.coordinates.map(c => c.lon);
-            const centerLat = lats.reduce((a, b) => a + b, 0) / lats.length;
-            const centerLon = lons.reduce((a, b) => a + b, 0) / lons.length;
+        const weatherPromises = REAL_POLYGONS.filter(p => p.coordinates).map(async (polygon) => {
+            const centerLat = polygon.coordinates!.lat;
+            const centerLon = polygon.coordinates!.lon;
 
             const weather = await weatherService.fetchWeatherForPolygon(
                 polygon.id,
