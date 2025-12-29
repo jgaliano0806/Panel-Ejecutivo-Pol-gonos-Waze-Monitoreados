@@ -1,7 +1,27 @@
 {
   "files": [],
   "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
-  ]
+    {
+      "path": "./apps/frontend"
+    },
+    {
+      "path": "./apps/backend"
+    },
+    {
+      "path": "./packages/types"
+    },
+    {
+      "path": "./packages/config"
+    },
+    {
+      "path": "./packages/database"
+    },
+    {
+      "path": "./packages/shared"
+    }
+  ],
+  "compilerOptions": {
+    "composite": true,
+    "skipLibCheck": true
+  }
 }

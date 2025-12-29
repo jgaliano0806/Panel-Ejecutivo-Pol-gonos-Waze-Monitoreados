@@ -6,6 +6,10 @@ import { aggregationService } from './services/aggregationService';
 import { historicalService } from './services/historicalService';
 import { dbService } from './database/dbService';
 import { dataQualityService } from './services/dataQualityService';
+
+// =====================================================
+// 🔧 CONFIGURACIÓN DE FASTIFY CON PLUGINS
+// =====================================================
 import { incidentStatsService } from './services/incidentStatsService';
 import { externalTrafficService } from './services/externalTrafficService';
 import { delayCalculationService } from './services/delayCalculationService';
@@ -20,14 +24,10 @@ import multipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
 import fs from 'fs';
 import { roadAccidentService } from './services/roadAccidentService';
+import { catalogSyncService } from './services/catalogSyncService';
+import axios from 'axios';
 
 dotenv.config();
-
-// Instancia del servicio de API (evita problemas de import/export en TS runtime)
-// const apiService = new ApiService(); // Removed: now imported as singleton
-// const incidentsHistoryService = new IncidentsHistoryService(); // Removed: now imported as singleton
-// const dailyStatsService = new DailyStatsService(); // Removed: now imported as singleton
-// const weatherService = new WeatherService(); // Removed: now imported as singleton
 
 const server = Fastify({
     logger: true,
@@ -47,6 +47,41 @@ server.register(cors, {
 server.register(multipart, {
     limits: {
         fileSize: 50 * 1024 * 1024, // 50MB
+    }
+});
+
+// Configurar compresión GZIP/Brotli para optimización de rendimiento
+server.register(require('@fastify/compress'), {
+    global: true,
+    encodings: ['gzip', 'deflate', 'br'],
+    threshold: 1024, // Comprimir respuestas mayores a 1KB
+    brotliOptions: {
+        quality: 6 // Calidad Brotli (1-11, 6 es buen balance)
+    },
+    zlibOptions: {
+        level: 6 // Nivel de compresión GZIP (1-9, 6 es buen balance)
+    },
+    // Excluir ciertos tipos de contenido de compresión
+    skip: (request: any, reply: any) => {
+        const getHeader = (name: string): unknown => {
+            if (reply && typeof reply.getHeader === 'function') return reply.getHeader(name);
+            if (reply?.raw && typeof reply.raw.getHeader === 'function') return reply.raw.getHeader(name);
+            return undefined;
+        };
+
+        // No comprimir respuestas pequeñas
+        const contentLength = getHeader('content-length');
+        if (contentLength && parseInt(String(contentLength), 10) < 512) {
+            return true;
+        }
+
+        // No comprimir imágenes SVG (ya están comprimidas)
+        const contentType = getHeader('content-type');
+        if (contentType && String(contentType).includes('image/svg+xml')) {
+            return true;
+        }
+
+        return false;
     }
 });
 
@@ -76,12 +111,80 @@ server.setErrorHandler((error: Error, request, reply) => {
 });
 
 // Hook para agregar headers de cache
-server.addHook('onSend', async (request, reply) => {
+server.addHook('onSend', async (request, reply, payload) => {
     // Cache de 30 segundos para datos de Waze (se actualizan cada 2 min)
     if (request.url.startsWith('/api/')) {
         reply.header('Cache-Control', 'public, max-age=30');
     }
+
+    return payload;
 });
+
+// ============================================================================
+// 🔧 FUNCIONES DE SERIALIZACIÓN
+// ============================================================================
+
+/**
+ * Serializa objetos Date a strings ISO para evitar errores de serialización JSON
+ */
+function serializeDate(date: Date | undefined | null): string | null {
+    if (!date) return null;
+    if (!(date instanceof Date)) return null;
+    if (isNaN(date.getTime())) return null;
+    return date.toISOString();
+}
+
+/**
+ * Serializa un array de alertas convirtiendo Date a ISO string
+ */
+function serializeAlerts(alerts: any[]): any[] {
+    return alerts.map(alert => ({
+        ...alert,
+        timestamp: serializeDate(alert.timestamp),
+    }));
+}
+
+/**
+ * Serializa un array de jams convirtiendo Date a ISO string
+ */
+function serializeJams(jams: any[]): any[] {
+    return jams.map(jam => ({
+        ...jam,
+        timestamp: serializeDate(jam.timestamp),
+    }));
+}
+
+/**
+ * Serializa cualquier objeto recursivamente convirtiendo Date a ISO string
+ */
+function serializeObject(obj: any): any {
+    if (obj === null || obj === undefined) return obj;
+
+    if (obj instanceof Date) {
+        return serializeDate(obj);
+    }
+
+    if (Array.isArray(obj)) {
+        return obj.map(item => serializeObject(item));
+    }
+
+    if (typeof obj === 'object') {
+        const serialized: any = {};
+        for (const key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                serialized[key] = serializeObject(obj[key]);
+            }
+        }
+        return serialized;
+    }
+
+    // Para valores NaN, convertirlos a null
+    if (typeof obj === 'number' && isNaN(obj)) {
+        return null;
+    }
+
+    return obj;
+}
 
 // --- Rutas ---
 
@@ -111,19 +214,331 @@ server.get('/api/test', async () => {
     return { message: 'Backend is running!', timestamp: new Date().toISOString() };
 });
 
+// =====================================================
+// 🏥 HEALTH CHECKS PARA MONITOREO Y ORQUESTACIÓN
+// =====================================================
+
+// GET /health - Health check completo para monitoreo
+server.get('/health', async (request, reply) => {
+    const startTime = Date.now();
+
+    try {
+        // Verificar conexión a base de datos
+        const dbHealthy = await checkDatabaseHealth();
+
+        // Verificar servicios externos (Waze, clima)
+        const servicesHealthy = await checkServicesHealth();
+
+        // Calcular uptime
+        const uptime = process.uptime();
+
+        // Información del sistema
+        const health = {
+            status: dbHealthy && servicesHealthy ? 'healthy' : 'unhealthy',
+            timestamp: new Date().toISOString(),
+            uptime: uptime,
+            uptimeFormatted: formatUptime(uptime),
+            version: process.env.npm_package_version || '1.0.0',
+            environment: process.env.NODE_ENV || 'development',
+            checks: {
+                database: {
+                    status: dbHealthy ? 'healthy' : 'unhealthy',
+                    responseTime: Date.now() - startTime
+                },
+                services: {
+                    status: servicesHealthy ? 'healthy' : 'unhealthy',
+                    responseTime: Date.now() - startTime
+                }
+            },
+            memory: {
+                used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024), // MB
+                total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024), // MB
+                external: Math.round(process.memoryUsage().external / 1024 / 1024) // MB
+            }
+        };
+
+        const statusCode = health.status === 'healthy' ? 200 : 503;
+        reply.code(statusCode).send(health);
+
+    } catch (error) {
+        server.log.error('Health check failed:', error);
+        reply.code(503).send({
+            status: 'unhealthy',
+            timestamp: new Date().toISOString(),
+            error: 'Health check failed'
+        });
+    }
+});
+
+// GET /health/live - Liveness probe (Kubernetes/Docker)
+server.get('/health/live', async (request, reply) => {
+    reply.code(200).send({
+        status: 'alive',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime()
+    });
+});
+
+// GET /health/ready - Readiness probe (Kubernetes/Docker)
+server.get('/health/ready', async (request, reply) => {
+    try {
+        // Verificar base de datos
+        const dbReady = await checkDatabaseHealth();
+
+        if (dbReady) {
+            reply.code(200).send({
+                status: 'ready',
+                timestamp: new Date().toISOString(),
+                database: 'connected'
+            });
+        } else {
+            reply.code(503).send({
+                status: 'not ready',
+                timestamp: new Date().toISOString(),
+                database: 'disconnected'
+            });
+        }
+    } catch (error) {
+        reply.code(503).send({
+            status: 'not ready',
+            timestamp: new Date().toISOString(),
+            error: 'Readiness check failed'
+        });
+    }
+});
+
+// =====================================================
+// 📋 ENDPOINTS DE GESTIÓN DE CATÁLOGOS
+// =====================================================
+
+// POST /api/catalogs/sync - Sincronizar catálogos desde feeds de Waze
+server.post('/api/catalogs/sync', async (request, reply) => {
+    try {
+        console.log('🔄 Iniciando sincronización de catálogos desde Waze...');
+        const result = await catalogSyncService.syncFromWazeFeeds();
+
+        reply.send({
+            success: true,
+            message: 'Sincronización completada exitosamente',
+            data: result
+        });
+
+        console.log(`✅ Sincronización completada: ${result.newTypes} nuevos tipos, ${result.newSubtypes} nuevos subtipos`);
+
+    } catch (error) {
+        server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error sincronizando catálogos');
+        reply.code(500).send({
+            error: 'Failed to sync catalogs',
+            message: error instanceof Error ? error.message : 'Error desconocido'
+        });
+    }
+});
+
+// GET /api/catalogs - Obtener todos los tipos de incidentes con subtipos
+server.get('/api/catalogs', async (request, reply) => {
+    try {
+        const catalogs = await catalogSyncService.getAllIncidentTypes();
+        reply.send(serializeObject(catalogs));
+    } catch (error) {
+        server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error obteniendo catálogos');
+        reply.code(500).send({ error: 'Failed to get catalogs' });
+    }
+});
+
+// GET /api/catalogs/stats - Estadísticas de uso de catálogos
+server.get('/api/catalogs/stats', async (request, reply) => {
+    try {
+        const stats = await catalogSyncService.getCatalogUsageStats();
+        reply.send(serializeObject(stats));
+    } catch (error) {
+        server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error obteniendo estadísticas de catálogos');
+        reply.code(500).send({ error: 'Failed to get catalog stats' });
+    }
+});
+
+// POST /api/catalogs/types - Crear nuevo tipo de incidente
+server.post('/api/catalogs/types', async (request, reply) => {
+    try {
+        const { code, name, description, icon, color } = request.body as any;
+
+        if (!code || !name) {
+            reply.code(400).send({ error: 'Code and name are required' });
+            return;
+        }
+
+        // Verificar que no exista
+        const existing = await dbService.query('SELECT id FROM incident_types WHERE code = $1', [code]);
+        if (existing.rows.length > 0) {
+            reply.code(409).send({ error: 'Type code already exists' });
+            return;
+        }
+
+        const result = await dbService.query(`
+            INSERT INTO incident_types (code, name, description, icon, color, is_active, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            RETURNING *
+        `, [code, name, description || '', icon || 'alert-triangle', color || '#6b7280']);
+
+        reply.send(serializeObject(result.rows[0]));
+
+    } catch (error) {
+        server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error creando tipo de incidente');
+        reply.code(500).send({ error: 'Failed to create incident type' });
+    }
+});
+
+// PUT /api/catalogs/types/:id - Actualizar tipo de incidente
+server.put('/api/catalogs/types/:id', async (request, reply) => {
+    try {
+        const id = parseInt(request.params.id);
+        const { name, description, icon, color, is_active } = request.body as any;
+
+        const result = await dbService.query(`
+            UPDATE incident_types
+            SET name = $1, description = $2, icon = $3, color = $4, is_active = $5, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $6
+            RETURNING *
+        `, [name, description, icon, color, is_active, id]);
+
+        if (result.rows.length === 0) {
+            reply.code(404).send({ error: 'Incident type not found' });
+            return;
+        }
+
+        reply.send(serializeObject(result.rows[0]));
+
+    } catch (error) {
+        server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error actualizando tipo de incidente');
+        reply.code(500).send({ error: 'Failed to update incident type' });
+    }
+});
+
+// POST /api/catalogs/subtypes - Crear nuevo subtipo de incidente
+server.post('/api/catalogs/subtypes', async (request, reply) => {
+    try {
+        const { type_id, code, name, description, severity } = request.body as any;
+
+        if (!type_id || !code || !name) {
+            reply.code(400).send({ error: 'type_id, code and name are required' });
+            return;
+        }
+
+        // Verificar que el tipo existe
+        const typeExists = await dbService.query('SELECT id FROM incident_types WHERE id = $1', [type_id]);
+        if (typeExists.rows.length === 0) {
+            reply.code(400).send({ error: 'Invalid type_id' });
+            return;
+        }
+
+        // Verificar que no exista el subtipo
+        const existing = await dbService.query('SELECT id FROM incident_subtypes WHERE type_id = $1 AND code = $2', [type_id, code]);
+        if (existing.rows.length > 0) {
+            reply.code(409).send({ error: 'Subtype code already exists for this type' });
+            return;
+        }
+
+        const result = await dbService.query(`
+            INSERT INTO incident_subtypes (type_id, code, name, description, severity, is_active, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            RETURNING *
+        `, [type_id, code, name, description || '', severity || 'MEDIUM']);
+
+        reply.send(serializeObject(result.rows[0]));
+
+    } catch (error) {
+        server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error creando subtipo de incidente');
+        reply.code(500).send({ error: 'Failed to create incident subtype' });
+    }
+});
+
+// PUT /api/catalogs/subtypes/:id - Actualizar subtipo de incidente
+server.put('/api/catalogs/subtypes/:id', async (request, reply) => {
+    try {
+        const id = parseInt(request.params.id);
+        const { name, description, severity, is_active } = request.body as any;
+
+        const result = await dbService.query(`
+            UPDATE incident_subtypes
+            SET name = $1, description = $2, severity = $3, is_active = $4, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $5
+            RETURNING *
+        `, [name, description, severity, is_active, id]);
+
+        if (result.rows.length === 0) {
+            reply.code(404).send({ error: 'Incident subtype not found' });
+            return;
+        }
+
+        reply.send(serializeObject(result.rows[0]));
+
+    } catch (error) {
+        server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error actualizando subtipo de incidente');
+        reply.code(500).send({ error: 'Failed to update incident subtype' });
+    }
+});
+
+// DELETE /api/catalogs/types/:id - Eliminar tipo de incidente
+server.delete('/api/catalogs/types/:id', async (request, reply) => {
+    try {
+        const id = parseInt(request.params.id);
+
+        // Verificar si hay subtipos asociados
+        const subtypes = await dbService.query('SELECT COUNT(*) as count FROM incident_subtypes WHERE type_id = $1', [id]);
+        if (subtypes.rows[0].count > 0) {
+            reply.code(400).send({
+                error: 'Cannot delete type with associated subtypes',
+                message: `This type has ${subtypes.rows[0].count} subtypes. Delete them first.`
+            });
+            return;
+        }
+
+        const result = await dbService.query('DELETE FROM incident_types WHERE id = $1 RETURNING *', [id]);
+
+        if (result.rows.length === 0) {
+            reply.code(404).send({ error: 'Incident type not found' });
+            return;
+        }
+
+        reply.send({ success: true, message: 'Incident type deleted successfully' });
+
+    } catch (error) {
+        server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error eliminando tipo de incidente');
+        reply.code(500).send({ error: 'Failed to delete incident type' });
+    }
+});
+
+// DELETE /api/catalogs/subtypes/:id - Eliminar subtipo de incidente
+server.delete('/api/catalogs/subtypes/:id', async (request, reply) => {
+    try {
+        const id = parseInt(request.params.id);
+
+        const result = await dbService.query('DELETE FROM incident_subtypes WHERE id = $1 RETURNING *', [id]);
+
+        if (result.rows.length === 0) {
+            reply.code(404).send({ error: 'Incident subtype not found' });
+            return;
+        }
+
+        reply.send({ success: true, message: 'Incident subtype deleted successfully' });
+
+    } catch (error) {
+        server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error eliminando subtipo de incidente');
+        reply.code(500).send({ error: 'Failed to delete incident subtype' });
+    }
+});
+
 server.get('/api/polygons', async (request, reply) => {
     try {
-        const polygons = apiService.getPolygonsStatus();
-        if (!polygons || !Array.isArray(polygons)) {
-            server.log.warn({ url: request.url }, 'getPolygonsStatus retornó valor inválido');
-            return [];
-        }
-        return polygons;
+        // Importar la configuración de polígonos para gestión
+        const { REAL_POLYGONS } = await import('./config/realPolygons');
+
+        // Devolver la configuración de polígonos para gestión
+        return serializeObject(REAL_POLYGONS);
     } catch (error) {
         server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error en /api/polygons');
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         reply.code(500).send({
-            error: 'Failed to get polygons status',
+            error: 'Failed to get polygons',
             message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
         });
     }
@@ -139,15 +554,111 @@ server.get('/api/polygons/:id', async (request, reply) => {
         return;
     }
 
-    return detail;
+    return serializeObject(detail);
     } catch (_error) {
         reply.code(500).send({ error: 'Failed to get polygon detail' });
     }
 });
 
+/**
+ * POST /api/polygons
+ * Crear un nuevo polígono
+ */
+server.post('/api/polygons', async (request, reply) => {
+    try {
+        const polygonData = request.body as {
+            id: string;
+            name: string;
+            feedUrl: string;
+            tvtFeedUrl?: string;
+            group?: string;
+            coordinates?: { lat: number; lon: number };
+        };
+
+        // Validar datos requeridos
+        if (!polygonData.id || !polygonData.name || !polygonData.feedUrl) {
+            reply.code(400).send({ error: 'Missing required fields: id, name, feedUrl' });
+            return;
+        }
+
+        // Aquí iría la lógica para guardar en la base de datos
+        // Por ahora, devolver éxito
+        const newPolygon = {
+            ...polygonData,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+
+        reply.code(201).send(serializeObject(newPolygon));
+    } catch (error) {
+        server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error en POST /api/polygons');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        reply.code(500).send({
+            error: 'Failed to create polygon',
+            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        });
+    }
+});
+
+/**
+ * PUT /api/polygons/:id
+ * Actualizar un polígono existente
+ */
+server.put('/api/polygons/:id', async (request, reply) => {
+    try {
+        const { id } = request.params as { id: string };
+        const polygonData = request.body as {
+            name?: string;
+            feedUrl?: string;
+            tvtFeedUrl?: string;
+            group?: string;
+            coordinates?: { lat: number; lon: number };
+        };
+
+        // Aquí iría la lógica para actualizar en la base de datos
+        // Por ahora, devolver éxito simulado
+        const updatedPolygon = {
+            id,
+            ...polygonData,
+            updated_at: new Date().toISOString()
+        };
+
+        reply.send(serializeObject(updatedPolygon));
+    } catch (error) {
+        server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error en PUT /api/polygons/:id');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        reply.code(500).send({
+            error: 'Failed to update polygon',
+            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        });
+    }
+});
+
+/**
+ * DELETE /api/polygons/:id
+ * Eliminar un polígono
+ */
+server.delete('/api/polygons/:id', async (request, reply) => {
+    try {
+        const { id } = request.params as { id: string };
+
+        // Aquí iría la lógica para eliminar de la base de datos
+        // Por ahora, devolver éxito simulado
+        reply.code(204).send();
+    } catch (error) {
+        server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error en DELETE /api/polygons/:id');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        reply.code(500).send({
+            error: 'Failed to delete polygon',
+            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        });
+    }
+});
+
 server.get('/api/kpis/global', async (request, reply) => {
     try {
-        return apiService.getGlobalKPIs();
+        const kpis = apiService.getGlobalKPIs();
+        return serializeObject(kpis);
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/kpis/global');
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -160,7 +671,8 @@ server.get('/api/kpis/global', async (request, reply) => {
 
 server.get('/api/incidents/all', async (request, reply) => {
     try {
-        return wazeService.getAlerts();
+        const alerts = wazeService.getAlerts();
+        return serializeAlerts(alerts);
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/incidents/all');
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -173,7 +685,8 @@ server.get('/api/incidents/all', async (request, reply) => {
 
 server.get('/api/jams/all', async (request, reply) => {
     try {
-        return wazeService.getJams();
+        const jams = wazeService.getJams();
+        return serializeJams(jams);
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/jams/all');
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -187,7 +700,7 @@ server.get('/api/jams/all', async (request, reply) => {
 server.get('/api/traffic-metrics', async (request, reply) => {
     try {
         const metrics = apiService.getAllTrafficMetrics();
-        return metrics;
+        return serializeObject(metrics);
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/traffic-metrics');
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -224,7 +737,7 @@ server.get('/api/traffic-metrics/:polygonId', async (request, reply) => {
 server.get('/api/alerts', async (request, reply) => {
     try {
         const alerts = alertService.getActiveAlerts();
-        return alerts || [];
+        return serializeObject(alerts || []);
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/alerts');
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -237,7 +750,8 @@ server.get('/api/alerts', async (request, reply) => {
 
 server.get('/api/alerts/stats', async (request, reply) => {
     try {
-        return alertService.getAlertStats();
+        const stats = alertService.getAlertStats();
+        return serializeObject(stats);
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/alerts/stats');
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -318,7 +832,7 @@ server.get('/api/historical/global', async (request, reply) => {
     try {
         const hours = parseInt((request.query as { hours?: string })?.hours || '24');
         const snapshots = await historicalService.getGlobalSnapshots(hours);
-        return snapshots || [];
+        return serializeObject(snapshots || []);
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/historical/global');
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -348,12 +862,12 @@ server.get('/api/historical/trends', async (request, reply) => {
             historicalService.calculateTrends('criticalKm'),
             historicalService.calculateTrends('avgDelay'),
         ]);
-        return {
+        return serializeObject({
             totalJams: totalJams || { current: 0, trend: 'stable', percentChange: 0 },
             avgSpeed: avgSpeed || { current: 0, trend: 'stable', percentChange: 0 },
             criticalKm: criticalKm || { current: 0, trend: 'stable', percentChange: 0 },
             avgDelay: avgDelay || { current: 0, trend: 'stable', percentChange: 0 },
-        };
+        });
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/historical/trends');
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -1147,6 +1661,7 @@ server.get('/api/stats/monthly', async (request, reply) => {
 server.get('/api/weather/:polygon_id', async (request, reply) => {
     try {
         const { polygon_id } = request.params as { polygon_id: string };
+        const { force_refresh } = request.query as { force_refresh?: string };
 
         // Buscar el polígono en la configuración
         const polygon = REAL_POLYGONS.find(p => p.id === polygon_id);
@@ -1155,16 +1670,8 @@ server.get('/api/weather/:polygon_id', async (request, reply) => {
             return;
         }
 
-        // Primero intentar obtener datos guardados en la base de datos
-        const savedWeather = await weatherService.getLatestWeather(polygon_id);
-        if (savedWeather) {
-            reply.send(savedWeather);
-            return;
-        }
-
-        // Si no hay datos guardados, intentar obtener del API si tiene coordenadas
+        // Si no tiene coordenadas, retornar datos por defecto
         if (!polygon.coordinates) {
-            // Retornar datos por defecto si no hay coordenadas ni datos guardados
             reply.send({
                 polygon_id,
                 timestamp: new Date(),
@@ -1182,7 +1689,29 @@ server.get('/api/weather/:polygon_id', async (request, reply) => {
         const centerLat = polygon.coordinates.lat;
         const centerLon = polygon.coordinates.lon;
 
-        // Obtener datos del clima del API
+        // Si no se fuerza refresh, intentar obtener datos guardados recientes (menos de 30 minutos)
+        if (!force_refresh) {
+            const savedWeather = await weatherService.getLatestWeather(polygon_id);
+            if (savedWeather && savedWeather.timestamp) {
+                const savedTime = new Date(savedWeather.timestamp);
+                const now = new Date();
+                const ageMinutes = (now.getTime() - savedTime.getTime()) / (1000 * 60);
+
+                // Si los datos tienen menos de 30 minutos, usarlos
+                if (ageMinutes < 30) {
+                    server.log.info({ polygon_id, ageMinutes: Math.round(ageMinutes) }, 'Usando datos de clima guardados');
+                    reply.send(savedWeather);
+                    return;
+                }
+
+                // Si son más antiguos, obtener datos frescos
+                server.log.info({ polygon_id, ageMinutes: Math.round(ageMinutes) }, 'Datos guardados muy antiguos, obteniendo datos frescos');
+            }
+        } else {
+            server.log.info({ polygon_id }, 'Forzando actualización de clima');
+        }
+
+        // Obtener datos frescos del API (AccuWeather si está configurado, sino Open-Meteo)
         const weatherData = await weatherService.fetchWeatherForPolygon(
             polygon_id,
             centerLat,
@@ -1190,12 +1719,26 @@ server.get('/api/weather/:polygon_id', async (request, reply) => {
         );
 
         if (!weatherData) {
+            // Si falla obtener datos frescos, intentar usar datos guardados como fallback
+            const savedWeather = await weatherService.getLatestWeather(polygon_id);
+            if (savedWeather) {
+                server.log.warn({ polygon_id }, 'No se pudo obtener clima fresco, usando datos guardados');
+                reply.send(savedWeather);
+                return;
+            }
+
             reply.code(503).send({ error: 'Weather service unavailable' });
             return;
         }
 
-        // Guardar en base de datos
+        // Guardar en base de datos para uso futuro
         await weatherService.saveWeatherData(weatherData);
+
+        server.log.info({
+            polygon_id,
+            provider: process.env.WEATHER_PROVIDER || 'openmeteo',
+            temperature: weatherData.temperature_celsius
+        }, 'Clima obtenido y guardado');
 
         reply.send(weatherData);
     } catch (error: unknown) {
@@ -1413,10 +1956,21 @@ server.get('/api/accidents', async (request, reply) => {
             offset: offset ? parseInt(offset) : 0
         });
 
-        return accidents;
+        return serializeObject(accidents);
     } catch (error) {
-        server.log.error(error);
-        return reply.code(500).send({ error: 'Error obteniendo siniestros viales' });
+        server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error en /api/accidents');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+        // Si la tabla no existe, retornar array vacío en lugar de error 500
+        if (error instanceof Error && error.message.includes('does not exist')) {
+            server.log.warn('Tabla road_accidents no existe. Retornando array vacío. Ejecutar: npx ts-node scripts/create-accidents-table.ts');
+            return serializeObject([]);
+        }
+
+        return reply.code(500).send({
+            error: 'Error obteniendo siniestros viales',
+            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        });
     }
 });
 
@@ -1430,10 +1984,14 @@ server.get('/api/accidents/:id', async (request, reply) => {
             return reply.code(404).send({ error: 'Siniestro no encontrado' });
         }
 
-        return accident;
+        return serializeObject(accident);
     } catch (error) {
-        server.log.error(error);
-        return reply.code(500).send({ error: 'Error obteniendo detalle del siniestro' });
+        server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error en /api/accidents/:id');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        return reply.code(500).send({
+            error: 'Error obteniendo detalle del siniestro',
+            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        });
     }
 });
 
@@ -1442,16 +2000,91 @@ server.post('/api/accidents', async (request, reply) => {
     try {
         const data = request.body as any;
 
-        // Si no se provee clima, intentar obtener el más reciente para la ubicación
-        if (!data.weather_data && data.polygonId) {
-            data.weather_data = await weatherService.getLatestWeather(data.polygonId);
+        // Validar datos mínimos requeridos
+        if (!data.location_lat || !data.location_lng) {
+            return reply.code(400).send({
+                error: 'Datos inválidos',
+                message: 'Se requieren location_lat y location_lng'
+            });
+        }
+
+        // Si no se provee clima, intentar obtenerlo usando las coordenadas
+        if (!data.weather_data) {
+            try {
+                // Primero intentar obtener clima del polígono si existe
+                if (data.polygonId) {
+                    try {
+                        data.weather_data = await weatherService.getLatestWeather(data.polygonId);
+                        if (data.weather_data) {
+                            server.log.info({ polygonId: data.polygonId }, 'Clima obtenido de BD para polígono');
+                        }
+                    } catch (polygonError) {
+                        server.log.warn({ polygonId: data.polygonId, error: polygonError }, 'No se pudo obtener clima del polígono');
+                    }
+                }
+
+                // Si no hay clima del polígono, obtenerlo directamente de la API usando coordenadas
+                if (!data.weather_data && data.location_lat && data.location_lng) {
+                    try {
+                        // Usar un polygonId temporal o el incident_id como identificador
+                        const tempPolygonId = data.polygonId || `accident-${data.incident_id || 'temp'}`;
+                        const weatherData = await weatherService.fetchWeatherForPolygon(
+                            tempPolygonId,
+                            Number(data.location_lat),
+                            Number(data.location_lng)
+                        );
+
+                        if (weatherData) {
+                            data.weather_data = weatherData;
+                            server.log.info({
+                                lat: data.location_lat,
+                                lng: data.location_lng,
+                                provider: process.env.WEATHER_PROVIDER || 'openmeteo'
+                            }, 'Clima obtenido de API para accidente');
+                        } else {
+                            server.log.warn({ lat: data.location_lat, lng: data.location_lng }, 'No se pudo obtener clima de la API');
+                            data.weather_data = {};
+                        }
+                    } catch (apiError) {
+                        server.log.warn({
+                            lat: data.location_lat,
+                            lng: data.location_lng,
+                            error: apiError
+                        }, 'Error al obtener clima de la API para accidente');
+                        data.weather_data = {};
+                    }
+                } else if (!data.weather_data) {
+                    data.weather_data = {};
+                }
+            } catch (weatherError) {
+                server.log.warn({ error: weatherError }, 'Error general al obtener clima para el accidente');
+                data.weather_data = {};
+            }
+        }
+
+        // Verificar si ya existe un accidente con el mismo incident_id
+        if (data.incident_id) {
+            try {
+                const existing = await roadAccidentService.getAccidents({ limit: 1000 });
+                const duplicate = existing.find(a => a.incident_id === data.incident_id);
+                if (duplicate) {
+                    return reply.code(409).send({
+                        error: 'Accidente ya existe',
+                        message: `Ya existe un registro con incident_id: ${data.incident_id}`,
+                        accident: serializeObject(duplicate)
+                    });
+                }
+            } catch (checkError) {
+                // Si falla la verificación, continuar de todas formas
+                console.warn('No se pudo verificar duplicados:', checkError);
+            }
         }
 
         const accident = await roadAccidentService.createAccident({
             incident_id: data.incident_id,
             waze_data: data.waze_data || {},
             weather_data: data.weather_data || {},
-            type: data.type,
+            type: data.type || 'ACCIDENT',
             subtype: data.subtype,
             severity: data.severity,
             street: data.street,
@@ -1461,10 +2094,15 @@ server.post('/api/accidents', async (request, reply) => {
             accident_at: data.accident_at ? new Date(data.accident_at) : new Date()
         });
 
-        return accident;
+        server.log.info({ accidentId: accident.id, incidentId: data.incident_id }, 'Siniestro registrado manualmente');
+        return serializeObject(accident);
     } catch (error) {
-        server.log.error(error);
-        return reply.code(500).send({ error: 'Error creando el registro de siniestro' });
+        server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error en POST /api/accidents');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        return reply.code(500).send({
+            error: 'Error creando el registro de siniestro',
+            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        });
     }
 });
 
@@ -1521,10 +2159,14 @@ server.patch('/api/accidents/:id', async (request, reply) => {
             return reply.code(404).send({ error: 'Siniestro no encontrado' });
         }
 
-        return updated;
+        return serializeObject(updated);
     } catch (error) {
-        server.log.error(error);
-        return reply.code(500).send({ error: 'Error actualizando siniestro' });
+        server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error en PATCH /api/accidents/:id');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        return reply.code(500).send({
+            error: 'Error actualizando siniestro',
+            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        });
     }
 });
 
@@ -1574,6 +2216,106 @@ const start = async () => {
         process.exit(1);
     }
 };
+
+// =====================================================
+// 🔄 GRACEFUL SHUTDOWN PARA TERMINACIÓN ORDENADA
+// =====================================================
+
+// Función para cerrar conexiones de manera ordenada
+async function gracefulShutdown(signal: string) {
+    console.log(`🛑 ${signal} received, shutting down gracefully...`);
+
+    try {
+        // Cerrar servidor HTTP
+        console.log('⏳ Closing HTTP server...');
+        await server.close();
+        console.log('✅ HTTP server closed');
+
+        // Cerrar conexiones de base de datos
+        console.log('⏳ Closing database connections...');
+        await dbService.close();
+        console.log('✅ Database connections closed');
+
+        // Cerrar servicios externos si es necesario
+        console.log('⏳ Shutting down services...');
+        // Aquí podrían cerrarse otros servicios si fuera necesario
+
+        console.log('✅ Graceful shutdown completed');
+        process.exit(0);
+
+    } catch (error) {
+        console.error('❌ Error during graceful shutdown:', error);
+        process.exit(1);
+    }
+}
+
+// Manejar señales de terminación para graceful shutdown
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Manejar señales específicas de Windows
+if (process.platform === 'win32') {
+    process.on('SIGBREAK', () => gracefulShutdown('SIGBREAK'));
+    process.on('SIGHUP', () => gracefulShutdown('SIGHUP'));
+}
+
+// =====================================================
+// 🏥 FUNCIONES AUXILIARES DE HEALTH CHECKS
+// =====================================================
+
+// Función auxiliar para verificar salud de base de datos
+async function checkDatabaseHealth(): Promise<boolean> {
+    try {
+        const result = await dbService.query('SELECT 1 as health_check');
+        return result.rows[0].health_check === 1;
+    } catch (error) {
+        server.log.error('Database health check failed:', error);
+        return false;
+    }
+}
+
+// Función auxiliar para verificar salud de servicios externos
+async function checkServicesHealth(): Promise<boolean> {
+    try {
+        // Verificar que podemos hacer una consulta básica a Waze
+        const incidents = wazeService.getAlerts();
+        const hasIncidents = Array.isArray(incidents);
+
+        // Verificar clima (si hay configurado)
+        let weatherOk = true;
+        if (process.env.WEATHER_PROVIDER) {
+            try {
+                // Intentar obtener clima de un punto conocido (Córdoba)
+                await weatherService.fetchWeatherForPolygon({
+                    lat: -31.4167,
+                    lon: -64.1833
+                } as any);
+            } catch {
+                weatherOk = false;
+            }
+        }
+
+        return hasIncidents && weatherOk;
+    } catch (error) {
+        server.log.error('Services health check failed:', error);
+        return false;
+    }
+}
+
+// Función auxiliar para formatear uptime
+function formatUptime(seconds: number): string {
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+
+    const parts = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0) parts.push(`${minutes}m`);
+    parts.push(`${Math.floor(seconds % 60)}s`);
+
+    return parts.join(' ');
+}
 
 // Manejar errores no capturados
 process.on('unhandledRejection', (reason, promise) => {

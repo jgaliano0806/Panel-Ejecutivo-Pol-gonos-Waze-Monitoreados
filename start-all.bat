@@ -139,7 +139,7 @@ echo.
 :: PASO 2: Configurar Backend
 :: ============================================
 echo [2/4] Configurando Backend...
-cd /d "%ROOT%\backend"
+cd /d "%ROOT%\apps\backend"
 if not exist ".env" (
     echo    Archivo .env no encontrado, creando...
     echo # Configuracion de PostgreSQL> .env
@@ -186,7 +186,7 @@ if %ERRORLEVEL% EQU 0 (
     timeout /t 2 /nobreak >nul
 )
 
-start "Backend - Panel Waze" cmd /k "cd /d "%ROOT%\backend" && npm run dev"
+start "Backend - Panel Waze" cmd /k "cd /d ""%ROOT%"" && npm run dev:backend"
 echo    OK: Backend iniciado
 echo    Esperando que este listo...
 timeout /t 5 /nobreak >nul
@@ -206,7 +206,7 @@ if %ERRORLEVEL% EQU 0 (
     timeout /t 2 /nobreak >nul
 )
 
-start "Frontend - Panel Waze" cmd /k "cd /d "%ROOT%" && npm run dev"
+start "Frontend - Panel Waze" cmd /k "cd /d ""%ROOT%"" && npm run dev"
 echo    OK: Frontend iniciado
 timeout /t 3 /nobreak >nul
 echo.

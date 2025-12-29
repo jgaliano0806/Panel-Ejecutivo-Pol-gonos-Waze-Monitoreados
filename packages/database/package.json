@@ -1,0 +1,28 @@
+{
+  "name": "@panel-waze/database",
+  "version": "1.0.0",
+  "description": "Database layer and migrations for Panel Waze",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "typecheck": "tsc --noEmit",
+    "migrate": "ts-node scripts/migrate.ts",
+    "seed": "ts-node scripts/seed.ts",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "pg": "^8.11.3",
+    "dotenv": "^17.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/pg": "^8.10.9",
+    "rimraf": "^5.0.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
+

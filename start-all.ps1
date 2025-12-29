@@ -63,7 +63,7 @@ Write-Host ""
 # PASO 2: Configurar Backend
 # ============================================
 Write-Host "[2/4] Configurando Backend..." -ForegroundColor Yellow
-$envPath = Join-Path $ROOT "backend\.env"
+$envPath = Join-Path $ROOT "apps\backend\.env"
 
 if (-not (Test-Path $envPath)) {
     Write-Host "   Archivo .env no encontrado, creando..."
@@ -90,7 +90,7 @@ Write-Host ""
 # PASO 3: Iniciar Backend
 # ============================================
 Write-Host "[3/4] Iniciando Backend..." -ForegroundColor Yellow
-$backendPath = Join-Path $ROOT "backend"
+$backendPath = Join-Path $ROOT "apps\backend"
 
 # Verificar que el puerto esté libre
 Start-Sleep -Milliseconds 500
@@ -100,7 +100,7 @@ if ($backendTest) {
 }
 
 # Iniciar en nueva ventana CMD
-Start-Process cmd -ArgumentList "/k", "cd /d `"$backendPath`" && title Backend - Panel Waze && npm run dev"
+Start-Process cmd -ArgumentList "/k", "cd /d `"$ROOT`" && title Backend - Panel Waze && npm run dev:backend"
 Write-Host "   OK: Backend iniciado en nueva ventana" -ForegroundColor Green
 Write-Host "   Esperando que este listo..."
 Start-Sleep -Seconds 5

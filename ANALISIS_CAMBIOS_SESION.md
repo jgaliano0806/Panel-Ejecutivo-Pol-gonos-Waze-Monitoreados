@@ -387,8 +387,39 @@ async getActiveWeatherAlerts(): Promise<WeatherData[]> {
 
 1. **Verificar en producción:** Probar con datos reales de Waze
 2. **Monitorear errores:** Revisar consola del navegador para errores de carga de iconos
-3. **Optimizar caché:** Considerar cachear iconos localmente para evitar requests repetidos
+3. ✅ **Optimizar caché:** ~~Considerar cachear iconos localmente para evitar requests repetidos~~ **COMPLETADO** - Sistema de caché implementado
 4. **Documentar:** Actualizar documentación de iconos disponibles
+
+---
+
+## ✅ Optimización de Caché de Iconos (Implementado)
+
+### Cambios Implementados:
+
+**1. Nuevo servicio de caché (`src/utils/iconCache.ts`):**
+- ✅ Pre-carga de iconos comunes al iniciar la aplicación
+- ✅ Caché en memoria con Image objects
+- ✅ Expiración automática (24 horas)
+- ✅ Limpieza automática cuando el caché está lleno (máx. 100 iconos)
+- ✅ Fallback automático a `hazard.svg` en caso de error
+- ✅ Métodos síncronos y asíncronos para obtener iconos
+
+**2. Integración en componentes:**
+- ✅ `Map.tsx` - Usa `iconCache.getIconUrlSync()` para marcadores
+- ✅ `EventsListModal.tsx` - Usa `iconCache.getIconUrlSync()` para marcadores
+- ✅ `main.tsx` - Inicializa pre-carga de iconos comunes
+
+**3. Beneficios:**
+- ⚡ **Rendimiento mejorado:** Evita requests HTTP repetidos para el mismo icono
+- 📦 **Menor uso de red:** Iconos comunes pre-cargados una sola vez
+- 🎯 **Mejor UX:** Iconos se muestran más rápido al estar en caché
+- 🔄 **Gestión automática:** Limpieza y expiración sin intervención manual
+
+**Archivos modificados:**
+- ✅ `src/utils/iconCache.ts` (nuevo)
+- ✅ `src/components/Map.tsx`
+- ✅ `src/components/EventsListModal.tsx`
+- ✅ `src/main.tsx`
 
 ---
 

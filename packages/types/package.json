@@ -1,0 +1,21 @@
+{
+  "name": "@panel-waze/types",
+  "version": "1.0.0",
+  "description": "Shared TypeScript types for Panel Waze",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.9.3"
+  }
+}
+
