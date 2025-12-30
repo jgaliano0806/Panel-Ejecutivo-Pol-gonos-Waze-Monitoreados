@@ -63,6 +63,16 @@ export class DatabaseService {
     }
 
     /**
+     * Obtiene el pool de conexiones
+     */
+    public getPool(): Pool {
+        if (!this.pool) {
+            throw new Error('Pool de PostgreSQL no inicializado');
+        }
+        return this.pool;
+    }
+
+    /**
      * Ejecuta una query
      */
     public async query<T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]): Promise<QueryResult<T>> {

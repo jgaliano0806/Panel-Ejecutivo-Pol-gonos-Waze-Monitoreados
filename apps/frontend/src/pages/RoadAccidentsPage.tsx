@@ -76,9 +76,9 @@ export const RoadAccidentsPage: React.FC = () => {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
     return (
-        <div className="flex min-h-[calc(100vh-200px)] bg-gray-50 overflow-hidden">
+        <div className="flex h-[calc(100vh-200px)] bg-gray-50">
             {/* Sidebar: Lista de Accidentes */}
-            <div className="w-96 border-r border-gray-200 bg-white flex flex-col h-full">
+            <div className="w-96 border-r border-gray-200 bg-white flex flex-col">
                 <div className="p-4 border-b border-gray-200">
                     <div className="flex items-center justify-between mb-2">
                         <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
@@ -92,14 +92,14 @@ export const RoadAccidentsPage: React.FC = () => {
                     <p className="text-sm text-gray-500">Gestión de siniestros y respaldo multimedia</p>
                 </div>
 
-                <div className="flex-1 overflow-hidden">
+                <div className="flex-1 min-h-0">
                     {listLoading ? (
                         <div className="p-8 text-center text-gray-400 italic">Cargando siniestros...</div>
                     ) : (
                         <VirtualizedList
                             items={accidents || []}
                             estimateSize={100}
-                            className="h-full"
+                            className="h-full overflow-auto"
                             emptyMessage="No hay siniestros registrados."
                             renderItem={(acc) => (
                                 <div
@@ -141,7 +141,7 @@ export const RoadAccidentsPage: React.FC = () => {
             </div>
 
             {/* Content: Detalle y Mapa */}
-            <div className="flex-1 flex flex-col h-full overflow-y-auto">
+            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
                 {selectedAccidentId ? (
                     detailsLoading ? (
                         <div className="m-auto text-gray-400">Cargando detalles...</div>
@@ -198,7 +198,7 @@ export const RoadAccidentsPage: React.FC = () => {
                                         <Cloud className="w-5 h-5 text-blue-500" />
                                         Condiciones Climáticas al Momento
                                         <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                                            AccuWeather
+                                            Open-Meteo
                                         </span>
                                     </h3>
 
@@ -208,28 +208,28 @@ export const RoadAccidentsPage: React.FC = () => {
                                                 <Thermometer className="w-8 h-8 text-orange-500" />
                                                 <div>
                                                     <p className="text-xs text-orange-600 font-medium">Temperatura</p>
-                                                    <p className="text-2xl font-bold text-orange-800">{accident.weather_data.temperature_celsius}°C</p>
+                                                    <p className="text-2xl font-bold text-orange-800">{accident.weather_data?.temperature_celsius ?? '--'}°C</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-xl">
                                                 <Droplets className="w-8 h-8 text-blue-500" />
                                                 <div>
                                                     <p className="text-xs text-blue-600 font-medium">Precipitación</p>
-                                                    <p className="text-2xl font-bold text-blue-800">{accident.weather_data.precipitation_mm}mm</p>
+                                                    <p className="text-2xl font-bold text-blue-800">{accident.weather_data?.precipitation_mm ?? 0}mm</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
                                                 <Wind className="w-8 h-8 text-gray-500" />
                                                 <div>
                                                     <p className="text-xs text-gray-500 font-medium">Viento</p>
-                                                    <p className="text-xl font-bold text-gray-700">{accident.weather_data.wind_speed_kmh} km/h</p>
+                                                    <p className="text-xl font-bold text-gray-700">{accident.weather_data?.wind_speed_kmh ?? '--'} km/h</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-4 p-4 bg-purple-50 rounded-xl">
                                                 <Eye className="w-8 h-8 text-purple-500" />
                                                 <div>
                                                     <p className="text-xs text-purple-600 font-medium">Visibilidad</p>
-                                                    <p className="text-xl font-bold text-purple-700">{accident.weather_data.visibility_meters / 1000} km</p>
+                                                    <p className="text-xl font-bold text-purple-700">{accident.weather_data?.visibility_meters ? (accident.weather_data.visibility_meters / 1000).toFixed(1) : '--'} km</p>
                                                 </div>
                                             </div>
                                         </div>

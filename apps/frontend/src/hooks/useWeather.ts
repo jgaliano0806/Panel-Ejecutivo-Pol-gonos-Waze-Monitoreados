@@ -42,11 +42,11 @@ export const usePolygonWeather = (polygonId: string) => {
             // Agregar metadata de proveedor para UI
             return {
                 ...data,
-                _provider: 'accuweather', // Indicador de que usa AccuWeather
+                _provider: 'open-meteo', // Indicador de que usa Open-Meteo
                 _lastUpdate: new Date().toISOString()
             } as WeatherData & { _provider: string; _lastUpdate: string };
         },
-        refetchInterval: 30 * 60 * 1000, // Actualizar cada 30 minutos (más frecuente con AccuWeather)
+        refetchInterval: 60 * 60 * 1000, // Actualizar cada hora (Open-Meteo)
         staleTime: 15 * 60 * 1000, // 15 minutos (más fresco)
         gcTime: 60 * 60 * 1000 // Mantener en cache por 1 hora
     });

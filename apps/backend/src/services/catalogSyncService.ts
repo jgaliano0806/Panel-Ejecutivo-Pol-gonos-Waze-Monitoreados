@@ -1,5 +1,6 @@
 import { dbService } from '../database/dbService';
-import { wazeService } from './wazeService';
+import { repositories } from '../repositories';
+import { toLegacyAlert } from '../utils';
 
 export interface WazeIncidentType {
   type: string;
@@ -37,7 +38,8 @@ export class CatalogSyncService {
 
     try {
       // Obtener todos los incidentes activos de todos los feeds
-      const allIncidents = wazeService.getAlerts();
+      const alerts = await repositories().wazeAlerts.findAllActive();
+      const allIncidents = alerts.map(toLegacyAlert);
       result.totalIncidents = allIncidents.length;
 
       console.log(`📊 Procesando ${allIncidents.length} incidentes de todos los feeds...`);

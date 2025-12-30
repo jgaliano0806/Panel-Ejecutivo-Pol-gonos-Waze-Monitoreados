@@ -364,7 +364,9 @@ const Map: React.FC<MapProps> = ({
 
     React.useEffect(() => {
         if (polygons.length > 0) {
-            setInitialLoad(false);
+            React.startTransition(() => {
+                setInitialLoad(false);
+            });
         }
     }, [polygons]);
 

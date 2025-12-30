@@ -1,5 +1,7 @@
-import { InternalJam, InternalAlert, PolygonTrafficMetrics } from '../types';
+import { PolygonTrafficMetrics } from '../types';
 import { REAL_POLYGONS, getAllGroups } from '../config/realPolygons';
+import { WazeJam } from '../repositories/WazeJamRepository';
+import { WazeAlert } from '../repositories/WazeAlertRepository';
 
 /**
  * Servicio de Agregación de Métricas Multi-Polígono
@@ -65,34 +67,37 @@ export class AggregationService {
      * Calcula métricas globales de todo el sistema
      */
     calculateGlobalMetrics(
-        jams: InternalJam[],
-        incidents: InternalAlert[],
+        jams: WazeJam[],
+        incidents: WazeAlert[],
         trafficMetrics: PolygonTrafficMetrics[]
     ): GlobalTrafficMetrics {
         // Métricas de jams
-        const totalLength = jams.reduce((sum, j) => sum + j.length, 0);
+        const totalLength = jams.reduce((sum, j) => sum + (j.length || 0), 0);
         const criticalJams = jams.filter(j => j.level && j.level >= 4);
-        const criticalLength = criticalJams.reduce((sum, j) => sum + j.length, 0);
+        const criticalLength = criticalJams.reduce((sum, j) => sum + (j.length || 0), 0);
 
         // Velocidad promedio
-        const jamsWithSpeed = jams.filter(j => j.speed > 0);
+        const jamsWithSpeed = jams.filter(j => (j.speedKMH || 0) > 0);
         const avgSpeed = jamsWithSpeed.length > 0
-            ? jamsWithSpeed.reduce((sum, j) => sum + j.speed, 0) / jamsWithSpeed.length
+            ? jamsWithSpeed.reduce((sum, j) => sum + (j.speedKMH || 0), 0) / jamsWithSpeed.length
             : null;
 
         // Delay promedio
         const avgDelay = jams.length > 0
-            ? jams.reduce((sum, j) => sum + j.delay, 0) / jams.length
+            ? jams.reduce((sum, j) => sum + (j.delay || 0), 0) / jams.length
             : 0;
 
         // Polígonos afectados
-        const polygonsWithJams = new Set(jams.map(j => j.polygonId).filter(Boolean));
+        const polygonsWithJams = new Set(jams.map(j => j.polygon_id).filter(Boolean));
         const affectedPolygons = polygonsWithJams.size;
 
         // Polígonos críticos (más de 1 km en estado crítico)
         const criticalPolygonIds = new Set<string>();
         for (const metric of trafficMetrics) {
-            const criticalKm = this.calculateCriticalKm(jams.filter(j => j.polygonId === metric.polygonId));
+            // Note: calculateCriticalKm now expects WazeJam[]
+            // We need to filter jams for this polygon
+            const polygonJams = jams.filter(j => j.polygon_id === metric.polygonId);
+            const criticalKm = this.calculateCriticalKm(polygonJams);
             if (criticalKm >= 1.0) {
                 criticalPolygonIds.add(metric.polygonId);
             }
@@ -119,8 +124,8 @@ export class AggregationService {
      * Calcula métricas por grupo
      */
     private calculateGroupMetrics(
-        jams: InternalJam[],
-        incidents: InternalAlert[],
+        jams: WazeJam[],
+        incidents: WazeAlert[],
         trafficMetrics: PolygonTrafficMetrics[]
     ): GroupMetrics[] {
         const groups = getAllGroups();
@@ -131,19 +136,20 @@ export class AggregationService {
             const groupPolygonIds = groupPolygons.map(p => p.id);
 
             // Filtrar datos del grupo
-            const groupJams = jams.filter(j => groupPolygonIds.includes(j.polygonId || ''));
-            const groupIncidents = incidents.filter(i => groupPolygonIds.includes(i.polygonId || ''));
+            const groupJams = jams.filter(j => groupPolygonIds.includes(j.polygon_id || ''));
+            const groupIncidents = incidents.filter(i => groupPolygonIds.includes(i.polygon_id || ''));
+            // trafficMetrics uses camelCase polygonId
             const groupTrafficMetrics = trafficMetrics.filter(m => groupPolygonIds.includes(m.polygonId));
 
             // Calcular velocidad promedio del grupo
-            const jamsWithSpeed = groupJams.filter(j => j.speed > 0);
+            const jamsWithSpeed = groupJams.filter(j => (j.speedKMH || 0) > 0);
             const avgSpeed = jamsWithSpeed.length > 0
-                ? jamsWithSpeed.reduce((sum, j) => sum + j.speed, 0) / jamsWithSpeed.length
+                ? jamsWithSpeed.reduce((sum, j) => sum + (j.speedKMH || 0), 0) / jamsWithSpeed.length
                 : null;
 
             // Delay promedio
             const avgDelay = groupJams.length > 0
-                ? groupJams.reduce((sum, j) => sum + j.delay, 0) / groupJams.length
+                ? groupJams.reduce((sum, j) => sum + (j.delay || 0), 0) / groupJams.length
                 : 0;
 
             // Km críticos y totales
@@ -152,8 +158,8 @@ export class AggregationService {
             let criticalPolygonCount = 0;
 
             for (const polygonId of groupPolygonIds) {
-                const polygonJams = groupJams.filter(j => j.polygonId === polygonId);
-                const polyTotalKm = polygonJams.reduce((sum, j) => sum + j.length, 0) / 1000;
+                const polygonJams = groupJams.filter(j => j.polygon_id === polygonId);
+                const polyTotalKm = polygonJams.reduce((sum, j) => sum + (j.length || 0), 0) / 1000;
                 const polyCriticalKm = this.calculateCriticalKm(polygonJams);
 
                 totalKm += polyTotalKm;
@@ -165,8 +171,8 @@ export class AggregationService {
             }
 
             // Encontrar peor y mejor polígono
-            const worstPolygon = this.findWorstPolygon(groupPolygonIds, jams, groupTrafficMetrics);
-            const bestPolygon = this.findBestPolygon(groupPolygonIds, jams, groupTrafficMetrics);
+            const worstPolygon = this.findWorstPolygon(groupPolygonIds, groupTrafficMetrics);
+            const bestPolygon = this.findBestPolygon(groupPolygonIds, groupTrafficMetrics);
 
             groupMetrics.push({
                 groupName,
@@ -191,24 +197,24 @@ export class AggregationService {
      * Encuentra los polígonos más críticos
      */
     getTopCriticalPolygons(
-        jams: InternalJam[],
-        incidents: InternalAlert[],
+        jams: WazeJam[],
+        incidents: WazeAlert[],
         limit: number = 10
     ): TopCriticalPolygon[] {
         const polygonScores: TopCriticalPolygon[] = [];
 
         for (const polygon of REAL_POLYGONS) {
-            const polygonJams = jams.filter(j => j.polygonId === polygon.id);
-            const polygonIncidents = incidents.filter(i => i.polygonId === polygon.id);
+            const polygonJams = jams.filter(j => j.polygon_id === polygon.id);
+            const polygonIncidents = incidents.filter(i => i.polygon_id === polygon.id);
 
             if (polygonJams.length === 0) continue;
 
             const criticalKm = this.calculateCriticalKm(polygonJams);
-            const jamsWithSpeed = polygonJams.filter(j => j.speed > 0);
+            const jamsWithSpeed = polygonJams.filter(j => (j.speedKMH || 0) > 0);
             const avgSpeed = jamsWithSpeed.length > 0
-                ? jamsWithSpeed.reduce((sum, j) => sum + j.speed, 0) / jamsWithSpeed.length
+                ? jamsWithSpeed.reduce((sum, j) => sum + (j.speedKMH || 0), 0) / jamsWithSpeed.length
                 : 0;
-            const avgDelay = polygonJams.reduce((sum, j) => sum + j.delay, 0) / polygonJams.length;
+            const avgDelay = polygonJams.reduce((sum, j) => sum + (j.delay || 0), 0) / polygonJams.length;
 
             polygonScores.push({
                 id: polygon.id,
@@ -229,9 +235,9 @@ export class AggregationService {
     /**
      * Calcula kilómetros en estado crítico (jamLevel >= 4)
      */
-    private calculateCriticalKm(jams: InternalJam[]): number {
+    private calculateCriticalKm(jams: WazeJam[]): number {
         const criticalJams = jams.filter(j => j.level && j.level >= 4);
-        const criticalLength = criticalJams.reduce((sum, j) => sum + j.length, 0);
+        const criticalLength = criticalJams.reduce((sum, j) => sum + (j.length || 0), 0);
         return criticalLength / 1000;
     }
 
@@ -240,7 +246,6 @@ export class AggregationService {
      */
     private findWorstPolygon(
         polygonIds: string[],
-        jams: InternalJam[],
         trafficMetrics: PolygonTrafficMetrics[]
     ): WorstPolygonInfo | null {
         let worstPolygon: WorstPolygonInfo | null = null;
@@ -271,7 +276,6 @@ export class AggregationService {
      */
     private findBestPolygon(
         polygonIds: string[],
-        jams: InternalJam[],
         trafficMetrics: PolygonTrafficMetrics[]
     ): BestPolygonInfo | null {
         let bestPolygon: BestPolygonInfo | null = null;

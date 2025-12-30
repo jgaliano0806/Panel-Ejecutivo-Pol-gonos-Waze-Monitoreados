@@ -753,7 +753,7 @@ const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({ polygonId, onCl
     const { data: weatherData, isLoading, refetch } = usePolygonWeather(polygonId);
 
     const handleRefresh = () => {
-        // Forzar refetch con datos frescos de AccuWeather
+        // Forzar refetch con datos frescos de Open-Meteo
         refetch();
     };
 
@@ -779,14 +779,14 @@ const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({ polygonId, onCl
                             Condiciones Climáticas
                         </h2>
                         <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-full">
-                            🌤️ AccuWeather
+                            🌤️ Open-Meteo
                         </span>
                     </div>
                     <div className="flex items-center gap-2">
                         <button
                             onClick={handleRefresh}
                             className="p-2 hover:bg-gray-100 rounded-lg transition-all"
-                            title="Actualizar datos de AccuWeather"
+                            title="Actualizar datos de Open-Meteo"
                         >
                             <RefreshCw className="w-5 h-5 text-blue-600" />
                         </button>

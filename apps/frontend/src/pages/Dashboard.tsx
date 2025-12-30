@@ -65,25 +65,29 @@ const Dashboard: React.FC = () => {
 
     // Sincronizar vista con URL
     useEffect(() => {
-        if (location.pathname === '/' || location.pathname === '/dashboard') {
-            setCurrentView('home');
-        } else if (location.pathname === '/mapa') {
-            setCurrentView('map');
-        } else if (location.pathname === '/alertas') {
-            setCurrentView('events');
-        } else if (location.pathname === '/admin') {
-            setCurrentView('admin');
-        }
+        React.startTransition(() => {
+            if (location.pathname === '/' || location.pathname === '/dashboard') {
+                setCurrentView('home');
+            } else if (location.pathname === '/mapa') {
+                setCurrentView('map');
+            } else if (location.pathname === '/alertas') {
+                setCurrentView('events');
+            } else if (location.pathname === '/admin') {
+                setCurrentView('admin');
+            }
+        });
     }, [location.pathname]);
 
     // Procesar navegación desde RiskDashboard (polígono y filtro seleccionado)
     useEffect(() => {
         const state = location.state as { selectedPolygonId?: string; filterType?: string } | null;
         if (state?.selectedPolygonId) {
-            setSelectedPolygon(state.selectedPolygonId);
-            setSelectedGroup(null); // No filtrar por grupo
-            setSinglePolygonMode(true); // Activar modo de tramo único
-            setCurrentView('map'); // Cambiar a vista de mapa
+            React.startTransition(() => {
+                setSelectedPolygon(state.selectedPolygonId ?? null);
+                setSelectedGroup(null); // No filtrar por grupo
+                setSinglePolygonMode(true); // Activar modo de tramo único
+                setCurrentView('map'); // Cambiar a vista de mapa
+            });
             // Limpiar el state para evitar re-selección en navegaciones futuras
             window.history.replaceState({}, document.title);
         }
@@ -120,26 +124,34 @@ const Dashboard: React.FC = () => {
 
     // Handlers memoizados para evitar re-renders innecesarios
     const handlePolygonChange = useCallback((id: string | null) => {
-        setSelectedPolygon(id);
-        // Si cambia manualmente, desactivar modo tramo único
-        if (singlePolygonMode) {
-            setSinglePolygonMode(false);
-        }
+        React.startTransition(() => {
+            setSelectedPolygon(id);
+            // Si cambia manualmente, desactivar modo tramo único
+            if (singlePolygonMode) {
+                setSinglePolygonMode(false);
+            }
+        });
     }, [singlePolygonMode]);
 
     const handleGroupChange = useCallback((group: string | null) => {
-        setSelectedGroup(group);
+        React.startTransition(() => {
+            setSelectedGroup(group);
+        });
     }, []);
 
     const handleCloseDetail = useCallback(() => {
-        setSelectedPolygon(null);
-        setSinglePolygonMode(false); // Desactivar modo tramo único
+        React.startTransition(() => {
+            setSelectedPolygon(null);
+            setSinglePolygonMode(false); // Desactivar modo tramo único
+        });
     }, []);
 
     const handleEventSelect = useCallback((incident: any) => {
         if (incident.polygonId) {
-            setSelectedPolygon(incident.polygonId);
-            setCurrentView('map');
+            React.startTransition(() => {
+                setSelectedPolygon(incident.polygonId);
+                setCurrentView('map');
+            });
         }
     }, []);
 

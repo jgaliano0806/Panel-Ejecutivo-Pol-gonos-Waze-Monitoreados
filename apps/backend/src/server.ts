@@ -1,10 +1,13 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
-import { wazeService } from './services/wazeService';
+import { repositories } from './repositories';
+import { toLegacyAlert, toLegacyJam } from './utils';
 import { alertService } from './services/alertService';
 import { aggregationService } from './services/aggregationService';
 import { historicalService } from './services/historicalService';
 import { dbService } from './database/dbService';
+import { SocketSubscriber } from './subscribers/SocketSubscriber';
+import { RepositoryFactory } from './repositories';
 import { dataQualityService } from './services/dataQualityService';
 
 // =====================================================
@@ -17,7 +20,8 @@ import { incidentsHistoryService } from './services/incidentsHistoryService';
 import { dailyStatsService } from './services/dailyStatsService';
 import { weatherService } from './services/weatherService';
 import { apiService } from './services/apiService';
-import { REAL_POLYGONS } from './config/realPolygons';
+import { REAL_POLYGONS, RealPolygonConfig } from './config/realPolygons';
+
 import dotenv from 'dotenv';
 import path from 'path';
 import multipart from '@fastify/multipart';
@@ -31,6 +35,7 @@ import { websocketService } from './services/websocketService';
 import rateLimit from '@fastify/rate-limit';
 import { globalRateLimitConfig, rateLimitLoggingHook } from './middleware/rateLimiter';
 import axios from 'axios';
+import { runMigrations } from './database/migrations/runMigrations';
 
 dotenv.config();
 
@@ -593,7 +598,6 @@ server.delete('/api/catalogs/types/:id', async (request, reply) => {
 server.delete('/api/catalogs/subtypes/:id', async (request, reply) => {
     try {
         const id = parseInt((request.params as any).id);
-
         const result = await dbService.query('DELETE FROM incident_subtypes WHERE id = $1 RETURNING *', [id]);
 
         if (result.rows.length === 0) {
@@ -609,137 +613,121 @@ server.delete('/api/catalogs/subtypes/:id', async (request, reply) => {
     }
 });
 
+// --- Endpoints de Polígonos (Gestión) ---
+
+/**
+ * GET /api/polygons
+ * Obtiene todos los polígonos desde la base de datos
+ */
 server.get('/api/polygons', async (request, reply) => {
     try {
-        // Importar la configuración de polígonos para gestión
-        const { REAL_POLYGONS } = await import('./config/realPolygons');
-
-        // Devolver la configuración de polígonos para gestión
-        return serializeObject(REAL_POLYGONS);
+        const polygons = await repositories().polygons.findAll();
+        reply.send(serializeObject(polygons));
     } catch (error) {
-        server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error en /api/polygons');
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        reply.code(500).send({
-            error: 'Failed to get polygons',
-            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
-        });
+        server.log.error({ error }, 'Error al obtener polígonos');
+        reply.code(500).send({ error: 'Failed to get polygons' });
     }
 });
 
-server.get('/api/polygons/:id', async (request, reply) => {
+/**
+ * POST /api/polygons/sync
+ * Sincroniza los polígonos iniciales desde el archivo estático a la base de datos
+ */
+server.post('/api/polygons/sync', async (request, reply) => {
     try {
-    const { id } = request.params as { id: string };
-    const detail = apiService.getPolygonDetail(id);
+        console.log('🔄 Sincronizando polígonos desde configuración estática...');
+        let added = 0;
+        let updated = 0;
 
-    if (!detail) {
-        reply.code(404).send({ error: 'Polygon not found' });
-        return;
-    }
+        for (const poly of REAL_POLYGONS) {
+            const existing = await repositories().polygons.findById(poly.id);
+            if (existing) {
+                await repositories().polygons.update(poly.id, poly);
+                updated++;
+            } else {
+                await repositories().polygons.create(poly);
+                added++;
+            }
+        }
 
-    return serializeObject(detail);
-    } catch (_error) {
-        reply.code(500).send({ error: 'Failed to get polygon detail' });
+        reply.send({
+            success: true,
+            message: `Sincronización completada: ${added} añadidos, ${updated} actualizados`,
+            data: { added, updated }
+        });
+    } catch (error) {
+        server.log.error({ error }, 'Error al sincronizar polígonos');
+        reply.code(500).send({ error: 'Sync failed', message: error instanceof Error ? error.message : 'Unknown error' });
     }
 });
 
 /**
  * POST /api/polygons
- * Crear un nuevo polígono
+ * Crea un nuevo polígono
  */
 server.post('/api/polygons', async (request, reply) => {
     try {
-        const polygonData = request.body as {
-            id: string;
-            name: string;
-            feedUrl: string;
-            tvtFeedUrl?: string;
-            group?: string;
-            coordinates?: { lat: number; lon: number };
-        };
-
-        // Validar datos requeridos
-        if (!polygonData.id || !polygonData.name || !polygonData.feedUrl) {
-            reply.code(400).send({ error: 'Missing required fields: id, name, feedUrl' });
+        const data = request.body as Partial<RealPolygonConfig>;
+        if (!data.id || !data.name || !data.feedUrl) {
+            reply.code(400).send({ error: 'id, name and feedUrl are required' });
             return;
         }
 
-        // Aquí iría la lógica para guardar en la base de datos
-        // Por ahora, devolver éxito
-        const newPolygon = {
-            ...polygonData,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        };
-
-        reply.code(201).send(serializeObject(newPolygon));
+        const result = await repositories().polygons.create(data);
+        reply.send(serializeObject(result));
     } catch (error) {
-        server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error en POST /api/polygons');
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        reply.code(500).send({
-            error: 'Failed to create polygon',
-            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
-        });
+        server.log.error({ error }, 'Error al crear polígono');
+        reply.code(500).send({ error: 'Failed to create polygon' });
     }
 });
 
 /**
  * PUT /api/polygons/:id
- * Actualizar un polígono existente
+ * Actualiza un polígono existente
  */
 server.put('/api/polygons/:id', async (request, reply) => {
     try {
         const { id } = request.params as { id: string };
-        const polygonData = request.body as {
-            name?: string;
-            feedUrl?: string;
-            tvtFeedUrl?: string;
-            group?: string;
-            coordinates?: { lat: number; lon: number };
-        };
+        const data = request.body as Partial<RealPolygonConfig>;
 
-        // Aquí iría la lógica para actualizar en la base de datos
-        // Por ahora, devolver éxito simulado
-        const updatedPolygon = {
-            id,
-            ...polygonData,
-            updated_at: new Date().toISOString()
-        };
+        const result = await repositories().polygons.update(id, data);
+        if (!result) {
+            reply.code(404).send({ error: 'Polygon not found' });
+            return;
+        }
 
-        reply.send(serializeObject(updatedPolygon));
+        reply.send(serializeObject(result));
     } catch (error) {
-        server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error en PUT /api/polygons/:id');
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        reply.code(500).send({
-            error: 'Failed to update polygon',
-            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
-        });
+        server.log.error({ error }, 'Error al actualizar polígono');
+        reply.code(500).send({ error: 'Failed to update polygon' });
     }
 });
 
 /**
  * DELETE /api/polygons/:id
- * Eliminar un polígono
+ * Elimina (soft delete) un polígono
  */
 server.delete('/api/polygons/:id', async (request, reply) => {
     try {
         const { id } = request.params as { id: string };
+        const success = await repositories().polygons.delete(id);
 
-        // Aquí iría la lógica para eliminar de la base de datos
-        // Por ahora, devolver éxito simulado
-        reply.code(204).send();
+        if (!success) {
+            reply.code(404).send({ error: 'Polygon not found' });
+            return;
+        }
+
+        reply.send({ success: true, message: 'Polygon deleted successfully' });
     } catch (error) {
-        server.log.error({ error, url: request.url, stack: error instanceof Error ? error.stack : undefined }, 'Error en DELETE /api/polygons/:id');
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        reply.code(500).send({
-            error: 'Failed to delete polygon',
-            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
-        });
+        server.log.error({ error }, 'Error al eliminar polígono');
+        reply.code(500).send({ error: 'Failed to delete polygon' });
     }
 });
 
+
 server.get('/api/kpis/global', async (request, reply) => {
     try {
-        const kpis = apiService.getGlobalKPIs();
+        const kpis = await apiService.getGlobalKPIs();
         return serializeObject(kpis);
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/kpis/global');
@@ -751,37 +739,9 @@ server.get('/api/kpis/global', async (request, reply) => {
     }
 });
 
-server.get('/api/incidents/all', async (request, reply) => {
-    try {
-        const alerts = wazeService.getAlerts();
-        return serializeAlerts(alerts);
-    } catch (error) {
-        server.log.error({ error, url: request.url }, 'Error en /api/incidents/all');
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        reply.code(500).send({
-            error: 'Failed to get incidents',
-            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
-        });
-    }
-});
-
-server.get('/api/jams/all', async (request, reply) => {
-    try {
-        const jams = wazeService.getJams();
-        return serializeJams(jams);
-    } catch (error) {
-        server.log.error({ error, url: request.url }, 'Error en /api/jams/all');
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        reply.code(500).send({
-            error: 'Failed to get traffic jams',
-            message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
-        });
-    }
-});
-
 server.get('/api/traffic-metrics', async (request, reply) => {
     try {
-        const metrics = apiService.getAllTrafficMetrics();
+        const metrics = await apiService.getAllTrafficMetrics();
         return serializeObject(metrics);
     } catch (error) {
         server.log.error({ error, url: request.url }, 'Error en /api/traffic-metrics');
@@ -796,7 +756,7 @@ server.get('/api/traffic-metrics', async (request, reply) => {
 server.get('/api/traffic-metrics/:polygonId', async (request, reply) => {
     try {
         const { polygonId } = request.params as { polygonId: string };
-        const metrics = apiService.getTrafficMetricsByPolygon(polygonId);
+        const metrics = await apiService.getTrafficMetricsByPolygon(polygonId);
 
         if (!metrics) {
             reply.code(404).send({ error: 'Polygon not found' });
@@ -884,11 +844,11 @@ server.post('/api/alerts/:alertId/acknowledge', async (request, reply) => {
 
 server.get('/api/metrics/global', async (request, reply) => {
     try {
-        const jams = wazeService.getJams();
-        const incidents = wazeService.getAlerts();
-        const trafficMetrics = apiService.getAllTrafficMetrics();
+        const jams = await repositories().wazeJams.findAllActive();
+        const alerts = await repositories().wazeAlerts.findAllActive();
+        const trafficMetrics = await apiService.getAllTrafficMetrics(); // Now async
 
-        const globalMetrics = aggregationService.calculateGlobalMetrics(jams, incidents, trafficMetrics);
+        const globalMetrics = aggregationService.calculateGlobalMetrics(jams, alerts, trafficMetrics);
         return globalMetrics;
     } catch (error) {
         reply.code(500).send({ error: 'Failed to get global metrics' });
@@ -898,10 +858,10 @@ server.get('/api/metrics/global', async (request, reply) => {
 server.get('/api/metrics/top-critical', async (request, reply) => {
     try {
         const limit = parseInt((request.query as { limit?: string })?.limit || '10');
-        const jams = wazeService.getJams();
-        const incidents = wazeService.getAlerts();
+        const jams = await repositories().wazeJams.findAllActive();
+        const alerts = await repositories().wazeAlerts.findAllActive();
 
-        const topCritical = aggregationService.getTopCriticalPolygons(jams, incidents, limit);
+        const topCritical = aggregationService.getTopCriticalPolygons(jams, alerts, limit);
         return topCritical;
     } catch (error) {
         reply.code(500).send({ error: 'Failed to get top critical polygons' });
@@ -976,7 +936,8 @@ server.get('/api/historical/availability', async (request, reply) => {
  */
 server.get('/api/data-quality/report', async (request, reply) => {
     try {
-        const incidents = wazeService.getAlerts();
+        const alerts = await repositories().wazeAlerts.findAllActive();
+        const incidents = alerts.map(toLegacyAlert);
         const report = dataQualityService.generateQualityReport(incidents);
 
         // Convertir Map a objeto para JSON
@@ -999,7 +960,8 @@ server.get('/api/data-quality/report', async (request, reply) => {
  */
 server.get('/api/data-quality/metrics', async (request, reply) => {
     try {
-        const incidents = wazeService.getAlerts();
+        const alerts = await repositories().wazeAlerts.findAllActive();
+        const incidents = alerts.map(toLegacyAlert);
         const metrics = dataQualityService.calculateQualityMetrics(incidents);
         return metrics;
     } catch (error) {
@@ -1013,7 +975,8 @@ server.get('/api/data-quality/metrics', async (request, reply) => {
  */
 server.get('/api/data-quality/incidents/high-quality', async (request, reply) => {
     try {
-        const incidents = wazeService.getAlerts();
+        const alerts = await repositories().wazeAlerts.findAllActive();
+        const incidents = alerts.map(toLegacyAlert);
         const highQuality = dataQualityService.getHighQualityIncidents(incidents);
         return highQuality;
     } catch (error) {
@@ -1027,7 +990,8 @@ server.get('/api/data-quality/incidents/high-quality', async (request, reply) =>
  */
 server.get('/api/data-quality/incidents/prioritized', async (request, reply) => {
     try {
-        const incidents = wazeService.getAlerts();
+        const alerts = await repositories().wazeAlerts.findAllActive();
+        const incidents = alerts.map(toLegacyAlert);
         const prioritized = dataQualityService.prioritizeIncidents(incidents);
         return prioritized;
     } catch (error) {
@@ -1042,7 +1006,8 @@ server.get('/api/data-quality/incidents/prioritized', async (request, reply) => 
 server.get('/api/data-quality/incidents/stale', async (request, reply) => {
     try {
         const maxAge = parseInt((request.query as { maxAge?: string })?.maxAge || '30'); // minutos
-        const incidents = wazeService.getAlerts();
+        const alerts = await repositories().wazeAlerts.findAllActive();
+        const incidents = alerts.map(toLegacyAlert);
         const stale = dataQualityService.detectStaleIncidents(incidents, maxAge);
         return stale;
     } catch (_error) {
@@ -1056,8 +1021,10 @@ server.get('/api/data-quality/incidents/stale', async (request, reply) => {
  */
 server.get('/api/data-quality/feed-status', async (request, reply) => {
     try {
-        const incidents = wazeService.getAlerts();
-        const jams = wazeService.getJams();
+        const alerts = await repositories().wazeAlerts.findAllActive();
+        const jamsData = await repositories().wazeJams.findAllActive();
+        const incidents = alerts.map(toLegacyAlert);
+        const jams = jamsData.map(toLegacyJam);
         const status = dataQualityService.checkFeedLimit(incidents, jams);
         return status;
     } catch (error) {
@@ -1091,6 +1058,38 @@ server.post('/api/data-quality/thresholds', async (request, reply) => {
     }
 });
 
+// --- Endpoints de Datos Raw para Mapa ---
+
+/**
+ * GET /api/incidents/all
+ * Obtiene todos los incidentes activos formateados para el mapa
+ */
+server.get('/api/incidents/all', async (request, reply) => {
+    try {
+        const alertsData = await repositories().wazeAlerts.findAllActive();
+        const incidents = alertsData.map(toLegacyAlert);
+        return incidents;
+    } catch (error) {
+        server.log.error({ error }, 'Error retrieving all incidents');
+        reply.code(500).send({ error: 'Failed to retrieve incidents' });
+    }
+});
+
+/**
+ * GET /api/jams/all
+ * Obtiene todos los jams activos formateados para el mapa
+ */
+server.get('/api/jams/all', async (request, reply) => {
+    try {
+        const jamsData = await repositories().wazeJams.findAllActive();
+        const jams = jamsData.map(toLegacyJam);
+        return jams;
+    } catch (error) {
+        server.log.error({ error }, 'Error retrieving all jams');
+        reply.code(500).send({ error: 'Failed to retrieve jams' });
+    }
+});
+
 // --- Endpoints de Estadísticas de Incidentes ---
 
 /**
@@ -1099,8 +1098,10 @@ server.post('/api/data-quality/thresholds', async (request, reply) => {
  */
 server.get('/api/incidents/stats/global', async (request, reply) => {
     try {
-        const alerts = wazeService.getAlerts();
-        const jams = wazeService.getJams();
+        const alertsData = await repositories().wazeAlerts.findAllActive();
+        const jamsData = await repositories().wazeJams.findAllActive();
+        const alerts = alertsData.map(toLegacyAlert);
+        const jams = jamsData.map(toLegacyJam);
         const stats = incidentStatsService.getGlobalStats(alerts, jams);
         return stats;
     } catch (error) {
@@ -1122,8 +1123,10 @@ server.get('/api/incidents/stats/polygon/:polygonId', async (request, reply) => 
             return;
         }
 
-        const alerts = wazeService.getAlerts();
-        const jams = wazeService.getJams();
+        const alertsData = await repositories().wazeAlerts.findAllActive();
+        const jamsData = await repositories().wazeJams.findAllActive();
+        const alerts = alertsData.map(toLegacyAlert);
+        const jams = jamsData.map(toLegacyJam);
         const stats = incidentStatsService.getPolygonStats(
             polygonId,
             polygon.name,
@@ -1143,7 +1146,8 @@ server.get('/api/incidents/stats/polygon/:polygonId', async (request, reply) => 
  */
 server.get('/api/incidents/types-summary', async (request, reply) => {
     try {
-        const alerts = wazeService.getAlerts();
+        const alertsData = await repositories().wazeAlerts.findAllActive();
+        const alerts = alertsData.map(toLegacyAlert);
 
         // Agrupar por tipo
         const typeCounts = new Map<string, number>();
@@ -1175,8 +1179,10 @@ server.get('/api/incidents/delay/:incidentId', async (request, reply) => {
     try {
         const { incidentId } = request.params as { incidentId: string };
 
-        const alerts = wazeService.getAlerts();
-        const jams = wazeService.getJams();
+        const alertsData = await repositories().wazeAlerts.findAllActive();
+        const jamsData = await repositories().wazeJams.findAllActive();
+        const alerts = alertsData.map(toLegacyAlert);
+        const jams = jamsData.map(toLegacyJam);
         const incident = alerts.find(a => a.id === incidentId);
 
         if (!incident) {
@@ -1213,8 +1219,10 @@ server.get('/api/incidents/delay/:incidentId', async (request, reply) => {
  */
 server.get('/api/incidents/delays/all', async (request, reply) => {
     try {
-        const alerts = wazeService.getAlerts();
-        const jams = wazeService.getJams();
+        const alertsData = await repositories().wazeAlerts.findAllActive();
+        const jamsData = await repositories().wazeJams.findAllActive();
+        const alerts = alertsData.map(toLegacyAlert);
+        const jams = jamsData.map(toLegacyJam);
         const historicalData = await historicalService.getGlobalSnapshots(24);
 
         const delayResults = delayCalculationService.calculateBatchDelays(
@@ -1270,7 +1278,14 @@ function calculateDistanceMeters(lat1: number, lng1: number, lat2: number, lng2:
 /**
  * Agrupa incidentes por calle y proximidad geográfica para evitar duplicados
  */
-function groupIncidentsByProximity(incidents: typeof wazeService extends { getAlerts: () => infer R } ? (R extends (infer T)[] ? T[] : never) : never, proximityThreshold: number = 200) {
+import { InternalAlert } from './types'; // Ensure imported if not already. Actually InternalAlert is redundant if using module scope but let's see.
+// Use 'any' or correct type for now to avoid import issues, then refine.
+// Or better: import { InternalAlert } from './types'; is assumed to be available or added?
+// Looking at imports in server.ts, types are not imported directly mostly.
+// But 'server.ts' imports from './utils' which might export types?
+// No, utils exports functions.
+// Let's use `any[]` or better define `{ location: {lat: number, lng: number}, ... }[]`
+function groupIncidentsByProximity(incidents: any[], proximityThreshold: number = 200) {
     const groups: Array<{
         primary: typeof incidents[0];
         related: typeof incidents[0][];
@@ -1332,12 +1347,23 @@ function groupIncidentsByProximity(incidents: typeof wazeService extends { getAl
  */
 server.get('/api/incidents/blocking-analysis', async (request, reply) => {
     try {
-        const alerts = wazeService.getAlerts();
-        const jams = wazeService.getJams();
+        const alertsData = await repositories().wazeAlerts.findAllActive();
+        const jamsData = await repositories().wazeJams.findAllActive();
+        const alerts = alertsData.map(toLegacyAlert);
+        const jams = jamsData.map(toLegacyJam);
         const historicalData = await historicalService.getGlobalSnapshots(24);
 
         // Filtrar solo incidentes que podrían ser bloqueantes
-        const blockingTypes = ['ROAD_CLOSED', 'road_closed', 'ACCIDENT', 'accident', 'HAZARD', 'hazard'];
+        const blockingTypes = [
+            'ROAD_CLOSED', 'road_closed',
+            'ACCIDENT', 'accident',
+            'HAZARD', 'hazard',
+            'POLICE', 'police',
+            'CONSTRUCTION', 'construction',
+            'MISC', 'misc',
+            'JAM', 'jam',
+            'WEATHERHAZARD', 'weatherhazard'
+        ];
         const potentialBlockingIncidents = alerts.filter(a =>
             blockingTypes.some(t => a.type.toLowerCase().includes(t.toLowerCase())) ||
             a.severity >= 4
@@ -1455,7 +1481,7 @@ server.get('/api/incidents/blocking-analysis', async (request, reply) => {
  * Si no, calcula el centro desde los incidentes y jams activos del polígono.
  * Si no hay datos, usa las coordenadas por defecto de Córdoba.
  */
-function calculatePolygonCenter(polygonId: string): { lat: number; lon: number } {
+async function calculatePolygonCenter(polygonId: string): Promise<{ lat: number; lon: number }> {
     const polygon = REAL_POLYGONS.find(p => p.id === polygonId);
 
     // Si el polígono tiene coordenadas configuradas, usarlas
@@ -1467,22 +1493,34 @@ function calculatePolygonCenter(polygonId: string): { lat: number; lon: number }
     }
 
     // Intentar calcular desde los datos de Waze
-    const alerts = wazeService.getAlerts().filter(a => a.polygonId === polygonId);
-    const jams = wazeService.getJams().filter(j => j.polygonId === polygonId);
+    const allAlerts = await repositories().wazeAlerts.findAllActive();
+    const allJams = await repositories().wazeJams.findAllActive();
+
+    const alerts = allAlerts.filter(a => a.polygon_id === polygonId);
+    const jams = allJams.filter(j => j.polygon_id === polygonId);
 
     const locations: Array<{ lat: number; lon: number }> = [];
 
+
     // Agregar ubicaciones de alertas
     alerts.forEach(alert => {
-        if (alert.location?.lat && alert.location?.lng) {
-            locations.push({ lat: alert.location.lat, lon: alert.location.lng });
+        if (alert.location?.x && alert.location?.y) {
+            locations.push({ lat: alert.location.y, lon: alert.location.x });
         }
     });
 
     // Agregar ubicaciones de jams
     jams.forEach(jam => {
-        if (jam.location?.lat && jam.location?.lng) {
-            locations.push({ lat: jam.location.lat, lon: jam.location.lng });
+        // Extract start point from polyline
+        let line: any[] = [];
+        if (Array.isArray(jam.polyline)) {
+            line = jam.polyline;
+        } else if (typeof jam.polyline === 'string') {
+            try { line = JSON.parse(jam.polyline); } catch {}
+        }
+
+        if (line.length > 0 && line[0].y && line[0].x) {
+            locations.push({ lat: Number(line[0].y), lon: Number(line[0].x) });
         }
     });
 
@@ -1512,11 +1550,11 @@ server.get('/api/speed/comparison/:polygonId', async (request, reply) => {
         }
 
         // Obtener velocidad de Waze
-        const trafficMetrics = apiService.getTrafficMetricsByPolygon(polygonId);
+        const trafficMetrics = await apiService.getTrafficMetricsByPolygon(polygonId);
         const wazeSpeed = trafficMetrics?.avgSpeed || null;
 
         // Calcular centro del polígono (desde config, datos de Waze, o fallback)
-        const center = calculatePolygonCenter(polygonId);
+        const center = await calculatePolygonCenter(polygonId);
         const centerLat = center.lat;
         const centerLon = center.lon;
 
@@ -1544,7 +1582,7 @@ server.get('/api/speed/comparison/all', async (request, reply) => {
         const limit = parseInt((request.query as { limit?: string })?.limit || '10');
 
         // Obtener polígonos con tráfico
-        const allMetrics = apiService.getAllTrafficMetrics();
+        const allMetrics = await apiService.getAllTrafficMetrics();
         const topPolygons = allMetrics
             .filter(m => m.totalJams > 0)
             .slice(0, limit);
@@ -1556,7 +1594,7 @@ server.get('/api/speed/comparison/all', async (request, reply) => {
                 if (!polygon) return null;
 
                 // Calcular centro del polígono (desde config, datos de Waze, o fallback)
-                const center = calculatePolygonCenter(metrics.polygonId);
+                const center = await calculatePolygonCenter(metrics.polygonId);
                 const centerLat = center.lat;
                 const centerLon = center.lon;
 
@@ -2276,22 +2314,30 @@ const start = async () => {
         console.log('🔧 Inicializando servicios...');
 
         // Verificar que los servicios estén inicializados
-        console.log('✓ wazeService inicializado');
         console.log('✓ apiService inicializado');
         console.log('✓ alertService inicializado');
 
-        // Iniciar ingesta de Waze (no bloquea el arranque del servidor)
+        // Inicializar Repositorios
         try {
-            wazeService.startIngestionCycle();
-            console.log('✓ Ciclo de ingesta iniciado');
-        } catch (ingestionError) {
-            console.error('⚠️ Error al iniciar ciclo de ingesta (continuando):', ingestionError);
+            RepositoryFactory.initialize(dbService.getPool());
+            console.log('✓ RepositoryFactory inicializado');
+        } catch (repoError) {
+            console.error('❌ Error fatal al inicializar repositorios:', repoError);
+            process.exit(1);
         }
 
-        // Iniciar polling de Waze con persistencia PostgreSQL
+        // Ejecutar migraciones de base de datos
+        try {
+            await runMigrations();
+            console.log('✓ Migraciones de base de datos completadas');
+        } catch (migrationError) {
+            console.warn('⚠️ Error en migraciones (continuando):', migrationError);
+        }
+
+        // Iniciar polling de Waze (una sola vez)
         try {
             wazePollingService.startPolling();
-            console.log('✓ WazePollingService iniciado (persistencia DB)');
+            console.log('✓ WazePollingService iniciado (ingesta + persistencia)');
         } catch (pollingError) {
             console.error('⚠️ Error al iniciar WazePollingService (continuando):', pollingError);
         }
@@ -2310,8 +2356,11 @@ const start = async () => {
         // Inicializar WebSocket después de que el servidor esté escuchando
         try {
             websocketService.initialize(server.server);
-            wazePollingService.setSocketIO(websocketService.getIO());
-            openMeteoService.setSocketIO(websocketService.getIO());
+            // wazePollingService.setSocketIO(websocketService.getIO()); // REMOVED: Using SocketSubscriber
+            // Initialize Socket Subscriber
+            new SocketSubscriber(websocketService.getIO()); // Initialize here if not earlier
+
+            // openMeteoService.setSocketIO(websocketService.getIO()); // Keep if openMeteoService still needs it or refactor later
             console.log('✓ WebSocket service initialized');
         } catch (wsError) {
             console.error('⚠️ Error al iniciar WebSocket (continuando):', wsError);
@@ -2393,7 +2442,8 @@ async function checkDatabaseHealth(): Promise<boolean> {
 async function checkServicesHealth(): Promise<boolean> {
     try {
         // Verificar que podemos hacer una consulta básica a Waze
-        const incidents = wazeService.getAlerts();
+        const alerts = await repositories().wazeAlerts.findAllActive();
+        const incidents = alerts.map(toLegacyAlert);
         const hasIncidents = Array.isArray(incidents);
 
         // Verificar clima (si hay configurado)

@@ -555,3 +555,23 @@ src/
 **Estrategia:** Híbrido optimizado (Opción C)
 **Estado:** ✅ **LISTO PARA PRODUCCIÓN**
 
+
+---
+
+## 🧹 FASE 6 - Code Cleanup & Refactorización (30/12/2025)
+
+### 🎯 Objetivos Logrados
+- **Eliminación de Monolito:** Se eliminó `WazeService`, distribuyendo sus responsabilidades.
+- **Patrón Repository:** Implementación completa de capa de acceso a datos (`RepositoryFactory`).
+- **Limpieza:** Eliminación de archivos temporales y logs.
+- **Optimización:** Mejora en manejo de conexiones y eventos asíncronos.
+
+### 📁 Archivos Refactorizados
+- `server.ts`: Desacoplado de `wazeService`.
+- `WazePollingService.ts`: Ahora enfocado puramente en ingesta.
+- `AccidentCaptureListener.ts`: Lógica de negocio reactiva separada.
+
+### ✅ Estado
+La arquitectura del backend es ahora más modular, testearle y mantenible.
+
+

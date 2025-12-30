@@ -18,6 +18,8 @@ export interface RoadAccident {
     accident_at?: Date;
     created_at?: Date;
     updated_at?: Date;
+    status?: 'active' | 'inactive';
+    polygon_id?: string;
     media?: AccidentMedia[];
 }
 
@@ -62,8 +64,8 @@ export class RoadAccidentService {
             INSERT INTO road_accidents (
                 incident_id, waze_data, weather_data, type, subtype,
                 severity, street, location_lat, location_lng,
-                operator_notes, accident_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                operator_notes, accident_at, status, polygon_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             RETURNING *
         `;
 
@@ -78,7 +80,9 @@ export class RoadAccidentService {
             data.location_lat,
             data.location_lng,
             data.operator_notes || null,
-            data.accident_at || new Date()
+            data.accident_at || new Date(),
+            data.status || 'active',  // Por defecto activo
+            data.polygon_id || null
         ];
 
         try {
@@ -266,6 +270,66 @@ export class RoadAccidentService {
         }
 
         return false;
+    }
+
+    /**
+     * Obtiene estadísticas de conteo de siniestros ACTIVOS en la RAC para KPIs del Dashboard
+     * Solo cuenta accidentes con status='active' en polígonos de la Red de Accesos Córdoba
+     */
+    async getAccidentsCount(): Promise<{ total: number; critical: number; high: number }> {
+        try {
+            // Grupos de la RAC (Red de Accesos Córdoba)
+            const RAC_GROUPS = [
+                'Autovía A-019',
+                'Área Capital',
+                'Ruta Nacional 9',
+                'Ruta Nacional 19',
+                'Ruta Nacional 36',
+            ];
+
+            // Obtener IDs de polígonos RAC desde la base de datos
+            const polygonQuery = `
+                SELECT id FROM config_polygons
+                WHERE "group" = ANY($1)
+            `;
+            const polygonResult = await dbService.query(polygonQuery, [RAC_GROUPS]);
+            const racPolygonIds = polygonResult.rows.map((row: any) => row.id);
+
+            if (racPolygonIds.length === 0) {
+                // No hay polígonos RAC configurados
+                return { total: 0, critical: 0, high: 0 };
+            }
+
+            // Contar solo accidentes ACTIVOS en polígonos de la RAC
+            const query = `
+                SELECT
+                    COUNT(*) as total,
+                    COUNT(*) FILTER (WHERE severity >= 4) as critical,
+                    COUNT(*) FILTER (WHERE severity >= 3) as high
+                FROM road_accidents
+                WHERE status = 'active'
+                AND polygon_id = ANY($1)
+            `;
+            const result = await dbService.query(query, [racPolygonIds]);
+
+            if (result.rows.length > 0) {
+                return {
+                    total: parseInt(result.rows[0].total) || 0,
+                    critical: parseInt(result.rows[0].critical) || 0,
+                    high: parseInt(result.rows[0].high) || 0,
+                };
+            }
+
+            return { total: 0, critical: 0, high: 0 };
+        } catch (error) {
+            if ((error as any).code === '42P01') {
+                // Tabla no existe
+                console.warn('Tabla road_accidents no existe. Ejecutar migración 004_create_road_accidents_tables.sql');
+                return { total: 0, critical: 0, high: 0 };
+            }
+            console.error('Error al obtener estadísticas de siniestros:', error);
+            throw error;
+        }
     }
 }
 

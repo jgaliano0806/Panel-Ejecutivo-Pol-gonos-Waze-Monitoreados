@@ -484,14 +484,14 @@ export class WazeService {
                     }
 
                     // Obtener clima para el accidente (no crítico, continuar sin clima si falla)
-                    let weatherData = null;
+                let weatherData = null;
                     // Intentar obtener clima siempre que tengamos coordenadas
                     if (accident.location && accident.location.lat && accident.location.lng) {
                         try {
                             // Primero intentar obtener del polígono si existe
-                            if (accident.polygonId) {
+                if (accident.polygonId) {
                                 try {
-                                    weatherData = await weatherService.getLatestWeather(accident.polygonId);
+                    weatherData = await weatherService.getLatestWeather(accident.polygonId);
                                 } catch (polygonError) {
                                     // Continuar para intentar fetch directo
                                 }
@@ -500,11 +500,11 @@ export class WazeService {
                             // Si no hay clima del polígono, obtenerlo directamente de la API (AccuWeather u Open-Meteo)
                             if (!weatherData) {
                                 const polygonId = accident.polygonId || `auto-accident-${accident.id}`;
-                                weatherData = await weatherService.fetchWeatherForPolygon(
+                        weatherData = await weatherService.fetchWeatherForPolygon(
                                     polygonId,
-                                    accident.location.lat,
-                                    accident.location.lng
-                                );
+                            accident.location.lat,
+                            accident.location.lng
+                        );
 
                                 if (weatherData) {
                                     console.log(`🌤️ Clima obtenido de API (${process.env.WEATHER_PROVIDER || 'openmeteo'}) para accidente ${accident.id}`);
@@ -521,17 +521,17 @@ export class WazeService {
 
                     // Crear registro formal de siniestro (CRÍTICO - debe funcionar)
                     const created = await roadAccidentService.createAccident({
-                        incident_id: accident.id,
-                        waze_data: (accident as any).raw || accident, // Priorizar datos 100% crudos
-                        weather_data: weatherData || {},
+                    incident_id: accident.id,
+                    waze_data: (accident as any).raw || accident, // Priorizar datos 100% crudos
+                    weather_data: weatherData || {},
                         type: normalizedType,
-                        subtype: accident.subtype,
-                        severity: accident.severity,
-                        street: accident.street,
-                        location_lat: accident.location.lat,
-                        location_lng: accident.location.lng,
-                        accident_at: accident.timestamp
-                    });
+                    subtype: accident.subtype,
+                    severity: accident.severity,
+                    street: accident.street,
+                    location_lat: accident.location.lat,
+                    location_lng: accident.location.lng,
+                    accident_at: accident.timestamp
+                });
 
                     registeredCount++;
                     console.log(`✅ Siniestro registrado con éxito: ${accident.id} (UUID: ${created.id}, Tipo: ${normalizedType}, Calle: ${accident.street || 'N/A'})`);

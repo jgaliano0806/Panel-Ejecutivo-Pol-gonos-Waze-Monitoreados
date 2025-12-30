@@ -97,7 +97,9 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
   const activeView = getActiveView();
 
   const handleTabClick = (tab: typeof tabs[0]) => {
-    onViewChange(tab.id);
+    React.startTransition(() => {
+      onViewChange(tab.id);
+    });
     navigate(tab.path);
   };
 

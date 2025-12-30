@@ -133,6 +133,9 @@ export interface GlobalKPIs {
     activeJams?: number;             // Total de atascos activos
     criticalPolygons: number;        // Polígonos en estado HIGH
     activeConstructions: number;     // Obras con impacto alto
+    roadAccidents?: number;          // Siniestros registrados manualmente
+    roadAccidentsCritical?: number;  // Siniestros críticos (severity >= 4)
+    roadAccidentsHigh?: number;      // Siniestros altos (severity >= 3)
     groupStats?: Array<{             // Estadísticas por grupo
         group: string;
         polygonCount: number;

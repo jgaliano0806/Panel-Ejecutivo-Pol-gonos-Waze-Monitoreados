@@ -126,15 +126,15 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(({
     {
       id: 'incidents',
       label: 'Accidentes en RAC',
-      value: racAccidents.length,
-      numericValue: racAccidents.length,
-      subtext: `${racCriticalAccidents} críticos • ${racHighAccidents} altos`,
+      value: kpis.roadAccidents || 0,
+      numericValue: kpis.roadAccidents || 0,
+      subtext: `${kpis.roadAccidentsCritical || 0} críticos • ${kpis.roadAccidentsHigh || 0} altos`,
       icon: Car,
-      gradient: racCriticalAccidents > 0 ? 'from-orange-600 via-red-600 to-red-700' : 'from-warning-400 via-warning-500 to-warning-600',
-      bgGradient: racCriticalAccidents > 0 ? 'from-orange-50 to-red-50' : 'from-warning-50 to-yellow-50',
+      gradient: (kpis.roadAccidentsCritical || 0) > 0 ? 'from-orange-600 via-red-600 to-red-700' : 'from-warning-400 via-warning-500 to-warning-600',
+      bgGradient: (kpis.roadAccidentsCritical || 0) > 0 ? 'from-orange-50 to-red-50' : 'from-warning-50 to-yellow-50',
       trend: 0,
       isClickable: true,
-      pulse: racCriticalAccidents > 0,
+      pulse: (kpis.roadAccidentsCritical || 0) > 0,
     },
     {
       id: 'critical',
@@ -230,8 +230,10 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(({
                   onClick={() => {
                     if (metric.id === 'critical' && isClickable) {
                       navigate('/riesgos');
+                    } else if (metric.id === 'incidents' && isClickable) {
+                      navigate('/siniestros');
                     } else if (isClickable) {
-                      setModalFilter(metric.id === 'incidents' ? 'rac-accidents' : 'all');
+                      setModalFilter('all');
                       setShowEventsModal(true);
                     }
                   }}

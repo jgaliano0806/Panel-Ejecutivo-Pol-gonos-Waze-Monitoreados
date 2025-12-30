@@ -7,6 +7,26 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ===========================================
+-- TABLA: config_polygons
+-- Configuración dinámica de polígonos
+-- ===========================================
+CREATE TABLE IF NOT EXISTS config_polygons (
+    id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    "group" VARCHAR(100),
+    feed_url TEXT NOT NULL,
+    tvt_feed_url TEXT,
+    coordinates JSONB, -- { lat: number, lon: number }
+    geometry JSONB,    -- GeoJSON Polygon
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_config_polygons_group ON config_polygons("group");
+CREATE INDEX IF NOT EXISTS idx_config_polygons_active ON config_polygons(is_active);
+
+-- ===========================================
 -- TABLA: historical_snapshots
 -- Almacena snapshots globales del sistema
 -- ===========================================
@@ -105,16 +125,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Crear trigger solo si no existe
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_alerts_updated_at') THEN
+-- Crear trigger de forma idempotente
+DROP TRIGGER IF EXISTS update_alerts_updated_at ON alerts;
 CREATE TRIGGER update_alerts_updated_at
     BEFORE UPDATE ON alerts
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
-    END IF;
-END $$;
 
 -- ===========================================
 -- VISTA: Resumen de datos históricos

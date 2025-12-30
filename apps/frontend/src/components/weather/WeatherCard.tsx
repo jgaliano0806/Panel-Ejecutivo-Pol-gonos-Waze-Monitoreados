@@ -27,7 +27,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ weather, compact = fal
         return (
             <div className="flex items-center gap-2 text-sm">
                 {getWeatherIcon()}
-                <span className="font-medium">{weather.temperature_celsius}°C</span>
+                <span className="font-medium">{weather.temperature_celsius ?? '--'}°C</span>
                 {weather.is_freezing_risk && (
                     <AlertTriangle className="w-4 h-4 text-orange-500" />
                 )}
@@ -42,15 +42,15 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ weather, compact = fal
                 <div className="flex items-center gap-2">
                     {getWeatherIcon()}
                     <span className="font-medium text-gray-700">
-                        {weather.weather_description}
+                        {weather.weather_description || 'Sin descripción'}
                     </span>
-                    {/* Indicador de AccuWeather */}
+                    {/* Indicador de Open-Meteo */}
                     <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                        AccuWeather
+                        Open-Meteo
                     </span>
                 </div>
                 <span className="text-2xl font-bold text-gray-900">
-                    {weather.temperature_celsius}°C
+                    {weather.temperature_celsius ?? '--'}°C
                 </span>
             </div>
 
@@ -71,7 +71,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ weather, compact = fal
                     <Thermometer className="w-4 h-4 text-gray-400" />
                     <div className="text-sm">
                         <div className="text-gray-500">Sensación</div>
-                        <div className="font-medium">{weather.temperature_feels_like}°C</div>
+                        <div className="font-medium">{weather.temperature_feels_like ?? '--'}°C</div>
                     </div>
                 </div>
 
@@ -79,11 +79,11 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ weather, compact = fal
                     <Wind className="w-4 h-4 text-gray-400" />
                     <div className="text-sm">
                         <div className="text-gray-500">Viento</div>
-                        <div className="font-medium">{weather.wind_speed_kmh} km/h</div>
+                        <div className="font-medium">{weather.wind_speed_kmh ?? '--'} km/h</div>
                     </div>
                 </div>
 
-                {weather.visibility_meters !== undefined && (
+                {weather.visibility_meters !== undefined && weather.visibility_meters !== null && (
                     <div className="flex items-center gap-2">
                         <Eye className="w-4 h-4 text-gray-400" />
                         <div className="text-sm">
@@ -98,7 +98,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ weather, compact = fal
                     </div>
                 )}
 
-                {weather.precipitation_mm !== undefined && weather.precipitation_mm > 0 && (
+                {weather.precipitation_mm !== undefined && weather.precipitation_mm !== null && weather.precipitation_mm > 0 && (
                     <div className="flex items-center gap-2">
                         <CloudRain className="w-4 h-4 text-gray-400" />
                         <div className="text-sm">
@@ -115,7 +115,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ weather, compact = fal
                     <div className="flex items-center gap-2 text-orange-600">
                         <AlertTriangle className="w-4 h-4" />
                         <span className="text-sm font-medium">
-                            ⚠️ Riesgo de congelamiento - Carretera: {weather.road_temperature_celsius}°C
+                            ⚠️ Riesgo de congelamiento - Carretera: {weather.road_temperature_celsius ?? '--'}°C
                         </span>
                     </div>
                 </div>

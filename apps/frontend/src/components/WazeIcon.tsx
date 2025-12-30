@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { getIncidentTypeColors, getUIIconSvg } from '../utils/wazeIcons';
+import { getIncidentTypeColors, getUIIconSvg, getWazeIconSvg } from '../utils/wazeIcons';
 import { iconCacheService } from '../utils/iconCache';
 
 interface WazeIconProps {
@@ -21,7 +21,7 @@ const sizeClasses = {
 
 /**
  * Componente para mostrar iconos de Waze
- * Utiliza los iconos oficiales del Partner Hub de Waze
+ * Usa SVGs inline de wazeIcons.ts para evitar errores 403 del Partner Hub
  */
 export const WazeIcon: React.FC<WazeIconProps> = ({
     type,
@@ -51,29 +51,22 @@ export const WazeIcon: React.FC<WazeIconProps> = ({
         );
     }
 
-    // Para incidentes, usar el servicio de cache de iconos de Waze
-    const iconUrl = iconCache.getIconUrlSync(type, subtype);
+    // Para incidentes de Waze, usar SVG inline directamente
+    // Esto evita los errores 403 del Partner Hub y mejora el rendimiento
+    const svgContent = getWazeIconSvg(type, subtype);
 
     // Debug específico para ROAD_CLOSED_EVENT
     if (type === 'roadclosed' && subtype === 'ROAD_CLOSED_EVENT') {
-        console.log(`🚧 ROAD_CLOSED_EVENT Debug:`, { type, subtype, iconUrl });
+        console.log(`🚧 ROAD_CLOSED_EVENT Debug:`, { type, subtype, usingSvg: true });
     }
 
     return (
         <div className={`relative inline-flex items-center justify-center ${className}`}>
-            {imgError ? (
-                // Fallback si la imagen no carga
-                <div className={`${sizeClasses[size]} flex items-center justify-center bg-gray-200 rounded`}>
-                    <span className="text-xs text-gray-500">⚠️</span>
-                </div>
-            ) : (
-                <img
-                    src={iconUrl}
-                    alt={type}
-                    className={`${sizeClasses[size]} object-contain`}
-                    onError={() => setImgError(true)}
-                />
-            )}
+            <div
+                className={`${sizeClasses[size]} flex items-center justify-center`}
+                dangerouslySetInnerHTML={{ __html: svgContent }}
+                title={subtype || type}
+            />
             {showBadge && (
                 <span className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${colors.bg} ${colors.border} border`} />
             )}

@@ -13,6 +13,7 @@ export interface RealPolygonConfig {
         lat: number;
         lon: number;
     };
+    geometry?: any; // Geometría GeoJSON (opcional)
 }
 
 // Coordenadas calculadas del centro de cada polígono (calculadas desde los datos GeoJSON)

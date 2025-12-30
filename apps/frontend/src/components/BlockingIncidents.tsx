@@ -4,18 +4,34 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useBlockingAnalysis, type BlockingAnalysisItem } from '../hooks/useWazeData';
-import { getIncidentDescription, getMainTypeTranslation, getSubtypeTranslation } from '../utils/wazeTranslations';
+import { getIncidentDescription, getMainTypeTranslation, getSubtypeTranslation, getIncidentColor } from '../utils/wazeTranslations';
 import { WazeIcon } from './WazeIcon';
+import { AlertTriangle, MapPin, Clock, Users, Map as MapIcon, BarChart3, Lightbulb, TrendingUp, Radio, X } from 'lucide-react';
+import { iconCacheService } from '../utils/iconCache';
 
-// Icono personalizado para marcadores
-const incidentIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
+// Crear icono personalizado de Waze para el modal
+const createModalWazeMarker = (type: string, subtype: string | undefined, color: string) => {
+  const iconUrl = iconCacheService.getIconUrlSync(type, subtype);
+  const fallbackUrl = 'https://web-assets.waze.com/webapps/partnerhub-web/1.1.1333/assets/icons/alerts/hazard.svg';
+
+  return L.divIcon({
+    className: 'custom-incident-marker',
+    html: `
+      <div class="waze-marker-icon" style="border: 3px solid ${color};">
+        <img
+          src="${iconUrl}"
+          alt="${type}"
+          style="width: 22px; height: 22px; object-fit: contain; display: block !important; visibility: visible !important; opacity: 1 !important;"
+          onerror="this.onerror=null; this.src='${fallbackUrl}'; this.style.display='block'; this.style.visibility='visible'; this.style.opacity='1';"
+          loading="eager"
+          crossorigin="anonymous"
+        />
+      </div>
+    `,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+  });
+};
 
 // Componente para centrar el mapa
 const MapCenterUpdater: React.FC<{ center: [number, number]; zoom: number }> = ({ center, zoom }) => {
@@ -41,6 +57,10 @@ export const BlockingIncidents: React.FC = () => {
     locations: Array<{ lat: number; lng: number; id: string }>;
     title: string;
     description: string;
+    type: string;
+    subtype?: string;
+    polygonName: string;
+    feed: string;
   } | null>(null);
 
   if (isLoading) {
@@ -144,7 +164,8 @@ export const BlockingIncidents: React.FC = () => {
     <div className="card">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-          🚨 Incidentes con Mayor Impacto
+          <AlertTriangle className="w-5 h-5 text-red-600" />
+          Incidentes con Mayor Impacto
           <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium flex items-center gap-1">
             <span className="inline-block w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
             Tiempo Real
@@ -153,7 +174,7 @@ export const BlockingIncidents: React.FC = () => {
       </div>
 
       <div className="space-y-3">
-        {data.analyses.slice(0, 5).map((analysis: BlockingAnalysisItem) => {
+        {data.analyses.slice(0, 10).map((analysis: BlockingAnalysisItem) => {
           const description = getIncidentDescription(
             analysis.incident.type,
             analysis.incident.subtype
@@ -195,7 +216,7 @@ export const BlockingIncidents: React.FC = () => {
                     }
                     return (
                       <p className="text-xs text-blue-700 mt-1 flex items-center gap-1 bg-blue-50 px-2 py-1 rounded border border-blue-200">
-                        <span>📝</span>
+                        <WazeIcon type={analysis.incident.type} subtype={analysis.incident.subtype} size="sm" />
                         <span className="font-medium">Evento:</span>
                         <span>{translatedDescription}</span>
                       </p>
@@ -204,22 +225,26 @@ export const BlockingIncidents: React.FC = () => {
                   {/* Grupo/Polígono */}
                   {analysis.polygonGroup && (
                     <div className="mt-1">
-                      <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded inline-block">
-                        🛣️ {analysis.polygonGroup}
+                      <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded inline-flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z" />
+                        </svg>
+                        {analysis.polygonGroup}
                       </span>
                     </div>
                   )}
                   {/* Sectores afectados con nombre del polígono */}
                   {analysis.affectedStreets?.length > 0 && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      📍 {analysis.affectedStreets.join(', ')}
-                      {analysis.polygonName && ` (${analysis.polygonName})`}
+                    <p className="text-xs text-gray-500 mt-1 flex items-start gap-1">
+                      <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                      <span>{analysis.affectedStreets.join(', ')}
+                      {analysis.polygonName && ` (${analysis.polygonName})`}</span>
                     </p>
                   )}
                   {/* Antigüedad del incidente */}
                   <p className={`text-xs mt-1 flex items-center gap-1 ${age.isOld ? 'text-orange-600 font-medium' : 'text-gray-500'}`}
                      title={`Reportado el ${age.dateStr}`}>
-                    <span>🕐</span>
+                    <Clock className="w-3 h-3" />
                     <span>Activo hace {age.duration}</span>
                     {age.isOld && <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded ml-1">Prolongado</span>}
                   </p>
@@ -234,7 +259,7 @@ export const BlockingIncidents: React.FC = () => {
                   {/* Indicador de múltiples reportes */}
                   {analysis.reportCount > 1 && (
                     <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded flex items-center gap-1">
-                      👥 {analysis.reportCount} reportes
+                      <Users className="w-3 h-3" /> {analysis.reportCount} reportes
                     </span>
                   )}
                   {/* Botón para ver en mapa */}
@@ -243,43 +268,48 @@ export const BlockingIncidents: React.FC = () => {
                       isOpen: true,
                       locations: analysis.allLocations || [{ lat: analysis.incident.location.lat, lng: analysis.incident.location.lng, id: analysis.incident.id }],
                       title: description,
-                      description: analysis.incident.street || 'Ubicación del incidente'
+                      description: analysis.incident.street || 'Ubicación del incidente',
+                      type: analysis.incident.type,
+                      subtype: analysis.incident.subtype,
+                      polygonName: analysis.polygonName || 'Desconocido',
+                      feed: analysis.polygonGroup || 'Feed principal'
                     })}
-                    className="text-[10px] bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded flex items-center gap-1 transition-colors mt-1"
+                    className="text-xs bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all hover:shadow-md font-medium mt-1"
                     title="Ver ubicación en mapa"
                   >
-                    🗺️ Ver mapa
+                    <MapIcon className="w-3 h-3" />
+                    <span>Ver mapa</span>
                   </button>
                 </div>
               </div>
 
               {/* Grid de métricas principales */}
               <div className="grid grid-cols-4 gap-2 text-xs mb-3">
-                <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-2 border border-red-200">
-                  <p className="text-gray-600 font-medium">Demora Estimada</p>
-                  <p className="font-black text-red-700 text-lg">
+                <div className="bg-gradient-to-br from-red-50 via-red-50 to-red-100 rounded-lg p-2 border border-red-300">
+                  <p className="text-gray-700 font-medium text-xs">Demora Estimada</p>
+                  <p className="font-black text-red-600 text-lg">
                     {analysis.delay.totalDelayMinutes} min
                   </p>
                 </div>
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-2 border border-blue-200" title={metricExplanations.linkedJams}>
-                  <p className="text-gray-600 font-medium flex items-center gap-1">
+                <div className="bg-gradient-to-br from-blue-50 via-blue-50 to-blue-100 rounded-lg p-2 border border-blue-300" title={metricExplanations.linkedJams}>
+                  <p className="text-gray-700 font-medium flex items-center gap-1 text-xs">
                     Tramos Afectados
-                    <span className="text-blue-400 cursor-help">ⓘ</span>
+                    <span className="text-blue-500 cursor-help text-[10px]">ⓘ</span>
                   </p>
-                  <p className="font-black text-blue-700 text-lg">
+                  <p className="font-black text-blue-600 text-lg">
                     {analysis.linkedJams + analysis.delay.consideredJams.nearby}
                   </p>
                 </div>
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-2 border border-purple-200">
-                  <p className="text-gray-600 font-medium">Extensión</p>
-                  <p className="font-black text-purple-700 text-lg">
+                <div className="bg-gradient-to-br from-purple-50 via-purple-50 to-purple-100 rounded-lg p-2 border border-purple-300">
+                  <p className="text-gray-700 font-medium text-xs">Extensión</p>
+                  <p className="font-black text-purple-600 text-lg">
                     {analysis.affectedLengthKm} km
                   </p>
                 </div>
-                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-2 border border-green-200" title={metricExplanations.confidence}>
-                  <p className="text-gray-600 font-medium flex items-center gap-1">
+                <div className="bg-gradient-to-br from-green-50 via-green-50 to-green-100 rounded-lg p-2 border border-green-300" title={metricExplanations.confidence}>
+                  <p className="text-gray-700 font-medium flex items-center gap-1 text-xs">
                     Precisión
-                    <span className="text-green-400 cursor-help">ⓘ</span>
+                    <span className="text-green-500 cursor-help text-[10px]">ⓘ</span>
                   </p>
                   <p className={`font-black text-lg ${getConfidenceStyle(analysis.delay.confidence)}`}>
                     {analysis.delay.confidence}%
@@ -291,7 +321,8 @@ export const BlockingIncidents: React.FC = () => {
               <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-bold text-gray-700 flex items-center gap-2">
-                    📊 Origen de la Demora
+                    <BarChart3 className="w-3.5 h-3.5" />
+                    Origen de la Demora
                     <span className={`text-[10px] px-1.5 py-0.5 rounded ${getDataQualityBadge(analysis.delay.dataQuality).bg} ${getDataQualityBadge(analysis.delay.dataQuality).text}`}>
                       {getDataQualityBadge(analysis.delay.dataQuality).label}
                     </span>
@@ -333,8 +364,9 @@ export const BlockingIncidents: React.FC = () => {
                 {/* Contexto histórico (informativo, no suma al total) */}
                 {analysis.delay.breakdown.historicalDelta > 0 && (
                   <div className="mt-2 pt-2 border-t border-gray-200 flex items-center justify-between text-[10px]" title={metricExplanations.historical}>
-                    <span className="text-gray-400 italic">
-                      📈 Contexto: {Math.round(analysis.delay.breakdown.historicalDelta / 60)} min peor que promedio histórico
+                    <span className="text-gray-400 italic flex items-center gap-1">
+                      <TrendingUp className="w-3 h-3" />
+                      Contexto: {Math.round(analysis.delay.breakdown.historicalDelta / 60)} min peor que promedio histórico
                     </span>
                     <span className="text-gray-400">(no suma al total)</span>
                   </div>
@@ -343,7 +375,10 @@ export const BlockingIncidents: React.FC = () => {
                 {/* Datos raw de Waze */}
                 {analysis.delay.rawDataUsed && analysis.delay.rawDataUsed.totalJamsConsidered > 0 && (
                   <div className="mt-2 pt-2 border-t border-gray-200 flex items-center gap-3 text-[10px] text-gray-400">
-                    <span>📡 Datos Waze:</span>
+                    <span className="flex items-center gap-1">
+                      <Radio className="w-3 h-3" />
+                      Datos Waze:
+                    </span>
                     <span>{analysis.delay.rawDataUsed.totalJamsConsidered} congestiones</span>
                     {analysis.delay.rawDataUsed.avgJamSpeed !== null && (
                       <span>• {analysis.delay.rawDataUsed.avgJamSpeed} km/h prom</span>
@@ -353,8 +388,9 @@ export const BlockingIncidents: React.FC = () => {
                 )}
 
                 {analysis.delay.details && (
-                  <p className="text-xs text-gray-600 mt-2 border-t border-gray-200 pt-2 leading-relaxed">
-                    💡 {analysis.delay.details}
+                  <p className="text-xs text-gray-600 mt-2 border-t border-gray-200 pt-2 leading-relaxed flex items-start gap-1">
+                    <Lightbulb className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-amber-500" />
+                    <span>{analysis.delay.details}</span>
                   </p>
                 )}
               </div>
@@ -402,10 +438,12 @@ export const BlockingIncidents: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-bold text-lg flex items-center gap-2">
-                    🗺️ {mapModalData.title}
+                    <MapIcon className="w-5 h-5" />
+                    {mapModalData.title}
                   </h3>
-                  <p className="text-blue-100 text-sm mt-1">
-                    📍 {mapModalData.description}
+                  <p className="text-blue-100 text-sm mt-1 flex items-center gap-1">
+                    <MapPin className="w-4 h-4" />
+                    {mapModalData.description}
                     {mapModalData.locations.length > 1 && (
                       <span className="ml-2 bg-blue-500 px-2 py-0.5 rounded text-xs">
                         {mapModalData.locations.length} puntos reportados
@@ -415,9 +453,9 @@ export const BlockingIncidents: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setMapModalData(null)}
-                  className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+                  className="text-white hover:bg-white/20 rounded-full p-2 transition-all hover:rotate-90"
                 >
-                  ✕
+                  <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
@@ -438,23 +476,84 @@ export const BlockingIncidents: React.FC = () => {
                   center={[mapModalData.locations[0].lat, mapModalData.locations[0].lng]}
                   zoom={mapModalData.locations.length > 1 ? 14 : 16}
                 />
-                {mapModalData.locations.map((loc, index) => (
-                  <Marker
-                    key={loc.id || index}
-                    position={[loc.lat, loc.lng]}
-                    icon={incidentIcon}
-                  >
-                    <Popup>
-                      <div className="text-sm">
-                        <p className="font-bold">{mapModalData.title}</p>
-                        <p className="text-gray-600">Reporte #{index + 1}</p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {loc.lat.toFixed(6)}, {loc.lng.toFixed(6)}
-                        </p>
-                      </div>
-                    </Popup>
-                  </Marker>
-                ))}
+                {mapModalData.locations.map((loc, index) => {
+                  const incidentColor = getIncidentColor(mapModalData.type);
+                  const markerIcon = createModalWazeMarker(mapModalData.type, mapModalData.subtype, incidentColor);
+
+                  return (
+                    <Marker
+                      key={loc.id || index}
+                      position={[loc.lat, loc.lng]}
+                      icon={markerIcon}
+                    >
+                      <Popup className="custom-popup" maxWidth={350}>
+                        <div className="bg-white rounded-lg overflow-hidden">
+                          {/* Header con gradiente */}
+                          <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-3">
+                            <div className="flex items-center gap-2">
+                              <WazeIcon type={mapModalData.type} subtype={mapModalData.subtype} size="md" className="text-white" />
+                              <p className="font-bold text-sm">{mapModalData.title}</p>
+                            </div>
+                          </div>
+
+                          {/* Contenido */}
+                          <div className="p-3 space-y-2">
+                            {/* Feed */}
+                            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-2">
+                              <p className="text-xs text-indigo-700 font-semibold flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" />
+                                  <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z" />
+                                </svg>
+                                Feed: {mapModalData.feed}
+                              </p>
+                            </div>
+
+                            {/* Polígono */}
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
+                              <p className="text-xs text-blue-700 font-semibold flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                                </svg>
+                                Polígono: {mapModalData.polygonName}
+                              </p>
+                            </div>
+
+                            {/* Dirección */}
+                            {mapModalData.description && (
+                              <div className="bg-gray-50 border border-gray-200 rounded-lg p-2">
+                                <p className="text-xs text-gray-700 font-semibold flex items-start gap-1">
+                                  <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                                  <span>{mapModalData.description}</span>
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Reporte # */}
+                            {mapModalData.locations.length > 1 && (
+                              <div className="text-center">
+                                <span className="inline-block bg-gray-200 text-gray-700 text-xs font-bold px-2 py-1 rounded">
+                                  Reporte #{index + 1} de {mapModalData.locations.length}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Coordenadas */}
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-2">
+                              <p className="text-xs text-amber-800 font-mono flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                <span className="font-semibold">Posición:</span> {loc.lat.toFixed(6)}, {loc.lng.toFixed(6)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  );
+                })}
               </MapContainer>
             </div>
 
@@ -467,7 +566,7 @@ export const BlockingIncidents: React.FC = () => {
               </span>
               <button
                 onClick={() => setMapModalData(null)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
               >
                 Cerrar
               </button>

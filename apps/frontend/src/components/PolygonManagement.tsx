@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { realCordobaPolygons } from '../data/mock/realCordobaPolygons';
 import { VirtualizedList } from './ui/VirtualizedList';
+import { TruncatedText } from './TruncatedText';
 
 interface PolygonData {
   id: string;
@@ -552,12 +553,20 @@ const PolygonManagement: React.FC = () => {
               <div className="px-4 py-3 font-medium text-gray-900 truncate">{polygon.name}</div>
               <div className="px-4 py-3 text-gray-600 truncate">{polygon.group || '-'}</div>
               <div className="px-4 py-3">
-                 <div className="truncate text-xs text-gray-500" title={polygon.feedUrl}>
-                    {polygon.feedUrl}
-                 </div>
+                 <TruncatedText
+                    text={polygon.feedUrl}
+                    maxLength={40}
+                    showCopyButton={true}
+                    className="text-xs"
+                 />
                  {polygon.tvtFeedUrl && (
-                    <div className="text-xs text-blue-600 mt-1 truncate" title={polygon.tvtFeedUrl}>
-                       + TVT
+                    <div className="mt-1">
+                       <TruncatedText
+                          text={polygon.tvtFeedUrl}
+                          maxLength={40}
+                          showCopyButton={true}
+                          className="text-xs text-blue-600"
+                       />
                     </div>
                  )}
               </div>

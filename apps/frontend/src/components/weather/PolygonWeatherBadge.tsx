@@ -27,10 +27,10 @@ export const PolygonWeatherBadge: React.FC<PolygonWeatherBadgeProps> = ({ polygo
                     <Cloud className="w-3 h-3 text-blue-500" />
                     <span className="font-medium text-gray-700">{weather.weather_description}</span>
                     <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-medium rounded">
-                        AW
+                        OM
                     </span>
                 </div>
-                <span className="font-semibold text-gray-900">{weather.temperature_celsius}°C</span>
+                <span className="font-semibold text-gray-900">{weather.temperature_celsius ?? '--'}°C</span>
             </div>
 
             {weather.has_weather_alert && (
