@@ -21,6 +21,7 @@ import { useRoadAccidents, useRoadAccident, useUploadAccidentMedia } from '../ho
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { VirtualizedList } from '../components/ui/VirtualizedList';
 
 // Fix for default marker icons
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -91,46 +92,50 @@ export const RoadAccidentsPage: React.FC = () => {
                     <p className="text-sm text-gray-500">Gestión de siniestros y respaldo multimedia</p>
                 </div>
 
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-hidden">
                     {listLoading ? (
                         <div className="p-8 text-center text-gray-400 italic">Cargando siniestros...</div>
-                    ) : accidents && accidents.length > 0 ? (
-                        accidents.map((acc) => (
-                            <div
-                                key={acc.id}
-                                onClick={() => setSelectedAccidentId(acc.id)}
-                                className={`p-4 border-b border-gray-100 cursor-pointer transition-colors hover:bg-gray-50 ${selectedAccidentId === acc.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''}`}
-                            >
-                                <div className="flex justify-between items-start mb-1">
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold text-white uppercase ${getSeverityColor(acc.severity)}`}>
-                                        {acc.subtype || acc.type}
-                                    </span>
-                                    <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                                        <Clock className="w-3 h-3" />
-                                        {new Date(acc.accident_at).toLocaleString()}
-                                    </span>
-                                </div>
-                                <h3 className="font-semibold text-gray-800 text-sm truncate">{acc.street || 'Ubicación desconocida'}</h3>
-                                <div className="flex items-center gap-2 mt-2">
-                                    <div className="flex -space-x-1">
-                                        {acc.media?.length > 0 ? (
-                                            acc.media.slice(0, 3).map((m, i) => (
-                                                <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center overflow-hidden">
-                                                    {m.file_type === 'image' ? <ImageIcon className="w-3 h-3 text-gray-500" /> : <Film className="w-3 h-3 text-gray-500" />}
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <span className="text-[10px] text-gray-400 italic">Sin archivos</span>
+                    ) : (
+                        <VirtualizedList
+                            items={accidents || []}
+                            estimateSize={100}
+                            className="h-full"
+                            emptyMessage="No hay siniestros registrados."
+                            renderItem={(acc) => (
+                                <div
+                                    key={acc.id}
+                                    onClick={() => setSelectedAccidentId(acc.id)}
+                                    className={`p-4 border-b border-gray-100 cursor-pointer transition-colors hover:bg-gray-50 ${selectedAccidentId === acc.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''}`}
+                                >
+                                    <div className="flex justify-between items-start mb-1">
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold text-white uppercase ${getSeverityColor(acc.severity)}`}>
+                                            {acc.subtype || acc.type}
+                                        </span>
+                                        <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                                            <Clock className="w-3 h-3" />
+                                            {new Date(acc.accident_at).toLocaleString()}
+                                        </span>
+                                    </div>
+                                    <h3 className="font-semibold text-gray-800 text-sm truncate">{acc.street || 'Ubicación desconocida'}</h3>
+                                    <div className="flex items-center gap-2 mt-2">
+                                        <div className="flex -space-x-1">
+                                            {acc.media?.length > 0 ? (
+                                                acc.media.slice(0, 3).map((m, i) => (
+                                                    <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center overflow-hidden">
+                                                        {m.file_type === 'image' ? <ImageIcon className="w-3 h-3 text-gray-500" /> : <Film className="w-3 h-3 text-gray-500" />}
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <span className="text-[10px] text-gray-400 italic">Sin archivos</span>
+                                            )}
+                                        </div>
+                                        {acc.media?.length > 0 && (
+                                            <span className="text-[10px] text-gray-500">+{acc.media.length} archivos</span>
                                         )}
                                     </div>
-                                    {acc.media?.length > 0 && (
-                                        <span className="text-[10px] text-gray-500">+{acc.media.length} archivos</span>
-                                    )}
                                 </div>
-                            </div>
-                        ))
-                    ) : (
-                        <div className="p-8 text-center text-gray-400 italic">No hay siniestros registrados.</div>
+                            )}
+                        />
                     )}
                 </div>
             </div>

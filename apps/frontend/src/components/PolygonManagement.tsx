@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { realCordobaPolygons } from '../data/mock/realCordobaPolygons';
+import { VirtualizedList } from './ui/VirtualizedList';
 
 interface PolygonData {
   id: string;
@@ -528,113 +529,116 @@ const PolygonManagement: React.FC = () => {
         </button>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 font-medium text-gray-900">ID</th>
-              <th className="px-4 py-3 font-medium text-gray-900">Nombre</th>
-              <th className="px-4 py-3 font-medium text-gray-900">Grupo</th>
-              <th className="px-4 py-3 font-medium text-gray-900">Feed URL</th>
-              <th className="px-4 py-3 font-medium text-gray-900">Centro</th>
-              <th className="px-4 py-3 font-medium text-gray-900">Geometría</th>
-              <th className="px-4 py-3 font-medium text-gray-900">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {polygons.map((polygon) => (
-              <tr key={polygon.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-mono text-xs text-gray-900">{polygon.id}</td>
-                <td className="px-4 py-3 font-medium text-gray-900">{polygon.name}</td>
-                <td className="px-4 py-3 text-gray-600">{polygon.group || '-'}</td>
-                <td className="px-4 py-3">
-                  <div className="max-w-xs truncate text-xs text-gray-500" title={polygon.feedUrl}>
+      <div className="border rounded-xl overflow-hidden shadow-sm bg-white">
+        {/* Header - Grid Layout */}
+        <div className="grid grid-cols-[80px_minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] bg-gray-50 border-b divide-x divide-gray-200 text-sm font-semibold text-gray-900">
+          <div className="px-4 py-3">ID</div>
+          <div className="px-4 py-3">Nombre</div>
+          <div className="px-4 py-3">Grupo</div>
+          <div className="px-4 py-3">Feed URL</div>
+          <div className="px-4 py-3">Centro</div>
+          <div className="px-4 py-3">Geometría</div>
+          <div className="px-4 py-3 text-center">Acciones</div>
+        </div>
+
+        {/* Virtualized Body */}
+        <div className="h-[600px]">
+        <VirtualizedList
+          items={polygons}
+          estimateSize={80} // Altura estimada de fila
+          renderItem={(polygon) => (
+            <div className="grid grid-cols-[80px_minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] divide-x divide-gray-100 border-b border-gray-100 hover:bg-gray-50 transition-colors items-center text-sm">
+              <div className="px-4 py-3 font-mono text-xs text-gray-900">{polygon.id}</div>
+              <div className="px-4 py-3 font-medium text-gray-900 truncate">{polygon.name}</div>
+              <div className="px-4 py-3 text-gray-600 truncate">{polygon.group || '-'}</div>
+              <div className="px-4 py-3">
+                 <div className="truncate text-xs text-gray-500" title={polygon.feedUrl}>
                     {polygon.feedUrl}
-                  </div>
-                  {polygon.tvtFeedUrl && (
-                    <div className="text-xs text-blue-600 mt-1" title={polygon.tvtFeedUrl}>
-                      + TVT
+                 </div>
+                 {polygon.tvtFeedUrl && (
+                    <div className="text-xs text-blue-600 mt-1 truncate" title={polygon.tvtFeedUrl}>
+                       + TVT
                     </div>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-xs text-gray-500">
-                  {polygon.coordinates ? (
+                 )}
+              </div>
+              <div className="px-4 py-3 text-xs text-gray-500">
+                 {polygon.coordinates ? (
                     <div>
-                      <div>{polygon.coordinates.lat.toFixed(4)}</div>
-                      <div>{polygon.coordinates.lon.toFixed(4)}</div>
+                       <div>{polygon.coordinates.lat.toFixed(4)}</div>
+                       <div>{polygon.coordinates.lon.toFixed(4)}</div>
                     </div>
-                  ) : (
+                 ) : (
                     '-'
-                  )}
-                </td>
-                <td className="px-4 py-3 text-xs text-gray-500">
-                  {(() => {
-                    const geometry = getPolygonGeometry(polygon.id);
-                    if (geometry) {
-                      const coordsCount = geometry.coordinates[0]?.length || 0;
-                      return (
-                        <div className="space-y-1">
-                          <div className="text-green-600 font-medium">
-                            ✅ GeoJSON completo
-                          </div>
-                          <div className="text-gray-600">
-                            {coordsCount} vértices
-                          </div>
-                          <button
-                            onClick={() => {
-                              setSelectedGeoJson({
-                                polygon: polygon,
-                                geometry: geometry
-                              });
-                              setShowGeoJsonModal(true);
-                            }}
-                            className="text-blue-600 hover:text-blue-800 text-[10px] underline"
-                            title="Ver geometría GeoJSON completa"
-                          >
-                            Ver GeoJSON
-                          </button>
-                        </div>
-                      );
-                    } else {
-                      return (
-                        <div className="space-y-1">
-                          <div className="text-orange-600 font-medium">
-                            ⚠️ Sin geometría
-                          </div>
-                          <div className="text-gray-400 text-[10px]">
-                            Solo coordenadas centro
-                          </div>
-                        </div>
-                      );
-                    }
-                  })()}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => handleEdit(polygon)}
-                      className="text-blue-600 hover:text-blue-800 p-1"
-                      title="Editar"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleDelete(polygon.id)}
-                      className="text-red-600 hover:text-red-800 p-1"
-                      title="Eliminar"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                 )}
+              </div>
+              <div className="px-4 py-3 text-xs text-gray-500">
+                   {(() => {
+                     const geometry = getPolygonGeometry(polygon.id);
+                     if (geometry) {
+                       const coordsCount = geometry.coordinates[0]?.length || 0;
+                       return (
+                         <div className="space-y-1">
+                           <div className="text-green-600 font-medium">
+                             ✅ GeoJSON
+                           </div>
+                           <div className="text-gray-600">
+                             {coordsCount} ptos
+                           </div>
+                           <button
+                             onClick={() => {
+                               setSelectedGeoJson({
+                                 polygon: polygon,
+                                 geometry: geometry
+                               });
+                               setShowGeoJsonModal(true);
+                             }}
+                             className="text-blue-600 hover:text-blue-800 text-[10px] underline"
+                             title="Ver geometría GeoJSON completa"
+                           >
+                             Ver
+                           </button>
+                         </div>
+                       );
+                     } else {
+                       return (
+                         <div className="space-y-1">
+                           <div className="text-orange-600 font-medium">
+                             ⚠️ No Geo
+                           </div>
+                           <div className="text-gray-400 text-[10px]">
+                             Centro only
+                           </div>
+                         </div>
+                       );
+                     }
+                   })()}
+              </div>
+              <div className="px-4 py-3 flex justify-center">
+                   <div className="flex items-center space-x-2">
+                     <button
+                       onClick={() => handleEdit(polygon)}
+                       className="text-blue-600 hover:text-blue-800 p-1.5 hover:bg-blue-50 rounded-lg transition-colors"
+                       title="Editar"
+                     >
+                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                       </svg>
+                     </button>
+                     <button
+                       onClick={() => handleDelete(polygon.id)}
+                       className="text-red-600 hover:text-red-800 p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                       title="Eliminar"
+                     >
+                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                       </svg>
+                     </button>
+                   </div>
+              </div>
+            </div>
+          )}
+        />
+        </div>
       </div>
 
       {polygons.length === 0 && (

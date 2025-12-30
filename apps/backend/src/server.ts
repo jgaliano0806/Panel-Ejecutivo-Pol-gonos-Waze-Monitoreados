@@ -25,6 +25,11 @@ import fastifyStatic from '@fastify/static';
 import fs from 'fs';
 import { roadAccidentService } from './services/roadAccidentService';
 import { catalogSyncService } from './services/catalogSyncService';
+import { wazePollingService } from './services/wazePollingService';
+import { openMeteoService } from './services/openMeteoService';
+import { websocketService } from './services/websocketService';
+import rateLimit from '@fastify/rate-limit';
+import { globalRateLimitConfig, rateLimitLoggingHook } from './middleware/rateLimiter';
 import axios from 'axios';
 
 dotenv.config();
@@ -55,6 +60,9 @@ server.register(multipart, {
         fileSize: 50 * 1024 * 1024, // 50MB
     }
 });
+
+// Rate Limiting - protección contra abuso
+server.register(rateLimit, globalRateLimitConfig);
 
 // Configurar compresión GZIP/Brotli para optimización de rendimiento
 server.register(require('@fastify/compress'), {
@@ -2280,8 +2288,35 @@ const start = async () => {
             console.error('⚠️ Error al iniciar ciclo de ingesta (continuando):', ingestionError);
         }
 
+        // Iniciar polling de Waze con persistencia PostgreSQL
+        try {
+            wazePollingService.startPolling();
+            console.log('✓ WazePollingService iniciado (persistencia DB)');
+        } catch (pollingError) {
+            console.error('⚠️ Error al iniciar WazePollingService (continuando):', pollingError);
+        }
+
+        // Iniciar servicio de clima Open-Meteo
+        try {
+            openMeteoService.startPolling();
+            console.log('✓ OpenMeteoService iniciado (clima cada hora)');
+        } catch (weatherError) {
+            console.error('⚠️ Error al iniciar OpenMeteoService (continuando):', weatherError);
+        }
+
         const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
         await server.listen({ port, host: '0.0.0.0' });
+
+        // Inicializar WebSocket después de que el servidor esté escuchando
+        try {
+            websocketService.initialize(server.server);
+            wazePollingService.setSocketIO(websocketService.getIO());
+            openMeteoService.setSocketIO(websocketService.getIO());
+            console.log('✓ WebSocket service initialized');
+        } catch (wsError) {
+            console.error('⚠️ Error al iniciar WebSocket (continuando):', wsError);
+        }
+
         console.log('Backend server running on http://localhost:' + port);
         console.log('Health check: http://localhost:' + port + '/health');
     } catch (err) {
@@ -2310,9 +2345,15 @@ async function gracefulShutdown(signal: string) {
         await dbService.close();
         console.log('✅ Database connections closed');
 
-        // Cerrar servicios externos si es necesario
-        console.log('⏳ Shutting down services...');
-        // Aquí podrían cerrarse otros servicios si fuera necesario
+        // Detener polling de Waze
+        console.log('⏳ Stopping WazePollingService...');
+        wazePollingService.stopPolling();
+        console.log('✅ WazePollingService stopped');
+
+        // Detener polling de clima
+        console.log('⏳ Stopping OpenMeteoService...');
+        openMeteoService.stopPolling();
+        console.log('✅ OpenMeteoService stopped');
 
         console.log('✅ Graceful shutdown completed');
         process.exit(0);

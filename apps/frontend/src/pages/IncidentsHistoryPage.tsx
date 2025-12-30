@@ -3,6 +3,7 @@ import { MapPin, Clock, AlertCircle, Filter } from 'lucide-react';
 import { useIncidentsHistory, useIncidentsHotspots, useIncidentsStats } from '../hooks/useIncidentsHistory';
 import { MapContainer, TileLayer, CircleMarker, Popup, Tooltip } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import { VirtualizedList } from '../components/ui/VirtualizedList';
 
 export const IncidentsHistoryPage: React.FC = () => {
     const [filters, setFilters] = useState({
@@ -188,55 +189,59 @@ export const IncidentsHistoryPage: React.FC = () => {
                 </h2>
                 {incidentsLoading ? (
                     <div className="text-center py-8 text-gray-400">Cargando...</div>
-                ) : incidents && incidents.length > 0 ? (
-                    <div className="space-y-2 max-h-96 overflow-y-auto">
-                        {incidents.map((incident) => (
-                            <div
-                                key={incident.incident_id}
-                                className="border border-gray-200 rounded-lg p-3 hover:border-blue-300 transition-colors"
-                            >
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <span
-                                                className="px-2 py-0.5 rounded text-xs font-medium text-white"
-                                                style={{ backgroundColor: getIncidentTypeColor(incident.type) }}
-                                            >
-                                                {incident.type}
-                                            </span>
-                                            {incident.subtype && (
-                                                <span className="text-sm text-gray-500">{incident.subtype}</span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                                            <div className="flex items-center gap-1">
-                                                <MapPin className="w-4 h-4" />
-                                                {incident.street || 'Sin ubicación'}
+                ) : (
+                    <div className="h-96">
+                        <VirtualizedList
+                            items={incidents || []}
+                            estimateSize={80}
+                            className="h-full"
+                            emptyMessage="No hay incidentes para los filtros seleccionados"
+                            renderItem={(incident) => (
+                                <div
+                                    key={incident.incident_id}
+                                    className="border border-gray-200 rounded-lg p-3 hover:border-blue-300 transition-colors mb-2"
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span
+                                                    className="px-2 py-0.5 rounded text-xs font-medium text-white"
+                                                    style={{ backgroundColor: getIncidentTypeColor(incident.type) }}
+                                                >
+                                                    {incident.type}
+                                                </span>
+                                                {incident.subtype && (
+                                                    <span className="text-sm text-gray-500">{incident.subtype}</span>
+                                                )}
                                             </div>
-                                            <div className="flex items-center gap-1">
-                                                <Clock className="w-4 h-4" />
-                                                {incident.duration_minutes
-                                                    ? `${incident.duration_minutes} min`
-                                                    : 'En curso'
-                                                }
-                                            </div>
-                                            {incident.estimated_delay_minutes && (
+                                            <div className="flex items-center gap-4 text-sm text-gray-600">
                                                 <div className="flex items-center gap-1">
-                                                    <AlertCircle className="w-4 h-4" />
-                                                    Demora: {incident.estimated_delay_minutes} min
+                                                    <MapPin className="w-4 h-4" />
+                                                    {incident.street || 'Sin ubicación'}
                                                 </div>
-                                            )}
+                                                <div className="flex items-center gap-1">
+                                                    <Clock className="w-4 h-4" />
+                                                    {incident.duration_minutes
+                                                        ? `${incident.duration_minutes} min`
+                                                        : 'En curso'
+                                                    }
+                                                </div>
+                                                {incident.estimated_delay_minutes && (
+                                                    <div className="flex items-center gap-1">
+                                                        <AlertCircle className="w-4 h-4" />
+                                                        Demora: {incident.estimated_delay_minutes} min
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="text-right text-sm text-gray-500">
-                                        {new Date(incident.first_seen_at).toLocaleDateString()}
+                                        <div className="text-right text-sm text-gray-500">
+                                            {new Date(incident.first_seen_at).toLocaleDateString()}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            )}
+                        />
                     </div>
-                ) : (
-                    <div className="text-center py-8 text-gray-400">No hay incidentes</div>
                 )}
             </div>
         </div>

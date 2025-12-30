@@ -74,6 +74,27 @@ services:
       - prod
 
   # =============================================
+  # REDIS CACHE
+  # =============================================
+  redis:
+    image: redis:7-alpine
+    container_name: panel-waze-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+    profiles:
+      - dev
+      - prod
+
+  # =============================================
   # PRODUCCIÓN
   # =============================================
   app:
@@ -135,6 +156,7 @@ services:
 volumes:
   grafana-data:
   postgres-data:
+  redis-data:
 
 
 networks:

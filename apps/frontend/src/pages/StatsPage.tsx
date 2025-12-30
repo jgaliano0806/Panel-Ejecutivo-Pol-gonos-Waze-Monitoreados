@@ -42,15 +42,15 @@ export const StatsPage: React.FC = () => {
 
     const fluidityChartData = {
         labels: currentData?.map(d => {
-            if ('date' in d) return new Date(d.date).toLocaleDateString();
-            if ('week' in d) return new Date(d.week).toLocaleDateString();
-            if ('month' in d) return new Date(d.month).toLocaleDateString('es', { year: 'numeric', month: 'short' });
+            if ('date' in d && d.date) return new Date(d.date).toLocaleDateString();
+            if ('week' in d && d.week) return new Date(d.week).toLocaleDateString();
+            if ('month' in d && d.month) return new Date(d.month).toLocaleDateString('es', { year: 'numeric', month: 'short' });
             return '';
         }) || [],
         datasets: [
             {
                 label: 'Fluidez (%)',
-                data: currentData?.map(d => d.avg_fluidity || 0) || [],
+                data: currentData?.map(d => ('avg_fluidity' in d ? d.avg_fluidity : d.avg_fluidity_percentage) || 0) || [],
                 borderColor: 'rgb(59, 130, 246)',
                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
                 tension: 0.4
@@ -60,9 +60,9 @@ export const StatsPage: React.FC = () => {
 
     const speedChartData = {
         labels: currentData?.map(d => {
-            if ('date' in d) return new Date(d.date).toLocaleDateString();
-            if ('week' in d) return new Date(d.week).toLocaleDateString();
-            if ('month' in d) return new Date(d.month).toLocaleDateString('es', { year: 'numeric', month: 'short' });
+            if ('date' in d && d.date) return new Date(d.date).toLocaleDateString();
+            if ('week' in d && d.week) return new Date(d.week).toLocaleDateString();
+            if ('month' in d && d.month) return new Date(d.month).toLocaleDateString('es', { year: 'numeric', month: 'short' });
             return '';
         }) || [],
         datasets: [
@@ -78,9 +78,9 @@ export const StatsPage: React.FC = () => {
 
     const incidentsChartData = {
         labels: currentData?.map(d => {
-            if ('date' in d) return new Date(d.date).toLocaleDateString();
-            if ('week' in d) return new Date(d.week).toLocaleDateString();
-            if ('month' in d) return new Date(d.month).toLocaleDateString('es', { year: 'numeric', month: 'short' });
+            if ('date' in d && d.date) return new Date(d.date).toLocaleDateString();
+            if ('week' in d && d.week) return new Date(d.week).toLocaleDateString();
+            if ('month' in d && d.month) return new Date(d.month).toLocaleDateString('es', { year: 'numeric', month: 'short' });
             return '';
         }) || [],
         datasets: [

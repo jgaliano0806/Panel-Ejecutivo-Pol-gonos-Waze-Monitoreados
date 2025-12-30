@@ -431,14 +431,20 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(({
   );
 }, (prevProps, nextProps) => {
   // Comparación personalizada para evitar re-renders innecesarios
+  const prevIncidentsLength = prevProps.incidents?.length || 0;
+  const nextIncidentsLength = nextProps.incidents?.length || 0;
+  const prevAlertsLength = prevProps.alerts?.length || 0;
+  const nextAlertsLength = nextProps.alerts?.length || 0;
+
   return (
     prevProps.kpis.fluidityPercentage === nextProps.kpis.fluidityPercentage &&
     prevProps.kpis.activeIncidents === nextProps.kpis.activeIncidents &&
     prevProps.totalPolygons === nextProps.totalPolygons &&
     prevProps.criticalPolygons === nextProps.criticalPolygons &&
-    prevProps.incidents.length === nextProps.incidents.length &&
-    prevProps.alerts.length === nextProps.alerts.length
+    prevIncidentsLength === nextIncidentsLength &&
+    prevAlertsLength === nextAlertsLength
   );
 });
 
 ModernExecutiveSummary.displayName = 'ModernExecutiveSummary';
+

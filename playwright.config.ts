@@ -104,7 +104,7 @@ export default defineConfig({
       timeout: 120000,
     },
     {
-      command: 'cd backend && npm run start',
+      command: 'npm run start --workspace=apps/backend',
       url: 'http://localhost:3001/health',
       reuseExistingServer: !process.env.CI,
       timeout: 120000,

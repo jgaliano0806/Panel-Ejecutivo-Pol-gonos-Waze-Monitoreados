@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import type { Incident, TrafficAlert, Polygon, TrafficJam } from '../types';
 import { getIncidentDescription, getSubtypeTranslation, getMainTypeTranslation, getJamLevelTranslation } from '../utils/wazeTranslations';
@@ -7,6 +7,7 @@ import { iconCacheService } from '../utils/iconCache';
 import { MapContainer, TileLayer, Marker, Popup, Polygon as LeafletPolygon, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { useCreateAccident } from '../hooks/useRoadAccidents';
+import { VirtualizedList } from './ui/VirtualizedList';
 
 // Fix para los iconos de Leaflet
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -176,6 +177,22 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
   const [activeFilter, setActiveFilter] = useState<'all' | 'incidents' | 'alerts'>('all');
   const createAccident = useCreateAccident();
   const [registeringAccident, setRegisteringAccident] = useState<string | null>(null);
+
+  const processedIncidents = useMemo(() => incidents
+    .filter((incident, index, self) => index === self.findIndex((i) => i.id === incident.id))
+    .sort((a, b) => {
+      if (b.severity !== a.severity) return b.severity - a.severity;
+      return (b.reliability || 0) - (a.reliability || 0);
+    }), [incidents]);
+
+  const processedAlerts = useMemo(() => alerts
+    .filter((alert, index, self) => index === self.findIndex((a) => a.id === alert.id))
+    .sort((a, b) => {
+      const severityOrder: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
+      const sevA = typeof a.severity === 'string' ? a.severity : 'low';
+      const sevB = typeof b.severity === 'string' ? b.severity : 'low';
+      return (severityOrder[sevB] || 0) - (severityOrder[sevA] || 0);
+    }), [alerts]);
 
   // Cerrar minimapa con tecla ESC
   useEffect(() => {
@@ -349,212 +366,184 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                     </span>
                   </h3>
                 </div>
-                <div className="space-y-4 bg-white p-6 rounded-b-xl shadow-lg flex-1 overflow-y-auto max-h-[calc(90vh-200px)]">
-                {incidents
-                  // Deduplicar por ID antes de renderizar
-                  .filter((incident, index, self) =>
-                    index === self.findIndex((i) => i.id === incident.id)
-                  )
-                  .sort((a, b) => {
-                    // Ordenar por severidad (mayor a menor)
-                    if (b.severity !== a.severity) {
-                      return b.severity - a.severity;
-                    }
-                    // Si tienen misma severidad, por confiabilidad
-                    return (b.reliability || 0) - (a.reliability || 0);
-                  })
-                  .map((incident, index) => {
-                  const typeDescription = getIncidentDescription(incident.type, incident.subtype);
-
-                  // NO mostrar subtipo si la descripción ya lo incluye
-
-                  return (
-                    <div
-                      key={`incident-${incident.id}-${index}`}
-                      onClick={() => onEventClick(incident, 'incident')}
-                      className="border-2 rounded-xl p-5 bg-gradient-to-br from-white to-gray-50 hover:from-blue-50 hover:to-indigo-50 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-[1.02] hover:border-blue-400"
-                    >
-                      <div className="flex items-start gap-5">
-                        {/* Icon */}
-                        <div className="flex-shrink-0 drop-shadow-md">
-                          <WazeIcon type={incident.type} subtype={incident.subtype} size="xl" />
-                        </div>
-
-                        {/* Main Info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-3 mb-3">
-                            <div>
-                              <h4 className="font-black text-gray-900 text-xl mb-1">
-                                {typeDescription}
-                              </h4>
-                            </div>
-                            <span className={`px-4 py-2 rounded-full text-xs font-black border-2 shadow-md ${getSeverityColor(incident.severity)}`}>
-                              {getSeverityLabel(incident.severity)}
-                            </span>
-                          </div>
-
-                          {/* Location Info */}
-                          <div className="space-y-3">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm bg-white/70 rounded-lg p-4 border border-gray-200">
-                              {incident.street && (
-                                <div className="flex items-start gap-2">
-                                  <WazeIcon type="map" uiIcon size="sm" className="text-blue-600" />
-                                  <div>
-                                    <span className="text-gray-500 font-semibold text-xs">Dirección:</span>
-                                    <p className="text-gray-900 font-medium">{incident.street}</p>
-                                  </div>
-                                </div>
-                              )}
-                              {incident.city && (
-                                <div className="flex items-start gap-2">
-                                  <WazeIcon type="map" uiIcon size="sm" className="text-blue-600" />
-                                  <div>
-                                    <span className="text-gray-500 font-semibold text-xs">Ciudad:</span>
-                                    <p className="text-gray-900 font-medium">{incident.city}</p>
-                                  </div>
-                                </div>
-                              )}
-                              <div className="flex items-start gap-2">
-                                <WazeIcon type="map" uiIcon size="sm" className="text-blue-600" />
-                                <div>
-                                  <span className="text-gray-500 font-semibold text-xs">Coordenadas:</span>
-                                  <p className="text-gray-900 font-mono text-xs font-medium">
-                                    {formatCoordinates(incident.location.lat, incident.location.lng)}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="flex items-start gap-2">
-                                <WazeIcon type="time" uiIcon size="sm" className="text-blue-600" />
-                                <div>
-                                  <span className="text-gray-500 font-semibold text-xs">Reportado:</span>
-                                  <p className="text-gray-900 font-medium text-xs">
-                                    {new Date(incident.timestamp).toLocaleString('es-AR')}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Botones de Acción */}
-                            <div className="flex gap-3">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setExpandedEvent({ id: incident.id, type: 'incident' });
-                                }}
-                                className="flex-1 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 hover:from-blue-700 hover:via-purple-700 hover:to-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-[1.02] flex items-center justify-center gap-3 group"
-                              >
-                                <span className="group-hover:scale-125 transition-transform duration-300">
-                                  <WazeIcon type="map" uiIcon size="lg" />
-                                </span>
-                                <span className="tracking-wide">
-                                  Ver Ubicación en Minimapa
-                                </span>
-                                <span className="text-2xl group-hover:translate-x-1 transition-transform duration-300">
-                                  →
-                                </span>
-                              </button>
-                              {incident.type?.toLowerCase() === 'accident' && (
-                                <button
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    if (registeringAccident === incident.id) return;
-
-                                    setRegisteringAccident(incident.id);
-                                    try {
-                                      await createAccident.mutateAsync({
-                                        incident_id: incident.id,
-                                        waze_data: incident,
-                                        type: incident.type,
-                                        subtype: incident.subtype,
-                                        severity: incident.severity,
-                                        street: incident.street,
-                                        location_lat: incident.location.lat,
-                                        location_lng: incident.location.lng,
-                                        accident_at: new Date(incident.timestamp).toISOString()
-                                      });
-                                      alert('✅ Siniestro registrado exitosamente en el módulo de siniestros');
-                                    } catch (error: any) {
-                                      console.error('Error registrando siniestro:', error);
-
-                                      // Manejar error 409 (duplicado) de manera amigable
-                                      if (error?.status === 409 || error?.isDuplicate) {
-                                        const existingAccident = error?.existingAccident;
-                                        const accidentId = existingAccident?.id || 'N/A';
-                                        const accidentDate = existingAccident?.accident_at
-                                          ? new Date(existingAccident.accident_at).toLocaleString('es-AR')
-                                          : 'N/A';
-
-                                        alert(`ℹ️ Este siniestro ya está registrado en el módulo.\n\n` +
-                                          `ID del registro: ${accidentId}\n` +
-                                          `Fecha: ${accidentDate}\n\n` +
-                                          `No es necesario registrarlo nuevamente.`);
-                                      } else {
-                                        const errorMessage = error?.message || error?.data?.message || 'Error desconocido';
-                                        alert(`❌ Error al registrar el siniestro:\n\n${errorMessage}`);
-                                      }
-                                    } finally {
-                                      setRegisteringAccident(null);
-                                    }
-                                  }}
-                                  disabled={registeringAccident === incident.id}
-                                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-[1.02] flex items-center justify-center gap-2 disabled:cursor-not-allowed"
+                <div className="bg-white p-6 rounded-b-xl shadow-lg flex-1 overflow-hidden h-[calc(90vh-200px)]">
+                    <VirtualizedList
+                        items={processedIncidents}
+                        estimateSize={200}
+                        className="h-full"
+                        renderItem={(incident, index) => {
+                            const typeDescription = getIncidentDescription(incident.type, incident.subtype);
+                            return (
+                                <div
+                                    key={`incident-${incident.id}-${index}`}
+                                    onClick={() => onEventClick(incident, 'incident')}
+                                    className="border-2 rounded-xl p-5 bg-gradient-to-br from-white to-gray-50 hover:from-blue-50 hover:to-indigo-50 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-[1.02] hover:border-blue-400 mb-4"
                                 >
-                                  {registeringAccident === incident.id ? (
-                                    <>
-                                      <span className="animate-spin">⏳</span>
-                                      <span>Registrando...</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <WazeIcon type="plus" uiIcon size="lg" iconCache={iconCacheService} />
-                                      <span>Registrar en Siniestros</span>
-                                    </>
-                                  )}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Confirmaciones de Wazers */}
-
-                          {/* Confirmaciones de Wazers */}
-                          {incident.nThumbsUp !== undefined && (
-                            <div className="mt-3 pt-3 border-t-2 border-dashed border-gray-300">
-                              <div className="flex items-center gap-3 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-3 shadow-md">
-                                <WazeIcon type="check" uiIcon size="lg" />
-                                <div className="flex-1">
-                                  <p className="text-xs text-gray-600 font-semibold">Confirmado por Wazers</p>
-                                  <p className="text-2xl font-black text-green-700">
-                                    {incident.nThumbsUp} {incident.nThumbsUp === 1 ? 'usuario' : 'usuarios'}
-                                  </p>
+                                    <div className="flex items-start gap-5">
+                                        <div className="flex-shrink-0 drop-shadow-md">
+                                            <WazeIcon type={incident.type} subtype={incident.subtype} size="xl" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-start justify-between gap-3 mb-3">
+                                                <div>
+                                                    <h4 className="font-black text-gray-900 text-xl mb-1">
+                                                        {typeDescription}
+                                                    </h4>
+                                                </div>
+                                                <span className={`px-4 py-2 rounded-full text-xs font-black border-2 shadow-md ${getSeverityColor(incident.severity)}`}>
+                                                    {getSeverityLabel(incident.severity)}
+                                                </span>
+                                            </div>
+                                            <div className="space-y-3">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm bg-white/70 rounded-lg p-4 border border-gray-200">
+                                                    {incident.street && (
+                                                        <div className="flex items-start gap-2">
+                                                            <WazeIcon type="map" uiIcon size="sm" className="text-blue-600" />
+                                                            <div>
+                                                                <span className="text-gray-500 font-semibold text-xs">Dirección:</span>
+                                                                <p className="text-gray-900 font-medium">{incident.street}</p>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {incident.city && (
+                                                        <div className="flex items-start gap-2">
+                                                            <WazeIcon type="map" uiIcon size="sm" className="text-blue-600" />
+                                                            <div>
+                                                                <span className="text-gray-500 font-semibold text-xs">Ciudad:</span>
+                                                                <p className="text-gray-900 font-medium">{incident.city}</p>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    <div className="flex items-start gap-2">
+                                                        <WazeIcon type="map" uiIcon size="sm" className="text-blue-600" />
+                                                        <div>
+                                                            <span className="text-gray-500 font-semibold text-xs">Coordenadas:</span>
+                                                            <p className="text-gray-900 font-mono text-xs font-medium">
+                                                                {formatCoordinates(incident.location.lat, incident.location.lng)}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-start gap-2">
+                                                        <WazeIcon type="time" uiIcon size="sm" className="text-blue-600" />
+                                                        <div>
+                                                            <span className="text-gray-500 font-semibold text-xs">Reportado:</span>
+                                                            <p className="text-gray-900 font-medium text-xs">
+                                                                {new Date(incident.timestamp).toLocaleString('es-AR')}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-3">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setExpandedEvent({ id: incident.id, type: 'incident' });
+                                                        }}
+                                                        className="flex-1 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 hover:from-blue-700 hover:via-purple-700 hover:to-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-[1.02] flex items-center justify-center gap-3 group"
+                                                    >
+                                                        <span className="group-hover:scale-125 transition-transform duration-300">
+                                                            <WazeIcon type="map" uiIcon size="lg" />
+                                                        </span>
+                                                        <span className="tracking-wide">
+                                                            Ver Ubicación en Minimapa
+                                                        </span>
+                                                        <span className="text-2xl group-hover:translate-x-1 transition-transform duration-300">
+                                                            →
+                                                        </span>
+                                                    </button>
+                                                    {incident.type?.toLowerCase() === 'accident' && (
+                                                        <button
+                                                            onClick={async (e) => {
+                                                                e.stopPropagation();
+                                                                if (registeringAccident === incident.id) return;
+                                                                setRegisteringAccident(incident.id);
+                                                                try {
+                                                                    await createAccident.mutateAsync({
+                                                                        incident_id: incident.id,
+                                                                        waze_data: incident,
+                                                                        type: incident.type,
+                                                                        subtype: incident.subtype,
+                                                                        severity: incident.severity,
+                                                                        street: incident.street,
+                                                                        location_lat: incident.location.lat,
+                                                                        location_lng: incident.location.lng,
+                                                                        accident_at: new Date(incident.timestamp).toISOString()
+                                                                    });
+                                                                    alert('✅ Siniestro registrado exitosamente en el módulo de siniestros');
+                                                                } catch (error: any) {
+                                                                    console.error('Error registrando siniestro:', error);
+                                                                    if (error?.status === 409 || error?.isDuplicate) {
+                                                                        const existingAccident = error?.existingAccident;
+                                                                        const accidentId = existingAccident?.id || 'N/A';
+                                                                        const accidentDate = existingAccident?.accident_at
+                                                                            ? new Date(existingAccident.accident_at).toLocaleString('es-AR')
+                                                                            : 'N/A';
+                                                                        alert(`ℹ️ Este siniestro ya está registrado en el módulo.\n\n` +
+                                                                            `ID del registro: ${accidentId}\n` +
+                                                                            `Fecha: ${accidentDate}\n\n` +
+                                                                            `No es necesario registrarlo nuevamente.`);
+                                                                    } else {
+                                                                        const errorMessage = error?.message || error?.data?.message || 'Error desconocido';
+                                                                        alert(`❌ Error al registrar el siniestro:\n\n${errorMessage}`);
+                                                                    }
+                                                                } finally {
+                                                                    setRegisteringAccident(null);
+                                                                }
+                                                            }}
+                                                            disabled={registeringAccident === incident.id}
+                                                            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-[1.02] flex items-center justify-center gap-2 disabled:cursor-not-allowed"
+                                                        >
+                                                            {registeringAccident === incident.id ? (
+                                                                <>
+                                                                    <span className="animate-spin">⏳</span>
+                                                                    <span>Registrando...</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <WazeIcon type="plus" uiIcon size="lg" iconCache={iconCacheService} />
+                                                                    <span>Registrar en Siniestros</span>
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            {incident.nThumbsUp !== undefined && (
+                                                <div className="mt-3 pt-3 border-t-2 border-dashed border-gray-300">
+                                                    <div className="flex items-center gap-3 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-3 shadow-md">
+                                                        <WazeIcon type="check" uiIcon size="lg" />
+                                                        <div className="flex-1">
+                                                            <p className="text-xs text-gray-600 font-semibold">Confirmado por Wazers</p>
+                                                            <p className="text-2xl font-black text-green-700">
+                                                                {incident.nThumbsUp} {incident.nThumbsUp === 1 ? 'usuario' : 'usuarios'}
+                                                            </p>
+                                                        </div>
+                                                        {incident.nThumbsUp > 5 && (
+                                                            <span className="px-3 py-1 bg-green-600 text-white rounded-full text-xs font-bold shadow-sm">
+                                                                ✓ Alta confianza
+                                                            </span>
+                                                        )}
+                                                        {incident.nThumbsUp === 0 && (
+                                                            <span className="px-3 py-1 bg-gray-400 text-white rounded-full text-xs font-bold shadow-sm">
+                                                                Sin confirmar
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {incident.description &&
+                                                incident.description !== incident.subtype &&
+                                                !/^[A-Z_]+$/.test(incident.description) && (
+                                                    <div className="mt-2 text-sm text-gray-600 italic">
+                                                        "{incident.description}"
+                                                    </div>
+                                                )}
+                                        </div>
+                                    </div>
                                 </div>
-                                {incident.nThumbsUp > 5 && (
-                                  <span className="px-3 py-1 bg-green-600 text-white rounded-full text-xs font-bold shadow-sm">
-                                    ✓ Alta confianza
-                                  </span>
-                                )}
-                                {incident.nThumbsUp === 0 && (
-                                  <span className="px-3 py-1 bg-gray-400 text-white rounded-full text-xs font-bold shadow-sm">
-                                    Sin confirmar
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Description if available and not a key */}
-                          {incident.description &&
-                           incident.description !== incident.subtype &&
-                           !/^[A-Z_]+$/.test(incident.description) && (
-                            <div className="mt-2 text-sm text-gray-600 italic">
-                              "{incident.description}"
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                            );
+                        }}
+                    />
                 </div>
               </div>
 
@@ -569,99 +558,92 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                     </span>
                   </h3>
                 </div>
-                <div className="space-y-4 bg-white p-6 rounded-b-xl shadow-lg flex-1 overflow-y-auto max-h-[calc(90vh-200px)]">
-                {alerts
-                  // Deduplicar por ID antes de renderizar
-                  .filter((alert, index, self) =>
-                    index === self.findIndex((a) => a.id === alert.id)
-                  )
-                  .sort((a, b) => {
-                    // Ordenar por severidad: critical > high > medium > low
-                    const severityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
-                    return (severityOrder[b.severity] || 0) - (severityOrder[a.severity] || 0);
-                  })
-                  .map((alert, index) => {
-                  const severityConfig = {
-                    critical: { label: 'CRÍTICA', color: 'bg-red-100 border-red-400 text-red-900', iconType: 'critical' },
-                    high: { label: 'ALTA', color: 'bg-orange-100 border-orange-400 text-orange-900', iconType: 'warning' },
-                    medium: { label: 'MEDIA', color: 'bg-yellow-100 border-yellow-400 text-yellow-900', iconType: 'warning' },
-                    low: { label: 'BAJA', color: 'bg-blue-100 border-blue-400 text-blue-900', iconType: 'alert' },
-                  }[alert.severity];
+                <div className="bg-white p-6 rounded-b-xl shadow-lg flex-1 overflow-hidden h-[calc(90vh-200px)]">
+                    <VirtualizedList
+                        items={processedAlerts}
+                        estimateSize={200}
+                        className="h-full"
+                        renderItem={(alert, index) => {
+                            const severityConfig = ({
+                                critical: { label: 'CRÍTICA', color: 'bg-red-100 border-red-400 text-red-900', iconType: 'critical' },
+                                high: { label: 'ALTA', color: 'bg-orange-100 border-orange-400 text-orange-900', iconType: 'warning' },
+                                medium: { label: 'MEDIA', color: 'bg-yellow-100 border-yellow-400 text-yellow-900', iconType: 'warning' },
+                                low: { label: 'BAJA', color: 'bg-blue-100 border-blue-400 text-blue-900', iconType: 'alert' },
+                            } as const)[alert.severity as 'critical' | 'high' | 'medium' | 'low'] || { label: 'BAJA', color: 'bg-blue-100 text-blue-900 border-blue-400', iconType: 'alert' };
 
-                  return (
-                    <div
-                      key={`alert-${alert.id}-${index}`}
-                      onClick={() => onEventClick(alert, 'alert')}
-                      className={`border-2 rounded-xl p-5 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-[1.02] ${severityConfig.color}`}
-                    >
-                      <div className="flex items-start gap-4">
-                        <div>
-                          <WazeIcon type={severityConfig.iconType} uiIcon size="xl" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-start justify-between gap-3 mb-2">
-                            <h4 className="font-bold text-lg">{alert.message}</h4>
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${severityConfig.color}`}>
-                              {severityConfig.label}
-                            </span>
-                          </div>
-
-                          <div className="text-sm space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold flex items-center gap-1">
-                                <WazeIcon type="map" uiIcon size="sm" />
-                                Ubicación:
-                              </span>
-                              <span>{alert.location} - {alert.polygonName}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold flex items-center gap-1">
-                                <WazeIcon type="time" uiIcon size="sm" />
-                                Detectada:
-                              </span>
-                              <span>{new Date(alert.timestamp).toLocaleString('es-AR')}</span>
-                            </div>
-                            {alert.data && Object.keys(alert.data).length > 0 && (
-                              <div className="mt-2 pt-2 border-t flex gap-3 text-xs">
-                                {alert.data.criticalJamsCount && (
-                                  <span className="font-semibold flex items-center gap-1">
-                                    <WazeIcon type="jam" size="sm" />
-                                    {alert.data.criticalJamsCount} puntos críticos
-                                  </span>
-                                )}
-                                {alert.data.avgDelayMinutes !== undefined && (
-                                  <span className="font-semibold flex items-center gap-1">
-                                    <WazeIcon type="time" uiIcon size="sm" />
-                                    +{alert.data.avgDelayMinutes} min demora
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Botón Ver en Minimapa */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setExpandedEvent({ id: alert.id, type: 'alert' });
-                            }}
-                            className="w-full mt-3 bg-gradient-to-r from-red-600 via-pink-600 to-rose-600 hover:from-red-700 hover:via-pink-700 hover:to-rose-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-[1.02] flex items-center justify-center gap-3 group"
-                          >
-                            <span className="group-hover:scale-125 transition-transform duration-300">
-                              <WazeIcon type="map" uiIcon size="lg" />
-                            </span>
-                            <span className="tracking-wide">
-                              Ver Ubicación en Minimapa
-                            </span>
-                            <span className="text-2xl group-hover:translate-x-1 transition-transform duration-300">
-                              →
-                            </span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                            return (
+                                <div
+                                    key={`alert-${alert.id}-${index}`}
+                                    onClick={() => onEventClick(alert, 'alert')}
+                                    className={`border-2 rounded-xl p-5 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-[1.02] mb-4 ${severityConfig.color}`}
+                                >
+                                    <div className="flex items-start gap-4">
+                                        <div>
+                                            <WazeIcon type={severityConfig.iconType || 'alert'} uiIcon size="xl" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex items-start justify-between gap-3 mb-2">
+                                                <h4 className="font-bold text-lg">{alert.message}</h4>
+                                                <span className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${severityConfig.color}`}>
+                                                    {severityConfig.label}
+                                                </span>
+                                            </div>
+                                            <div className="text-sm space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-semibold flex items-center gap-1">
+                                                        <WazeIcon type="map" uiIcon size="sm" />
+                                                        Ubicación:
+                                                    </span>
+                                                    <span>{alert.location} - {alert.polygonName}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-semibold flex items-center gap-1">
+                                                        <WazeIcon type="time" uiIcon size="sm" />
+                                                        Detectada:
+                                                    </span>
+                                                    <span>{new Date(alert.timestamp).toLocaleString('es-AR')}</span>
+                                                </div>
+                                                {alert.data && Object.keys(alert.data).length > 0 && (
+                                                    <div className="mt-2 pt-2 border-t flex gap-3 text-xs">
+                                                        {alert.data.criticalJamsCount && (
+                                                            <span className="font-semibold flex items-center gap-1">
+                                                                <WazeIcon type="jam" size="sm" />
+                                                                {alert.data.criticalJamsCount} puntos críticos
+                                                            </span>
+                                                        )}
+                                                        {alert.data.avgDelayMinutes !== undefined && (
+                                                            <span className="font-semibold flex items-center gap-1">
+                                                                <WazeIcon type="time" uiIcon size="sm" />
+                                                                +{alert.data.avgDelayMinutes} min demora
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {/* Botón Ver en Minimapa */}
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setExpandedEvent({ id: alert.id, type: 'alert' });
+                                                }}
+                                                className="w-full mt-3 bg-gradient-to-r from-red-600 via-pink-600 to-rose-600 hover:from-red-700 hover:via-pink-700 hover:to-rose-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-[1.02] flex items-center justify-center gap-3 group"
+                                            >
+                                                <span className="group-hover:scale-125 transition-transform duration-300">
+                                                    <WazeIcon type="map" uiIcon size="lg" />
+                                                </span>
+                                                <span className="tracking-wide">
+                                                    Ver Ubicación en Minimapa
+                                                </span>
+                                                <span className="text-2xl group-hover:translate-x-1 transition-transform duration-300">
+                                                    →
+                                                </span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        }}
+                    />
                 </div>
               </div>
             </div>
@@ -894,12 +876,12 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                         return (severityOrder[b.severity] || 0) - (severityOrder[a.severity] || 0);
                       })
                       .map((alert, index) => {
-                        const severityConfig = {
-                          critical: { label: 'CRÍTICA', color: 'bg-red-100 border-red-400 text-red-900', icon: '🚨' },
-                          high: { label: 'ALTA', color: 'bg-orange-100 border-orange-400 text-orange-900', icon: '⚠️' },
-                          medium: { label: 'MEDIA', color: 'bg-yellow-100 border-yellow-400 text-yellow-900', icon: '⚡' },
-                          low: { label: 'BAJA', color: 'bg-blue-100 border-blue-400 text-blue-900', icon: 'ℹ️' },
-                        }[alert.severity];
+                        const severityConfig = ({
+                          critical: { label: 'CRÍTICA', color: 'bg-red-100 border-red-400 text-red-900', iconType: 'critical' },
+                          high: { label: 'ALTA', color: 'bg-orange-100 border-orange-400 text-orange-900', iconType: 'warning' },
+                          medium: { label: 'MEDIA', color: 'bg-yellow-100 border-yellow-400 text-yellow-900', iconType: 'warning' },
+                          low: { label: 'BAJA', color: 'bg-blue-100 border-blue-400 text-blue-900', iconType: 'alert' },
+                        } as const)[alert.severity as 'critical' | 'high' | 'medium' | 'low'] || { label: 'BAJA', color: 'bg-blue-100 text-blue-900 border-blue-400', iconType: 'alert' };
 
                         return (
                           <div

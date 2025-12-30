@@ -3,7 +3,8 @@
  * Con filtros por grupo, nivel de riesgo y visualización de tramos individuales
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -238,28 +239,13 @@ export const RiskDashboard: React.FC = () => {
                                     </p>
                                 </motion.div>
 
-                                {/* Lista de tramos */}
-                                <div className="grid gap-4">
-                                    {filteredScores.length === 0 ? (
-                                        <div className="bg-white rounded-xl shadow-lg p-12 text-center">
-                                            <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                                            <p className="text-gray-600 text-lg">
-                                                No hay tramos con este nivel de riesgo
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        filteredScores.map((score, index) => (
-                                            <PolygonRiskCard
-                                                key={score.polygon_id}
-                                                score={score}
-                                                index={index}
-                                                isSelected={selectedPolygon?.polygon_id === score.polygon_id}
-                                                onClick={() => setSelectedPolygon(score)}
-                                                onFactorClick={openFactorModal}
-                                            />
-                                        ))
-                                    )}
-                                </div>
+                                {/* Lista de tramos virtualizada */}
+                                <VirtualizedRiskList
+                                    scores={filteredScores}
+                                    selectedPolygon={selectedPolygon}
+                                    onPolygonClick={setSelectedPolygon}
+                                    onFactorClick={openFactorModal}
+                                />
                             </>
                         )}
                     </div>
@@ -1219,6 +1205,98 @@ const IncidentsInfoModal: React.FC<IncidentsInfoModalProps> = ({ polygonId, poly
                 </div>
             </motion.div>
         </motion.div>
+    );
+};
+
+// ============================================================================
+// Componente: Lista Virtualizada de Riesgos (Performance)
+// ============================================================================
+
+interface VirtualizedRiskListProps {
+    scores: RiskScore[];
+    selectedPolygon: RiskScore | null;
+    onPolygonClick: (score: RiskScore) => void;
+    onFactorClick: (type: 'traffic' | 'incidents' | 'weather', polygonId: string) => void;
+}
+
+const VirtualizedRiskList: React.FC<VirtualizedRiskListProps> = ({
+    scores,
+    selectedPolygon,
+    onPolygonClick,
+    onFactorClick,
+}) => {
+    const parentRef = useRef<HTMLDivElement>(null);
+
+    const virtualizer = useVirtualizer({
+        count: scores.length,
+        getScrollElement: () => parentRef.current,
+        estimateSize: () => 320, // Altura estimada de cada card
+        overscan: 3,
+    });
+
+    const scrollToPolygon = useCallback((polygonId: string) => {
+        const index = scores.findIndex(s => s.polygon_id === polygonId);
+        if (index !== -1) {
+            virtualizer.scrollToIndex(index, {
+                align: 'center',
+                behavior: 'smooth',
+            });
+        }
+    }, [scores, virtualizer]);
+
+    if (scores.length === 0) {
+        return (
+            <div className="bg-white rounded-xl shadow-lg p-12 text-center">
+                <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                <p className="text-gray-600 text-lg">
+                    No hay tramos con este nivel de riesgo
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <div
+            ref={parentRef}
+            className="h-[calc(100vh-400px)] overflow-auto rounded-xl"
+            style={{ contain: 'strict' }}
+        >
+            <div
+                style={{
+                    height: `${virtualizer.getTotalSize()}px`,
+                    width: '100%',
+                    position: 'relative',
+                }}
+            >
+                {virtualizer.getVirtualItems().map((virtualRow) => {
+                    const score = scores[virtualRow.index];
+                    if (!score) return null;
+
+                    return (
+                        <div
+                            key={virtualRow.key}
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: `${virtualRow.size}px`,
+                                transform: `translateY(${virtualRow.start}px)`,
+                                paddingBottom: '16px',
+                            }}
+                        >
+                            <PolygonRiskCard
+                                score={score}
+                                index={virtualRow.index}
+                                isSelected={selectedPolygon?.polygon_id === score.polygon_id}
+                                onClick={() => onPolygonClick(score)}
+                                onFactorClick={onFactorClick}
+                            />
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
     );
 };
 
