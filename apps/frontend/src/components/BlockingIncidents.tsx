@@ -238,20 +238,35 @@ export const BlockingIncidents: React.FC = () => {
         </h2>
 
         {/* Filtro de tipo de evento */}
-        <div className="relative">
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="appearance-none bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg pl-8 pr-8 py-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {EVENT_TYPE_FILTERS.map((filter) => (
-              <option key={filter.value} value={filter.value}>
-                {filter.label}
-              </option>
-            ))}
-          </select>
-          <Filter className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400 pointer-events-none" />
-          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400 pointer-events-none" />
+        <div className="flex items-center gap-2">
+          {/* Contador de eventos filtrados */}
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            <strong className="text-gray-900 dark:text-white">
+              {filteredAnalyses.length}
+            </strong>
+            {typeFilter !== "all" && (
+              <span className="text-gray-400 dark:text-gray-500">
+                {" "}
+                / {data?.analyses?.length || 0}
+              </span>
+            )}
+          </span>
+
+          <div className="relative">
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="appearance-none bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg pl-8 pr-8 py-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {EVENT_TYPE_FILTERS.map((filter) => (
+                <option key={filter.value} value={filter.value}>
+                  {filter.label}
+                </option>
+              ))}
+            </select>
+            <Filter className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400 pointer-events-none" />
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400 pointer-events-none" />
+          </div>
         </div>
       </div>
 
