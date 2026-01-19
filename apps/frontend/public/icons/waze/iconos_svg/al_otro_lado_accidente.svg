@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Círculo de fondo -->
+  <circle cx="100" cy="100" r="90" fill="#3d4a5c"/>
+  
+  <!-- Auto con daño (más pequeño, a la derecha) -->
+  <g transform="translate(130, 100)">
+    <rect x="-12" y="-7" width="24" height="14" fill="#3b82f6" rx="2"/>
+    <path d="M -10 -7 L -5 -12 L 3 -12 L 8 -7 Z" fill="#2563eb"/>
+    <circle cx="-6" cy="7" r="3" fill="#2c3e50"/>
+    <circle cx="6" cy="7" r="3" fill="#2c3e50"/>
+    
+    <!-- Daño/impacto -->
+    <path d="M -12 -2 L -8 2 L -12 6" fill="none" stroke="#fbbf24" stroke-width="2"/>
+  </g>
+  
+  <!-- Marco/pantalla indicando "otro lado" -->
+  <g transform="translate(85, 100)">
+    <rect x="-35" y="-30" width="50" height="60" fill="none" stroke="#60a5fa" stroke-width="3" rx="3"/>
+    <rect x="-32" y="-27" width="44" height="54" fill="#1e3a8a" opacity="0.2" rx="2"/>
+  </g>
+  
+  <!-- Flecha apuntando hacia la derecha -->
+  <g transform="translate(70, 100)">
+    <line x1="-10" y1="0" x2="5" y2="0" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+    <path d="M 5 0 L -2 -6 M 5 0 L -2 6" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+  </g>
+</svg>

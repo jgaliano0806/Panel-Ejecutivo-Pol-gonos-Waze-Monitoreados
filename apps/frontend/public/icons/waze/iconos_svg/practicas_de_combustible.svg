@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Círculo de fondo -->
+  <circle cx="100" cy="100" r="90" fill="#3d4a5c"/>
+  
+  <!-- Bomba de gasolina -->
+  <g transform="translate(100, 100)">
+    <!-- Cuerpo de la bomba -->
+    <rect x="-25" y="-25" width="50" height="55" fill="#10b981" rx="5"/>
+    
+    <!-- Pantalla -->
+    <rect x="-18" y="-15" width="36" height="25" fill="#2c3e50" rx="3"/>
+    
+    <!-- Líneas en la pantalla -->
+    <line x1="-10" y1="-8" x2="10" y2="-8" stroke="#10b981" stroke-width="2"/>
+    <line x1="-10" y1="0" x2="10" y2="0" stroke="#10b981" stroke-width="2"/>
+    
+    <!-- Manguera -->
+    <path d="M 25 -10 Q 35 -5 35 5 L 35 20" stroke="#2c3e50" stroke-width="4" fill="none" stroke-linecap="round"/>
+    
+    <!-- Pistola de combustible -->
+    <g transform="translate(35, 25)">
+      <rect x="-4" y="0" width="8" height="15" fill="#fbbf24" rx="2"/>
+      <path d="M -4 5 L -8 8 L -8 12 L -4 15" fill="#f59e0b"/>
+    </g>
+    
+    <!-- Base -->
+    <rect x="-30" y="30" width="60" height="8" fill="#059669" rx="2"/>
+    
+    <!-- Indicador de información -->
+    <circle cx="0" cy="20" r="6" fill="#fbbf24"/>
+    <text x="0" y="24" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#2c3e50" text-anchor="middle">i</text>
+  </g>
+</svg>

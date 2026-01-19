@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Círculo de fondo -->
+  <circle cx="100" cy="100" r="90" fill="#3d4a5c"/>
+  
+  <!-- Auto verde (atrás) -->
+  <g transform="translate(75, 90)">
+    <rect x="-15" y="-8" width="30" height="16" fill="#10b981" rx="2"/>
+    <path d="M -12 -8 L -6 -14 L 4 -14 L 10 -8 Z" fill="#059669"/>
+    <circle cx="-8" cy="8" r="4" fill="#2c3e50"/>
+    <circle cx="8" cy="8" r="4" fill="#2c3e50"/>
+  </g>
+  
+  <!-- Auto azul (medio) -->
+  <g transform="translate(100, 100)">
+    <rect x="-18" y="-9" width="36" height="18" fill="#3b82f6" rx="2"/>
+    <path d="M -14 -9 L -7 -16 L 5 -16 L 12 -9 Z" fill="#2563eb"/>
+    <circle cx="-10" cy="9" r="5" fill="#2c3e50"/>
+    <circle cx="10" cy="9" r="5" fill="#2c3e50"/>
+  </g>
+  
+  <!-- Auto rojo (adelante) -->
+  <g transform="translate(125, 110)">
+    <rect x="-15" y="-8" width="30" height="16" fill="#ef4444" rx="2"/>
+    <path d="M -12 -8 L -6 -14 L 4 -14 L 10 -8 Z" fill="#dc2626"/>
+    <circle cx="-8" cy="8" r="4" fill="#2c3e50"/>
+    <circle cx="8" cy="8" r="4" fill="#2c3e50"/>
+  </g>
+  
+  <!-- Impactos -->
+  <g fill="#fbbf24">
+    <path d="M 88 95 L 90 98 L 94 98 L 91 101 L 92 105 L 88 103 L 84 105 L 85 101 L 82 98 L 86 98 Z"/>
+    <path d="M 112 105 L 114 108 L 118 108 L 115 111 L 116 115 L 112 113 L 108 115 L 109 111 L 106 108 L 110 108 Z"/>
+  </g>
+</svg>

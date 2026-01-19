@@ -399,7 +399,7 @@ export class CatalogSyncService {
     try {
       const query = `
         SELECT
-          t.id, t.code, t.name, t.description, t.icon, t.color, t.is_active as type_active,
+          t.id, t.code, t.name, t.description, t.icon, t.icon_url, t.color, t.is_active, t.created_at, t.updated_at,
           json_agg(
             json_build_object(
               'id', s.id,
@@ -407,12 +407,15 @@ export class CatalogSyncService {
               'name', s.name,
               'description', s.description,
               'severity', s.severity,
-              'is_active', s.is_active
+              'icon_url', s.icon_url,
+              'is_active', s.is_active,
+              'created_at', s.created_at,
+              'updated_at', s.updated_at
             )
           ) FILTER (WHERE s.id IS NOT NULL) as subtypes
         FROM incident_types t
         LEFT JOIN incident_subtypes s ON t.id = s.type_id
-        GROUP BY t.id, t.code, t.name, t.description, t.icon, t.color, t.is_active
+        GROUP BY t.id, t.code, t.name, t.description, t.icon, t.icon_url, t.color, t.is_active, t.created_at, t.updated_at
         ORDER BY t.name
       `;
 

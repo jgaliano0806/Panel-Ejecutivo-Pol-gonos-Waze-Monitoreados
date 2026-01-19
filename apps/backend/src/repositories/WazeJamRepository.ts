@@ -1,5 +1,5 @@
-import { BaseRepository } from './BaseRepository';
-import { Pool } from 'pg';
+import { BaseRepository } from "./BaseRepository";
+import { Pool } from "pg";
 
 export interface WazeJam {
   uuid: string;
@@ -18,14 +18,14 @@ export interface WazeJam {
 }
 
 export class WazeJamRepository extends BaseRepository<WazeJam> {
-  readonly tableName = 'waze_jams';
+  readonly tableName = "waze_jams";
 
   constructor(db: Pool) {
     super(db);
   }
 
   protected getIdColumn(): string {
-    return 'uuid';
+    return "uuid";
   }
 
   mapRowToEntity(row: any): WazeJam {
@@ -33,9 +33,9 @@ export class WazeJamRepository extends BaseRepository<WazeJam> {
       uuid: row.uuid,
       polygon_id: row.polygon_id,
       level: row.level,
-      speedKMH: parseFloat(row.speed_kmh || '0'),
-      delay: parseInt(row.delay_seconds || '0', 10),
-      length: parseFloat(row.length_meters || '0'),
+      speedKMH: parseFloat(row.speed_kmh || "0"),
+      delay: parseInt(row.delay_seconds || "0", 10),
+      length: parseFloat(row.length_meters || "0"),
       street: row.street,
       pubMillis: parseInt(row.pub_millis, 10),
       polyline: row.polyline,
@@ -57,7 +57,8 @@ export class WazeJamRepository extends BaseRepository<WazeJam> {
     if (entity.street) row.street = entity.street;
     if (entity.pubMillis !== undefined) row.pub_millis = entity.pubMillis;
     if (entity.polyline) row.polyline = entity.polyline; // Assuming passing object/array suitable for pg driver
-    if (entity.blockingAlertUuid) row.blocking_alert_uuid = entity.blockingAlertUuid;
+    if (entity.blockingAlertUuid)
+      row.blocking_alert_uuid = entity.blockingAlertUuid;
     if (entity.is_active !== undefined) row.is_active = entity.is_active;
 
     return row;
@@ -66,19 +67,19 @@ export class WazeJamRepository extends BaseRepository<WazeJam> {
   async findActiveByPolygon(polygonId: string): Promise<WazeJam[]> {
     const result = await this.query(
       `SELECT * FROM ${this.tableName}
-       WHERE polygon_id = $1 AND is_active = true
+       WHERE polygon_id = $1 AND is_active IS NOT FALSE
        ORDER BY pub_millis DESC`,
       [polygonId]
     );
-    return result.rows.map(row => this.mapRowToEntity(row));
+    return result.rows.map((row) => this.mapRowToEntity(row));
   }
 
   async findAllActive(): Promise<WazeJam[]> {
     const result = await this.query(
       `SELECT * FROM ${this.tableName}
-       WHERE is_active = true`
+       WHERE is_active IS NOT FALSE`
     );
-    return result.rows.map(row => this.mapRowToEntity(row));
+    return result.rows.map((row) => this.mapRowToEntity(row));
   }
 
   async bulkUpsert(jams: WazeJam[]): Promise<void> {
@@ -95,11 +96,14 @@ export class WazeJamRepository extends BaseRepository<WazeJam> {
           $${offset + 9}, $${offset + 10}, $${offset + 11})`
       );
 
+      // CRÍTICO: El feed de Waze envía 'line', no 'polyline'
+      const polylineData = jam.polyline || (jam as any).line || [];
+
       values.push(
         jam.uuid,
         jam.polygon_id,
         jam.level,
-        jam.polyline ? JSON.stringify(jam.polyline) : '[]', // Ensure JSON string and never null
+        JSON.stringify(polylineData), // Asegurar JSON válido
         jam.speedKMH,
         jam.delay,
         jam.length,
@@ -113,11 +117,12 @@ export class WazeJamRepository extends BaseRepository<WazeJam> {
     await this.query(
       `INSERT INTO ${this.tableName}
        (uuid, polygon_id, level, polyline, speed_kmh, delay_seconds, length_meters, street, pub_millis, blocking_alert_uuid, is_active)
-       VALUES ${placeholders.join(', ')}
+       VALUES ${placeholders.join(", ")}
        ON CONFLICT (uuid) DO UPDATE SET
          updated_at = NOW(),
          is_active = true,
          level = EXCLUDED.level,
+         polyline = EXCLUDED.polyline,
          speed_kmh = EXCLUDED.speed_kmh,
          delay_seconds = EXCLUDED.delay_seconds,
          length_meters = EXCLUDED.length_meters,

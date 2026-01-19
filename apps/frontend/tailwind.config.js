@@ -1,10 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: ["class"],
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     container: {
       center: true,
@@ -24,49 +21,61 @@ export default {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
           // Colores corporativos Caminos de las Sierras (verde corporativo)
-          50: '#f0fdf4',
-          100: '#dcfce7',
-          200: '#bbf7d0',
-          300: '#86efac',
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d', // Color principal corporativo
-          800: '#166534',
-          900: '#14532d',
+          50: "#f0fdf4",
+          100: "#dcfce7",
+          200: "#bbf7d0",
+          300: "#86efac",
+          400: "#4ade80",
+          500: "#22c55e",
+          600: "#16a34a",
+          700: "#15803d", // Color principal corporativo
+          800: "#166534",
+          900: "#14532d",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
-          500: '#8b5cf6',
+          500: "#8b5cf6",
         },
         accent: {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
-          500: '#06b6d4',
+          500: "#06b6d4",
         },
         success: {
           DEFAULT: "hsl(var(--success))",
           foreground: "hsl(var(--success-foreground))",
-          light: '#86efac',
-          500: '#10b981',
-          dark: '#059669',
+          light: "#86efac",
+          500: "#10b981",
+          dark: "#059669",
         },
         warning: {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
           // Amarillo característico de Caminos de las Sierras
-          light: '#fef08a',
-          400: '#facc15', // Amarillo corporativo (border)
-          500: '#eab308',
-          dark: '#ca8a04',
+          light: "#fef08a",
+          400: "#facc15", // Amarillo corporativo (border)
+          500: "#eab308",
+          dark: "#ca8a04",
         },
         danger: {
           DEFAULT: "hsl(var(--danger))",
           foreground: "hsl(var(--danger-foreground))",
-          light: '#fca5a5',
-          500: '#ef4444',
-          dark: '#dc2626',
+          light: "#fca5a5",
+          500: "#ef4444",
+          dark: "#dc2626",
+        },
+        // Paleta Veltrix (Admin Dashboard Inspiration)
+        veltrix: {
+          bg: "#222736", // Fondo principal (Deep Blue/Black)
+          card: "#2a3042", // Fondo de tarjetas/header (Lighter Blue)
+          border: "#32394e", // Bordes sutiles
+          text: "#eff2f7", // Texto principal (White/Gray)
+          muted: "#a6b0cf", // Texto secundario (Blueish Gray)
+          primary: "#556ee6", // Acento azul
+          success: "#34c38f", // Acento verde
+          warning: "#f1b44c", // Acento amarillo
+          danger: "#f46a6a", // Acento rojo
         },
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
@@ -91,7 +100,7 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ["Inter", "system-ui", "sans-serif"],
       },
       keyframes: {
         "accordion-down": {
@@ -106,7 +115,7 @@ export default {
           "0%": { opacity: "0", transform: "translateY(10px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
-        "fadeIn": {
+        fadeIn: {
           "0%": { opacity: "0" },
           "100%": { opacity: "1" },
         },
@@ -135,17 +144,17 @@ export default {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-in": "fade-in 0.5s ease-out",
-        "fadeIn": "fadeIn 0.3s ease-out",
+        fadeIn: "fadeIn 0.3s ease-out",
         "slide-in-from-top": "slide-in-from-top 0.3s ease-out",
         "slide-in-from-bottom": "slide-in-from-bottom 0.3s ease-out",
-        "shimmer": "shimmer 2s infinite",
+        shimmer: "shimmer 2s infinite",
         "pulse-slow": "pulse-slow 3s infinite",
         "scale-in": "scale-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
       },
       backdropBlur: {
-        xs: '2px',
+        xs: "2px",
       },
     },
   },
   plugins: [require("tailwindcss-animate")],
-}
+};

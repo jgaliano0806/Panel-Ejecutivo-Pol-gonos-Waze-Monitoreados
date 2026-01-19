@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Círculo de fondo -->
+  <circle cx="100" cy="100" r="90" fill="#3d4a5c"/>
+  
+  <!-- Auto naranja en orilla -->
+  <g transform="translate(130, 95)">
+    <!-- Carrocería -->
+    <rect x="-20" y="-10" width="40" height="20" fill="#f97316" rx="2"/>
+    <!-- Techo -->
+    <path d="M -16 -10 L -8 -18 L 6 -18 L 14 -10 Z" fill="#ea580c"/>
+    <!-- Ventanas -->
+    <rect x="-13" y="-16" width="10" height="6" fill="#60a5fa"/>
+    <rect x="3" y="-16" width="8" height="6" fill="#60a5fa"/>
+    <!-- Ruedas -->
+    <circle cx="-12" cy="10" r="5" fill="#2c3e50"/>
+    <circle cx="12" cy="10" r="5" fill="#2c3e50"/>
+  </g>
+  
+  <!-- Marco/pantalla -->
+  <g transform="translate(90, 100)">
+    <rect x="-32" y="-30" width="48" height="60" fill="none" stroke="#60a5fa" stroke-width="3" rx="3"/>
+    <rect x="-29" y="-27" width="42" height="54" fill="#1e3a8a" opacity="0.2" rx="2"/>
+  </g>
+  
+  <!-- Flecha apuntando al auto -->
+  <g transform="translate(105, 100)">
+    <line x1="-5" y1="0" x2="10" y2="0" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M 10 0 L 4 -5 M 10 0 L 4 5" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+  </g>
+</svg>

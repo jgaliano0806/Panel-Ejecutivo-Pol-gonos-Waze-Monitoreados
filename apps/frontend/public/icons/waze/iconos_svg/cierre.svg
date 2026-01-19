@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Círculo de fondo -->
+  <circle cx="100" cy="100" r="90" fill="#3d4a5c"/>
+  
+  <!-- Barrera de cierre -->
+  <g transform="translate(100, 100)">
+    <!-- Poste izquierdo -->
+    <rect x="-45" y="-5" width="8" height="35" fill="#6b7280"/>
+    
+    <!-- Poste derecho -->
+    <rect x="37" y="-5" width="8" height="35" fill="#6b7280"/>
+    
+    <!-- Barrera rayada -->
+    <rect x="-37" y="-5" width="74" height="15" fill="#ef4444" rx="2"/>
+    
+    <!-- Rayas blancas diagonales -->
+    <g stroke="#ffffff" stroke-width="4">
+      <line x1="-35" y1="-5" x2="-25" y2="10"/>
+      <line x1="-20" y1="-5" x2="-10" y2="10"/>
+      <line x1="-5" y1="-5" x2="5" y2="10"/>
+      <line x1="10" y1="-5" x2="20" y2="10"/>
+      <line x1="25" y1="-5" x2="35" y2="10"/>
+    </g>
+  </g>
+</svg>

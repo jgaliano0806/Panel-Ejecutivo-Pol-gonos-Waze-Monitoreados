@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Círculo de fondo -->
+  <circle cx="100" cy="100" r="90" fill="#3d4a5c"/>
+  
+  <!-- Objeto/caja en carretera -->
+  <g transform="translate(115, 110)">
+    <!-- Caja -->
+    <rect x="-20" y="-15" width="40" height="30" fill="#f97316" stroke="#ea580c" stroke-width="2" rx="2"/>
+    <!-- Líneas de la caja -->
+    <line x1="-20" y1="-5" x2="20" y2="-5" stroke="#ea580c" stroke-width="2"/>
+    <line x1="-20" y1="5" x2="20" y2="5" stroke="#ea580c" stroke-width="2"/>
+    <line x1="0" y1="-15" x2="0" y2="15" stroke="#ea580c" stroke-width="2"/>
+  </g>
+  
+  <!-- Pantalla/marco -->
+  <g transform="translate(80, 100)">
+    <rect x="-30" y="-28" width="45" height="56" fill="none" stroke="#60a5fa" stroke-width="3" rx="3"/>
+    <rect x="-27" y="-25" width="39" height="50" fill="#1e3a8a" opacity="0.15" rx="2"/>
+  </g>
+  
+  <!-- Flecha -->
+  <g transform="translate(90, 100)">
+    <line x1="-5" y1="0" x2="8" y2="0" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M 8 0 L 2 -5 M 8 0 L 2 5" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+  </g>
+</svg>

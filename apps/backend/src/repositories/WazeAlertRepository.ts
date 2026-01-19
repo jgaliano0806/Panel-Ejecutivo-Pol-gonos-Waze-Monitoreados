@@ -1,5 +1,5 @@
-import { BaseRepository } from './BaseRepository';
-import { Pool } from 'pg';
+import { BaseRepository } from "./BaseRepository";
+import { Pool } from "pg";
 
 // Define Interface locally or import from types if available.
 // Based on user prompt providing explicit types:
@@ -20,20 +20,24 @@ export interface WazeAlert {
   reliability: number;
   confidence: number;
   reportDescription?: string;
+  nThumbsUp?: number;
+  reportRating?: number;
+  reportBy?: string;
+  magvar?: number;
   created_at?: Date;
   updated_at?: Date;
   is_active?: boolean;
 }
 
 export class WazeAlertRepository extends BaseRepository<WazeAlert> {
-  readonly tableName = 'waze_alerts';
+  readonly tableName = "waze_alerts";
 
   constructor(db: Pool) {
     super(db);
   }
 
   protected getIdColumn(): string {
-    return 'uuid'; // Override ID column
+    return "uuid"; // Override ID column
   }
 
   mapRowToEntity(row: any): WazeAlert {
@@ -53,6 +57,14 @@ export class WazeAlertRepository extends BaseRepository<WazeAlert> {
       reliability: parseFloat(row.reliability),
       confidence: parseFloat(row.confidence),
       reportDescription: row.report_description,
+      nThumbsUp:
+        row.n_thumbs_up !== null ? parseInt(row.n_thumbs_up, 10) : undefined,
+      reportRating:
+        row.report_rating !== null
+          ? parseInt(row.report_rating, 10)
+          : undefined,
+      reportBy: row.report_by || undefined,
+      magvar: row.magvar !== null ? parseInt(row.magvar, 10) : undefined,
       created_at: row.created_at,
       updated_at: row.updated_at,
       is_active: row.is_active,
@@ -75,7 +87,13 @@ export class WazeAlertRepository extends BaseRepository<WazeAlert> {
     if (entity.pubMillis !== undefined) row.pub_millis = entity.pubMillis;
     if (entity.reliability !== undefined) row.reliability = entity.reliability;
     if (entity.confidence !== undefined) row.confidence = entity.confidence;
-    if (entity.reportDescription) row.report_description = entity.reportDescription;
+    if (entity.reportDescription)
+      row.report_description = entity.reportDescription;
+    if (entity.nThumbsUp !== undefined) row.n_thumbs_up = entity.nThumbsUp;
+    if (entity.reportRating !== undefined)
+      row.report_rating = entity.reportRating;
+    if (entity.reportBy) row.report_by = entity.reportBy;
+    if (entity.magvar !== undefined) row.magvar = entity.magvar;
     if (entity.is_active !== undefined) row.is_active = entity.is_active;
 
     return row;
@@ -87,30 +105,29 @@ export class WazeAlertRepository extends BaseRepository<WazeAlert> {
 
   async findActiveByPolygon(polygonId: string): Promise<WazeAlert[]> {
     const result = await this.query(
-      `SELECT * FROM ${this.tableName} WHERE polygon_id = $1 AND is_active = true`,
+      `SELECT * FROM ${this.tableName} WHERE polygon_id = $1 AND is_active IS NOT FALSE`,
       [polygonId]
     );
-    return result.rows.map(row => this.mapRowToEntity(row));
+    return result.rows.map((row) => this.mapRowToEntity(row));
   }
 
   async findAllActive(): Promise<WazeAlert[]> {
     const result = await this.query(
-      `SELECT * FROM ${this.tableName} WHERE is_active = true`
+      `SELECT * FROM ${this.tableName} WHERE is_active IS NOT FALSE`
     );
-    return result.rows.map(row => this.mapRowToEntity(row));
+    return result.rows.map((row) => this.mapRowToEntity(row));
   }
 
   async findByType(type: string, limit = 100): Promise<WazeAlert[]> {
     const result = await this.query(
       `SELECT * FROM ${this.tableName}
-       WHERE type = $1 AND is_active = true
+       WHERE type = $1 AND is_active IS NOT FALSE
        ORDER BY pub_millis DESC
        LIMIT $2`,
       [type, limit]
     );
-    return result.rows.map(row => this.mapRowToEntity(row));
+    return result.rows.map((row) => this.mapRowToEntity(row));
   }
-
 
   async markInactive(olderThan: Date): Promise<number> {
     const result = await this.query(
@@ -137,12 +154,14 @@ export class WazeAlertRepository extends BaseRepository<WazeAlert> {
     const placeholders: string[] = [];
 
     alerts.forEach((alert, index) => {
-      const offset = index * 13; // 13 columns being inserted
+      const offset = index * 17; // 17 columns being inserted
       placeholders.push(
         `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4},
           $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8},
           $${offset + 9}, $${offset + 10}, $${offset + 11}, $${offset + 12},
-          $${offset + 13})`
+          $${offset + 13}, $${offset + 14}, $${offset + 15}, $${
+          offset + 16
+        }, $${offset + 17})`
       );
 
       values.push(
@@ -158,20 +177,28 @@ export class WazeAlertRepository extends BaseRepository<WazeAlert> {
         alert.pubMillis,
         alert.reliability,
         alert.confidence,
-        alert.reportDescription || null
+        alert.reportDescription || null,
+        alert.nThumbsUp || 0,
+        alert.reportRating || 0,
+        alert.reportBy || null,
+        alert.magvar || null
       );
     });
 
     await this.query(
       `INSERT INTO ${this.tableName}
        (uuid, polygon_id, type, subtype, latitude, longitude, street, city,
-        country, pub_millis, reliability, confidence, report_description)
-       VALUES ${placeholders.join(', ')}
+        country, pub_millis, reliability, confidence, report_description, n_thumbs_up, report_rating, report_by, magvar)
+       VALUES ${placeholders.join(", ")}
        ON CONFLICT (uuid) DO UPDATE SET
          updated_at = NOW(),
          is_active = true,
          reliability = EXCLUDED.reliability,
-         confidence = EXCLUDED.confidence`,
+         confidence = EXCLUDED.confidence,
+         n_thumbs_up = EXCLUDED.n_thumbs_up,
+         report_rating = EXCLUDED.report_rating,
+         report_by = EXCLUDED.report_by,
+         magvar = EXCLUDED.magvar`,
       values
     );
   }
@@ -196,7 +223,7 @@ export class WazeAlertRepository extends BaseRepository<WazeAlert> {
     let totalCount = 0;
     let totalConfidence = 0;
 
-    result.rows.forEach(row => {
+    result.rows.forEach((row) => {
       const count = parseInt(row.total, 10);
       byType[row.type] = count;
       totalCount += count;

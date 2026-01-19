@@ -1,313 +1,375 @@
-import React from 'react';
-import type { Polygon, Incident, TrafficJam, IncidentType } from '../types';
-import { PolygonState } from '../types';
-import { calculatePolygonStats, formatDelay } from '../utils/polygonCalculations';
+import React from "react";
+import type { Polygon, Incident, TrafficJam } from "../types";
+import { PolygonState } from "../types";
 import {
-    getIncidentDescription,
-    getJamLevelTranslation,
-    getRoadTypeTranslation
-} from '../utils/wazeTranslations';
-import { CongestionIndexCard } from './CongestionIndexCard';
-import { WazeIcon } from './WazeIcon';
+  calculatePolygonStats,
+  formatDelay,
+} from "../utils/polygonCalculations";
+import {
+  getIncidentDescription,
+  getJamLevelTranslation,
+  getRoadTypeTranslation,
+} from "../utils/wazeTranslations";
+import { CongestionIndexCard } from "./CongestionIndexCard";
+import { WazeIcon } from "./WazeIcon";
+import { cn } from "../lib/utils";
 
 interface PolygonDetailProps {
-    polygon: Polygon;
-    incidents: Incident[];
-    jams: TrafficJam[];
-    onClose: () => void;
+  polygon: Polygon;
+  incidents: Incident[];
+  jams: TrafficJam[];
+  onClose: () => void;
 }
 
 const PolygonDetail: React.FC<PolygonDetailProps> = ({
-    polygon,
-    incidents,
-    jams,
-    onClose
+  polygon,
+  incidents,
+  jams,
+  onClose,
 }) => {
-    const stats = calculatePolygonStats(polygon, incidents, jams);
-    const polygonIncidents = incidents.filter(inc => inc.polygonId === polygon.id);
-    const polygonJams = jams.filter(jam => jam.polygonId === polygon.id);
+  const stats = calculatePolygonStats(polygon, incidents, jams);
+  const polygonIncidents = incidents.filter(
+    (inc) => inc.polygonId === polygon.id
+  );
+  const polygonJams = jams.filter((jam) => jam.polygonId === polygon.id);
 
-    const getStateLabel = (state: PolygonState) => {
-        switch (state) {
-            case PolygonState.HIGH:
-                return { label: 'Crítico', color: 'text-danger', bg: 'bg-danger-light/20' };
-            case PolygonState.MEDIUM:
-                return { label: 'Moderado', color: 'text-warning', bg: 'bg-warning-light/20' };
-            case PolygonState.LOW:
-                return { label: 'Fluido', color: 'text-success', bg: 'bg-success-light/20' };
-        }
-    };
+  const getStateLabel = (state: PolygonState) => {
+    switch (state) {
+      case PolygonState.HIGH:
+        return { label: "Crítico", color: "text-danger", bg: "bg-red-500/10" };
+      case PolygonState.MEDIUM:
+        return {
+          label: "Moderado",
+          color: "text-warning",
+          bg: "bg-yellow-500/10",
+        };
+      case PolygonState.LOW:
+        return {
+          label: "Fluido",
+          color: "text-success",
+          bg: "bg-green-500/10",
+        };
+    }
+  };
 
-    const stateInfo = getStateLabel(stats.state);
+  const stateInfo = getStateLabel(stats.state);
 
-    return (
-        <div className="flex flex-col h-full">
-            {/* Header fijo */}
-            <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-white">
-                <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                        <h2 className="text-lg font-bold text-gray-900 truncate">{polygon.name}</h2>
-                        <p className="text-xs text-gray-600 mt-1">Grupo: {polygon.group}</p>
-                        <div className="mt-2">
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${stateInfo.bg} ${stateInfo.color}`}>
-                                Estado: {stateInfo.label}
-                            </span>
-                        </div>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="flex-shrink-0 ml-2 p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-
-            {/* Contenido con scroll */}
-            <div className="flex-1 overflow-y-auto p-4">
-                {/* KPIs del polígono - Compactos */}
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                    <div className="bg-gray-50 rounded-lg p-2">
-                        <p className="text-[10px] text-gray-600 uppercase">Incidentes</p>
-                        <p className="text-xl font-bold text-gray-900">{stats.totalIncidents}</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-2">
-                        <p className="text-[10px] text-gray-600 uppercase">Críticos</p>
-                        <p className="text-xl font-bold text-danger">{stats.criticalIncidents}</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-2">
-                        <p className="text-[10px] text-gray-600 uppercase">Velocidad</p>
-                        <p className="text-xl font-bold text-gray-900">
-                            {stats.averageSpeed !== null ? `${Math.round(stats.averageSpeed)}` : '-'}
-                            <span className="text-xs text-gray-500 ml-1">km/h</span>
-                        </p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-2">
-                        <p className="text-[10px] text-gray-600 uppercase">Demora</p>
-                        <p className="text-xl font-bold text-gray-900">
-                            {stats.totalDelay > 0 ? formatDelay(stats.totalDelay) : '-'}
-                        </p>
-                    </div>
-                </div>
-
-                {/* Índice de Congestión (si hay datos) */}
-                {polygon.trafficMetrics && (
-                    <div className="mb-4">
-                        <CongestionIndexCard
-                            polygonId={polygon.id}
-                            metrics={polygon.trafficMetrics}
-                        />
-                    </div>
+  return (
+    <div className="flex flex-col h-full bg-white dark:bg-veltrix-card transition-colors duration-300">
+      {/* Header fijo */}
+      <div className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-veltrix-border bg-white dark:bg-veltrix-card backdrop-blur-sm z-10">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-veltrix-text truncate">
+              {polygon.name}
+            </h2>
+            <p className="text-xs text-gray-600 dark:text-veltrix-muted mt-1">
+              Grupo: {polygon.group}
+            </p>
+            <div className="mt-2">
+              <span
+                className={cn(
+                  `inline-flex items-center px-2 py-1 rounded-full text-xs font-bold border border-transparent`,
+                  stateInfo.bg,
+                  stateInfo.color
                 )}
-
-                {/* Lista de incidentes */}
-                <div className="mb-4">
-                    <h3 className="text-xs font-semibold text-gray-900 mb-2 uppercase">
-                        Incidentes ({polygonIncidents.length})
-                    </h3>
-                {polygonIncidents.length === 0 ? (
-                    <p className="text-xs text-gray-500 italic">No hay incidentes activos</p>
-                ) : (
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {polygonIncidents.map(incident => {
-                            const description = getIncidentDescription(incident.type, incident.subtype);
-
-                            return (
-                                <div
-                                    key={incident.id}
-                                    className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden"
-                                >
-                                    {/* Header con icono Waze */}
-                                    <div className="flex items-center gap-3 p-3 bg-gray-50 border-b border-gray-200">
-                                        <div className="flex-shrink-0 w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                                            <WazeIcon type={incident.type} />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            {incident.street && (
-                                                <p className="text-[10px] text-gray-500 truncate uppercase">
-                                                    {incident.street}
-                                                </p>
-                                            )}
-                                            <p className="text-sm font-bold text-gray-900 truncate">
-                                                {description}
-                                            </p>
-                                        </div>
-                                        <span className={`flex-shrink-0 text-[10px] px-2 py-1 rounded-full font-bold ${
-                                            incident.severity >= 4 ? 'bg-red-100 text-red-700' :
-                                            incident.severity >= 3 ? 'bg-orange-100 text-orange-700' :
-                                            'bg-yellow-100 text-yellow-700'
-                                        }`}>
-                                            Sev. {incident.severity}
-                                        </span>
-                                    </div>
-
-                                    {/* Información detallada */}
-                                    <div className="p-3 space-y-2 text-xs">
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-500 font-medium">Tipo</span>
-                                            <span className="text-gray-900">{description}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-500 font-medium">Fecha</span>
-                                            <span className="text-gray-900">
-                                                {new Date(incident.timestamp).toLocaleString('es-AR', {
-                                                    day: '2-digit',
-                                                    month: '2-digit',
-                                                    year: 'numeric',
-                                                    hour: '2-digit',
-                                                    minute: '2-digit'
-                                                })}
-                                            </span>
-                                        </div>
-                                        {incident.city && (
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-500 font-medium">Ciudad</span>
-                                                <span className="text-gray-900">{incident.city}</span>
-                                            </div>
-                                        )}
-                                        {incident.confidence !== undefined && (
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-500 font-medium">Confianza</span>
-                                                <span className="text-gray-900">{Math.round(incident.confidence * 100)}%</span>
-                                            </div>
-                                        )}
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-500 font-medium">ID</span>
-                                            <span className="text-gray-400 font-mono text-[10px] truncate max-w-[150px]">
-                                                {incident.id}
-                                            </span>
-                                        </div>
-
-                                        {/* Footer con confirmaciones */}
-                                        {incident.nThumbsUp !== undefined && incident.nThumbsUp > 0 && (
-                                            <div className="pt-2 border-t border-gray-100 flex items-center gap-3">
-                                                <div className="flex items-center gap-1 text-green-600">
-                                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
-                                                    </svg>
-                                                    <span className="font-medium">{incident.nThumbsUp} confirmación{incident.nThumbsUp > 1 ? 'es' : ''}</span>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
+              >
+                Estado: {stateInfo.label}
+              </span>
             </div>
-
-                {/* Lista de atascos */}
-                <div className="mb-4">
-                    <h3 className="text-xs font-semibold text-gray-900 mb-2 uppercase">
-                        Atascos ({polygonJams.length})
-                    </h3>
-                    {polygonJams.length === 0 ? (
-                        <p className="text-xs text-gray-500 italic">No hay atascos reportados</p>
-                    ) : (
-                        <div className="space-y-2 max-h-64 overflow-y-auto">
-                            {polygonJams.map(jam => {
-                                const jamLevelText = jam.level !== undefined
-                                    ? getJamLevelTranslation(jam.level)
-                                    : 'Sin info';
-
-                                return (
-                                    <div
-                                        key={jam.id}
-                                        className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden"
-                                    >
-                                        {/* Header con icono Waze */}
-                                        <div className="flex items-center gap-3 p-3 bg-red-50 border-b border-red-100">
-                                            <div className="flex-shrink-0 w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                                                <WazeIcon type="jam" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                {jam.street && (
-                                                    <p className="text-[10px] text-gray-500 truncate uppercase">
-                                                        {jam.street}
-                                                    </p>
-                                                )}
-                                                <p className="text-sm font-bold text-gray-900">
-                                                    {jamLevelText}
-                                                </p>
-                                            </div>
-                                            <span className={`flex-shrink-0 text-sm px-3 py-1 rounded-full font-black ${
-                                                jam.speed < 15 ? 'bg-red-100 text-red-700' :
-                                                jam.speed < 30 ? 'bg-orange-100 text-orange-700' :
-                                                'bg-green-100 text-green-700'
-                                            }`}>
-                                                {jam.speed} km/h
-                                            </span>
-                                        </div>
-
-                                        {/* Información detallada */}
-                                        <div className="p-3 space-y-2 text-xs">
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-500 font-medium">Demora estimada</span>
-                                                <span className="text-gray-900 font-bold">{formatDelay(jam.delay)}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-500 font-medium">Longitud</span>
-                                                <span className="text-gray-900">{jam.length} metros</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-500 font-medium">Severidad</span>
-                                                <span className="text-gray-900">{jam.severity}/5</span>
-                                            </div>
-                                            {jam.roadType && (
-                                                <div className="flex justify-between">
-                                                    <span className="text-gray-500 font-medium">Tipo de vía</span>
-                                                    <span className="text-gray-900">{getRoadTypeTranslation(jam.roadType)}</span>
-                                                </div>
-                                            )}
-                                            {jam.city && (
-                                                <div className="flex justify-between">
-                                                    <span className="text-gray-500 font-medium">Ciudad</span>
-                                                    <span className="text-gray-900">{jam.city}</span>
-                                                </div>
-                                            )}
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-500 font-medium">ID</span>
-                                                <span className="text-gray-400 font-mono text-[10px] truncate max-w-[150px]">
-                                                    {jam.id}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-
-                {/* Indicador de experiencia del usuario */}
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                    <h3 className="text-xs font-semibold text-gray-900 mb-2">Impacto en Usuarios</h3>
-                    <div className="bg-gradient-to-r from-success-light/20 via-warning-light/20 to-danger-light/20 rounded-lg p-3">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-xs text-gray-700">Nivel de impacto</p>
-                                <p className="text-sm font-bold text-gray-900 mt-1">
-                                    {stats.state === PolygonState.HIGH ? 'Alto' :
-                                        stats.state === PolygonState.MEDIUM ? 'Medio' : 'Bajo'}
-                                </p>
-                            </div>
-                            {stats.totalDelay > 0 && (
-                                <div className="text-right">
-                                    <p className="text-xs text-gray-700">Tiempo extra</p>
-                                    <p className="text-sm font-bold text-gray-900 mt-1">
-                                        +{formatDelay(stats.totalDelay)}
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex-shrink-0 ml-2 p-1 text-gray-400 dark:text-veltrix-muted hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-veltrix-bg rounded-lg transition-colors"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
         </div>
-    );
+      </div>
+
+      {/* Contenido con scroll */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+        {/* KPIs del polígono - Compactos */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-gray-50 dark:bg-veltrix-bg rounded-lg p-2 transition-colors">
+            <p className="text-[10px] text-gray-600 dark:text-gray-400 uppercase font-semibold">
+              Incidentes
+            </p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white">
+              {stats.totalIncidents}
+            </p>
+          </div>
+          <div className="bg-gray-50 dark:bg-veltrix-bg rounded-lg p-2 transition-colors">
+            <p className="text-[10px] text-gray-600 dark:text-gray-400 uppercase font-semibold">
+              Críticos
+            </p>
+            <p className="text-lg font-bold text-red-500 dark:text-red-400">
+              {stats.criticalIncidents}
+            </p>
+          </div>
+          <div className="bg-gray-50 dark:bg-veltrix-bg rounded-lg p-2 transition-colors">
+            <p className="text-[10px] text-gray-600 dark:text-gray-400 uppercase font-semibold">
+              Velocidad
+            </p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white">
+              {stats.averageSpeed !== null
+                ? `${Math.round(stats.averageSpeed)}`
+                : "-"}
+              <span className="text-xs text-gray-500 dark:text-gray-400 ml-1 font-normal">
+                km/h
+              </span>
+            </p>
+          </div>
+          <div className="bg-gray-50 dark:bg-veltrix-bg rounded-lg p-2 transition-colors">
+            <p className="text-[10px] text-gray-600 dark:text-gray-400 uppercase font-semibold">
+              Demora
+            </p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white">
+              {stats.totalDelay > 0 ? formatDelay(stats.totalDelay) : "-"}
+            </p>
+          </div>
+        </div>
+
+        {/* Índice de Congestión */}
+        {polygon.trafficMetrics && (
+          <CongestionIndexCard
+            polygonId={polygon.id}
+            metrics={polygon.trafficMetrics}
+          />
+        )}
+
+        {/* Lista de incidentes */}
+        <div>
+          <h3 className="text-xs font-bold text-gray-900 dark:text-veltrix-text mb-2 uppercase flex items-center gap-2">
+            Incidentes{" "}
+            <span className="bg-gray-100 dark:bg-veltrix-bg px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-400">
+              {polygonIncidents.length}
+            </span>
+          </h3>
+          {polygonIncidents.length === 0 ? (
+            <div className="text-center py-4 bg-gray-50 dark:bg-veltrix-bg/50 rounded-lg dashed-border">
+              <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+                No hay incidentes activos
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {polygonIncidents.map((incident) => {
+                const description = getIncidentDescription(
+                  incident.type,
+                  incident.subtype
+                );
+
+                return (
+                  <div
+                    key={incident.id}
+                    className="bg-white dark:bg-veltrix-bg/30 rounded-lg border border-gray-200 dark:border-veltrix-border overflow-hidden transition-colors"
+                  >
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5">
+                      <div className="flex-shrink-0 w-8 h-8 bg-white dark:bg-veltrix-card rounded-lg flex items-center justify-center shadow-sm">
+                        <WazeIcon type={incident.type} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        {incident.street && (
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate uppercase">
+                            {incident.street}
+                          </p>
+                        )}
+                        <p className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                          {description}
+                        </p>
+                      </div>
+                      <span
+                        className={cn(
+                          `flex-shrink-0 text-[10px] px-2 py-1 rounded-full font-bold border`,
+                          incident.severity >= 4
+                            ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-100 dark:border-red-800"
+                            : incident.severity >= 3
+                            ? "bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400 border-orange-100 dark:border-orange-800"
+                            : "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-100 dark:border-yellow-800"
+                        )}
+                      >
+                        S.{incident.severity}
+                      </span>
+                    </div>
+
+                    <div className="p-3 space-y-1.5 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 dark:text-gray-400">
+                          Fecha
+                        </span>
+                        <span className="text-gray-900 dark:text-gray-200 font-mono">
+                          {new Date(incident.timestamp).toLocaleTimeString(
+                            "es-AR",
+                            { hour: "2-digit", minute: "2-digit" }
+                          )}
+                        </span>
+                      </div>
+                      {incident.confidence !== undefined && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500 dark:text-gray-400">
+                            Confianza
+                          </span>
+                          <span className="text-gray-900 dark:text-gray-200 font-bold">
+                            {Math.round(incident.confidence * 100)}%
+                          </span>
+                        </div>
+                      )}
+
+                      {incident.nThumbsUp !== undefined &&
+                        incident.nThumbsUp > 0 && (
+                          <div className="pt-2 mt-2 border-t border-gray-100 dark:border-white/5 flex items-center gap-2 text-green-600 dark:text-green-400">
+                            <span className="font-bold">
+                              👍 {incident.nThumbsUp}
+                            </span>
+                            <span className="opacity-80">confirmaciones</span>
+                          </div>
+                        )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Lista de atascos */}
+        <div>
+          <h3 className="text-xs font-bold text-gray-900 dark:text-veltrix-text mb-2 uppercase flex items-center gap-2">
+            Atascos{" "}
+            <span className="bg-gray-100 dark:bg-veltrix-bg px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-400">
+              {polygonJams.length}
+            </span>
+          </h3>
+          {polygonJams.length === 0 ? (
+            <div className="text-center py-4 bg-gray-50 dark:bg-veltrix-bg/50 rounded-lg dashed-border">
+              <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+                No hay atascos activos
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {polygonJams.map((jam) => {
+                const jamLevelText =
+                  jam.level !== undefined
+                    ? getJamLevelTranslation(jam.level)
+                    : "Sin info";
+
+                return (
+                  <div
+                    key={jam.id}
+                    className="bg-white dark:bg-veltrix-bg/30 rounded-lg border border-gray-200 dark:border-veltrix-border overflow-hidden transition-colors"
+                  >
+                    <div className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/10 border-b border-red-100 dark:border-red-900/20">
+                      <div className="flex-shrink-0 w-8 h-8 bg-white dark:bg-veltrix-card rounded-lg flex items-center justify-center shadow-sm">
+                        <WazeIcon type="jam" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        {jam.street && (
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate uppercase">
+                            {jam.street}
+                          </p>
+                        )}
+                        <p className="text-xs font-bold text-gray-900 dark:text-white">
+                          {jamLevelText}
+                        </p>
+                      </div>
+                      <span
+                        className={cn(
+                          `flex-shrink-0 text-xs px-2 py-1 rounded-full font-black text-white`,
+                          jam.speed < 15
+                            ? "bg-red-500"
+                            : jam.speed < 30
+                            ? "bg-orange-500"
+                            : "bg-green-500"
+                        )}
+                      >
+                        {jam.speed} km/h
+                      </span>
+                    </div>
+
+                    <div className="p-3 space-y-1.5 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 dark:text-gray-400">
+                          Demora
+                        </span>
+                        <span className="text-gray-900 dark:text-white font-bold">
+                          {formatDelay(jam.delay)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 dark:text-gray-400">
+                          Longitud
+                        </span>
+                        <span className="text-gray-900 dark:text-gray-200">
+                          {jam.length} m
+                        </span>
+                      </div>
+                      {jam.roadType && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500 dark:text-gray-400">
+                            Vía
+                          </span>
+                          <span className="text-gray-900 dark:text-gray-200">
+                            {getRoadTypeTranslation(jam.roadType)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Impacto */}
+        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-veltrix-border">
+          <h3 className="text-xs font-bold text-gray-900 dark:text-veltrix-text mb-2 block">
+            IMPACTO EN USUARIOS
+          </h3>
+          <div className="bg-gradient-to-r from-green-50/50 via-yellow-50/50 to-red-50/50 dark:from-green-900/20 dark:via-yellow-900/20 dark:to-red-900/20 rounded-lg p-3 border border-gray-100 dark:border-white/5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase">
+                  Nivel de Impacto
+                </p>
+                <p className="text-sm font-bold text-gray-900 dark:text-white mt-0.5">
+                  {stats.state === PolygonState.HIGH
+                    ? "ALTO"
+                    : stats.state === PolygonState.MEDIUM
+                    ? "MEDIO"
+                    : "BAJO"}
+                </p>
+              </div>
+              {stats.totalDelay > 0 && (
+                <div className="text-right">
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase">
+                    Tiempo Extra
+                  </p>
+                  <p className="text-sm font-bold text-red-600 dark:text-red-400 mt-0.5">
+                    +{formatDelay(stats.totalDelay)}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default PolygonDetail;

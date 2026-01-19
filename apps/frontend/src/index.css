@@ -106,10 +106,10 @@
 
 /* Ocultar mensajes de desarrollo de Google Maps */
 .gm-style-cc,
-.gm-style-cc>div,
-.gm-style-cc>div>div,
-.gm-style>div:first-child>div:last-child>div:first-child,
-.gm-style>div:first-child>div:last-child>div:first-child>div {
+.gm-style-cc > div,
+.gm-style-cc > div > div,
+.gm-style > div:first-child > div:last-child > div:first-child,
+.gm-style > div:first-child > div:last-child > div:first-child > div {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
@@ -137,7 +137,6 @@ div[style*="¿Eres el propietario de este sitio web?"] {
 
 /* Animaciones personalizadas adicionales */
 @keyframes float {
-
   0%,
   100% {
     transform: translateY(0px);
@@ -149,7 +148,6 @@ div[style*="¿Eres el propietario de este sitio web?"] {
 }
 
 @keyframes glow {
-
   0%,
   100% {
     box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
@@ -192,10 +190,12 @@ div[style*="¿Eres el propietario de este sitio web?"] {
 
 .animate-shimmer {
   animation: shimmer 2s linear infinite;
-  background: linear-gradient(90deg,
-      rgba(255, 255, 255, 0) 0%,
-      rgba(255, 255, 255, 0.2) 50%,
-      rgba(255, 255, 255, 0) 100%);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
   background-size: 1000px 100%;
 }
 
@@ -217,7 +217,7 @@ div[style*="¿Eres el propietario de este sitio web?"] {
 }
 
 .gradient-border::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: 1rem;
@@ -230,7 +230,8 @@ div[style*="¿Eres el propietario de este sitio web?"] {
 
 /* Smooth transitions */
 * {
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-property: color, background-color, border-color,
+    text-decoration-color, fill, stroke;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
@@ -282,7 +283,8 @@ div[style*="¿Eres el propietario de este sitio web?"] {
 
 /* Animación para marcadores críticos */
 @keyframes pulse-marker {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
   }
@@ -319,5 +321,22 @@ div[style*="¿Eres el propietario de este sitio web?"] {
 
 /* Asegurar visibilidad de emojis en marcadores */
 .waze-marker-icon {
-  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji", "EmojiSymbols", sans-serif;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji",
+    "Android Emoji", "EmojiSymbols", sans-serif;
+}
+
+/* Custom MapLibre Popups (Clean Dark Mode Support) */
+.incident-popup .maplibregl-popup-content {
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.incident-popup .maplibregl-popup-tip {
+  display: none !important;
+}
+
+.incident-popup .maplibregl-popup-close-button {
+  display: none !important;
 }

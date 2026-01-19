@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Círculo de fondo con borde -->
+  <circle cx="100" cy="100" r="90" fill="#3d4a5c" stroke="#4a9fd8" stroke-width="4"/>
+  
+  <!-- Cono de tráfico -->
+  <g transform="translate(100, 100)">
+    <!-- Base del cono -->
+    <rect x="-25" y="30" width="50" height="8" fill="#2c3e50" rx="2"/>
+    
+    <!-- Cuerpo del cono -->
+    <path d="M -20 30 L 0 -30 L 20 30 Z" fill="#ff6b35"/>
+    
+    <!-- Franjas blancas -->
+    <path d="M -15 5 L 0 -20 L 15 5 Z" fill="#ffffff"/>
+    <path d="M -10 20 L 0 0 L 10 20 Z" fill="#ffffff"/>
+  </g>
+  
+  <!-- Marca de verificación en círculo azul -->
+  <circle cx="145" cy="55" r="22" fill="#4a9fd8" stroke="#ffffff" stroke-width="3"/>
+  <path d="M 135 55 L 142 62 L 155 49" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

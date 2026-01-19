@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Círculo de fondo -->
+  <circle cx="100" cy="100" r="90" fill="#3d4a5c"/>
+  
+  <!-- Semáforo -->
+  <g transform="translate(90, 100)">
+    <rect x="-15" y="-35" width="30" height="70" fill="#2c3e50" rx="4"/>
+    
+    <!-- Luz roja (apagada) -->
+    <circle cx="0" cy="-20" r="9" fill="#4b5563"/>
+    
+    <!-- Luz amarilla (apagada) -->
+    <circle cx="0" cy="0" r="9" fill="#4b5563"/>
+    
+    <!-- Luz verde (apagada) -->
+    <circle cx="0" cy="20" r="9" fill="#4b5563"/>
+    
+    <!-- Poste -->
+    <rect x="-3" y="35" width="6" height="25" fill="#374151"/>
+  </g>
+  
+  <!-- Símbolo de error (X roja) -->
+  <g transform="translate(130, 100)">
+    <circle cx="0" cy="0" r="20" fill="#ef4444"/>
+    <path d="M -10 -10 L 10 10 M 10 -10 L -10 10" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+  </g>
+</svg>

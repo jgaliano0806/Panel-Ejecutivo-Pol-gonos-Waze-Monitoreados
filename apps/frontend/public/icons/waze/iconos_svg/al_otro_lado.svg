@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Círculo de fondo -->
+  <circle cx="100" cy="100" r="90" fill="#3d4a5c"/>
+  
+  <!-- Oficial de policía -->
+  <g transform="translate(135, 100)">
+    <!-- Gorra -->
+    <ellipse cx="0" cy="-10" rx="12" ry="4" fill="#1e40af"/>
+    <rect x="-10" y="-18" width="20" height="8" fill="#2563eb" rx="2"/>
+    <circle cx="0" cy="-14" r="3" fill="#fbbf24"/>
+    
+    <!-- Cabeza -->
+    <circle cx="0" cy="0" r="12" fill="#d4a574"/>
+    
+    <!-- Ojos -->
+    <circle cx="-4" cy="0" r="1.5" fill="#2c3e50"/>
+    <circle cx="4" cy="0" r="1.5" fill="#2c3e50"/>
+  </g>
+  
+  <!-- Marco/pantalla -->
+  <g transform="translate(100, 100)">
+    <rect x="-38" y="-35" width="55" height="70" fill="none" stroke="#60a5fa" stroke-width="4" rx="4"/>
+    <rect x="-35" y="-32" width="49" height="64" fill="#1e3a8a" opacity="0.3" rx="2"/>
+  </g>
+  
+  <!-- Flecha apuntando a la derecha -->
+  <g transform="translate(75, 100)">
+    <path d="M -15 0 L 0 0" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+    <path d="M 0 0 L -8 -8 M 0 0 L -8 8" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

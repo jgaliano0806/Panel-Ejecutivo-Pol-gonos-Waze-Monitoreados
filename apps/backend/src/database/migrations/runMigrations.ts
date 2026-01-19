@@ -6,7 +6,8 @@ import * as path from 'path';
  * Ejecuta todas las migraciones SQL pendientes
  */
 export async function runMigrations(): Promise<void> {
-    const migrationsDir = path.join(__dirname, 'migrations');
+    // __dirname ya apunta a la carpeta migrations donde está este archivo
+    const migrationsDir = __dirname;
 
     try {
         console.log('🔄 Ejecutando migraciones de base de datos...');
@@ -26,6 +27,15 @@ export async function runMigrations(): Promise<void> {
                 WHERE status IS NULL
             `);
             console.log(`✅ ${updateResult.rowCount || 0} registros de road_accidents actualizados con status='active'`);
+        }
+
+        // Migración 010: Extender polygon_weather_data para compatibilidad con weatherService
+        const migration010Path = path.join(migrationsDir, '010_extend_weather_data.sql');
+
+        if (fs.existsSync(migration010Path)) {
+            const sql = fs.readFileSync(migration010Path, 'utf-8');
+            await dbService.query(sql);
+            console.log('✅ Migración 010 ejecutada: polygon_weather_data extendida');
         }
 
         console.log('✅ Migraciones completadas exitosamente');

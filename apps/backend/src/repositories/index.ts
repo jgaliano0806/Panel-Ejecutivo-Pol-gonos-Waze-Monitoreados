@@ -1,11 +1,12 @@
-import { Pool } from 'pg';
-import { dbService } from '../database/dbService'; // Use existing dbService to get pool if needed, or better, pass pool to initialize
-import { WazeAlertRepository } from './WazeAlertRepository';
-import { WazeJamRepository } from './WazeJamRepository';
-import { WeatherRepository } from './WeatherRepository';
-import { PolygonRepository } from './PolygonRepository';
-import { RiskScoreRepository } from './RiskScoreRepository';
-import { WazeIrregularityRepository } from './WazeIrregularityRepository';
+import { Pool } from "pg";
+import { dbService } from "../database/dbService"; // Use existing dbService to get pool if needed, or better, pass pool to initialize
+import { WazeAlertRepository } from "./WazeAlertRepository";
+import { WazeJamRepository } from "./WazeJamRepository";
+import { WeatherRepository } from "./WeatherRepository";
+import { PolygonRepository } from "./PolygonRepository";
+import { RiskScoreRepository } from "./RiskScoreRepository";
+import { WazeIrregularityRepository } from "./WazeIrregularityRepository";
+import { KpiSnapshotRepository } from "./KpiSnapshotRepository";
 
 export class RepositoryFactory {
   private static instance: RepositoryFactory;
@@ -16,6 +17,7 @@ export class RepositoryFactory {
   public readonly polygons: PolygonRepository;
   public readonly riskScores: RiskScoreRepository;
   public readonly wazeIrregularities: WazeIrregularityRepository;
+  public readonly kpiSnapshots: KpiSnapshotRepository;
 
   private constructor(private db: Pool) {
     this.wazeAlerts = new WazeAlertRepository(db);
@@ -24,6 +26,7 @@ export class RepositoryFactory {
     this.polygons = new PolygonRepository(db);
     this.riskScores = new RiskScoreRepository(db);
     this.wazeIrregularities = new WazeIrregularityRepository(db);
+    this.kpiSnapshots = new KpiSnapshotRepository(db);
   }
 
   static initialize(db: Pool): void {
@@ -39,7 +42,9 @@ export class RepositoryFactory {
       // assuming dbService is singleton and has pool?
       // Actually dbService doesn't expose pool directly publicly in the snippet I saw earlier,
       // but let's assume valid initialization flow in server.ts
-      throw new Error('RepositoryFactory not initialized. Call initialize(db) first.');
+      throw new Error(
+        "RepositoryFactory not initialized. Call initialize(db) first."
+      );
     }
     return RepositoryFactory.instance;
   }

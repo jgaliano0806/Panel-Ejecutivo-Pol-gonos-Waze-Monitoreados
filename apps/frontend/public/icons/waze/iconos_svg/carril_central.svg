@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Círculo de fondo -->
+  <circle cx="100" cy="100" r="90" fill="#3d4a5c"/>
+  
+  <!-- Carretera -->
+  <rect x="75" y="40" width="50" height="120" fill="#4a5568" rx="5"/>
+  
+  <!-- Líneas de carril -->
+  <rect x="97" y="50" width="6" height="20" fill="#ffffff"/>
+  <rect x="97" y="80" width="6" height="20" fill="#ffffff"/>
+  <rect x="97" y="110" width="6" height="20" fill="#ffffff"/>
+  <rect x="97" y="140" width="6" height="20" fill="#ffffff"/>
+  
+  <!-- Cono de tráfico -->
+  <g transform="translate(100, 100)">
+    <rect x="-12" y="15" width="24" height="4" fill="#2c3e50" rx="1"/>
+    <path d="M -10 15 L 0 -15 L 10 15 Z" fill="#ff6b35"/>
+    <path d="M -7 2 L 0 -10 L 7 2 Z" fill="#ffffff"/>
+    <path d="M -5 10 L 0 0 L 5 10 Z" fill="#ffffff"/>
+  </g>
+</svg>
