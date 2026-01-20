@@ -29,7 +29,7 @@ export const WAZE_TRANSLATIONS = {
   hazard: {
     HAZARD: "Peligro",
     HAZARD_ON_ROAD: "Peligro en calzada",
-    HAZARD_ON_SHOULDER: "Auto en orilla",
+    HAZARD_ON_SHOULDER: "Vehículo en banquina",
     NO_SUBTYPE: "Peligro",
   },
 
@@ -48,11 +48,11 @@ export const WAZE_TRANSLATIONS = {
   },
 
   hazard_on_shoulder: {
-    HAZARD_ON_SHOULDER: "Auto en orilla",
-    HAZARD_ON_SHOULDER_CAR_STOPPED: "Auto en orilla",
+    HAZARD_ON_SHOULDER: "Vehículo en banquina",
+    HAZARD_ON_SHOULDER_CAR_STOPPED: "Vehículo en banquina",
     HAZARD_ON_SHOULDER_ANIMALS: "Animales en banquina",
     HAZARD_ON_SHOULDER_MISSING_SIGN: "Señal faltante",
-    NO_SUBTYPE: "Auto en orilla",
+    NO_SUBTYPE: "Vehículo en banquina",
   },
 
   // === MAL TIEMPO (Informar sobre mal tiempo) ===
@@ -217,8 +217,8 @@ export const SUBTYPE_DIRECT_TRANSLATIONS: Record<string, string> = {
   HAZARD_ON_ROAD_TRAFFIC_LIGHT_FAULT: "Semáforo averiado",
 
   // Peligros en banquina
-  HAZARD_ON_SHOULDER: "Auto en orilla",
-  HAZARD_ON_SHOULDER_CAR_STOPPED: "Auto en orilla",
+  HAZARD_ON_SHOULDER: "Vehículo en banquina",
+  HAZARD_ON_SHOULDER_CAR_STOPPED: "Vehículo en banquina",
   HAZARD_ON_SHOULDER_ANIMALS: "Animales en banquina",
   HAZARD_ON_SHOULDER_MISSING_SIGN: "Señal faltante",
 
@@ -327,15 +327,29 @@ export const MAIN_TYPE_TRANSLATIONS: Record<string, string> = {
 
 /**
  * Obtiene la traducción de un subtipo de incidente
+ * Prioridad: 1) Cache de BD, 2) Mapeo directo, 3) Búsqueda en WAZE_TRANSLATIONS
  */
 export function getSubtypeTranslation(type: string, subtype: string): string {
-  // Primero intentar con el mapeo directo de subtipos (más rápido)
+  // PRIMERO: Intentar desde cache de BD (si está disponible)
+  try {
+    const {
+      getTranslationFromCache,
+    } = require("../hooks/useCatalogTranslations");
+    const cachedTranslation = getTranslationFromCache(subtype);
+    if (cachedTranslation) {
+      return cachedTranslation;
+    }
+  } catch {
+    // Si el módulo no está disponible, continuar con fallback
+  }
+
+  // SEGUNDO: Intentar con el mapeo directo de subtipos (más rápido)
   const upperSubtype = subtype.toUpperCase();
   if (SUBTYPE_DIRECT_TRANSLATIONS[upperSubtype]) {
     return SUBTYPE_DIRECT_TRANSLATIONS[upperSubtype];
   }
 
-  // Luego intentar con el tipo proporcionado
+  // TERCERO: Intentar con el tipo proporcionado
   const typeKey = type as keyof typeof WAZE_TRANSLATIONS;
   if (typeKey in WAZE_TRANSLATIONS) {
     const translations = WAZE_TRANSLATIONS[typeKey] as Record<string, string>;
@@ -369,9 +383,23 @@ function formatSubtypeToReadable(subtype: string): string {
 
 /**
  * Obtiene la traducción del tipo principal
+ * Prioridad: 1) Cache de BD, 2) Traducciones estáticas
  */
 export function getMainTypeTranslation(type: string): string {
-  // Buscar primero tal cual viene
+  // PRIMERO: Intentar desde cache de BD (si está disponible)
+  try {
+    const {
+      getTranslationFromCache,
+    } = require("../hooks/useCatalogTranslations");
+    const cachedTranslation = getTranslationFromCache(type);
+    if (cachedTranslation) {
+      return cachedTranslation;
+    }
+  } catch {
+    // Si el módulo no está disponible, continuar con fallback
+  }
+
+  // SEGUNDO: Buscar primero tal cual viene
   if (MAIN_TYPE_TRANSLATIONS[type]) {
     return MAIN_TYPE_TRANSLATIONS[type];
   }

@@ -152,9 +152,10 @@ const CatalogManagement: React.FC = () => {
   const loadCatalogs = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/api/catalogs`);
+      const response = await fetch(`${API_URL}/api/catalogs/types`);
       if (response.ok) {
-        const data = await response.json();
+        const result = await response.json();
+        const data = result.data || [];
         // Transformar datos de la API al formato del componente
         const apiTypes: IncidentType[] = data.map((item: any) => ({
           id: item.id.toString(),

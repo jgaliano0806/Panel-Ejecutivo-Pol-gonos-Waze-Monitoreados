@@ -28,14 +28,42 @@ import {
 import { iconCacheService } from "../utils/iconCache";
 import { MiniMapLibre } from "./map/MiniMapLibre";
 
-// Tipos de eventos disponibles para filtrar
-const EVENT_TYPE_FILTERS = [
-  { value: "all", label: "Todos los tipos" },
-  { value: "ACCIDENT", label: "🚗 Siniestros viales" },
-  { value: "HAZARD", label: "⚠️ Peligros" },
-  { value: "ROAD_CLOSED", label: "🚧 Cierres de ruta" },
-  { value: "JAM", label: "🚦 Congestiones" },
-] as const;
+// Tipos y subtipos de eventos para filtrar (jerarquía)
+const EVENT_TYPE_FILTERS = {
+  all: { label: "📋 Todos los tipos", parent: null },
+  // Accidentes
+  ACCIDENT: { label: "🚗 Siniestros (todos)", parent: null },
+  ACCIDENT_MINOR: { label: "Accidente leve", parent: "ACCIDENT" },
+  ACCIDENT_MAJOR: { label: "Colisión múltiple", parent: "ACCIDENT" },
+  // Peligros
+  HAZARD: { label: "⚠️ Peligros (todos)", parent: null },
+  HAZARD_ON_ROAD_POT_HOLE: { label: "Bache", parent: "HAZARD" },
+  HAZARD_ON_ROAD_OBJECT: { label: "Objeto en calzada", parent: "HAZARD" },
+  HAZARD_ON_ROAD_CONSTRUCTION: { label: "Obras", parent: "HAZARD" },
+  HAZARD_ON_ROAD_CAR_STOPPED: { label: "Vehículo detenido", parent: "HAZARD" },
+  HAZARD_ON_SHOULDER_CAR_STOPPED: { label: "Auto en orilla", parent: "HAZARD" },
+  HAZARD_ON_ROAD_TRAFFIC_LIGHT_FAULT: {
+    label: "Semáforo averiado",
+    parent: "HAZARD",
+  },
+  HAZARD_WEATHER: { label: "Mal tiempo", parent: "HAZARD" },
+  // Cierres
+  ROAD_CLOSED: { label: "🚧 Cierres (todos)", parent: null },
+  ROAD_CLOSED_EVENT: { label: "Cierre por evento", parent: "ROAD_CLOSED" },
+  ROAD_CLOSED_CONSTRUCTION: {
+    label: "Cierre por obras",
+    parent: "ROAD_CLOSED",
+  },
+  ROAD_CLOSED_HAZARD: { label: "Cierre por peligro", parent: "ROAD_CLOSED" },
+  // Congestiones
+  JAM: { label: "🚦 Congestiones (todos)", parent: null },
+  JAM_HEAVY_TRAFFIC: { label: "Embotellamiento", parent: "JAM" },
+  JAM_MODERATE_TRAFFIC: { label: "Tránsito denso", parent: "JAM" },
+  JAM_LIGHT_TRAFFIC: { label: "Tránsito lento", parent: "JAM" },
+  JAM_STAND_STILL_TRAFFIC: { label: "Tránsito detenido", parent: "JAM" },
+} as const;
+
+type FilterValue = keyof typeof EVENT_TYPE_FILTERS;
 
 /**
  * Componente de Incidentes Bloqueantes con Cálculo Mejorado de Demoras
@@ -64,15 +92,26 @@ export const BlockingIncidents: React.FC = () => {
     if (!data?.analyses) return [];
     if (typeFilter === "all") return data.analyses;
 
+    const filterConfig = EVENT_TYPE_FILTERS[typeFilter as FilterValue];
+    if (!filterConfig) return data.analyses;
+
     return data.analyses.filter((analysis: BlockingAnalysisItem) => {
       const type = analysis.incident.type?.toUpperCase() || "";
-      if (typeFilter === "JAM") {
-        return type === "JAM" || type.includes("TRAFFIC");
+      const subtype = analysis.incident.subtype?.toUpperCase() || "";
+
+      // Si es una categoría principal (parent === null)
+      if (filterConfig.parent === null) {
+        // Casos especiales de mapeo de tipos de Waze a nuestras categorías
+        if (typeFilter === "ACCIDENT") return type === "ACCIDENT";
+        if (typeFilter === "HAZARD")
+          return type === "HAZARD" || type === "WEATHERHAZARD";
+        if (typeFilter === "ROAD_CLOSED") return type === "ROAD_CLOSED";
+        if (typeFilter === "JAM") return type === "JAM" || type === "TRAFFIC";
+        return type === typeFilter;
       }
-      if (typeFilter === "ROAD_CLOSED") {
-        return type.includes("ROAD_CLOSED") || type.includes("CLOSED");
-      }
-      return type.includes(typeFilter);
+
+      // Si es un subtipo específico
+      return subtype === typeFilter || type === typeFilter;
     });
   }, [data?.analyses, typeFilter]);
 
@@ -256,13 +295,73 @@ export const BlockingIncidents: React.FC = () => {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="appearance-none bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg pl-8 pr-8 py-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="appearance-none bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg pl-8 pr-8 py-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[200px]"
             >
-              {EVENT_TYPE_FILTERS.map((filter) => (
-                <option key={filter.value} value={filter.value}>
-                  {filter.label}
+              <option value="all">{EVENT_TYPE_FILTERS.all.label}</option>
+
+              <optgroup label="🚗 Siniestros">
+                <option value="ACCIDENT">
+                  {EVENT_TYPE_FILTERS.ACCIDENT.label}
                 </option>
-              ))}
+                <option value="ACCIDENT_MINOR">
+                  {EVENT_TYPE_FILTERS.ACCIDENT_MINOR.label}
+                </option>
+                <option value="ACCIDENT_MAJOR">
+                  {EVENT_TYPE_FILTERS.ACCIDENT_MAJOR.label}
+                </option>
+              </optgroup>
+
+              <optgroup label="⚠️ Peligros">
+                <option value="HAZARD">
+                  {EVENT_TYPE_FILTERS.HAZARD.label}
+                </option>
+                <option value="HAZARD_ON_ROAD_POT_HOLE">
+                  {EVENT_TYPE_FILTERS.HAZARD_ON_ROAD_POT_HOLE.label}
+                </option>
+                <option value="HAZARD_ON_ROAD_OBJECT">
+                  {EVENT_TYPE_FILTERS.HAZARD_ON_ROAD_OBJECT.label}
+                </option>
+                <option value="HAZARD_ON_ROAD_CAR_STOPPED">
+                  {EVENT_TYPE_FILTERS.HAZARD_ON_ROAD_CAR_STOPPED.label}
+                </option>
+                <option value="HAZARD_ON_SHOULDER_CAR_STOPPED">
+                  {EVENT_TYPE_FILTERS.HAZARD_ON_SHOULDER_CAR_STOPPED.label}
+                </option>
+                <option value="HAZARD_ON_ROAD_CONSTRUCTION">
+                  {EVENT_TYPE_FILTERS.HAZARD_ON_ROAD_CONSTRUCTION.label}
+                </option>
+                <option value="HAZARD_ON_ROAD_TRAFFIC_LIGHT_FAULT">
+                  {EVENT_TYPE_FILTERS.HAZARD_ON_ROAD_TRAFFIC_LIGHT_FAULT.label}
+                </option>
+                <option value="HAZARD_WEATHER">
+                  {EVENT_TYPE_FILTERS.HAZARD_WEATHER.label}
+                </option>
+              </optgroup>
+
+              <optgroup label="🚧 Cierres">
+                <option value="ROAD_CLOSED">
+                  {EVENT_TYPE_FILTERS.ROAD_CLOSED.label}
+                </option>
+                <option value="ROAD_CLOSED_EVENT">
+                  {EVENT_TYPE_FILTERS.ROAD_CLOSED_EVENT.label}
+                </option>
+                <option value="ROAD_CLOSED_CONSTRUCTION">
+                  {EVENT_TYPE_FILTERS.ROAD_CLOSED_CONSTRUCTION.label}
+                </option>
+                <option value="ROAD_CLOSED_HAZARD">
+                  {EVENT_TYPE_FILTERS.ROAD_CLOSED_HAZARD.label}
+                </option>
+              </optgroup>
+
+              <optgroup label="🚦 Congestiones">
+                <option value="JAM">{EVENT_TYPE_FILTERS.JAM.label}</option>
+                <option value="JAM_HEAVY_TRAFFIC">
+                  {EVENT_TYPE_FILTERS.JAM_HEAVY_TRAFFIC.label}
+                </option>
+                <option value="JAM_MODERATE_TRAFFIC">
+                  {EVENT_TYPE_FILTERS.JAM_MODERATE_TRAFFIC.label}
+                </option>
+              </optgroup>
             </select>
             <Filter className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400 pointer-events-none" />
             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400 pointer-events-none" />
@@ -307,7 +406,42 @@ export const BlockingIncidents: React.FC = () => {
                       subtype={analysis.incident.subtype}
                       size="lg"
                     />
-                    <span>{description}</span>
+                    <div className="flex flex-col">
+                      <span className="leading-snug">
+                        {(() => {
+                          const isPlural = analysis.reportCount > 1;
+                          let typeText = description;
+
+                          // Lógica básica de pluralización
+                          if (isPlural) {
+                            if (
+                              typeText.endsWith("a") ||
+                              typeText.endsWith("e") ||
+                              typeText.endsWith("o")
+                            ) {
+                              typeText += "s";
+                            } else if (
+                              typeText.endsWith("n") ||
+                              typeText.endsWith("l") ||
+                              typeText.endsWith("r")
+                            ) {
+                              typeText += "es";
+                            }
+                            if (typeText === "Baches") typeText = "Baches"; // Fix específico común
+                          }
+
+                          // Construcción del título: Tipo + Calle + Tramo
+                          const locationPart = analysis.incident.street
+                            ? ` en ${analysis.incident.street}`
+                            : "";
+                          const polygonPart = analysis.polygonName
+                            ? ` - ${analysis.polygonName}`
+                            : "";
+
+                          return `${typeText}${locationPart}${polygonPart}`;
+                        })()}
+                      </span>
+                    </div>
                   </h3>
                   {/* Mostrar descripción del evento si está disponible y es diferente del tipo traducido */}
                   {analysis.incident.description &&
@@ -359,21 +493,7 @@ export const BlockingIncidents: React.FC = () => {
                         </p>
                       );
                     })()}
-                  {/* Grupo/Polígono */}
-                  {analysis.polygonGroup && (
-                    <div className="mt-1">
-                      <span className="text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded inline-flex items-center gap-1">
-                        <svg
-                          className="w-3 h-3"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z" />
-                        </svg>
-                        {analysis.polygonGroup}
-                      </span>
-                    </div>
-                  )}
+
                   {/* Sectores afectados con nombre del polígono */}
                   {analysis.affectedStreets?.length > 0 && (
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-start gap-1">

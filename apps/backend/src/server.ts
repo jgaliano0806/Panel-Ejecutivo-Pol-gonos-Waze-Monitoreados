@@ -406,6 +406,9 @@ server.get("/api/test", async () => {
   };
 });
 
+// Nota: Los endpoints de catálogos CRUD están definidos más abajo (~línea 816)
+// GET/POST/PUT/DELETE /api/catalogs/*
+
 // =====================================================
 // 🏥 HEALTH CHECKS PARA MONITOREO Y ORQUESTACIÓN
 // =====================================================
@@ -498,38 +501,16 @@ server.get("/health/ready", async (request, reply) => {
   }
 });
 
-// =====================================================
-// 📋 ENDPOINTS DE GESTIÓN DE CATÁLOGOS
-// =====================================================
+// Nota: Endpoint /api/catalogs/sync movido a la sección CRUD de catálogos (línea ~434)
 
-// POST /api/catalogs/sync - Sincronizar catálogos desde feeds de Waze
-server.post("/api/catalogs/sync", async (request, reply) => {
+// GET /api/catalogs/types - Listar todos los tipos de incidentes (formato para frontend)
+server.get("/api/catalogs/types", async (request, reply) => {
   try {
-    console.log("🔄 Iniciando sincronización de catálogos desde Waze...");
-    const result = await catalogSyncService.syncFromWazeFeeds();
-
-    reply.send({
-      success: true,
-      message: "Sincronización completada exitosamente",
-      data: result,
-    });
-
-    console.log(
-      `✅ Sincronización completada: ${result.newTypes} nuevos tipos, ${result.newSubtypes} nuevos subtipos`
-    );
-  } catch (error) {
-    server.log.error(
-      {
-        error,
-        url: request.url,
-        stack: error instanceof Error ? error.stack : undefined,
-      },
-      "Error sincronizando catálogos"
-    );
-    reply.code(500).send({
-      error: "Failed to sync catalogs",
-      message: error instanceof Error ? error.message : "Error desconocido",
-    });
+    const types = await catalogSyncService.getAllIncidentTypes();
+    return { success: true, data: types, count: types.length };
+  } catch (error: any) {
+    server.log.error({ error }, "Error obteniendo tipos de incidentes");
+    reply.code(500).send({ success: false, error: error.message });
   }
 });
 
@@ -566,6 +547,37 @@ server.get("/api/catalogs/stats", async (request, reply) => {
       "Error obteniendo estadísticas de catálogos"
     );
     reply.code(500).send({ error: "Failed to get catalog stats" });
+  }
+});
+
+// POST /api/catalogs/sync - Sincronizar catálogo desde feeds de Waze
+server.post("/api/catalogs/sync", async (request, reply) => {
+  try {
+    console.log("🔄 Iniciando sincronización de catálogos desde Waze...");
+    const result = await catalogSyncService.syncFromWazeFeeds();
+
+    reply.send({
+      success: true,
+      message: "Sincronización completada exitosamente",
+      data: result,
+    });
+
+    console.log(
+      `✅ Sincronización completada: ${result.newTypes} nuevos tipos, ${result.newSubtypes} nuevos subtipos`
+    );
+  } catch (error) {
+    server.log.error(
+      {
+        error,
+        url: request.url,
+        stack: error instanceof Error ? error.stack : undefined,
+      },
+      "Error sincronizando catálogos"
+    );
+    reply.code(500).send({
+      error: "Failed to sync catalogs",
+      message: error instanceof Error ? error.message : "Error desconocido",
+    });
   }
 });
 
