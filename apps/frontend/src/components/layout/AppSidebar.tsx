@@ -15,6 +15,9 @@ import {
   X,
 } from "lucide-react";
 
+import { useNotificationStore } from "@/stores/useNotificationStore";
+import { Bell } from "lucide-react";
+
 interface NavItem {
   id: string;
   label: string;
@@ -26,25 +29,38 @@ export const AppSidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isExpanded, setIsExpanded] = useState(true);
+  const unreadCount = useNotificationStore((state) => state.unreadCount);
 
   // Determinar item activo basado en la ruta actual
   const getActiveItem = () => {
-    if (location.pathname === '/' || location.pathname === '/dashboard') return 'home';
-    if (location.pathname === '/mapa') return 'map';
-    if (location.pathname === '/riesgos') return 'risk';
-    if (location.pathname === '/alertas') return 'alerts';
-    if (location.pathname === '/siniestros') return 'accidents';
-    if (location.pathname === '/historial') return 'history';
-    if (location.pathname === '/estadisticas') return 'stats';
-    if (location.pathname === '/admin') return 'admin';
-    return 'home';
+    if (location.pathname === "/" || location.pathname === "/dashboard")
+      return "home";
+    if (location.pathname === "/mapa") return "map";
+    if (location.pathname === "/riesgos") return "risk";
+    if (location.pathname === "/alertas") return "alerts";
+    if (location.pathname === "/siniestros") return "accidents";
+    if (location.pathname === "/notificaciones") return "notifications";
+    if (location.pathname === "/historial") return "history";
+    if (location.pathname === "/estadisticas") return "stats";
+    if (location.pathname === "/admin") return "admin";
+    return "home";
   };
 
   const activeItem = getActiveItem();
 
   const navItems: NavItem[] = [
-    { id: "home", label: "Inicio", icon: <Home size={20} />, path: "/dashboard" },
-    { id: "map", label: "Mapa y Zonas", icon: <Map size={20} />, path: "/mapa" },
+    {
+      id: "home",
+      label: "Inicio",
+      icon: <Home size={20} />,
+      path: "/dashboard",
+    },
+    {
+      id: "map",
+      label: "Mapa y Zonas",
+      icon: <Map size={20} />,
+      path: "/mapa",
+    },
     {
       id: "risk",
       label: "Análisis de Riesgos",
@@ -56,6 +72,12 @@ export const AppSidebar = () => {
       label: "Alertas y Eventos",
       icon: <Layers size={20} />,
       path: "/alertas",
+    },
+    {
+      id: "notifications",
+      label: "Notificaciones",
+      icon: <Bell size={20} />,
+      path: "/notificaciones",
     },
     {
       id: "accidents",
@@ -125,7 +147,7 @@ export const AppSidebar = () => {
             key={item.id}
             onClick={() => handleNavigation(item)}
             className={`
-              w-full flex items-center gap-3 px-3 py-3 rounded-lg mb-1
+              w-full flex items-center gap-3 px-3 py-3 rounded-lg mb-1 relative
               transition-all duration-200
               ${
                 activeItem === item.id
@@ -146,8 +168,16 @@ export const AppSidebar = () => {
                 <span className="flex-1 text-left text-sm font-medium">
                   {item.label}
                 </span>
+                {item.id === "notifications" && unreadCount > 0 && (
+                  <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
                 {activeItem === item.id && <ChevronRight size={16} />}
               </>
+            )}
+            {!isExpanded && item.id === "notifications" && unreadCount > 0 && (
+              <span className="absolute top-2 right-2 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-gray-900"></span>
             )}
           </button>
         ))}

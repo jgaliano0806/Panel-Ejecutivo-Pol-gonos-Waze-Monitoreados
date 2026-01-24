@@ -5,30 +5,50 @@ import { StatsPage } from "./pages/StatsPage";
 import { RiskDashboard } from "./pages/RiskDashboard";
 import { RoadAccidentsPage } from "./pages/RoadAccidentsPage";
 import { AppLayout } from "./components/layout/AppLayout";
+import { SectionErrorBoundary } from "./components/common/ErrorBoundary";
+import { NotificationsPage } from "./pages/NotificationsPage";
 
 export const router = createBrowserRouter(
   [
     {
       path: "/",
-      element: <Dashboard />,
+      element: (
+        <SectionErrorBoundary sectionName="Dashboard Principal">
+          <Dashboard />
+        </SectionErrorBoundary>
+      ),
     },
     {
       path: "/dashboard",
-      element: <Dashboard />,
+      element: (
+        <SectionErrorBoundary sectionName="Dashboard">
+          <Dashboard />
+        </SectionErrorBoundary>
+      ),
     },
     {
       path: "/mapa",
-      element: <Dashboard />,
+      element: (
+        <SectionErrorBoundary sectionName="Mapa">
+          <Dashboard />
+        </SectionErrorBoundary>
+      ),
     },
     {
       path: "/alertas",
-      element: <Dashboard />,
+      element: (
+        <SectionErrorBoundary sectionName="Alertas">
+          <Dashboard />
+        </SectionErrorBoundary>
+      ),
     },
     {
       path: "/siniestros",
       element: (
         <AppLayout>
-          <RoadAccidentsPage />
+          <SectionErrorBoundary sectionName="Siniestros">
+            <RoadAccidentsPage />
+          </SectionErrorBoundary>
         </AppLayout>
       ),
     },
@@ -36,7 +56,9 @@ export const router = createBrowserRouter(
       path: "/historial",
       element: (
         <AppLayout>
-          <IncidentsHistoryPage />
+          <SectionErrorBoundary sectionName="Historial de Incidentes">
+            <IncidentsHistoryPage />
+          </SectionErrorBoundary>
         </AppLayout>
       ),
     },
@@ -44,7 +66,9 @@ export const router = createBrowserRouter(
       path: "/estadisticas",
       element: (
         <AppLayout>
-          <StatsPage />
+          <SectionErrorBoundary sectionName="Estadísticas">
+            <StatsPage />
+          </SectionErrorBoundary>
         </AppLayout>
       ),
     },
@@ -52,24 +76,39 @@ export const router = createBrowserRouter(
       path: "/riesgos",
       element: (
         <AppLayout>
-          <RiskDashboard />
+          <SectionErrorBoundary sectionName="Dashboard de Riesgos">
+            <RiskDashboard />
+          </SectionErrorBoundary>
         </AppLayout>
       ),
     },
 
     {
+      path: "/notificaciones",
+      element: (
+        <AppLayout>
+          <SectionErrorBoundary sectionName="Notificaciones">
+            <NotificationsPage />
+          </SectionErrorBoundary>
+        </AppLayout>
+      ),
+    },
+    {
       path: "*",
-      element: <Dashboard />,
+      element: (
+        <SectionErrorBoundary sectionName="Página no encontrada">
+          <Dashboard />
+        </SectionErrorBoundary>
+      ),
     },
   ],
   {
     future: {
-      v7_startTransition: true,
       v7_relativeSplatPath: true,
       v7_fetcherPersist: true,
       v7_normalizeFormMethod: true,
       v7_partialHydration: true,
       v7_skipActionErrorRevalidation: true,
     },
-  }
-) as any;
+  },
+) as ReturnType<typeof createBrowserRouter>;

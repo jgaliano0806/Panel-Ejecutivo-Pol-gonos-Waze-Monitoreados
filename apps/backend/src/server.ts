@@ -2,6 +2,12 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { repositories } from "./repositories";
 import { toLegacyAlert, toLegacyJam } from "./utils";
+import {
+  serializeDate,
+  serializeAlerts,
+  serializeJams,
+  serializeObject,
+} from "./utils/serialization";
 import { alertService } from "./services/alertService";
 import { aggregationService } from "./services/aggregationService";
 import { historicalService } from "./services/historicalService";
@@ -40,6 +46,19 @@ import {
 } from "./middleware/rateLimiter";
 import axios from "axios";
 import { runMigrations } from "./database/migrations/runMigrations";
+import { registerRoutes } from "./routes";
+// Tipos inline para endpoints - más flexible que tipos externos fijos
+type ThresholdsUpdate = Record<
+  string,
+  { minConfidence?: number; minReliability?: number; minCombined?: number }
+>;
+type AccidentUpdate = Partial<{
+  status: "active" | "inactive";
+  description: string;
+  severity: number;
+  notes: string;
+  resolution_notes: string;
+}>;
 
 dotenv.config();
 
@@ -117,6 +136,14 @@ server.register(fastifyStatic, {
   prefix: "/public/",
 });
 
+// =====================================================
+// 📦 REGISTRO DE RUTAS MODULARIZADAS
+// =====================================================
+// Las rutas de catálogos y health están en /routes/
+server.register(async (app) => {
+  await registerRoutes(app);
+});
+
 // Hook global de manejo de errores
 server.setErrorHandler((error: Error, request, reply) => {
   server.log.error(
@@ -126,7 +153,7 @@ server.setErrorHandler((error: Error, request, reply) => {
       url: request.url,
       method: request.method,
     },
-    "Error en servidor"
+    "Error en servidor",
   );
 
   const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -154,249 +181,14 @@ server.addHook("onSend", async (request, reply, payload) => {
   return payload;
 });
 
-// ============================================================================
-// 🔧 FUNCIONES DE SERIALIZACIÓN
-// ============================================================================
+// Funciones de serialización movidas a ./utils/serialization.ts
 
-/**
- * Serializa objetos Date a strings ISO para evitar errores de serialización JSON
- */
-function serializeDate(date: Date | undefined | null): string | null {
-  if (!date) return null;
-  if (!(date instanceof Date)) return null;
-  if (isNaN(date.getTime())) return null;
-  return date.toISOString();
-}
-
-/**
- * Serializa un array de alertas convirtiendo Date a ISO string
- */
-function serializeAlerts(alerts: any[]): any[] {
-  return alerts.map((alert) => ({
-    ...alert,
-    timestamp: serializeDate(alert.timestamp),
-  }));
-}
-
-/**
- * Serializa un array de jams convirtiendo Date a ISO string
- */
-function serializeJams(jams: any[]): any[] {
-  return jams.map((jam) => ({
-    ...jam,
-    timestamp: serializeDate(jam.timestamp),
-  }));
-}
-
-/**
- * Serializa cualquier objeto recursivamente convirtiendo Date a ISO string
- */
-function serializeObject(obj: any): any {
-  if (obj === null || obj === undefined) return obj;
-
-  if (obj instanceof Date) {
-    return serializeDate(obj);
-  }
-
-  if (Array.isArray(obj)) {
-    return obj.map((item) => serializeObject(item));
-  }
-
-  if (typeof obj === "object") {
-    const serialized: any = {};
-    for (const key in obj) {
-      if (Object.prototype.hasOwnProperty.call(obj, key)) {
-        serialized[key] = serializeObject(obj[key]);
-      }
-    }
-    return serialized;
-  }
-
-  // Para valores NaN, convertirlos a null
-  if (typeof obj === "number" && isNaN(obj)) {
-    return null;
-  }
-
-  return obj;
-}
+// Endpoint proxy de iconos movido a ./routes/iconProxy.routes.ts
 
 // =====================================================
-// 🎨 ENDPOINT DE PROXY DE ICONOS DE WAZE
+// 📤 NOTA: Endpoint /api/upload/icon modularizado
 // =====================================================
-
-// GET /api/icons/:iconName - Proxy para iconos de Waze con autenticación
-server.get("/api/icons/:iconName", async (request, reply) => {
-  const { iconName } = request.params as { iconName: string };
-  const wazeIconBase =
-    "https://web-assets.waze.com/webapps/partnerhub-web/1.1.1333/assets/icons/alerts";
-
-  try {
-    // Construir URL del icono
-    const iconUrl = `${wazeIconBase}/${iconName}.svg`;
-
-    // Intentar obtener el icono con autenticación si está configurada
-    const axiosConfig: any = {
-      responseType: "arraybuffer",
-      timeout: 5000,
-      headers: {
-        Referer: "https://www.waze.com/partnerhub",
-        "User-Agent": "Mozilla/5.0 (compatible; WazeMonitor/1.0)",
-      },
-    };
-
-    // Agregar cookie de sesión si está configurada
-    if (process.env.WAZE_SESSION_COOKIE) {
-      axiosConfig.headers["Cookie"] = process.env.WAZE_SESSION_COOKIE;
-    }
-
-    // Agregar headers de autenticación si están disponibles
-    if (process.env.WAZE_PARTNER_ID) {
-      axiosConfig.headers["X-Partner-ID"] = process.env.WAZE_PARTNER_ID;
-    }
-
-    console.log(`🔄 Solicitando icono: ${iconName} desde ${iconUrl}`);
-
-    const response = await axios.get(iconUrl, axiosConfig);
-
-    // Configurar headers de respuesta
-    reply.header("Content-Type", "image/svg+xml");
-    reply.header("Cache-Control", "public, max-age=3600"); // Cache 1 hora
-    reply.header("Access-Control-Allow-Origin", "*");
-
-    console.log(
-      `✅ Icono ${iconName} obtenido exitosamente (${response.data.length} bytes)`
-    );
-    return Buffer.from(response.data);
-  } catch (error: any) {
-    console.warn(`⚠️ Error obteniendo icono ${iconName}:`, error.message);
-
-    // Intentar con iconos locales como fallback
-    try {
-      // Si el icono falla, intentar obtener hazard.svg como fallback
-      if (iconName !== "hazard") {
-        const fallbackUrl = `${wazeIconBase}/hazard.svg`;
-        console.log(`🔄 Intentando fallback con hazard.svg para ${iconName}`);
-
-        const fallbackResponse = await axios.get(fallbackUrl, {
-          responseType: "arraybuffer",
-          timeout: 3000,
-          headers: {
-            Referer: "https://www.waze.com/partnerhub",
-          },
-        });
-
-        reply.header("Content-Type", "image/svg+xml");
-        reply.header("Cache-Control", "public, max-age=3600");
-        reply.header("Access-Control-Allow-Origin", "*");
-
-        console.log(`✅ Fallback exitoso: hazard.svg usado para ${iconName}`);
-        return Buffer.from(fallbackResponse.data);
-      }
-    } catch (fallbackError) {
-      console.error(
-        `❌ Fallback también falló para ${iconName}:`,
-        (fallbackError as any)?.message || fallbackError
-      );
-    }
-
-    // Si todo falla, devolver un SVG inline simple
-    const fallbackSvg = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="24" cy="24" r="20" fill="#6b7280"/>
-            <text x="24" y="30" text-anchor="middle" fill="white" font-size="16" font-family="Arial">${iconName
-              .charAt(0)
-              .toUpperCase()}</text>
-        </svg>`;
-
-    reply.header("Content-Type", "image/svg+xml");
-    reply.header("Cache-Control", "public, max-age=300");
-    reply.header("Access-Control-Allow-Origin", "*");
-
-    console.log(`📝 Usando SVG inline como último fallback para ${iconName}`);
-    return fallbackSvg;
-  }
-});
-
-// =====================================================
-// 📤 ENDPOINT DE CARGA DE ICONOS SVG
-// =====================================================
-
-// POST /api/upload/icon - Upload SVG icon file
-server.post("/api/upload/icon", async (request, reply) => {
-  try {
-    const data = await request.file();
-
-    if (!data) {
-      reply.code(400).send({ error: "No file uploaded" });
-      return;
-    }
-
-    // Validar que sea SVG
-    if (data.mimetype !== "image/svg+xml") {
-      reply.code(400).send({
-        error: "Invalid file type",
-        message: "Only SVG files are allowed",
-      });
-      return;
-    }
-
-    // Usar el nombre original del archivo (sin path traversal)
-    const originalFilename = data.filename.replace(/^.*[\\\/]/, "");
-
-    // Validar que el nombre sea seguro
-    if (!/^[a-z0-9_-]+\.svg$/i.test(originalFilename)) {
-      reply.code(400).send({
-        error: "Invalid filename",
-        message:
-          "Filename must contain only letters, numbers, underscores, hyphens and .svg extension",
-      });
-      return;
-    }
-
-    // Carpeta de iconos precargados en el frontend
-    const iconsDir = path.join(
-      __dirname,
-      "../../frontend/public/icons/waze/iconos_svg"
-    );
-
-    // Crear directorio si no existe
-    if (!fs.existsSync(iconsDir)) {
-      fs.mkdirSync(iconsDir, { recursive: true });
-    }
-
-    // Guardar archivo (reemplazará si ya existe)
-    const filepath = path.join(iconsDir, originalFilename);
-    const buffer = await data.toBuffer();
-    fs.writeFileSync(filepath, buffer);
-
-    // Retornar la ruta relativa que se usará en el frontend
-    const publicUrl = `/icons/waze/iconos_svg/${originalFilename}`;
-
-    server.log.info(
-      `✅ Icon uploaded/updated: ${originalFilename} -> ${publicUrl}`
-    );
-
-    reply.send({
-      success: true,
-      url: publicUrl,
-      filename: originalFilename,
-      message:
-        "Icon uploaded successfully. It will be available after page reload.",
-    });
-  } catch (error: any) {
-    server.log.error(
-      {
-        error,
-        url: request.url,
-        stack: error instanceof Error ? error.stack : undefined,
-      },
-      "Error uploading icon"
-    );
-    reply.code(500).send({
-      error: "Failed to upload icon",
-      message: error instanceof Error ? error.message : "Unknown error",
-    });
-  }
-});
+// Ver: /routes/iconUploadRoute.ts
 
 // Endpoint de prueba simple
 server.get("/api/test", async () => {
@@ -410,466 +202,11 @@ server.get("/api/test", async () => {
 // GET/POST/PUT/DELETE /api/catalogs/*
 
 // =====================================================
-// 🏥 HEALTH CHECKS PARA MONITOREO Y ORQUESTACIÓN
+// 📝 NOTA: Las siguientes rutas fueron modularizadas
 // =====================================================
-
-// GET /health - Health check completo para monitoreo
-server.get("/health", async (request, reply) => {
-  const startTime = Date.now();
-
-  try {
-    // Verificar conexión a base de datos
-    const dbHealthy = await checkDatabaseHealth();
-
-    // Verificar servicios externos (Waze, clima)
-    const servicesHealthy = await checkServicesHealth();
-
-    // Calcular uptime
-    const uptime = process.uptime();
-
-    // Información del sistema
-    const health = {
-      status: dbHealthy && servicesHealthy ? "healthy" : "unhealthy",
-      timestamp: new Date().toISOString(),
-      uptime: uptime,
-      uptimeFormatted: formatUptime(uptime),
-      version: process.env.npm_package_version || "1.0.0",
-      environment: process.env.NODE_ENV || "development",
-      checks: {
-        database: {
-          status: dbHealthy ? "healthy" : "unhealthy",
-          responseTime: Date.now() - startTime,
-        },
-        services: {
-          status: servicesHealthy ? "healthy" : "unhealthy",
-          responseTime: Date.now() - startTime,
-        },
-      },
-      memory: {
-        used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024), // MB
-        total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024), // MB
-        external: Math.round(process.memoryUsage().external / 1024 / 1024), // MB
-      },
-    };
-
-    const statusCode = health.status === "healthy" ? 200 : 503;
-    reply.code(statusCode).send(health);
-  } catch (error) {
-    server.log.error({ msg: "Health check failed", error });
-    reply.code(503).send({
-      status: "unhealthy",
-      timestamp: new Date().toISOString(),
-      error: "Health check failed",
-    });
-  }
-});
-
-// GET /health/live - Liveness probe (Kubernetes/Docker)
-server.get("/health/live", async (request, reply) => {
-  reply.code(200).send({
-    status: "alive",
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-  });
-});
-
-// GET /health/ready - Readiness probe (Kubernetes/Docker)
-server.get("/health/ready", async (request, reply) => {
-  try {
-    // Verificar base de datos
-    const dbReady = await checkDatabaseHealth();
-
-    if (dbReady) {
-      reply.code(200).send({
-        status: "ready",
-        timestamp: new Date().toISOString(),
-        database: "connected",
-      });
-    } else {
-      reply.code(503).send({
-        status: "not ready",
-        timestamp: new Date().toISOString(),
-        database: "disconnected",
-      });
-    }
-  } catch (error) {
-    reply.code(503).send({
-      status: "not ready",
-      timestamp: new Date().toISOString(),
-      error: "Readiness check failed",
-    });
-  }
-});
-
-// Nota: Endpoint /api/catalogs/sync movido a la sección CRUD de catálogos (línea ~434)
-
-// GET /api/catalogs/types - Listar todos los tipos de incidentes (formato para frontend)
-server.get("/api/catalogs/types", async (request, reply) => {
-  try {
-    const types = await catalogSyncService.getAllIncidentTypes();
-    return { success: true, data: types, count: types.length };
-  } catch (error: any) {
-    server.log.error({ error }, "Error obteniendo tipos de incidentes");
-    reply.code(500).send({ success: false, error: error.message });
-  }
-});
-
-// GET /api/catalogs - Obtener todos los tipos de incidentes con subtipos
-server.get("/api/catalogs", async (request, reply) => {
-  try {
-    const catalogs = await catalogSyncService.getAllIncidentTypes();
-    reply.send(serializeObject(catalogs));
-  } catch (error) {
-    server.log.error(
-      {
-        error,
-        url: request.url,
-        stack: error instanceof Error ? error.stack : undefined,
-      },
-      "Error obteniendo catálogos"
-    );
-    reply.code(500).send({ error: "Failed to get catalogs" });
-  }
-});
-
-// GET /api/catalogs/stats - Estadísticas de uso de catálogos
-server.get("/api/catalogs/stats", async (request, reply) => {
-  try {
-    const stats = await catalogSyncService.getCatalogUsageStats();
-    reply.send(serializeObject(stats));
-  } catch (error) {
-    server.log.error(
-      {
-        error,
-        url: request.url,
-        stack: error instanceof Error ? error.stack : undefined,
-      },
-      "Error obteniendo estadísticas de catálogos"
-    );
-    reply.code(500).send({ error: "Failed to get catalog stats" });
-  }
-});
-
-// POST /api/catalogs/sync - Sincronizar catálogo desde feeds de Waze
-server.post("/api/catalogs/sync", async (request, reply) => {
-  try {
-    console.log("🔄 Iniciando sincronización de catálogos desde Waze...");
-    const result = await catalogSyncService.syncFromWazeFeeds();
-
-    reply.send({
-      success: true,
-      message: "Sincronización completada exitosamente",
-      data: result,
-    });
-
-    console.log(
-      `✅ Sincronización completada: ${result.newTypes} nuevos tipos, ${result.newSubtypes} nuevos subtipos`
-    );
-  } catch (error) {
-    server.log.error(
-      {
-        error,
-        url: request.url,
-        stack: error instanceof Error ? error.stack : undefined,
-      },
-      "Error sincronizando catálogos"
-    );
-    reply.code(500).send({
-      error: "Failed to sync catalogs",
-      message: error instanceof Error ? error.message : "Error desconocido",
-    });
-  }
-});
-
-// POST /api/catalogs/types - Crear nuevo tipo de incidente
-server.post("/api/catalogs/types", async (request, reply) => {
-  try {
-    const { code, name, description, icon, color } = request.body as any;
-
-    if (!code || !name) {
-      reply.code(400).send({ error: "Code and name are required" });
-      return;
-    }
-
-    // Verificar que no exista
-    const existing = await dbService.query(
-      "SELECT id FROM incident_types WHERE code = $1",
-      [code]
-    );
-    if (existing.rows.length > 0) {
-      reply.code(409).send({ error: "Type code already exists" });
-      return;
-    }
-
-    const result = await dbService.query(
-      `
-            INSERT INTO incident_types (code, name, description, icon, color, is_active, created_at, updated_at, icon_url)
-            VALUES ($1, $2, $3, $4, $5, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $6)
-            RETURNING *
-        `,
-      [
-        code,
-        name,
-        description || "",
-        icon || "alert-triangle",
-        color || "#6b7280",
-        (request.body as any).icon_url || null,
-      ]
-    );
-
-    reply.send(serializeObject(result.rows[0]));
-  } catch (error) {
-    server.log.error(
-      {
-        error,
-        url: request.url,
-        stack: error instanceof Error ? error.stack : undefined,
-      },
-      "Error creando tipo de incidente"
-    );
-    reply.code(500).send({ error: "Failed to create incident type" });
-  }
-});
-
-// PUT /api/catalogs/types/:id - Actualizar tipo de incidente
-server.put("/api/catalogs/types/:id", async (request, reply) => {
-  try {
-    const id = parseInt((request.params as any).id);
-    const { code, name, description, icon, color, is_active, icon_url } =
-      request.body as any;
-
-    // Log para debug
-    server.log.info(
-      {
-        id,
-        code,
-        name,
-        description,
-        icon,
-        color,
-        is_active,
-        icon_url,
-      },
-      "Actualizando tipo de incidente"
-    );
-
-    // Validar campos requeridos
-    if (!name) {
-      reply.code(400).send({ error: "Name is required" });
-      return;
-    }
-
-    const result = await dbService.query(
-      `
-            UPDATE incident_types
-            SET code = $1, name = $2, description = $3, icon = $4, color = $5, is_active = $6, icon_url = $7, updated_at = CURRENT_TIMESTAMP
-            WHERE id = $8
-            RETURNING *
-        `,
-      [
-        code || null,
-        name,
-        description || null,
-        icon || null,
-        color || null,
-        is_active !== undefined ? is_active : true,
-        icon_url || null,
-        id,
-      ]
-    );
-
-    if (result.rows.length === 0) {
-      reply.code(404).send({ error: "Incident type not found" });
-      return;
-    }
-
-    reply.send(serializeObject(result.rows[0]));
-  } catch (error) {
-    server.log.error(
-      {
-        error,
-        url: request.url,
-        stack: error instanceof Error ? error.stack : undefined,
-      },
-      "Error actualizando tipo de incidente"
-    );
-    reply.code(500).send({ error: "Failed to update incident type" });
-  }
-});
-
-// POST /api/catalogs/subtypes - Crear nuevo subtipo de incidente
-server.post("/api/catalogs/subtypes", async (request, reply) => {
-  try {
-    const { type_id, code, name, description, severity } = request.body as any;
-
-    if (!type_id || !code || !name) {
-      reply.code(400).send({ error: "type_id, code and name are required" });
-      return;
-    }
-
-    // Verificar que el tipo existe
-    const typeExists = await dbService.query(
-      "SELECT id FROM incident_types WHERE id = $1",
-      [type_id]
-    );
-    if (typeExists.rows.length === 0) {
-      reply.code(400).send({ error: "Invalid type_id" });
-      return;
-    }
-
-    // Verificar que no exista el subtipo
-    const existing = await dbService.query(
-      "SELECT id FROM incident_subtypes WHERE type_id = $1 AND code = $2",
-      [type_id, code]
-    );
-    if (existing.rows.length > 0) {
-      reply
-        .code(409)
-        .send({ error: "Subtype code already exists for this type" });
-      return;
-    }
-
-    const result = await dbService.query(
-      `
-            INSERT INTO incident_subtypes (type_id, code, name, description, severity, is_active, created_at, updated_at, icon_url)
-            VALUES ($1, $2, $3, $4, $5, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $6)
-            RETURNING *
-        `,
-      [
-        type_id,
-        code,
-        name,
-        description || "",
-        severity || "MEDIUM",
-        (request.body as any).icon_url || null,
-      ]
-    );
-
-    reply.send(serializeObject(result.rows[0]));
-  } catch (error) {
-    server.log.error(
-      {
-        error,
-        url: request.url,
-        stack: error instanceof Error ? error.stack : undefined,
-      },
-      "Error creando subtipo de incidente"
-    );
-    reply.code(500).send({ error: "Failed to create incident subtype" });
-  }
-});
-
-// PUT /api/catalogs/subtypes/:id - Actualizar subtipo de incidente
-server.put("/api/catalogs/subtypes/:id", async (request, reply) => {
-  try {
-    const id = parseInt((request.params as any).id);
-    const { name, description, severity, is_active, icon_url } =
-      request.body as any;
-
-    const result = await dbService.query(
-      `
-            UPDATE incident_subtypes
-            SET name = $1, description = $2, severity = $3, is_active = $4, icon_url = $5, updated_at = CURRENT_TIMESTAMP
-            WHERE id = $6
-            RETURNING *
-        `,
-      [name, description, severity, is_active, icon_url, id]
-    );
-
-    if (result.rows.length === 0) {
-      reply.code(404).send({ error: "Incident subtype not found" });
-      return;
-    }
-
-    reply.send(serializeObject(result.rows[0]));
-  } catch (error) {
-    server.log.error(
-      {
-        error,
-        url: request.url,
-        stack: error instanceof Error ? error.stack : undefined,
-      },
-      "Error actualizando subtipo de incidente"
-    );
-    reply.code(500).send({ error: "Failed to update incident subtype" });
-  }
-});
-
-// DELETE /api/catalogs/types/:id - Eliminar tipo de incidente
-server.delete("/api/catalogs/types/:id", async (request, reply) => {
-  try {
-    const id = parseInt((request.params as any).id);
-
-    // Verificar si hay subtipos asociados
-    const subtypes = await dbService.query(
-      "SELECT COUNT(*) as count FROM incident_subtypes WHERE type_id = $1",
-      [id]
-    );
-    if (subtypes.rows[0].count > 0) {
-      reply.code(400).send({
-        error: "Cannot delete type with associated subtypes",
-        message: `This type has ${subtypes.rows[0].count} subtypes. Delete them first.`,
-      });
-      return;
-    }
-
-    const result = await dbService.query(
-      "DELETE FROM incident_types WHERE id = $1 RETURNING *",
-      [id]
-    );
-
-    if (result.rows.length === 0) {
-      reply.code(404).send({ error: "Incident type not found" });
-      return;
-    }
-
-    reply.send({
-      success: true,
-      message: "Incident type deleted successfully",
-    });
-  } catch (error) {
-    server.log.error(
-      {
-        error,
-        url: request.url,
-        stack: error instanceof Error ? error.stack : undefined,
-      },
-      "Error eliminando tipo de incidente"
-    );
-    reply.code(500).send({ error: "Failed to delete incident type" });
-  }
-});
-
-// DELETE /api/catalogs/subtypes/:id - Eliminar subtipo de incidente
-server.delete("/api/catalogs/subtypes/:id", async (request, reply) => {
-  try {
-    const id = parseInt((request.params as any).id);
-    const result = await dbService.query(
-      "DELETE FROM incident_subtypes WHERE id = $1 RETURNING *",
-      [id]
-    );
-
-    if (result.rows.length === 0) {
-      reply.code(404).send({ error: "Incident subtype not found" });
-      return;
-    }
-
-    reply.send({
-      success: true,
-      message: "Incident subtype deleted successfully",
-    });
-  } catch (error) {
-    server.log.error(
-      {
-        error,
-        url: request.url,
-        stack: error instanceof Error ? error.stack : undefined,
-      },
-      "Error eliminando subtipo de incidente"
-    );
-    reply.code(500).send({ error: "Failed to delete incident subtype" });
-  }
-});
+// - Health checks: /routes/health.routes.ts
+// - Catalogs CRUD: /routes/catalogs.routes.ts
+// Para agregar nuevas rutas, crear módulo en /routes/ y registrar en /routes/index.ts
 
 // =====================================================
 // 🚗 ENDPOINTS DE ACCIDENTES RAC (Road Accidents)
@@ -944,7 +281,7 @@ server.get("/api/road-accidents/map", async (request, reply) => {
     reply.send(serializeObject(accidents));
 
     server.log.info(
-      `📍 Accidentes RAC obtenidos: ${accidents.length} (${startDate} - ${endDate})`
+      `📍 Accidentes RAC obtenidos: ${accidents.length} (${startDate} - ${endDate})`,
     );
   } catch (error) {
     server.log.error(
@@ -953,7 +290,7 @@ server.get("/api/road-accidents/map", async (request, reply) => {
         url: request.url,
         stack: error instanceof Error ? error.stack : undefined,
       },
-      "Error obteniendo accidentes RAC para mapa"
+      "Error obteniendo accidentes RAC para mapa",
     );
     reply.code(500).send({
       error: "Failed to get road accidents for map",
@@ -984,7 +321,9 @@ server.get("/api/polygons", async (request, reply) => {
  */
 server.post("/api/polygons/sync", async (request, reply) => {
   try {
-    console.log("🔄 Sincronizando polígonos desde configuración estática...");
+    server.log.info(
+      "🔄 Sincronizando polígonos desde configuración estática...",
+    );
     let added = 0;
     let updated = 0;
 
@@ -1099,7 +438,7 @@ server.get("/api/traffic-metrics", async (request, reply) => {
   } catch (error) {
     server.log.error(
       { error, url: request.url },
-      "Error en /api/traffic-metrics"
+      "Error en /api/traffic-metrics",
     );
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
@@ -1125,7 +464,7 @@ server.get("/api/traffic-metrics/:polygonId", async (request, reply) => {
   } catch (error) {
     server.log.error(
       { error, url: request.url },
-      "Error en /api/traffic-metrics/:polygonId"
+      "Error en /api/traffic-metrics/:polygonId",
     );
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
@@ -1175,7 +514,7 @@ server.get("/api/alerts/severity/:severity", async (request, reply) => {
   try {
     const { severity } = request.params as { severity: string };
     return alertService.getAlertsBySeverity(
-      severity as "critical" | "high" | "medium" | "low"
+      severity as "critical" | "high" | "medium" | "low",
     );
   } catch (_error) {
     reply.code(500).send({ error: "Failed to get alerts by severity" });
@@ -1220,7 +559,7 @@ server.get("/api/metrics/global", async (request, reply) => {
     const globalMetrics = aggregationService.calculateGlobalMetrics(
       jams,
       alerts,
-      trafficMetrics
+      trafficMetrics,
     );
     return globalMetrics;
   } catch (error) {
@@ -1231,7 +570,7 @@ server.get("/api/metrics/global", async (request, reply) => {
 server.get("/api/metrics/top-critical", async (request, reply) => {
   try {
     const limit = parseInt(
-      (request.query as { limit?: string })?.limit || "10"
+      (request.query as { limit?: string })?.limit || "10",
     );
     const jams = await repositories().wazeJams.findAllActive();
     const alerts = await repositories().wazeAlerts.findAllActive();
@@ -1239,7 +578,7 @@ server.get("/api/metrics/top-critical", async (request, reply) => {
     const topCritical = aggregationService.getTopCriticalPolygons(
       jams,
       alerts,
-      limit
+      limit,
     );
     return topCritical;
   } catch (error) {
@@ -1252,14 +591,14 @@ server.get("/api/metrics/top-critical", async (request, reply) => {
 server.get("/api/historical/global", async (request, reply) => {
   try {
     const hours = parseInt(
-      (request.query as { hours?: string })?.hours || "24"
+      (request.query as { hours?: string })?.hours || "24",
     );
     const snapshots = await historicalService.getGlobalSnapshots(hours);
     return serializeObject(snapshots || []);
   } catch (error) {
     server.log.error(
       { error, url: request.url },
-      "Error en /api/historical/global"
+      "Error en /api/historical/global",
     );
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
@@ -1275,11 +614,11 @@ server.get("/api/historical/polygon/:polygonId", async (request, reply) => {
   try {
     const { polygonId } = request.params as { polygonId: string };
     const hours = parseInt(
-      (request.query as { hours?: string })?.hours || "24"
+      (request.query as { hours?: string })?.hours || "24",
     );
     const snapshots = await historicalService.getPolygonSnapshots(
       polygonId,
-      hours
+      hours,
     );
     return snapshots;
   } catch (_error) {
@@ -1308,7 +647,7 @@ server.get("/api/historical/trends", async (request, reply) => {
   } catch (error) {
     server.log.error(
       { error, url: request.url },
-      "Error en /api/historical/trends"
+      "Error en /api/historical/trends",
     );
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
@@ -1384,7 +723,7 @@ server.get(
     } catch (error) {
       reply.code(500).send({ error: "Failed to get high quality incidents" });
     }
-  }
+  },
 );
 
 /**
@@ -1402,7 +741,7 @@ server.get(
     } catch (error) {
       reply.code(500).send({ error: "Failed to prioritize incidents" });
     }
-  }
+  },
 );
 
 /**
@@ -1412,7 +751,7 @@ server.get(
 server.get("/api/data-quality/incidents/stale", async (request, reply) => {
   try {
     const maxAge = parseInt(
-      (request.query as { maxAge?: string })?.maxAge || "30"
+      (request.query as { maxAge?: string })?.maxAge || "30",
     ); // minutos
     const alerts = await repositories().wazeAlerts.findAllActive();
     const incidents = alerts.map(toLegacyAlert);
@@ -1456,19 +795,22 @@ server.get("/api/data-quality/thresholds", async (request, reply) => {
  * POST /api/data-quality/thresholds
  * Actualiza umbrales de calidad dinámicamente
  */
-server.post("/api/data-quality/thresholds", async (request, reply) => {
-  try {
-    const updates = request.body as any;
-    dataQualityService.updateThresholds(updates);
-    return {
-      success: true,
-      message: "Thresholds updated",
-      current: dataQualityService.getThresholds(),
-    };
-  } catch (error) {
-    reply.code(500).send({ error: "Failed to update thresholds" });
-  }
-});
+server.post<{ Body: ThresholdsUpdate }>(
+  "/api/data-quality/thresholds",
+  async (request, reply) => {
+    try {
+      const updates = request.body;
+      dataQualityService.updateThresholds(updates);
+      return {
+        success: true,
+        message: "Thresholds updated",
+        current: dataQualityService.getThresholds(),
+      };
+    } catch (error) {
+      reply.code(500).send({ error: "Failed to update thresholds" });
+    }
+  },
+);
 
 // --- Endpoints de Datos Raw para Mapa ---
 
@@ -1476,35 +818,35 @@ server.post("/api/data-quality/thresholds", async (request, reply) => {
  * GET /api/incidents/all
  * Obtiene todos los incidentes activos formateados para el mapa
  */
-server.get("/api/incidents/all", async (request, reply) => {
-  try {
-    const alertsData = await repositories().wazeAlerts.findAllActive();
-    const incidents = alertsData.map(toLegacyAlert);
-    return incidents;
-  } catch (error) {
-    server.log.error({ error }, "Error retrieving all incidents");
-    reply.code(500).send({
-      error: "Failed to retrieve incidents",
-      details: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-  }
-});
+// server.get("/api/incidents/all", async (request, reply) => {
+//   try {
+//     const alertsData = await repositories().wazeAlerts.findAllActive();
+//     const incidents = alertsData.map(toLegacyAlert);
+//     return incidents;
+//   } catch (error) {
+//     server.log.error({ error }, "Error retrieving all incidents");
+//     reply.code(500).send({
+//       error: "Failed to retrieve incidents",
+//       details: error instanceof Error ? error.message : String(error),
+//       stack: error instanceof Error ? error.stack : undefined,
+//     });
+//   }
+// });
 
 /**
  * GET /api/jams/all
  * Obtiene todos los jams activos formateados para el mapa
  */
-server.get("/api/jams/all", async (request, reply) => {
-  try {
-    const jamsData = await repositories().wazeJams.findAllActive();
-    const jams = jamsData.map(toLegacyJam);
-    return jams;
-  } catch (error) {
-    server.log.error({ error }, "Error retrieving all jams");
-    reply.code(500).send({ error: "Failed to retrieve jams" });
-  }
-});
+// server.get("/api/jams/all", async (request, reply) => {
+//   try {
+//     const jamsData = await repositories().wazeJams.findAllActive();
+//     const jams = jamsData.map(toLegacyJam);
+//     return jams;
+//   } catch (error) {
+//     server.log.error({ error }, "Error retrieving all jams");
+//     reply.code(500).send({ error: "Failed to retrieve jams" });
+//   }
+// });
 
 // --- Endpoints de Estadísticas de Incidentes ---
 
@@ -1549,14 +891,14 @@ server.get(
         polygonId,
         polygon.name,
         alerts,
-        jams
+        jams,
       );
 
       return stats;
     } catch (error) {
       reply.code(500).send({ error: "Failed to get polygon incident stats" });
     }
-  }
+  },
 );
 
 /**
@@ -1617,7 +959,7 @@ server.get("/api/incidents/delay/:incidentId", async (request, reply) => {
     const delayResult = delayCalculationService.calculateIncidentDelay(
       incident,
       jams,
-      historicalData
+      historicalData,
     );
 
     return {
@@ -1649,7 +991,7 @@ server.get("/api/incidents/delays/all", async (request, reply) => {
     const delayResults = delayCalculationService.calculateBatchDelays(
       alerts,
       jams,
-      historicalData
+      historicalData,
     );
 
     // Convertir Map a objeto para la respuesta JSON
@@ -1675,7 +1017,7 @@ server.get("/api/incidents/delays/all", async (request, reply) => {
       count: results.length,
       totalNetworkDelay: results.reduce(
         (sum, r) => sum + r.totalDelaySeconds,
-        0
+        0,
       ),
       incidents: results,
     };
@@ -1692,7 +1034,7 @@ function calculateDistanceMeters(
   lat1: number,
   lng1: number,
   lat2: number,
-  lng2: number
+  lng2: number,
 ): number {
   const R = 6371000; // Radio de la Tierra en metros
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -1719,7 +1061,7 @@ import { InternalAlert } from "./types"; // Ensure imported if not already. Actu
 // Let's use `any[]` or better define `{ location: {lat: number, lng: number}, ... }[]`
 function groupIncidentsByProximity(
   incidents: any[],
-  proximityThreshold: number = 200
+  proximityThreshold: number = 200,
 ) {
   const groups: Array<{
     primary: (typeof incidents)[0];
@@ -1745,22 +1087,26 @@ function groupIncidentsByProximity(
     for (const other of incidents) {
       if (other.id === incident.id || processed.has(other.id)) continue;
 
-      const sameStreet =
-        incident.street &&
-        other.street &&
-        incident.street.toLowerCase() === other.street.toLowerCase();
-
       const distance = calculateDistanceMeters(
         incident.location.lat,
         incident.location.lng,
         other.location.lat,
-        other.location.lng
+        other.location.lng,
       );
 
       const sameType = incident.type.toLowerCase() === other.type.toLowerCase();
+      const sameSubtype =
+        incident.subtype &&
+        other.subtype &&
+        incident.subtype.toLowerCase() === other.subtype.toLowerCase();
 
-      // Agrupar si: (misma calle Y mismo tipo) O (muy cerca Y mismo tipo)
-      if (sameType && (sameStreet || distance <= proximityThreshold)) {
+      // CORREGIDO: Solo agrupar por proximidad geográfica estricta
+      // No agrupar solo por nombre de calle (puede haber múltiples incidentes en la misma ruta)
+      // Agrupar si: mismo tipo + mismo subtipo + muy cerca (< 50 metros)
+      const isNearDuplicate =
+        sameType && sameSubtype && distance <= proximityThreshold;
+
+      if (isNearDuplicate) {
         related.push(other);
         allLocations.push({
           lat: other.location.lat,
@@ -1823,14 +1169,14 @@ server.get("/api/incidents/blocking-analysis", async (request, reply) => {
     const potentialBlockingIncidents = alerts.filter(
       (a) =>
         blockingTypes.some((t) =>
-          a.type.toLowerCase().includes(t.toLowerCase())
-        ) || a.severity >= 4
+          a.type.toLowerCase().includes(t.toLowerCase()),
+        ) || a.severity >= 4,
     );
 
-    // Agrupar incidentes para evitar duplicados
+    // Agrupar incidentes para evitar duplicados (umbral reducido a 50m)
     const groupedIncidents = groupIncidentsByProximity(
       potentialBlockingIncidents,
-      200
+      50, // Reducido de 200m a 50m para evitar agrupar incidentes diferentes
     );
 
     const analyses = groupedIncidents.map((group) => {
@@ -1838,13 +1184,13 @@ server.get("/api/incidents/blocking-analysis", async (request, reply) => {
       const delayResult = delayCalculationService.calculateIncidentDelay(
         incident,
         jams,
-        historicalData
+        historicalData,
       );
 
       // Encontrar jams relacionados directamente (de todos los incidentes del grupo)
       const allIncidentIds = [incident.id, ...group.related.map((r) => r.id)];
       const linkedJams = jams.filter((j) =>
-        allIncidentIds.includes(j.blockingAlertUuid || "")
+        allIncidentIds.includes(j.blockingAlertUuid || ""),
       );
       const totalLength = linkedJams.reduce((sum, j) => sum + j.length, 0);
 
@@ -1856,7 +1202,7 @@ server.get("/api/incidents/blocking-analysis", async (request, reply) => {
           incident.location.lat,
           incident.location.lng,
           j.location.lat,
-          j.location.lng
+          j.location.lng,
         );
         return distance <= 300; // Radio de 300 metros
       });
@@ -1867,7 +1213,7 @@ server.get("/api/incidents/blocking-analysis", async (request, reply) => {
           [
             ...linkedJams.map((j) => j.street),
             ...nearbyJams.map((j) => j.street),
-          ].filter(Boolean)
+          ].filter(Boolean),
         ),
       ] as string[];
 
@@ -1882,7 +1228,7 @@ server.get("/api/incidents/blocking-analysis", async (request, reply) => {
         ...group.related.map((r) => r.timestamp),
       ];
       const oldestTimestamp = allTimestamps.reduce((oldest, current) =>
-        new Date(current) < new Date(oldest) ? current : oldest
+        new Date(current) < new Date(oldest) ? current : oldest,
       );
 
       return {
@@ -1906,7 +1252,7 @@ server.get("/api/incidents/blocking-analysis", async (request, reply) => {
           delayResult.totalDelayMinutes * 0.4 +
             linkedJams.length * 10 +
             totalLength / 100 +
-            group.related.length * 5 // Bonus por múltiples reportes
+            group.related.length * 5, // Bonus por múltiples reportes
         ),
         // Información del grupo para deduplicación
         reportCount: 1 + group.related.length,
@@ -1935,13 +1281,13 @@ server.get("/api/incidents/blocking-analysis", async (request, reply) => {
         duplicatesRemoved: totalOriginalIncidents - totalGroupedIncidents,
         totalDelayMinutes: analyses.reduce(
           (sum, a) => sum + a.delay.totalDelayMinutes,
-          0
+          0,
         ),
         avgConfidence:
           analyses.length > 0
             ? Math.round(
                 analyses.reduce((sum, a) => sum + a.delay.confidence, 0) /
-                  analyses.length
+                  analyses.length,
               )
             : 0,
       },
@@ -1961,7 +1307,7 @@ server.get("/api/incidents/blocking-analysis", async (request, reply) => {
  * Si no hay datos, usa las coordenadas por defecto de Córdoba.
  */
 async function calculatePolygonCenter(
-  polygonId: string
+  polygonId: string,
 ): Promise<{ lat: number; lon: number }> {
   const polygon = REAL_POLYGONS.find((p) => p.id === polygonId);
 
@@ -2034,9 +1380,8 @@ server.get("/api/speed/comparison/:polygonId", async (request, reply) => {
     }
 
     // Obtener velocidad de Waze
-    const trafficMetrics = await apiService.getTrafficMetricsByPolygon(
-      polygonId
-    );
+    const trafficMetrics =
+      await apiService.getTrafficMetricsByPolygon(polygonId);
     const wazeSpeed = trafficMetrics?.avgSpeed || null;
 
     // Calcular centro del polígono (desde config, datos de Waze, o fallback)
@@ -2049,7 +1394,7 @@ server.get("/api/speed/comparison/:polygonId", async (request, reply) => {
       polygon.name,
       centerLat,
       centerLon,
-      wazeSpeed
+      wazeSpeed,
     );
 
     return comparison;
@@ -2066,7 +1411,7 @@ server.get("/api/speed/comparison/:polygonId", async (request, reply) => {
 server.get("/api/speed/comparison/all", async (request, reply) => {
   try {
     const limit = parseInt(
-      (request.query as { limit?: string })?.limit || "10"
+      (request.query as { limit?: string })?.limit || "10",
     );
 
     // Obtener polígonos con tráfico
@@ -2092,14 +1437,14 @@ server.get("/api/speed/comparison/all", async (request, reply) => {
             polygon.name,
             centerLat,
             centerLon,
-            metrics.avgSpeed
+            metrics.avgSpeed,
           );
         } catch (error) {
           const err = error instanceof Error ? error : new Error(String(error));
           server.log.error(err, "Error getting speed for " + polygon.name);
           return null;
         }
-      })
+      }),
     )) as Array<any>;
 
     return comparisons.filter((c) => c !== null);
@@ -2317,7 +1662,7 @@ server.get("/api/weather/:polygon_id", async (request, reply) => {
         if (ageMinutes < 30) {
           server.log.info(
             { polygon_id, ageMinutes: Math.round(ageMinutes) },
-            "Usando datos de clima guardados"
+            "Usando datos de clima guardados",
           );
           reply.send(savedWeather);
           return;
@@ -2326,7 +1671,7 @@ server.get("/api/weather/:polygon_id", async (request, reply) => {
         // Si son más antiguos, obtener datos frescos
         server.log.info(
           { polygon_id, ageMinutes: Math.round(ageMinutes) },
-          "Datos guardados muy antiguos, obteniendo datos frescos"
+          "Datos guardados muy antiguos, obteniendo datos frescos",
         );
       }
     } else {
@@ -2337,7 +1682,7 @@ server.get("/api/weather/:polygon_id", async (request, reply) => {
     const weatherData = await weatherService.fetchWeatherForPolygon(
       polygon_id,
       centerLat,
-      centerLon
+      centerLon,
     );
 
     if (!weatherData) {
@@ -2346,7 +1691,7 @@ server.get("/api/weather/:polygon_id", async (request, reply) => {
       if (savedWeather) {
         server.log.warn(
           { polygon_id },
-          "No se pudo obtener clima fresco, usando datos guardados"
+          "No se pudo obtener clima fresco, usando datos guardados",
         );
         reply.send(savedWeather);
         return;
@@ -2365,7 +1710,7 @@ server.get("/api/weather/:polygon_id", async (request, reply) => {
           provider: process.env.WEATHER_PROVIDER || "openmeteo",
           temperature: weatherData.temperature_celsius,
         },
-        "Clima obtenido y guardado"
+        "Clima obtenido y guardado",
       );
     } catch (saveError) {
       // Si falla el guardado, lo logueamos pero continuamos (no crítico)
@@ -2375,7 +1720,7 @@ server.get("/api/weather/:polygon_id", async (request, reply) => {
           error:
             saveError instanceof Error ? saveError.message : String(saveError),
         },
-        "No se pudo guardar clima en DB, retornando datos de API"
+        "No se pudo guardar clima en DB, retornando datos de API",
       );
     }
 
@@ -2406,7 +1751,7 @@ server.get("/api/weather/:polygon_id/history", async (request, reply) => {
     let history = await weatherService.getWeatherHistory(
       polygon_id,
       fromDate,
-      toDate
+      toDate,
     );
 
     // Si no hay datos históricos, intentar obtenerlos de Open-Meteo
@@ -2419,30 +1764,30 @@ server.get("/api/weather/:polygon_id/history", async (request, reply) => {
           hasCoords: !!polygon?.coordinates,
           coords: polygon?.coordinates,
         },
-        "Verificando polígono para historial"
+        "Verificando polígono para historial",
       );
 
       if (polygon?.coordinates) {
         server.log.info(
           { polygon_id },
-          "No hay historial en BD, obteniendo de Open-Meteo..."
+          "No hay historial en BD, obteniendo de Open-Meteo...",
         );
 
         // Obtener y guardar datos históricos
         history = await weatherService.fetchAndStoreHistorical24h(
           polygon_id,
           polygon.coordinates.lat,
-          polygon.coordinates.lon
+          polygon.coordinates.lon,
         );
 
         server.log.info(
           { polygon_id, count: history.length },
-          "Historial obtenido y guardado"
+          "Historial obtenido y guardado",
         );
       } else {
         server.log.warn(
           { polygon_id },
-          "Polígono no encontrado o sin coordenadas"
+          "Polígono no encontrado o sin coordenadas",
         );
       }
     }
@@ -2480,7 +1825,7 @@ server.get("/api/weather/all", async (request, reply) => {
         const weather = await weatherService.fetchWeatherForPolygon(
           polygon.id,
           centerLat,
-          centerLon
+          centerLon,
         );
 
         if (weather) {
@@ -2492,7 +1837,7 @@ server.get("/api/weather/all", async (request, reply) => {
           polygon_name: polygon.name,
           weather,
         };
-      }
+      },
     );
 
     const results = await Promise.all(weatherPromises);
@@ -2517,7 +1862,7 @@ server.get("/api/risk/groups", async (request, reply) => {
     const groups = getAllGroups();
     return { groups };
   } catch (error: unknown) {
-    console.error("Error obteniendo grupos:", error);
+    server.log.error({ error }, "Error obteniendo grupos");
     if (error instanceof Error) {
       server.log.error(error.stack || error.message);
     }
@@ -2531,7 +1876,7 @@ server.post("/api/risk/calculate", async (request, reply) => {
     await riskScoringService.calculateAllRiskScores();
     return { success: true, message: "Risk scores calculados exitosamente" };
   } catch (error: unknown) {
-    console.error("Error calculando risk scores:", error);
+    server.log.error({ error }, "Error calculando risk scores");
     if (error instanceof Error) {
       server.log.error(error.stack || error.message);
     }
@@ -2567,7 +1912,7 @@ server.get("/api/risk/summary", async (request, reply) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error: unknown) {
-    console.error("Error obteniendo resumen de riesgos:", error);
+    server.log.error({ error }, "Error obteniendo resumen de riesgos");
     if (error instanceof Error) {
       server.log.error(error.stack || error.message);
     }
@@ -2591,13 +1936,13 @@ server.get<{ Querystring: { group?: string } }>(
         timestamp: new Date().toISOString(),
       };
     } catch (error: unknown) {
-      console.error("Error obteniendo scores por grupo:", error);
+      server.log.error({ error }, "Error obteniendo scores por grupo");
       if (error instanceof Error) {
         server.log.error(error.stack || error.message);
       }
       return reply.code(500).send({ error: "Error obteniendo scores" });
     }
-  }
+  },
 );
 
 // POST /api/accidents/backfill-weather - Obtener clima histórico para todos los accidentes sin datos
@@ -2622,7 +1967,7 @@ server.post("/api/accidents/backfill-weather", async (request, reply) => {
         total: allAccidents.length,
         withoutWeather: accidentsWithoutWeather.length,
       },
-      "Accidentes a procesar"
+      "Accidentes a procesar",
     );
 
     // Filtrar los que están dentro de 92 días
@@ -2631,8 +1976,8 @@ server.post("/api/accidents/backfill-weather", async (request, reply) => {
       const accidentDate = accident.accident_at
         ? new Date(accident.accident_at)
         : accident.created_at
-        ? new Date(accident.created_at)
-        : new Date();
+          ? new Date(accident.created_at)
+          : new Date();
       const daysDiff =
         (now.getTime() - accidentDate.getTime()) / (1000 * 60 * 60 * 24);
       return daysDiff <= 92 && daysDiff >= 0;
@@ -2640,7 +1985,7 @@ server.post("/api/accidents/backfill-weather", async (request, reply) => {
 
     server.log.info(
       { eligible: eligibleAccidents.length },
-      "Accidentes elegibles (dentro de 92 días)"
+      "Accidentes elegibles (dentro de 92 días)",
     );
 
     if (eligibleAccidents.length === 0) {
@@ -2663,7 +2008,7 @@ server.post("/api/accidents/backfill-weather", async (request, reply) => {
     for (const accident of eligibleAccidents) {
       try {
         const success = await roadAccidentService.backfillWeatherData(
-          accident.id!
+          accident.id!,
         );
         processed++;
         if (success) {
@@ -2673,7 +2018,7 @@ server.post("/api/accidents/backfill-weather", async (request, reply) => {
               accidentId: accident.id,
               progress: `${processed}/${eligibleAccidents.length}`,
             },
-            "Clima obtenido"
+            "Clima obtenido",
           );
         } else {
           failed++;
@@ -2685,7 +2030,7 @@ server.post("/api/accidents/backfill-weather", async (request, reply) => {
         failed++;
         server.log.error(
           { accidentId: accident.id, error },
-          "Error procesando accidente"
+          "Error procesando accidente",
         );
       }
     }
@@ -2730,13 +2075,13 @@ server.get<{ Params: { polygon_id: string } }>(
 
       return score;
     } catch (error: unknown) {
-      console.error("Error obteniendo score de polígono:", error);
+      server.log.error({ error }, "Error obteniendo score de polígono");
       if (error instanceof Error) {
         server.log.error(error.stack || error.message);
       }
       return reply.code(500).send({ error: "Error obteniendo score" });
     }
-  }
+  },
 );
 
 // Recalcular score de un polígono específico
@@ -2745,18 +2090,17 @@ server.post<{ Params: { polygon_id: string } }>(
   async (request, reply) => {
     try {
       const { polygon_id } = request.params;
-      const score = await riskScoringService.calculatePolygonRiskScore(
-        polygon_id
-      );
+      const score =
+        await riskScoringService.calculatePolygonRiskScore(polygon_id);
       return score;
     } catch (error: unknown) {
-      console.error("Error recalculando score:", error);
+      server.log.error({ error }, "Error recalculando score");
       if (error instanceof Error) {
         server.log.error(error.stack || error.message);
       }
       return reply.code(500).send({ error: "Error recalculando score" });
     }
-  }
+  },
 );
 
 // ============================================================================
@@ -2788,7 +2132,7 @@ server.get("/api/accidents", async (request, reply) => {
         url: request.url,
         stack: error instanceof Error ? error.stack : undefined,
       },
-      "Error en /api/accidents"
+      "Error en /api/accidents",
     );
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
@@ -2796,7 +2140,7 @@ server.get("/api/accidents", async (request, reply) => {
     // Si la tabla no existe, retornar array vacío en lugar de error 500
     if (error instanceof Error && error.message.includes("does not exist")) {
       server.log.warn(
-        "Tabla road_accidents no existe. Retornando array vacío. Ejecutar: npx ts-node scripts/create-accidents-table.ts"
+        "Tabla road_accidents no existe. Retornando array vacío. Ejecutar: npx ts-node scripts/create-accidents-table.ts",
       );
       return serializeObject([]);
     }
@@ -2827,7 +2171,7 @@ server.get("/api/accidents/:id", async (request, reply) => {
         url: request.url,
         stack: error instanceof Error ? error.stack : undefined,
       },
-      "Error en /api/accidents/:id"
+      "Error en /api/accidents/:id",
     );
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
@@ -2859,18 +2203,18 @@ server.post("/api/accidents", async (request, reply) => {
         if (data.polygonId) {
           try {
             data.weather_data = await weatherService.getLatestWeather(
-              data.polygonId
+              data.polygonId,
             );
             if (data.weather_data) {
               server.log.info(
                 { polygonId: data.polygonId },
-                "Clima obtenido de BD para polígono"
+                "Clima obtenido de BD para polígono",
               );
             }
           } catch (polygonError) {
             server.log.warn(
               { polygonId: data.polygonId, error: polygonError },
-              "No se pudo obtener clima del polígono"
+              "No se pudo obtener clima del polígono",
             );
           }
         }
@@ -2884,7 +2228,7 @@ server.post("/api/accidents", async (request, reply) => {
             const weatherData = await weatherService.fetchWeatherForPolygon(
               tempPolygonId,
               Number(data.location_lat),
-              Number(data.location_lng)
+              Number(data.location_lng),
             );
 
             if (weatherData) {
@@ -2895,12 +2239,12 @@ server.post("/api/accidents", async (request, reply) => {
                   lng: data.location_lng,
                   provider: process.env.WEATHER_PROVIDER || "openmeteo",
                 },
-                "Clima obtenido de API para accidente"
+                "Clima obtenido de API para accidente",
               );
             } else {
               server.log.warn(
                 { lat: data.location_lat, lng: data.location_lng },
-                "No se pudo obtener clima de la API"
+                "No se pudo obtener clima de la API",
               );
               data.weather_data = {};
             }
@@ -2911,7 +2255,7 @@ server.post("/api/accidents", async (request, reply) => {
                 lng: data.location_lng,
                 error: apiError,
               },
-              "Error al obtener clima de la API para accidente"
+              "Error al obtener clima de la API para accidente",
             );
             data.weather_data = {};
           }
@@ -2921,7 +2265,7 @@ server.post("/api/accidents", async (request, reply) => {
       } catch (weatherError) {
         server.log.warn(
           { error: weatherError },
-          "Error general al obtener clima para el accidente"
+          "Error general al obtener clima para el accidente",
         );
         data.weather_data = {};
       }
@@ -2934,7 +2278,7 @@ server.post("/api/accidents", async (request, reply) => {
           limit: 1000,
         });
         const duplicate = existing.find(
-          (a) => a.incident_id === data.incident_id
+          (a) => a.incident_id === data.incident_id,
         );
         if (duplicate) {
           return reply.code(409).send({
@@ -2965,7 +2309,7 @@ server.post("/api/accidents", async (request, reply) => {
 
     server.log.info(
       { accidentId: accident.id, incidentId: data.incident_id },
-      "Siniestro registrado manualmente"
+      "Siniestro registrado manualmente",
     );
     return serializeObject(accident);
   } catch (error) {
@@ -2975,7 +2319,7 @@ server.post("/api/accidents", async (request, reply) => {
         url: request.url,
         stack: error instanceof Error ? error.stack : undefined,
       },
-      "Error en POST /api/accidents"
+      "Error en POST /api/accidents",
     );
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
@@ -3006,7 +2350,7 @@ server.post("/api/accidents/:id/media", async (request, reply) => {
       // Subir usando el servicio (que ahora es agnóstico al almacenamiento)
       const publicPath = await roadAccidentService.uploadMediaFile(
         fileName,
-        part.file
+        part.file,
       );
 
       // Determinar tipo de archivo
@@ -3035,35 +2379,38 @@ server.post("/api/accidents/:id/media", async (request, reply) => {
 });
 
 // PATCH /api/accidents/:id - Actualizar notas de un siniestro
-server.patch("/api/accidents/:id", async (request, reply) => {
-  try {
-    const { id } = request.params as { id: string };
-    const updates = request.body as any;
+server.patch<{ Params: { id: string }; Body: AccidentUpdate }>(
+  "/api/accidents/:id",
+  async (request, reply) => {
+    try {
+      const { id } = request.params;
+      const updates = request.body;
 
-    const updated = await roadAccidentService.updateAccident(id, updates);
-    if (!updated) {
-      return reply.code(404).send({ error: "Siniestro no encontrado" });
+      const updated = await roadAccidentService.updateAccident(id, updates);
+      if (!updated) {
+        return reply.code(404).send({ error: "Siniestro no encontrado" });
+      }
+
+      return serializeObject(updated);
+    } catch (error) {
+      server.log.error(
+        {
+          error,
+          url: request.url,
+          stack: error instanceof Error ? error.stack : undefined,
+        },
+        "Error en PATCH /api/accidents/:id",
+      );
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      return reply.code(500).send({
+        error: "Error actualizando siniestro",
+        message:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+      });
     }
-
-    return serializeObject(updated);
-  } catch (error) {
-    server.log.error(
-      {
-        error,
-        url: request.url,
-        stack: error instanceof Error ? error.stack : undefined,
-      },
-      "Error en PATCH /api/accidents/:id"
-    );
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    return reply.code(500).send({
-      error: "Error actualizando siniestro",
-      message:
-        process.env.NODE_ENV === "development" ? errorMessage : undefined,
-    });
-  }
-});
+  },
+);
 
 // DELETE /api/accidents/:id - Eliminar registro de siniestro
 server.delete("/api/accidents/:id", async (request, reply) => {
@@ -3091,7 +2438,7 @@ server.patch("/api/accidents/:id/weather", async (request, reply) => {
 
     server.log.info(
       { accidentId: id },
-      "Solicitando backfill de clima histórico"
+      "Solicitando backfill de clima histórico",
     );
 
     const success = await roadAccidentService.backfillWeatherData(id);
@@ -3109,14 +2456,12 @@ server.patch("/api/accidents/:id/weather", async (request, reply) => {
 
     server.log.info(
       { accidentId: id },
-      "Clima histórico obtenido exitosamente"
+      "Clima histórico obtenido exitosamente",
     );
     return serializeObject(accident);
   } catch (error) {
-    server.log.error(
-      { error, accidentId: (request.params as any).id },
-      "Error obteniendo clima histórico"
-    );
+    const accidentId = (request.params as { id: string }).id;
+    server.log.error({ error, accidentId }, "Error obteniendo clima histórico");
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
     return reply.code(500).send({
@@ -3159,7 +2504,7 @@ const start = async () => {
     } catch (pollingError) {
       console.error(
         "⚠️ Error al iniciar WazePollingService (continuando):",
-        pollingError
+        pollingError,
       );
     }
 
@@ -3170,11 +2515,12 @@ const start = async () => {
     } catch (weatherError) {
       console.error(
         "⚠️ Error al iniciar OpenMeteoService (continuando):",
-        weatherError
+        weatherError,
       );
     }
 
-    const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
+    // const port = process.env.PORT ? parseInt(process.env.PORT) : 3002;
+    const port = 3002; // Force 3002 to avoid EADDRINUSE on 3001
     await server.listen({ port, host: "0.0.0.0" });
 
     // Inicializar WebSocket después de que el servidor esté escuchando
@@ -3185,10 +2531,14 @@ const start = async () => {
       new SocketSubscriber(websocketService.getIO()); // Initialize here if not earlier
 
       // Initialize event listeners
-      const { AccidentCaptureListener, IncidentsHistoryListener } =
-        await import("./listeners");
+      const {
+        AccidentCaptureListener,
+        IncidentsHistoryListener,
+        NotificationListener,
+      } = await import("./listeners");
       new AccidentCaptureListener();
       new IncidentsHistoryListener();
+      new NotificationListener(websocketService.getIO()!);
       console.log("✓ Event listeners initialized");
 
       // openMeteoService.setSocketIO(websocketService.getIO()); // Keep if openMeteoService still needs it or refactor later
@@ -3302,7 +2652,7 @@ async function checkServicesHealth(): Promise<boolean> {
         await weatherService.fetchWeatherForPolygon(
           "health-check",
           -31.4167,
-          -64.1833
+          -64.1833,
         );
       } catch {
         weatherOk = false;

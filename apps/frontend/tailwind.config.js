@@ -20,47 +20,30 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
-          // Colores corporativos Caminos de las Sierras (verde corporativo)
-          50: "#f0fdf4",
-          100: "#dcfce7",
-          200: "#bbf7d0",
-          300: "#86efac",
-          400: "#4ade80",
-          500: "#22c55e",
-          600: "#16a34a",
-          700: "#15803d", // Color principal corporativo
-          800: "#166534",
-          900: "#14532d",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
-          500: "#8b5cf6",
         },
         accent: {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
-          500: "#06b6d4",
         },
         success: {
-          DEFAULT: "hsl(var(--success))",
-          foreground: "hsl(var(--success-foreground))",
-          light: "#86efac",
-          500: "#10b981",
-          dark: "#059669",
+          DEFAULT: "hsl(var(--status-fluid))",
+          foreground: "hsl(var(--primary-foreground))",
+          light: "#86efac", // green-300
+          dark: "#15803d", // green-700
         },
         warning: {
-          DEFAULT: "hsl(var(--warning))",
-          foreground: "hsl(var(--warning-foreground))",
-          // Amarillo característico de Caminos de las Sierras
-          light: "#fef08a",
-          400: "#facc15", // Amarillo corporativo (border)
-          500: "#eab308",
-          dark: "#ca8a04",
+          DEFAULT: "hsl(var(--status-warning))",
+          foreground: "hsl(var(--secondary-foreground))",
+          light: "#fde047", // yellow-300
+          dark: "#a16207", // yellow-700
         },
         danger: {
-          DEFAULT: "hsl(var(--danger))",
-          foreground: "hsl(var(--danger-foreground))",
+          DEFAULT: "hsl(var(--status-critical))",
+          foreground: "hsl(var(--primary-foreground))",
           light: "#fca5a5",
           500: "#ef4444",
           dark: "#dc2626",

@@ -596,7 +596,7 @@ export const INCIDENT_SUBTYPE_ICONS: Record<string, string> = {
   HAZARD_ON_ROAD_CAR_STOPPED: "hazard_on_shoulder",
   HAZARD_ON_ROAD_CONSTRUCTION: "construction",
   HAZARD_ON_ROAD_OBJECT: "object_on_road",
-  HAZARD_ON_ROAD_POT_HOLE: "bache", // Corregido para usar icono de bache
+  HAZARD_ON_ROAD_POT_HOLE: "pothole", // Fixed typo (was "bache")
   HAZARD_ON_ROAD_ROAD_KILL: "hazard_on_road",
   HAZARD_ON_SHOULDER_CAR_STOPPED: "hazard_on_shoulder",
   HAZARD_ON_SHOULDER_ANIMALS: "hazard",
@@ -760,7 +760,7 @@ const LOCAL_ICONS_MAP: Record<string, string> = {
  */
 export const getWazePartnerHubIconUrl = (
   type: string,
-  subtype?: string
+  subtype?: string,
 ): string => {
   // 1. Intentar buscar por Subtipo Exacto
   if (subtype) {
@@ -870,7 +870,7 @@ export const INCIDENT_TYPE_COLORS: Record<
 };
 
 export const getIncidentTypeColors = (
-  type: string
+  type: string,
 ): { bg: string; text: string; border: string } => {
   return (
     INCIDENT_TYPE_COLORS[type.toLowerCase()] || INCIDENT_TYPE_COLORS["default"]

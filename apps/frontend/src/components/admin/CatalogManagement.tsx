@@ -133,7 +133,7 @@ const CatalogManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"types" | "subtypes">("types");
   const [editingType, setEditingType] = useState<IncidentType | null>(null);
   const [editingSubtype, setEditingSubtype] = useState<IncidentSubtype | null>(
-    null
+    null,
   );
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -141,7 +141,7 @@ const CatalogManagement: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
 
   // API base URL
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -229,12 +229,13 @@ const CatalogManagement: React.FC = () => {
         headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({}),
       });
 
       if (response.ok) {
         const result = await response.json();
         alert(
-          `✅ Sincronización completada!\n\n${result.data.newTypes} nuevos tipos\n${result.data.newSubtypes} nuevos subtipos\n${result.data.totalIncidents} incidentes procesados`
+          `✅ Sincronización completada!\n\n${result.data.newTypes} nuevos tipos\n${result.data.newSubtypes} nuevos subtipos\n${result.data.totalIncidents} incidentes procesados`,
         );
 
         // Recargar datos
@@ -243,7 +244,7 @@ const CatalogManagement: React.FC = () => {
       } else {
         const error = await response.json();
         alert(
-          `❌ Error en sincronización: ${error.message || "Error desconocido"}`
+          `❌ Error en sincronización: ${error.message || "Error desconocido"}`,
         );
       }
     } catch (error) {
@@ -341,7 +342,7 @@ const CatalogManagement: React.FC = () => {
         setEditingSubtype(null);
         setShowForm(false);
         alert(
-          `✅ Subtipo ${isEditing ? "actualizado" : "creado"} exitosamente`
+          `✅ Subtipo ${isEditing ? "actualizado" : "creado"} exitosamente`,
         );
       } else {
         const error = await response.json();
@@ -356,7 +357,7 @@ const CatalogManagement: React.FC = () => {
   const handleDeleteType = async (id: string) => {
     if (
       !confirm(
-        "¿Estás seguro de que quieres eliminar este tipo? También se eliminarán todos sus subtipos."
+        "¿Estás seguro de que quieres eliminar este tipo? También se eliminarán todos sus subtipos.",
       )
     ) {
       return;
@@ -425,7 +426,7 @@ const CatalogManagement: React.FC = () => {
         isActive: true,
         createdAt: "",
         updatedAt: "",
-      }
+      },
     );
 
     // Actualizar formData cuando cambia el tipo que se está editando
@@ -551,7 +552,7 @@ const CatalogManagement: React.FC = () => {
                           {
                             method: "POST",
                             body: uploadFormData,
-                          }
+                          },
                         );
 
                         if (response.ok) {
@@ -561,7 +562,7 @@ const CatalogManagement: React.FC = () => {
                               ({
                                 ...prev,
                                 icon_url: result.url,
-                              } as any)
+                              }) as any,
                           );
                         } else {
                           alert("Error al subir el icono");
@@ -661,7 +662,7 @@ const CatalogManagement: React.FC = () => {
         isActive: true,
         createdAt: "",
         updatedAt: "",
-      }
+      },
     );
 
     const handleSubmit = (e: React.FormEvent) => {

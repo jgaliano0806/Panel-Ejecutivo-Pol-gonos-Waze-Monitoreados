@@ -1,4 +1,5 @@
 import { DatabaseService } from "../database/dbService";
+import { logger } from "../utils/logger";
 
 interface WeatherData {
   polygon_id: string;
@@ -130,26 +131,26 @@ export class WeatherService {
   constructor() {
     this.db = DatabaseService.getInstance();
 
-    console.log(`🌤️ Proveedor de clima configurado: ${this.WEATHER_PROVIDER}`);
+    logger.info(`🌤️ Proveedor de clima configurado: ${this.WEATHER_PROVIDER}`);
 
     if (this.WEATHER_PROVIDER === "accuweather") {
       if (this.ACCUWEATHER_API_KEY) {
-        console.log("✅ AccuWeather API Key configurada");
+        logger.info("✅ AccuWeather API Key configurada");
       } else {
-        console.warn(
-          "⚠️ AccuWeather configurado pero ACCUWEATHER_API_KEY no está definida. Usando Open-Meteo como fallback."
+        logger.warn(
+          "⚠️ AccuWeather configurado pero ACCUWEATHER_API_KEY no está definida. Usando Open-Meteo como fallback.",
         );
-        console.warn(
-          "   Para usar AccuWeather, agrega ACCUWEATHER_API_KEY a tu archivo .env"
+        logger.warn(
+          "   Para usar AccuWeather, agrega ACCUWEATHER_API_KEY a tu archivo .env",
         );
       }
     } else {
-      console.log("✅ Usando Open-Meteo (gratuito)");
+      logger.info("✅ Usando Open-Meteo (gratuito)");
     }
 
     // Inicializar tabla en background
     this.initializeTable().catch((err) =>
-      console.error("Error inicializando tabla weather:", err)
+      logger.error(`Error inicializando tabla weather: ${err}`),
     );
   }
 
@@ -206,16 +207,16 @@ export class WeatherService {
             `);
 
       this.initialized = true;
-      console.log("✅ Tabla polygon_weather_data inicializada/actualizada");
+      logger.info("✅ Tabla polygon_weather_data inicializada/actualizada");
     } catch (error: any) {
       // Si el error es por columna ya existente, es OK
       if (error.code === "42701") {
         this.initialized = true;
-        console.log(
-          "✅ Tabla polygon_weather_data ya tiene el esquema correcto"
+        logger.info(
+          "✅ Tabla polygon_weather_data ya tiene el esquema correcto",
         );
       } else {
-        console.error("Error inicializando tabla weather:", error);
+        logger.error(`Error inicializando tabla weather: ${error}`);
       }
     }
   }
@@ -225,7 +226,7 @@ export class WeatherService {
    */
   private async getAccuWeatherLocationKey(
     latitude: number,
-    longitude: number
+    longitude: number,
   ): Promise<string | null> {
     if (!this.ACCUWEATHER_API_KEY) return null;
 
@@ -239,14 +240,14 @@ export class WeatherService {
 
       const response = await fetch(`${url}?${params}`);
       if (!response.ok) {
-        console.error(`AccuWeather location error: ${response.status}`);
+        logger.error(`AccuWeather location error: ${response.status}`);
         return null;
       }
 
       const data = await response.json();
       return data.Key || null;
     } catch (error) {
-      console.error("Error obteniendo location key de AccuWeather:", error);
+      logger.error(`Error obteniendo location key de AccuWeather: ${error}`);
       return null;
     }
   }
@@ -257,17 +258,17 @@ export class WeatherService {
   private async fetchAccuWeather(
     polygonId: string,
     latitude: number,
-    longitude: number
+    longitude: number,
   ): Promise<WeatherData | null> {
     try {
       // Obtener location key
       const locationKey = await this.getAccuWeatherLocationKey(
         latitude,
-        longitude
+        longitude,
       );
       if (!locationKey) {
-        console.warn(
-          `⚠️ No se pudo obtener location key de AccuWeather para ${polygonId}`
+        logger.warn(
+          `⚠️ No se pudo obtener location key de AccuWeather para ${polygonId}`,
         );
         return null;
       }
@@ -282,13 +283,13 @@ export class WeatherService {
 
       const response = await fetch(`${currentConditionsUrl}?${params}`);
       if (!response.ok) {
-        console.error(`AccuWeather API error: ${response.status}`);
+        logger.error(`AccuWeather API error: ${response.status}`);
         return null;
       }
 
       const data: AccuWeatherResponse[] = await response.json();
       if (!data || data.length === 0) {
-        console.warn("AccuWeather: No se recibieron datos");
+        logger.warn("AccuWeather: No se recibieron datos");
         return null;
       }
 
@@ -308,41 +309,44 @@ export class WeatherService {
         precipitation > 0 ? precipitation : pastHourPrecipitation;
 
       // Log detallado de precipitación para debugging
-      console.log(`🌧️ AccuWeather Precipitation Data for ${polygonId}:`, {
-        hasPrecipitation: current.HasPrecipitation,
-        precipitationType: current.PrecipitationType,
-        precipitation: precipitation,
-        pastHourPrecipitation: pastHourPrecipitation,
-        effectivePrecipitation: effectivePrecipitation,
-        weatherText: current.WeatherText,
-      });
+      logger.debug(
+        {
+          hasPrecipitation: current.HasPrecipitation,
+          precipitationType: current.PrecipitationType,
+          precipitation: precipitation,
+          pastHourPrecipitation: pastHourPrecipitation,
+          effectivePrecipitation: effectivePrecipitation,
+          weatherText: current.WeatherText,
+        },
+        `🌧️ AccuWeather Precipitation Data for ${polygonId}`,
+      );
 
       // Determinar si está lloviendo - lógica mejorada
       const isRaining = Boolean(
         current.HasPrecipitation === true ||
-          (current.PrecipitationType &&
-            current.PrecipitationType.toLowerCase().includes("rain")) ||
-          effectivePrecipitation > 0.1 || // Umbral mínimo de 0.1mm
-          (current.WeatherText &&
-            (current.WeatherText.toLowerCase().includes("lluvia") ||
-              current.WeatherText.toLowerCase().includes("tormenta") ||
-              current.WeatherText.toLowerCase().includes("precipitación")))
+        (current.PrecipitationType &&
+          current.PrecipitationType.toLowerCase().includes("rain")) ||
+        effectivePrecipitation > 0.1 || // Umbral mínimo de 0.1mm
+        (current.WeatherText &&
+          (current.WeatherText.toLowerCase().includes("lluvia") ||
+            current.WeatherText.toLowerCase().includes("tormenta") ||
+            current.WeatherText.toLowerCase().includes("precipitación"))),
       );
 
-      console.log(`🌧️ Rain detection result: ${isRaining} for ${polygonId}`);
+      logger.debug(`🌧️ Rain detection result: ${isRaining} for ${polygonId}`);
 
       // Calcular temperatura de carretera
       const roadTemp = this.calculateRoadTemperature(
         current.Temperature.Metric.Value,
         windSpeedKmh,
-        current.CloudCover || 0
+        current.CloudCover || 0,
       );
 
       // Detectar riesgo de congelamiento
       const isFreezingRisk = this.detectFreezingRisk(
         current.Temperature.Metric.Value,
         roadTemp,
-        isRaining
+        isRaining,
       );
 
       // Mapear descripción del clima
@@ -416,24 +420,30 @@ export class WeatherService {
         weatherData.alert_description = alert.description;
       }
 
-      console.log(`🌤️ AccuWeather data for ${polygonId}:`, {
-        temperature: weatherData.temperature_celsius,
-        precipitation: weatherData.precipitation_mm,
-        rain: weatherData.rain_mm,
-        description: weatherData.weather_description,
-        isRaining: isRaining,
-      });
+      logger.debug(
+        {
+          temperature: weatherData.temperature_celsius,
+          precipitation: weatherData.precipitation_mm,
+          rain: weatherData.rain_mm,
+          description: weatherData.weather_description,
+          isRaining: isRaining,
+        },
+        `🌤️ AccuWeather data for ${polygonId}`,
+      );
 
       if (isRaining) {
-        console.log(`🌧️ LLUVIA DETECTADA (AccuWeather) en ${polygonId}:`, {
-          precipitation_mm: weatherData.precipitation_mm,
-          description: weatherData.weather_description,
-        });
+        logger.info(
+          {
+            precipitation_mm: weatherData.precipitation_mm,
+            description: weatherData.weather_description,
+          },
+          `🌧️ LLUVIA DETECTADA (AccuWeather) en ${polygonId}`,
+        );
       }
 
       return weatherData;
     } catch (error) {
-      console.error("Error fetching AccuWeather data:", error);
+      logger.error(`Error fetching AccuWeather data: ${error}`);
       return null;
     }
   }
@@ -441,20 +451,20 @@ export class WeatherService {
   async fetchWeatherForPolygon(
     polygonId: string,
     latitude: number,
-    longitude: number
+    longitude: number,
   ): Promise<WeatherData | null> {
     // Intentar con el proveedor configurado
     if (this.WEATHER_PROVIDER === "accuweather" && this.ACCUWEATHER_API_KEY) {
       const accuWeatherData = await this.fetchAccuWeather(
         polygonId,
         latitude,
-        longitude
+        longitude,
       );
       if (accuWeatherData) {
         return accuWeatherData;
       }
-      console.warn(
-        `⚠️ AccuWeather falló para ${polygonId}, usando Open-Meteo como fallback`
+      logger.warn(
+        `⚠️ AccuWeather falló para ${polygonId}, usando Open-Meteo como fallback`,
       );
     }
 
@@ -476,7 +486,7 @@ export class WeatherService {
           "wind_speed_10m",
           "wind_direction_10m",
           "wind_gusts_10m",
-        ].join(",")
+        ].join(","),
       );
       url.searchParams.append("hourly", "precipitation_probability,visibility");
       url.searchParams.append("timezone", "auto");
@@ -484,24 +494,27 @@ export class WeatherService {
       const response = await fetch(url.toString());
 
       if (!response.ok) {
-        console.error(`Open-Meteo API error: ${response.status}`);
+        logger.error(`Open-Meteo API error: ${response.status}`);
         return null;
       }
 
       const data: OpenMeteoResponse = await response.json();
 
       // Log para debugging - ver qué datos está devolviendo la API
-      console.log(`🌤️ Open-Meteo data for ${polygonId}:`, {
-        time: data.current.time,
-        temperature: data.current.temperature_2m,
-        precipitation: data.current.precipitation,
-        rain: data.current.rain,
-        snowfall: data.current.snowfall,
-        weather_code: data.current.weather_code,
-        weather_desc:
-          WMO_WEATHER_CODES[data.current.weather_code] || "Desconocido",
-        cloud_cover: data.current.cloud_cover,
-      });
+      logger.debug(
+        {
+          time: data.current.time,
+          temperature: data.current.temperature_2m,
+          precipitation: data.current.precipitation,
+          rain: data.current.rain,
+          snowfall: data.current.snowfall,
+          weather_code: data.current.weather_code,
+          weather_desc:
+            WMO_WEATHER_CODES[data.current.weather_code] || "Desconocido",
+          cloud_cover: data.current.cloud_cover,
+        },
+        `🌤️ Open-Meteo data for ${polygonId}`,
+      );
 
       // Detectar si está lloviendo basado en weather_code (más confiable que precipitation)
       // Códigos que indican lluvia: 51-67 (llovizna y lluvia), 80-82 (chubascos), 95-99 (tormentas)
@@ -529,14 +542,14 @@ export class WeatherService {
       const roadTemp = this.calculateRoadTemperature(
         data.current.temperature_2m,
         data.current.wind_speed_10m,
-        data.current.cloud_cover
+        data.current.cloud_cover,
       );
 
       // Detectar riesgo de congelamiento
       const isFreezingRisk = this.detectFreezingRisk(
         data.current.temperature_2m,
         roadTemp,
-        effectivePrecipitation > 0 || isRaining
+        effectivePrecipitation > 0 || isRaining,
       );
 
       // Obtener visibilidad (primera hora disponible)
@@ -568,13 +581,16 @@ export class WeatherService {
 
       // Log adicional si detectamos lluvia
       if (isRaining) {
-        console.log(`🌧️ LLUVIA DETECTADA en ${polygonId}:`, {
-          weather_code: data.current.weather_code,
-          description: weatherData.weather_description,
-          precipitation_mm: weatherData.precipitation_mm,
-          rain_mm: weatherData.rain_mm,
-          probability: weatherData.precipitation_probability,
-        });
+        logger.info(
+          {
+            weather_code: data.current.weather_code,
+            description: weatherData.weather_description,
+            precipitation_mm: weatherData.precipitation_mm,
+            rain_mm: weatherData.rain_mm,
+            probability: weatherData.precipitation_probability,
+          },
+          `🌧️ LLUVIA DETECTADA en ${polygonId}`,
+        );
       }
 
       // Detectar alertas meteorológicas
@@ -587,7 +603,7 @@ export class WeatherService {
 
       return weatherData;
     } catch (error) {
-      console.error("Error fetching weather data:", error);
+      logger.error(`Error fetching weather data: ${error}`);
       return null;
     }
   }
@@ -644,7 +660,7 @@ export class WeatherService {
   async getWeatherHistory(
     polygonId: string,
     from: Date,
-    to: Date
+    to: Date,
   ): Promise<WeatherData[]> {
     const query = `
             SELECT * FROM polygon_weather_data
@@ -670,7 +686,7 @@ export class WeatherService {
       const result = await this.db.query(query);
       return result.rows as WeatherData[];
     } catch (error) {
-      console.error("Error getting active weather alerts:", error);
+      logger.error(`Error getting active weather alerts: ${error}`);
       // Retornar array vacío en caso de error para no romper el frontend
       return [];
     }
@@ -683,10 +699,10 @@ export class WeatherService {
   async fetchAndStoreHistorical24h(
     polygonId: string,
     latitude: number,
-    longitude: number
+    longitude: number,
   ): Promise<WeatherData[]> {
-    console.log(
-      `📊 Obteniendo historial 24h desde Open-Meteo para ${polygonId}...`
+    logger.info(
+      `📊 Obteniendo historial 24h desde Open-Meteo para ${polygonId}...`,
     );
 
     try {
@@ -708,7 +724,7 @@ export class WeatherService {
           "wind_gusts_10m",
           "visibility",
           "precipitation_probability",
-        ].join(",")
+        ].join(","),
       );
       url.searchParams.append("past_hours", "24");
       url.searchParams.append("forecast_hours", "1"); // Solo necesitamos 1 hora de forecast
@@ -716,14 +732,14 @@ export class WeatherService {
 
       const response = await fetch(url.toString());
       if (!response.ok) {
-        console.error(`Open-Meteo Historical API error: ${response.status}`);
+        logger.error(`Open-Meteo Historical API error: ${response.status}`);
         return [];
       }
 
       const data = await response.json();
 
       if (!data.hourly || !data.hourly.time || data.hourly.time.length === 0) {
-        console.warn("Open-Meteo: No hourly data received");
+        logger.warn("Open-Meteo: No hourly data received");
         return [];
       }
 
@@ -767,14 +783,14 @@ export class WeatherService {
           weatherData.road_temperature_celsius = this.calculateRoadTemperature(
             tempC,
             windSpeed,
-            cloudCover
+            cloudCover,
           );
 
           // Detectar riesgo de congelamiento
           weatherData.is_freezing_risk = this.detectFreezingRisk(
             tempC,
             weatherData.road_temperature_celsius,
-            (weatherData.precipitation_mm ?? 0) > 0
+            (weatherData.precipitation_mm ?? 0) > 0,
           );
         }
 
@@ -793,14 +809,14 @@ export class WeatherService {
           await this.saveWeatherData(weatherData);
         } catch (saveErr) {
           // Si falla un registro (ej: duplicado), continuar con los demás
-          console.warn(
-            `No se pudo guardar registro para ${timestamp.toISOString()}`
+          logger.warn(
+            `No se pudo guardar registro para ${timestamp.toISOString()}`,
           );
         }
       }
 
       console.log(
-        `✅ Historial 24h obtenido: ${weatherDataList.length} registros para ${polygonId}`
+        `✅ Historial 24h obtenido: ${weatherDataList.length} registros para ${polygonId}`,
       );
       return weatherDataList;
     } catch (error) {
@@ -813,7 +829,7 @@ export class WeatherService {
   private calculateRoadTemperature(
     airTemp: number,
     windSpeed: number,
-    cloudCover: number
+    cloudCover: number,
   ): number {
     // Fórmula simplificada: la carretera puede ser más fría que el aire
     // especialmente con cielo despejado (radiación) y viento bajo
@@ -836,7 +852,7 @@ export class WeatherService {
   private detectFreezingRisk(
     airTemp: number,
     roadTemp: number,
-    hasPrecipitation: boolean
+    hasPrecipitation: boolean,
   ): boolean {
     // Riesgo si temperatura de carretera cerca o bajo 0°C
     if (roadTemp <= 0) return true;
@@ -933,7 +949,7 @@ export class WeatherService {
     const severityOrder = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
     alerts.sort(
       (a, b) =>
-        severityOrder.indexOf(a.severity) - severityOrder.indexOf(b.severity)
+        severityOrder.indexOf(a.severity) - severityOrder.indexOf(b.severity),
     );
 
     return alerts[0];
@@ -951,7 +967,7 @@ export class WeatherService {
   async fetchHistoricalWeatherForDate(
     latitude: number,
     longitude: number,
-    date: Date
+    date: Date,
   ): Promise<WeatherData | null> {
     try {
       // Verificar que la fecha no sea mayor a 92 días atrás
@@ -961,15 +977,15 @@ export class WeatherService {
       if (daysDiff > 92) {
         console.warn(
           `⚠️ Fecha muy antigua para Open-Meteo: ${Math.floor(
-            daysDiff
-          )} días atrás (máximo 92)`
+            daysDiff,
+          )} días atrás (máximo 92)`,
         );
         return null;
       }
 
       if (daysDiff < 0) {
         console.warn(
-          `⚠️ Fecha en el futuro, usando datos actuales en su lugar`
+          `⚠️ Fecha en el futuro, usando datos actuales en su lugar`,
         );
         return null;
       }
@@ -998,12 +1014,12 @@ export class WeatherService {
           "wind_gusts_10m",
           "visibility",
           "precipitation_probability",
-        ].join(",")
+        ].join(","),
       );
       url.searchParams.append("timezone", "auto");
 
       console.log(
-        `📊 Obteniendo clima histórico para ${dateStr} (${latitude}, ${longitude})...`
+        `📊 Obteniendo clima histórico para ${dateStr} (${latitude}, ${longitude})...`,
       );
 
       // Intentar hasta 3 veces con timeout de 30 segundos
@@ -1021,7 +1037,7 @@ export class WeatherService {
 
           if (!response.ok) {
             console.error(
-              `Open-Meteo Historical API error: ${response.status}`
+              `Open-Meteo Historical API error: ${response.status}`,
             );
             if (attempt < 3) {
               console.log(`⏳ Reintentando (${attempt}/3)...`);
@@ -1039,7 +1055,7 @@ export class WeatherService {
             data.hourly.time.length === 0
           ) {
             console.warn(
-              "Open-Meteo: No hourly data received for historical date"
+              "Open-Meteo: No hourly data received for historical date",
             );
             return null;
           }
@@ -1060,7 +1076,7 @@ export class WeatherService {
 
           const closestTime = new Date(data.hourly.time[closestIndex]);
           console.log(
-            `🎯 Hora más cercana encontrada: ${closestTime.toISOString()} (índice ${closestIndex})`
+            `🎯 Hora más cercana encontrada: ${closestTime.toISOString()} (índice ${closestIndex})`,
           );
 
           // Extraer datos de esa hora específica
@@ -1084,12 +1100,12 @@ export class WeatherService {
             roadTemp = this.calculateRoadTemperature(
               temperature,
               windSpeed,
-              cloudCover
+              cloudCover,
             );
             isFreezingRisk = this.detectFreezingRisk(
               temperature,
               roadTemp,
-              precipitation > 0
+              precipitation > 0,
             );
           }
 

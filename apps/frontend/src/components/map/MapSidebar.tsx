@@ -14,7 +14,7 @@ import {
   AlertTriangle,
   Car,
 } from "lucide-react";
-import { WazeOMeter } from "../WazeOMeter";
+import { WazeOMeter } from "../dashboard/WazeOMeter";
 
 interface MenuItem {
   id: string;
@@ -52,7 +52,7 @@ export const MapSidebar = ({
 }: MapSidebarProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(
-    new Set(["layers"])
+    new Set(["layers"]),
   );
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -131,7 +131,7 @@ export const MapSidebar = ({
 
   const formatDateInput = (
     date: Date,
-    mode: "day" | "month" | "year"
+    mode: "day" | "month" | "year",
   ): string => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -292,12 +292,12 @@ export const MapSidebar = ({
                             dateFilter.mode === "day"
                               ? "date"
                               : dateFilter.mode === "month"
-                              ? "month"
-                              : "number"
+                                ? "month"
+                                : "number"
                           }
                           value={formatDateInput(
                             dateFilter.date,
-                            dateFilter.mode
+                            dateFilter.mode,
                           )}
                           onChange={(e) => {
                             const newDate =

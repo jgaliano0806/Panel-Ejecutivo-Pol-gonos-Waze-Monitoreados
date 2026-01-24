@@ -138,6 +138,64 @@ export const useTrends = () => {
   });
 };
 
+// --- Hook para Incidentes Históricos ---
+
+export interface HistoricalIncident {
+  incident_id: string;
+  polygon_id: string;
+  polygon_name?: string;
+  type: string;
+  subtype?: string;
+  severity?: number;
+  street?: string;
+  city?: string;
+  latitude?: number;
+  longitude?: number;
+  confidence?: number;
+  reliability?: number;
+  n_thumbs_up?: number;
+  first_seen_at: string;
+  last_seen_at?: string;
+  duration_minutes?: number;
+  blocking_jams?: number;
+  estimated_delay_minutes?: number;
+}
+
+export interface HistoricalIncidentsParams {
+  polygon_id?: string;
+  type?: string;
+  from?: string; // ISO date string
+  to?: string; // ISO date string
+  limit?: number;
+  enabled?: boolean;
+}
+
+export const useHistoricalIncidents = (
+  params: HistoricalIncidentsParams = {},
+) => {
+  const { polygon_id, type, from, to, limit = 100, enabled = true } = params;
+
+  const queryParams = new URLSearchParams();
+  if (polygon_id) queryParams.append("polygon_id", polygon_id);
+  if (type) queryParams.append("type", type);
+  if (from) queryParams.append("from", from);
+  if (to) queryParams.append("to", to);
+  if (limit) queryParams.append("limit", String(limit));
+
+  const queryString = queryParams.toString();
+
+  return useQuery<HistoricalIncident[]>({
+    queryKey: ["historical-incidents", polygon_id, type, from, to, limit],
+    queryFn: () =>
+      fetcher<HistoricalIncident[]>(
+        `/historical/incidents${queryString ? `?${queryString}` : ""}`,
+      ),
+    enabled,
+    refetchInterval: false, // Datos históricos no requieren refresh constante
+    staleTime: 5 * 60 * 1000, // 5 minutos
+  });
+};
+
 // --- Tipos para análisis de demoras mejorado ---
 
 export interface DelayBreakdown {
@@ -222,6 +280,21 @@ export const useBlockingAnalysis = () => {
   });
 };
 
+export interface WazeTVTMetric {
+  polygonId: string;
+  wazersCount: number;
+  jamLevels: any;
+  updateTime: string;
+}
+
+export const useWazeTVT = () => {
+  return useQuery<WazeTVTMetric[]>({
+    queryKey: ["tvt-metrics"],
+    queryFn: () => fetcher<WazeTVTMetric[]>("/tvt/metrics"),
+    refetchInterval: REFRESH_INTERVALS.realTimeData,
+  });
+};
+
 /**
  * Hook principal que combina todos los datos
  * AHORA USA DATOS REALES DEL BACKEND (no mock)
@@ -235,6 +308,9 @@ export const useWazeData = () => {
   const alertsQuery = useAlerts();
   const alertStatsQuery = useAlertStats();
 
+  // Activar actualizaciones en tiempo real via WebSocket
+  useGlobalRealtime();
+
   // Memoizar polígonos combinados (geometría local + estado backend + métricas de tráfico)
   const polygons = useMemo(() => {
     if (!polygonsQuery.data) return realCordobaPolygons;
@@ -243,7 +319,7 @@ export const useWazeData = () => {
     const backendMap = new Map(polygonsQuery.data.map((p) => [p.id, p]));
 
     const metricsMap = new Map(
-      (trafficMetricsQuery.data || []).map((m) => [m.polygonId, m])
+      (trafficMetricsQuery.data || []).map((m) => [m.polygonId, m]),
     );
 
     return realCordobaPolygons.map((localPoly) => {
@@ -273,12 +349,12 @@ export const useWazeData = () => {
       polygonsQuery.isLoading ||
       incidentsQuery.isLoading ||
       jamsQuery.isLoading,
-    [polygonsQuery.isLoading, incidentsQuery.isLoading, jamsQuery.isLoading]
+    [polygonsQuery.isLoading, incidentsQuery.isLoading, jamsQuery.isLoading],
   );
 
   const isError = useMemo(
     () => polygonsQuery.isError || incidentsQuery.isError || jamsQuery.isError,
-    [polygonsQuery.isError, incidentsQuery.isError, jamsQuery.isError]
+    [polygonsQuery.isError, incidentsQuery.isError, jamsQuery.isError],
   );
 
   // Memoizar última actualización
@@ -288,7 +364,7 @@ export const useWazeData = () => {
       polygonsQuery.dataUpdatedAt,
       incidentsQuery.dataUpdatedAt,
       jamsQuery.dataUpdatedAt,
-    ]
+    ],
   );
 
   return {

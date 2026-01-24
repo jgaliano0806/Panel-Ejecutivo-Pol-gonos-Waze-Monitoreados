@@ -18,7 +18,7 @@ export const IncidentsHistoryPage: React.FC = () => {
   });
 
   const [statsGroupBy, setStatsGroupBy] = useState<"type" | "hour" | "day">(
-    "type"
+    "type",
   );
 
   const { data: incidents, isLoading: incidentsLoading } =
@@ -130,6 +130,7 @@ export const IncidentsHistoryPage: React.FC = () => {
               markers={hotspots.map((hotspot, idx) => ({
                 lat: hotspot.latitude,
                 lng: hotspot.longitude,
+                type: hotspot.most_common_type,
                 color: getIncidentTypeColor(hotspot.most_common_type),
                 size: Math.min(hotspot.incident_count * 2, 30) * 2, // radio * 2 para convertir a diametro
                 popup: (
@@ -252,7 +253,7 @@ export const IncidentsHistoryPage: React.FC = () => {
                           className="px-2 py-0.5 rounded text-xs font-medium text-white shadow-sm"
                           style={{
                             backgroundColor: getIncidentTypeColor(
-                              incident.type
+                              incident.type,
                             ),
                           }}
                         >

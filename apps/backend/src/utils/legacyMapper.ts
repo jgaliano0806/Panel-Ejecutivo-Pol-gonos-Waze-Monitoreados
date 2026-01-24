@@ -1,4 +1,5 @@
 import { WazeAlert } from "../repositories/WazeAlertRepository";
+import { logger } from "./logger";
 import { WazeJam } from "../repositories/WazeJamRepository";
 import { InternalAlert, InternalJam, IncidentType, Severity } from "../types";
 import {
@@ -43,14 +44,13 @@ export function toLegacyJam(entity: WazeJam): InternalJam {
       try {
         line = JSON.parse(entity.polyline);
       } catch (e) {
-        console.warn(`Error parsing polyline for jam ${entity.uuid}:`, e);
+        logger.warn(`Error parsing polyline for jam ${entity.uuid}: ${e}`);
         line = [];
       }
     } else {
       // Si es un objeto pero no array (raro para polyline, pero posible si es {points: [...]})
-      console.warn(
-        `Unexpected polyline format for jam ${entity.uuid}:`,
-        typeof entity.polyline
+      logger.warn(
+        `Unexpected polyline format for jam ${entity.uuid}: ${typeof entity.polyline}`,
       );
       line = [];
     }

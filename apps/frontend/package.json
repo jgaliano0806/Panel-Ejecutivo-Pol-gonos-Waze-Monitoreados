@@ -6,7 +6,7 @@
   "description": "Frontend React application for Waze monitoring dashboard",
   "main": "index.html",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --port 5180",
     "build": "tsc -b && vite build",
     "build:analyze": "tsc -b && vite build --mode analyze",
     "preview": "vite preview",
@@ -41,7 +41,7 @@
     "react-dom": "^18.2.0",
     "react-map-gl": "^8.1.0",
     "react-router-dom": "^6.21.3",
-    "recharts": "^2.12.0",
+    "recharts": "^2.15.4",
     "socket.io-client": "^4.8.3",
     "tailwind-merge": "^2.2.0",
     "tailwindcss-animate": "^1.0.7",

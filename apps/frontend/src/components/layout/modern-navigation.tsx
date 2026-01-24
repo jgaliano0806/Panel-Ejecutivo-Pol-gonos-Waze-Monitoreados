@@ -1,11 +1,28 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Home, Map, AlertCircle, History, BarChart3, ShieldAlert, Car, Settings } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Badge } from '../ui/badge';
-import { cn } from '../../lib/utils';
+import React from "react";
+import { motion } from "framer-motion";
+import {
+  Home,
+  Map,
+  AlertCircle,
+  History,
+  BarChart3,
+  ShieldAlert,
+  Car,
+  Settings,
+} from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Badge } from "../ui/badge";
+import { cn } from "../../lib/utils";
 
-export type ViewType = 'home' | 'map' | 'events' | 'history' | 'stats' | 'risks' | 'accidents' | 'admin';
+export type ViewType =
+  | "home"
+  | "map"
+  | "events"
+  | "history"
+  | "stats"
+  | "risks"
+  | "accidents"
+  | "admin";
 
 interface ModernNavigationProps {
   currentView: ViewType;
@@ -23,84 +40,85 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
 
   const tabs = [
     {
-      id: 'home' as ViewType,
-      label: 'Inicio',
+      id: "home" as ViewType,
+      label: "Inicio",
       icon: Home,
-      color: 'from-primary-600 to-primary-700',
-      path: '/',
+      color: "from-primary-600 to-primary-700",
+      path: "/",
     },
     {
-      id: 'map' as ViewType,
-      label: 'Mapa y Zonas',
+      id: "map" as ViewType,
+      label: "Mapa y Zonas",
       icon: Map,
-      color: 'from-primary-500 to-primary-600',
-      path: '/mapa',
+      color: "from-primary-500 to-primary-600",
+      path: "/mapa",
     },
     {
-      id: 'risks' as ViewType,
-      label: 'Análisis de Riesgos',
+      id: "risks" as ViewType,
+      label: "Análisis de Riesgos",
       icon: ShieldAlert,
-      color: 'from-red-500 to-red-600',
-      path: '/riesgos',
+      color: "from-red-500 to-red-600",
+      path: "/riesgos",
     },
     {
-      id: 'events' as ViewType,
-      label: 'Alertas y Eventos',
+      id: "events" as ViewType,
+      label: "Alertas y Eventos",
       icon: AlertCircle,
-      color: 'from-warning-400 to-warning-500',
+      color: "from-warning-400 to-warning-500",
       badge: criticalAlertsCount > 0 ? criticalAlertsCount : undefined,
-      path: '/alertas',
+      path: "/alertas",
     },
     {
-      id: 'accidents' as ViewType,
-      label: 'Siniestros Viales',
+      id: "accidents" as ViewType,
+      label: "Siniestros Viales",
       icon: Car,
-      color: 'from-orange-600 to-red-600',
-      path: '/siniestros',
+      color: "from-orange-600 to-red-600",
+      path: "/siniestros",
     },
     {
-      id: 'history' as ViewType,
-      label: 'Historial',
+      id: "history" as ViewType,
+      label: "Historial",
       icon: History,
-      color: 'from-blue-500 to-blue-600',
-      path: '/historial',
+      color: "from-blue-500 to-blue-600",
+      path: "/historial",
     },
     {
-      id: 'stats' as ViewType,
-      label: 'Estadísticas',
+      id: "stats" as ViewType,
+      label: "Estadísticas",
       icon: BarChart3,
-      color: 'from-purple-500 to-purple-600',
-      path: '/estadisticas',
+      color: "from-purple-500 to-purple-600",
+      path: "/estadisticas",
     },
     {
-      id: 'admin' as ViewType,
-      label: 'Administración',
+      id: "admin" as ViewType,
+      label: "Administración",
       icon: Settings,
-      color: 'from-gray-600 to-gray-700',
-      path: '/admin',
+      color: "from-gray-600 to-gray-700",
+      path: "/admin",
     },
   ];
 
   // Determinar la vista actual basada en la URL
   const getActiveView = () => {
-    if (location.pathname === '/' || location.pathname === '/dashboard') return 'home';
-    if (location.pathname === '/mapa') return 'map';
-    if (location.pathname === '/riesgos') return 'risks';
-    if (location.pathname === '/alertas') return 'events';
-    if (location.pathname === '/siniestros') return 'accidents';
-    if (location.pathname === '/historial') return 'history';
-    if (location.pathname === '/admin') return 'admin';
-    if (location.pathname === '/estadisticas') return 'stats';
+    if (location.pathname === "/" || location.pathname === "/dashboard")
+      return "home";
+    if (location.pathname === "/mapa") return "map";
+    if (location.pathname === "/riesgos") return "risks";
+    if (location.pathname === "/alertas") return "events";
+    if (location.pathname === "/siniestros") return "accidents";
+    if (location.pathname === "/historial") return "history";
+    if (location.pathname === "/admin") return "admin";
+    if (location.pathname === "/estadisticas") return "stats";
     return currentView;
   };
 
   const activeView = getActiveView();
 
-  const handleTabClick = (tab: typeof tabs[0]) => {
+  const handleTabClick = (tab: (typeof tabs)[0]) => {
     React.startTransition(() => {
       onViewChange(tab.id);
+      navigate(tab.path);
     });
-    navigate(tab.path);
   };
 
   return (
@@ -119,7 +137,7 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
                   "relative py-4 px-8 font-bold text-sm flex items-center gap-3 transition-all duration-300 rounded-t-xl",
                   isActive
                     ? "text-primary-700 bg-white"
-                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-50/50"
+                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-50/50",
                 )}
                 whileHover={{ y: -3, scale: 1.02 }}
                 whileTap={{ scale: 0.97 }}
@@ -130,22 +148,23 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
                     "p-2.5 rounded-xl transition-all duration-300 shadow-md",
                     isActive
                       ? `bg-gradient-to-br ${tab.color}`
-                      : "bg-gradient-to-br from-gray-100 to-gray-200"
+                      : "bg-gradient-to-br from-gray-100 to-gray-200",
                   )}
                   whileHover={{ scale: 1.1 }}
                   transition={{ type: "spring", stiffness: 400, damping: 10 }}
                 >
-                  <Icon className={cn(
-                    "w-5 h-5",
-                    isActive ? "text-white" : "text-gray-600"
-                  )} />
+                  <Icon
+                    className={cn(
+                      "w-5 h-5",
+                      isActive ? "text-white" : "text-gray-600",
+                    )}
+                  />
                 </motion.div>
 
                 {/* Label */}
-                <span className={cn(
-                  "text-base",
-                  isActive && "font-black"
-                )}>{tab.label}</span>
+                <span className={cn("text-base", isActive && "font-black")}>
+                  {tab.label}
+                </span>
 
                 {/* Badge de alertas */}
                 {tab.badge && (
@@ -154,7 +173,11 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
                     animate={{ scale: 1 }}
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   >
-                    <Badge variant="critical" size="sm" className="shadow-lg shadow-red-500/30">
+                    <Badge
+                      variant="critical"
+                      size="sm"
+                      className="shadow-lg shadow-red-500/30"
+                    >
                       <motion.span
                         animate={{ scale: [1, 1.2, 1] }}
                         transition={{ duration: 1.5, repeat: Infinity }}
@@ -170,7 +193,7 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
                   <motion.div
                     className={cn(
                       "absolute bottom-0 left-0 right-0 h-1.5 rounded-t-full shadow-lg",
-                      `bg-gradient-to-r ${tab.color}`
+                      `bg-gradient-to-r ${tab.color}`,
                     )}
                     layoutId="activeTab"
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
@@ -182,7 +205,7 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
                   <motion.div
                     className={cn(
                       "absolute inset-0 rounded-t-xl",
-                      `bg-gradient-to-br ${tab.color}`
+                      `bg-gradient-to-br ${tab.color}`,
                     )}
                     animate={{
                       opacity: [0.05, 0.15, 0.05],
@@ -201,7 +224,7 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
                     <motion.div
                       className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
                       animate={{
-                        x: ['-200%', '200%'],
+                        x: ["-200%", "200%"],
                       }}
                       transition={{
                         duration: 3,

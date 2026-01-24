@@ -4,7 +4,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
 
 export interface CatalogType {
   id: number;
@@ -124,7 +124,7 @@ export async function preloadTranslationsCache(): Promise<void> {
 
     cacheLoaded = true;
     console.log(
-      `✅ Cache de traducciones cargado: ${translationsCache.size} entradas`
+      `✅ Cache de traducciones cargado: ${translationsCache.size} entradas`,
     );
   } catch (error) {
     console.warn("⚠️ No se pudo precargar cache de traducciones:", error);

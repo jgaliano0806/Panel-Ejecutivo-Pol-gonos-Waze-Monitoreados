@@ -107,7 +107,7 @@ class WazeAnalyticsService {
         (j) =>
           j.street === alert.street &&
           j.polygon_id === alert.polygon_id &&
-          j.level >= 3
+          j.level >= 3,
       );
 
       const jamBonus = nearbyJam ? nearbyJam.level * 2 : 0;
@@ -127,18 +127,48 @@ class WazeAnalyticsService {
 
     // Ordenar por score descendente
     scoredIncidents.sort((a, b) => b.score - a.score);
-    const top5 = scoredIncidents.slice(0, 5).map((i) => ({
-      uuid: i.uuid,
-      type: i.type,
-      subtype: i.subtype || "",
-      street: i.street || "Desconocida",
-      location: { x: i.longitude, y: i.latitude },
-      score: parseFloat(i.score.toFixed(1)),
-      confidence: i.confidence || 0,
-      reliability: i.reliability || 0,
-      jamLevel: i.jamLevel,
-      description: this.formatDescription(i), // Helper description
-    }));
+    const top5 = await Promise.all(
+      scoredIncidents.slice(0, 5).map(async (i) => {
+        // Encontrar jams cercanos para contexto (ya tenemos nearbyJam del paso anterior pero buscamos más contexto si es necesario)
+        const contextJams = jams.filter(
+          (j) =>
+            j.polygon_id === i.polygon_id &&
+            // Lógica simple de proximidad por calle por ahora, idealmente espacial
+            j.street === i.street,
+        );
+
+        let finalDescription = this.formatDescription(i);
+
+        // Si la descripción es vaga, intentar inferir contexto
+        if (finalDescription.includes("UNKNOWN") || !i.subtype) {
+          const {
+            incidentContextService,
+          } = require("./IncidentContextService");
+          const context = await incidentContextService.inferContext(
+            i,
+            contextJams,
+            null,
+          );
+
+          if (context) {
+            finalDescription = `${context.probableCause} (${context.confidence}% certeza)`;
+          }
+        }
+
+        return {
+          uuid: i.uuid,
+          type: i.type,
+          subtype: i.subtype || "",
+          street: i.street || "Desconocida",
+          location: { x: i.longitude, y: i.latitude },
+          score: parseFloat(i.score.toFixed(1)),
+          confidence: i.confidence || 0,
+          reliability: i.reliability || 0,
+          jamLevel: i.jamLevel,
+          description: finalDescription,
+        };
+      }),
+    );
 
     // 3. Generate Operational Alerts
     const operationalAlerts: OperationalAlert[] = [];
@@ -148,7 +178,7 @@ class WazeAnalyticsService {
       (i) =>
         i.type === "ACCIDENT" &&
         (i.subtype === "ACCIDENT_MAJOR" || (i.report_rating || 0) >= 4) &&
-        i.hasJam
+        i.hasJam,
     );
 
     majorAccidents.forEach((acc) => {
@@ -165,7 +195,7 @@ class WazeAnalyticsService {
 
     // B. Weather Hazards
     const weatherHazards = scoredIncidents.filter(
-      (i) => i.type === "HAZARD" && i.subtype && i.subtype.includes("WEATHER")
+      (i) => i.type === "HAZARD" && i.subtype && i.subtype.includes("WEATHER"),
     );
     if (weatherHazards.length > 3) {
       operationalAlerts.push({
@@ -226,10 +256,10 @@ class WazeAnalyticsService {
       alert.type === "ACCIDENT"
         ? "Accidente"
         : alert.type === "JAM"
-        ? "Atasco"
-        : alert.type === "ROAD_CLOSED"
-        ? "Cierre"
-        : "Peligro";
+          ? "Atasco"
+          : alert.type === "ROAD_CLOSED"
+            ? "Cierre"
+            : "Peligro";
 
     const translations: { [key: string]: string } = {
       // Hazards

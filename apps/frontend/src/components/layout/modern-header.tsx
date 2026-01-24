@@ -1,10 +1,12 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Clock, Wifi, RefreshCw, Moon, Sun } from "lucide-react";
+import { Clock, Wifi, RefreshCw, Moon, Sun, Bell } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { formatRelativeTime } from "../../lib/utils";
 import { COMPANY_INFO, UI_TEXTS } from "../../config/constants";
 import { useThemeStore } from "../../stores/useThemeStore";
+import { useNotificationStore } from "@/stores/useNotificationStore";
+import { useNavigate } from "react-router-dom";
 
 interface ModernHeaderProps {
   lastUpdate?: Date;
@@ -18,6 +20,8 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
   const [currentTime, setCurrentTime] = React.useState(new Date());
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const { isDark, toggleTheme } = useThemeStore();
+  const unreadCount = useNotificationStore((state) => state.unreadCount);
+  const navigate = useNavigate();
 
   React.useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -114,6 +118,23 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
                 <Moon className="w-5 h-5" />
               ) : (
                 <Sun className="w-5 h-5" />
+              )}
+            </motion.button>
+
+            {/* Notifications Bell */}
+            <motion.button
+              onClick={() => navigate("/notificaciones")}
+              className="relative p-3 rounded-xl border-2 transition-all duration-300 shadow-lg bg-white dark:bg-veltrix-bg border-gray-200 dark:border-veltrix-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-veltrix-card"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              title="Notificaciones"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute top-2 right-2 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
               )}
             </motion.button>
 

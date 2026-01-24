@@ -6,7 +6,9 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/server.js",
-    "dev": "nodemon --watch src/**/*.ts --exec npx ts-node src/server.ts"
+    "dev": "nodemon --watch src/**/*.ts --exec npx ts-node src/server.ts",
+    "migrate": "npx ts-node src/scripts/migrate.ts",
+    "seed": "npx ts-node src/scripts/seed.ts"
   },
   "keywords": [],
   "author": "",

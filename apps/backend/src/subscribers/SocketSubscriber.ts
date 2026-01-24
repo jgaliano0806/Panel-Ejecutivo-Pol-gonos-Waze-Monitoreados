@@ -1,5 +1,11 @@
-import { eventBus, SystemEvents, WazePollCompletePayload, RiskCalculatedPayload } from '../events';
-import { Server } from 'socket.io'; // Or import from types if separate
+import {
+  eventBus,
+  SystemEvents,
+  WazePollCompletePayload,
+  RiskCalculatedPayload,
+} from "../events";
+import { Server } from "socket.io"; // Or import from types if separate
+import { logger } from "../utils/logger";
 
 export class SocketSubscriber {
   private io: any; // Type as Server if available
@@ -7,12 +13,18 @@ export class SocketSubscriber {
   constructor(io: any) {
     this.io = io;
     this.setupListeners();
-    console.log('🔌 SocketSubscriber initialized');
+    logger.info("🔌 SocketSubscriber initialized");
   }
 
   private setupListeners(): void {
-    eventBus.on(SystemEvents.WAZE_POLL_COMPLETE, this.handleWazePollComplete.bind(this));
-    eventBus.on(SystemEvents.RISK_SCORE_CALCULATED, this.handleRiskScoreCalculated.bind(this));
+    eventBus.on(
+      SystemEvents.WAZE_POLL_COMPLETE,
+      this.handleWazePollComplete.bind(this),
+    );
+    eventBus.on(
+      SystemEvents.RISK_SCORE_CALCULATED,
+      this.handleRiskScoreCalculated.bind(this),
+    );
   }
 
   private handleWazePollComplete(payload: WazePollCompletePayload): void {
@@ -24,16 +36,18 @@ export class SocketSubscriber {
         polygonId,
         alerts,
         jams,
-        timestamp: timestamp.toISOString()
+        timestamp: timestamp.toISOString(),
       };
 
       // Emit to specific room
-      this.io.to(`polygon:${polygonId}`).emit('waze:update', updatePayload);
+      this.io.to(`polygon:${polygonId}`).emit("waze:update", updatePayload);
 
       // debug log (optional)
       // console.log(`📡 Broadcasted update for ${polygonId}`);
     } catch (error) {
-      console.error('Error in SocketSubscriber handling WazePollComplete:', error);
+      logger.error(
+        `Error in SocketSubscriber handling WazePollComplete: ${error}`,
+      );
     }
   }
 
@@ -41,16 +55,17 @@ export class SocketSubscriber {
     try {
       const { polygonId, score, level, factors } = payload;
 
-      this.io.to(`polygon:${polygonId}`).emit('risk:update', {
+      this.io.to(`polygon:${polygonId}`).emit("risk:update", {
         polygonId,
         score,
         level,
         factors,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
-      console.error('Error in SocketSubscriber handling RiskScoreCalculated:', error);
+      logger.error(
+        `Error in SocketSubscriber handling RiskScoreCalculated: ${error}`,
+      );
     }
   }
 }

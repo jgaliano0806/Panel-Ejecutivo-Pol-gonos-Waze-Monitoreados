@@ -78,7 +78,7 @@ const getCardinalDirection = (degrees: number): string => {
   ];
 
   const direction = directions.find(
-    (d) => normalized >= d.min && normalized < d.max
+    (d) => normalized >= d.min && normalized < d.max,
   );
   return direction ? direction.label : "Desconocido";
 };
@@ -92,6 +92,8 @@ interface MapLibreMapProps {
   onPolygonClick?: (id: string) => void;
   selectedPolygon?: string | null;
   selectedGroup?: string | null;
+  selectedIncidentId?: string | null;
+  forcedIncident?: any | null; // Datos completos del incidente para visualización histórica/notificación
 }
 
 export const MapLibreMap: React.FC<MapLibreMapProps> = ({
@@ -103,6 +105,8 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   onPolygonClick,
   selectedPolygon,
   selectedGroup,
+  selectedIncidentId,
+  forcedIncident,
 }) => {
   const mapRef = useRef<MapRef>(null);
   const isDark = useThemeStore((state) => state.isDark);
@@ -120,11 +124,33 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   // Obtener datos de accidentes RAC
   const { data: racAccidents } = useRACAccidentsMap(
     racFilter,
-    showRACAccidents
+    showRACAccidents,
   );
 
   // Estado para controlar si el mapa está cargado
   const [mapLoaded, setMapLoaded] = useState(false);
+
+  // DEBUG: Verificar datos de entrada
+  useEffect(() => {
+    if (incidents.length > 0) {
+      console.log(`🗺️ MapLibre received ${incidents.length} incidents.`);
+      const first = incidents[0];
+      console.log(
+        "📍 Sample incident location:",
+        first.location,
+        "Type:",
+        first.type,
+      );
+      if (isNaN(first.location.lat) || isNaN(first.location.lng)) {
+        console.error(
+          "❌ CRITICAL: Invalid coordinates detected in map data!",
+          first,
+        );
+      }
+    } else {
+      console.log("🗺️ MapLibre received 0 incidents.");
+    }
+  }, [incidents]);
 
   // Efecto para Zoom al polígono seleccionado
   useEffect(() => {
@@ -153,7 +179,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
 
         const bounds = new maplibregl.LngLatBounds(
           [minLng, minLat],
-          [maxLng, maxLat]
+          [maxLng, maxLat],
         );
 
         map.fitBounds(bounds, { padding: 50, duration: 1000 });
@@ -161,73 +187,190 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     }
   }, [selectedPolygon, selectedGroup, polygons, mapLoaded]);
 
-  // Carga de iconos usando SVG inline (más confiable que cargar archivos)
+  // Efecto para enfocar incidente seleccionado externamente (Notificaciones)
+  useEffect(() => {
+    // Si no hay ID ni objeto forzado, retornar
+    if (
+      !mapRef.current ||
+      !mapLoaded ||
+      (!selectedIncidentId && !forcedIncident)
+    )
+      return;
+
+    // Pequeño delay para asegurar que el mapa esté estable
+    const timer = setTimeout(() => {
+      let incidentDetails = null;
+      let location = null;
+
+      // Helper simple para validar coords
+      const isValidCoord = (lat: any, lng: any) =>
+        typeof lat === "number" &&
+        typeof lng === "number" &&
+        !isNaN(lat) &&
+        !isNaN(lng);
+
+      // Estrategia 1: Usar incidente forzado (viene de notificación, puede ser histórico)
+      if (forcedIncident) {
+        incidentDetails = forcedIncident;
+        console.log(
+          "🔍 forcedIncident structure:",
+          JSON.stringify(forcedIncident, null, 2),
+        );
+
+        // Intento 1: location: { lat, lng }
+        if (
+          forcedIncident.location &&
+          isValidCoord(forcedIncident.location.lat, forcedIncident.location.lng)
+        ) {
+          location = forcedIncident.location;
+        }
+        // Intento 2: location: { x, y } (Waze raw)
+        else if (
+          forcedIncident.location &&
+          isValidCoord(forcedIncident.location.y, forcedIncident.location.x)
+        ) {
+          location = {
+            lat: forcedIncident.location.y,
+            lng: forcedIncident.location.x,
+          };
+        }
+        // Intento 3: Top level lat/lng
+        else if (isValidCoord(forcedIncident.lat, forcedIncident.lng)) {
+          location = { lat: forcedIncident.lat, lng: forcedIncident.lng };
+        }
+        // Intento 4: Top level latitude/longitude
+        else if (
+          isValidCoord(forcedIncident.latitude, forcedIncident.longitude)
+        ) {
+          location = {
+            lat: forcedIncident.latitude,
+            lng: forcedIncident.longitude,
+          };
+        }
+      }
+      // Estrategia 2: Buscar en feed activo
+      else if (selectedIncidentId) {
+        const found = incidents.find((i) => i.id === selectedIncidentId);
+        if (found) {
+          incidentDetails = found;
+          location = found.location;
+        }
+      }
+
+      if (
+        incidentDetails &&
+        location &&
+        isValidCoord(location.lat, location.lng)
+      ) {
+        console.log("📍 Focusing incident:", incidentDetails.id, location);
+
+        // Reconstruir propiedades para Popup
+        const properties = {
+          id: incidentDetails.id,
+          description:
+            incidentDetails.description ||
+            incidentDetails.reportDescription ||
+            "Sin descripción",
+          street: incidentDetails.street || "Ubicación desconocida",
+          type: incidentDetails.type,
+          subtype: incidentDetails.subtype || "",
+          timestamp: incidentDetails.timestamp
+            ? new Date(incidentDetails.timestamp).toISOString()
+            : new Date().toISOString(),
+          reportBy: incidentDetails.reportBy || "Wazer",
+          nThumbsUp: incidentDetails.nThumbsUp || 0,
+          confidence: incidentDetails.confidence || 0,
+          magvar: incidentDetails.magvar || 0,
+          iconId: `waze-${(incidentDetails.type || "hazard").toLowerCase()}`,
+        };
+
+        setSelectedIncident({
+          lat: location.lat,
+          lng: location.lng,
+          properties,
+        });
+
+        if (mapRef.current) {
+          try {
+            mapRef.current.getMap().flyTo({
+              center: [location.lng, location.lat],
+              zoom: 16,
+              duration: 1500,
+              pitch: 50,
+              essential: true,
+            });
+          } catch (err) {
+            console.error("❌ Error flying to location:", err);
+          }
+        }
+      } else {
+        console.warn(
+          "⚠️ Incident found but invalid location:",
+          selectedIncidentId,
+          location,
+        );
+      }
+    }, 500); // Delay aumentado a 500ms para mayor seguridad
+
+    return () => clearTimeout(timer);
+  }, [selectedIncidentId, forcedIncident, incidents, mapLoaded]);
+
+  // Carga de iconos usando SVG inline
   const loadWazeIcon = (map: maplibregl.Map, iconId: string) => {
-    console.log(`🔍 loadWazeIcon called for: ${iconId}`);
+    if (map.hasImage(iconId)) return;
 
-    if (map.hasImage(iconId)) {
-      console.log(`✅ Icon ${iconId} already loaded`);
-      return;
+    // Expected format: waze-TYPE-SUBTYPE
+    // Example: waze-hazard-hazard_on_road_construction
+    const cleanId = iconId.replace(/^waze-/, "");
+    const firstDashIndex = cleanId.indexOf("-");
+
+    let type, subtype;
+
+    if (firstDashIndex === -1) {
+      type = cleanId;
+      subtype = undefined;
+    } else {
+      type = cleanId.substring(0, firstDashIndex);
+      subtype = cleanId.substring(firstDashIndex + 1);
     }
-
-    const parts = iconId.replace("waze-", "").split("-");
-    if (parts.length < 1) {
-      console.warn(`❌ Invalid iconId format: ${iconId}`);
-      return;
-    }
-
-    const type = parts[0];
-    const subtype = parts.slice(1).join("_");
-
-    console.log(`📊 Parsing icon - Type: ${type}, Subtype: ${subtype}`);
 
     // Obtener SVG del repositorio inline
     const svgString = getWazeIconSvg(type, subtype);
 
-    console.log(`📝 SVG string length: ${svgString?.length || 0}`);
-
     if (!svgString) {
-      console.warn(
-        `❌ No SVG found for ${iconId} (type: ${type}, subtype: ${subtype})`
-      );
+      console.warn(`❌ No SVG found for ${iconId}`);
       return;
     }
 
-    // Crear imagen desde SVG inline
     const img = new Image(64, 64);
     img.width = 64;
     img.height = 64;
 
     img.onload = () => {
-      console.log(`✅ Image loaded successfully for ${iconId}`);
       try {
         if (!map.hasImage(iconId)) {
           map.addImage(iconId, img, { sdf: false });
-          console.log(`✅ Icon ${iconId} added to map`);
+          // Forzar repintado para que aparezca el icono inmediatamente
+          map.triggerRepaint();
         }
       } catch (e) {
         console.error(`❌ Failed to add image ${iconId} to map`, e);
       }
     };
 
-    img.onerror = (e) => {
-      console.error(`❌ Failed to load SVG for ${iconId}`, e);
+    img.onerror = (err) => {
+      console.error(`❌ Failed to load SVG image for ${iconId}`, err);
     };
 
-    // Usar Data URI con el SVG inline
     const dataUri =
       "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgString);
-    console.log(
-      `🔗 Data URI (first 100 chars): ${dataUri.substring(0, 100)}...`
-    );
     img.src = dataUri;
   };
 
   const onMapLoad = (e: any) => {
     const map = e.target;
-    console.log(`🗺️ Map loaded, preloading common icons...`);
+    console.log(`🎨 Map style loaded, preloading common icons...`);
 
-    // Pre-cargar iconos comunes para evitar parpadeos
     const commonIcons = [
       { id: "waze-accident", type: "accident" },
       { id: "waze-jam", type: "jam" },
@@ -245,13 +388,10 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     // Listener para iconos faltantes (carga dinámica)
     map.on("styleimagemissing", (e: any) => {
       const id = e.id;
-      console.log(`⚠️ styleimagemissing event for: ${id}`);
       if (id && id.startsWith("waze-")) {
         loadWazeIcon(map, id);
       }
     });
-
-    console.log(`✅ Map event listeners configured`);
   };
 
   // GeoJSON Memos (Polygons, Flow, Jams, Incidents)
@@ -267,12 +407,12 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             p.state === PolygonState.HIGH
               ? "#ef4444"
               : p.state === PolygonState.MEDIUM
-              ? "#eab308"
-              : "#22c55e",
+                ? "#eab308"
+                : "#22c55e",
         },
       })),
     }),
-    [polygons]
+    [polygons],
   );
 
   const flowGeoJSON = useMemo(() => {
@@ -301,7 +441,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
 
   const jamsGeoJSON = useMemo(() => {
     const congested = jams.filter(
-      (j) => (j.level || 0) >= 3 || (j.speed || 0) <= 20
+      (j) => (j.level || 0) >= 3 || (j.speed || 0) <= 20,
     );
     return {
       type: "FeatureCollection",
@@ -358,7 +498,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         };
       }),
     }),
-    [incidents]
+    [incidents],
   );
 
   // GeoJSON para líneas de cierres de camino usando datos reales
@@ -366,13 +506,13 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     const closures = incidents.filter(
       (inc) =>
         inc.type.toLowerCase().includes("roadclosed") ||
-        inc.type.toLowerCase().includes("road_closed")
+        inc.type.toLowerCase().includes("road_closed"),
     );
 
     const features = closures.flatMap((closure) => {
       // Opción 1: Buscar jams con blockingAlertUuid coincidente
       let associatedJams = jams.filter(
-        (jam) => jam.blockingAlertUuid === closure.id
+        (jam) => jam.blockingAlertUuid === closure.id,
       );
 
       // Opción 2: Si no hay jams bloqueantes, buscar por calle y proximidad
@@ -457,7 +597,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             map.setPaintProperty(
               "flow-line-dashed",
               "line-dashoffset",
-              newOffset
+              newOffset,
             );
           }
         } catch (e) {
@@ -544,6 +684,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
           mapStyle={mapStyleUrl}
           attributionControl={false}
           onClick={handleClick}
+          onStyleLoad={onMapLoad}
           onLoad={(e: any) => {
             startTransition(() => {
               setMapLoaded(true);
@@ -581,6 +722,30 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                 "line-opacity": isDark ? 0.5 : 0.7,
               }}
             />
+            {/* Resaltado de Polígono Seleccionado */}
+            {selectedPolygon && (
+              <Layer
+                id="polygons-selected"
+                type="line"
+                filter={["==", ["get", "id"], selectedPolygon]}
+                paint={{
+                  "line-color": "#6366f1", // Color Indigo de la marca
+                  "line-width": 4,
+                  "line-opacity": 1,
+                }}
+              />
+            )}
+            {selectedPolygon && (
+              <Layer
+                id="polygons-selected-fill"
+                type="fill"
+                filter={["==", ["get", "id"], selectedPolygon]}
+                paint={{
+                  "fill-color": "#6366f1",
+                  "fill-opacity": isDark ? 0.25 : 0.35,
+                }}
+              />
+            )}
           </Source>
 
           {/* Flujo de Tráfico (TVT) */}
@@ -602,8 +767,8 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             </Source>
           )}
 
-          {/* Jams - Solo visible cuando showTraffic está activo */}
-          {showTraffic && (
+          {/* Jams - Solo visible cuando showTraffic está activo y el mapa cargó */}
+          {showTraffic && mapLoaded && (
             <Source id="jams-source" type="geojson" data={jamsGeoJSON as any}>
               <Layer
                 id="jams-glow"
@@ -685,10 +850,10 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             </Source>
           )}
 
-          {/* Incidentes Waze */}
-          {showWazeIncidents && (
+          {/* Incidentes (Puntos) - Solo si el mapa cargó */}
+          {showWazeIncidents && mapLoaded && (
             <Source
-              id="incidents"
+              id="incidents-source"
               type="geojson"
               data={incidentsGeoJSON as any}
             >
@@ -760,7 +925,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                       <img
                         src={getWazePartnerHubIconUrl(
                           selectedIncident.properties.type,
-                          selectedIncident.properties.subtype
+                          selectedIncident.properties.subtype,
                         )}
                         className="w-10 h-10 object-contain drop-shadow-md"
                         alt="icon"
@@ -773,7 +938,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                       <h3 className="font-bold text-lg leading-tight">
                         {getIncidentDescription(
                           selectedIncident.properties.type,
-                          selectedIncident.properties.subtype
+                          selectedIncident.properties.subtype,
                         )}
                       </h3>
                     </div>
@@ -803,28 +968,17 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                     <span>
                       {selectedIncident.properties.timestamp
                         ? new Date(
-                            selectedIncident.properties.timestamp
-                          ).toLocaleString()
-                        : "Desconocida"}
+                            selectedIncident.properties.timestamp,
+                          ).toLocaleString("es-AR")
+                        : "N/A"}
                     </span>
 
                     <span className="font-medium text-gray-500 dark:text-gray-400">
-                      Fecha fin
+                      Descripción
                     </span>
-                    <span className="text-gray-400 italic">N/A</span>
-
-                    {selectedIncident.properties.description &&
-                      selectedIncident.properties.description !==
-                        "Sin descripción" && (
-                        <>
-                          <span className="font-medium text-gray-500 dark:text-gray-400">
-                            Descripción
-                          </span>
-                          <span className="leading-snug">
-                            {selectedIncident.properties.description}
-                          </span>
-                        </>
-                      )}
+                    <span className="leading-snug">
+                      {selectedIncident.properties.description}
+                    </span>
 
                     <span className="font-medium text-gray-500 dark:text-gray-400">
                       Informante
@@ -832,29 +986,6 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                     <span className="font-mono text-xs bg-gray-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded w-fit text-blue-600 dark:text-blue-400">
                       {selectedIncident.properties.reportBy || "Wazer"}
                     </span>
-
-                    {selectedIncident.properties.magvar !== undefined &&
-                      selectedIncident.properties.magvar !== null && (
-                        <>
-                          <span className="font-medium text-gray-500 dark:text-gray-400">
-                            Sentido
-                          </span>
-                          <div className="flex items-center gap-1.5">
-                            <Navigation
-                              size={14}
-                              className="text-blue-500"
-                              style={{
-                                transform: `rotate(${selectedIncident.properties.magvar}deg)`,
-                              }}
-                            />
-                            <span>
-                              {getCardinalDirection(
-                                selectedIncident.properties.magvar
-                              )}
-                            </span>
-                          </div>
-                        </>
-                      )}
 
                     <span className="font-medium text-gray-500 dark:text-gray-400">
                       ID
@@ -865,31 +996,20 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                   </div>
                 </div>
 
-                {/* Footer Actions */}
+                {/* Footer Status */}
                 <div className="px-4 py-3 bg-gray-50 dark:bg-zinc-900 border-t border-gray-100 dark:border-veltrix-border flex items-center justify-between text-xs">
                   <div className="flex items-center gap-4">
                     <span className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
                       <span className="w-3.5 h-3.5 flex items-center justify-center">
-                        💬
+                        👍
                       </span>
-                      0 comentarios
+                      {selectedIncident.properties.nThumbsUp} valoraciones
                     </span>
                   </div>
-
                   <div className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-veltrix-bg rounded-full shadow-sm border border-gray-100 dark:border-veltrix-border">
-                    <ShieldCheck
-                      size={12}
-                      className={
-                        selectedIncident.properties.confidence >= 7
-                          ? "text-green-500"
-                          : selectedIncident.properties.confidence >= 4
-                          ? "text-yellow-500"
-                          : "text-gray-400"
-                      }
-                    />
+                    <ShieldCheck className="h-3 w-3 text-gray-400" />
                     <span className="font-medium">
-                      Confianza: {selectedIncident.properties.confidence || 0}
-                      /10
+                      Confianza: {selectedIncident.properties.confidence}/10
                     </span>
                   </div>
                 </div>

@@ -1,60 +1,98 @@
-// POST /api/upload/icon - Upload SVG icon file
-server.post("/api/upload/icon", async (request, reply) => {
-  try {
-    const data = await request.file();
+/**
+ * Icon Upload Routes
+ * POST /api/upload/icon - Upload SVG icon file
+ */
 
-    if (!data) {
-      reply.code(400).send({ error: "No file uploaded" });
-      return;
-    }
+import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import * as fs from "fs";
+import * as path from "path";
 
-    // Validar que sea SVG
-    if (data.mimetype !== "image/svg+xml") {
-      reply.code(400).send({
-        error: "Invalid file type",
-        message: "Only SVG files are allowed",
-      });
-      return;
-    }
+export async function iconUploadRoutes(
+  fastify: FastifyInstance,
+): Promise<void> {
+  // POST /api/upload/icon - Upload SVG icon file
+  fastify.post(
+    "/api/upload/icon",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const data = await request.file();
 
-    // Generar nombre único para el archivo
-    const timestamp = Date.now();
-    const randomStr = Math.random().toString(36).substring(7);
-    const filename = `icon-${timestamp}-${randomStr}.svg`;
+        if (!data) {
+          reply.code(400).send({ error: "No file uploaded" });
+          return;
+        }
 
-    // Crear directorio si no existe
-    const iconsDir = path.join(__dirname, "../public/icons");
-    if (!fs.existsSync(iconsDir)) {
-      fs.mkdirSync(iconsDir, { recursive: true });
-    }
+        // Validar que sea SVG
+        if (data.mimetype !== "image/svg+xml") {
+          reply.code(400).send({
+            error: "Invalid file type",
+            message: "Only SVG files are allowed",
+          });
+          return;
+        }
 
-    // Guardar archivo
-    const filepath = path.join(iconsDir, filename);
-    const buffer = await data.toBuffer();
-    fs.writeFileSync(filepath, buffer);
+        // Usar el nombre original del archivo (sin path traversal)
+        const originalFilename = data.filename.replace(/^.*[\\\/]/, "");
 
-    // Retornar URL pública del archivo
-    const publicUrl = `/public/icons/${filename}`;
+        // Validar que el nombre sea seguro
+        if (!/^[a-z0-9_-]+\.svg$/i.test(originalFilename)) {
+          reply.code(400).send({
+            error: "Invalid filename",
+            message:
+              "Filename must contain only letters, numbers, underscores, hyphens and .svg extension",
+          });
+          return;
+        }
 
-    console.log(`✅ Icon uploaded successfully: ${publicUrl}`);
+        // Carpeta de iconos precargados en el frontend
+        const iconsDir = path.join(
+          __dirname,
+          "../../../frontend/public/icons/waze/iconos_svg",
+        );
 
-    reply.send({
-      success: true,
-      url: publicUrl,
-      filename: filename,
-    });
-  } catch (error: any) {
-    server.log.error(
-      {
-        error,
-        url: request.url,
-        stack: error instanceof Error ? error.stack : undefined,
-      },
-      "Error uploading icon"
-    );
-    reply.code(500).send({
-      error: "Failed to upload icon",
-      message: error instanceof Error ? error.message : "Unknown error",
-    });
-  }
-});
+        // Crear directorio si no existe
+        if (!fs.existsSync(iconsDir)) {
+          fs.mkdirSync(iconsDir, { recursive: true });
+        }
+
+        // Guardar archivo (reemplazará si ya existe)
+        const filepath = path.join(iconsDir, originalFilename);
+        const buffer = await data.toBuffer();
+        fs.writeFileSync(filepath, buffer);
+
+        // Retornar la ruta relativa que se usará en el frontend
+        const publicUrl = `/icons/waze/iconos_svg/${originalFilename}`;
+
+        fastify.log.info(
+          { url: publicUrl, filename: originalFilename },
+          "Icon uploaded/updated successfully",
+        );
+
+        reply.send({
+          success: true,
+          url: publicUrl,
+          filename: originalFilename,
+          message:
+            "Icon uploaded successfully. It will be available after page reload.",
+        });
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        const errorStack = error instanceof Error ? error.stack : undefined;
+
+        fastify.log.error(
+          {
+            error: errorMessage,
+            url: request.url,
+            stack: errorStack,
+          },
+          "Error uploading icon",
+        );
+        reply.code(500).send({
+          error: "Failed to upload icon",
+          message: errorMessage,
+        });
+      }
+    },
+  );
+}

@@ -4,30 +4,33 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 210 40% 98%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    /* Verde corporativo Caminos de las Sierras (#15803d = hsl(142, 65%, 30%)) */
-    --primary: 142 65% 30%;
+
+    /* Brand Colors - Caminos de las Sierras */
+    --brand-primary: 142 65% 30%; /* #15803d */
+    --brand-warning: 48 96% 53%; /* #facc15 */
+
+    /* Semantic Status Colors */
+    --status-fluid: 142 76% 36%;
+    --status-warning: 48 96% 53%; /* Same as brand for consistency */
+    --status-critical: 0 84.2% 60.2%;
+
+    /* Mapping to Tailwind/Shadcn Standard vars */
+    --primary: var(--brand-primary);
     --primary-foreground: 210 40% 98%;
-    --secondary: 142 50% 45%;
-    --secondary-foreground: 210 40% 98%;
-    --accent: 142 60% 40%;
-    --accent-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --success: 142 76% 36%;
-    --success-foreground: 210 40% 98%;
-    /* Amarillo corporativo Caminos de las Sierras (#facc15 = hsl(48, 96%, 53%)) */
-    --warning: 48 96% 53%;
-    --warning-foreground: 210 40% 98%;
-    --danger: 0 84.2% 60.2%;
-    --danger-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 142 65% 30%;
@@ -54,10 +57,6 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 48%;
-  }
-
-  * {
-    border-color: hsl(var(--border));
   }
 
   body {
@@ -117,6 +116,29 @@
   width: 0 !important;
   overflow: hidden !important;
   pointer-events: none !important;
+}
+
+/* Remove focus outline from Recharts SVG elements */
+.recharts-wrapper svg,
+.recharts-wrapper svg *,
+.recharts-surface,
+.recharts-layer,
+.recharts-sector,
+.recharts-text {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+.recharts-wrapper * {
+  outline: none !important;
+}
+
+/* Prevent text selection in charts */
+.recharts-wrapper {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 /* Ocultar mensajes de error de Google Maps */
@@ -223,15 +245,18 @@ div[style*="¿Eres el propietario de este sitio web?"] {
   border-radius: 1rem;
   padding: 2px;
   background: linear-gradient(135deg, #22c55e, #facc15);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
 }
 
-/* Smooth transitions */
-* {
-  transition-property: color, background-color, border-color,
-    text-decoration-color, fill, stroke;
+/* Performance optimization: Apply transitions only to interactive elements */
+.interactive-element {
+  transition-property:
+    color, background-color, border-color, text-decoration-color, fill, stroke,
+    opacity, transform, box-shadow;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
@@ -321,8 +346,9 @@ div[style*="¿Eres el propietario de este sitio web?"] {
 
 /* Asegurar visibilidad de emojis en marcadores */
 .waze-marker-icon {
-  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji",
-    "Android Emoji", "EmojiSymbols", sans-serif;
+  font-family:
+    "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji",
+    "EmojiSymbols", sans-serif;
 }
 
 /* Custom MapLibre Popups (Clean Dark Mode Support) */

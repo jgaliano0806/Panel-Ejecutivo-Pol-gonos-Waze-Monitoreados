@@ -3,275 +3,288 @@
  * Refactorizado para usar Patrón Strategy
  */
 
-import { dbService } from '../database/dbService';
-import { REAL_POLYGONS, getAllGroups } from '../config/realPolygons';
-import { repositories } from '../repositories';
+import { dbService } from "../database/dbService";
+import { logger } from "../utils/logger";
+import { REAL_POLYGONS, getAllGroups } from "../config/realPolygons";
+import { repositories } from "../repositories";
 import {
-    RiskFactorStrategy,
-    TrafficJamStrategy,
-    IncidentStrategy,
-    WeatherStrategy,
-    SpeedStrategy,
-    DelayStrategy,
-    RiskAnalysisData
-} from '../strategies';
-import { eventBus, SystemEvents } from '../events';
+  RiskFactorStrategy,
+  TrafficJamStrategy,
+  IncidentStrategy,
+  WeatherStrategy,
+  SpeedStrategy,
+  DelayStrategy,
+  RiskAnalysisData,
+} from "../strategies";
+import { eventBus, SystemEvents } from "../events";
 
 export interface RiskScore {
-    polygon_id: string;
-    polygon_name: string;
-    group_name: string;
-    calculated_at: Date;
+  polygon_id: string;
+  polygon_name: string;
+  group_name: string;
+  calculated_at: Date;
 
-    // Scores por factor
-    traffic_score: number;
-    incident_score: number;
-    weather_score: number;
-    speed_score: number;
-    delay_score: number;
+  // Scores por factor
+  traffic_score: number;
+  incident_score: number;
+  weather_score: number;
+  speed_score: number;
+  delay_score: number;
 
-    // Score final
-    final_risk_score: number;
-    risk_level: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL' | 'SEVERE';
-    risk_category: string;
-    alert_triggered: boolean;
+  // Score final
+  final_risk_score: number;
+  risk_level: "LOW" | "MODERATE" | "HIGH" | "CRITICAL" | "SEVERE";
+  risk_category: string;
+  alert_triggered: boolean;
 
-    // Datos descriptivos (raw data)
-    raw_data?: {
-        total_jams: number;
-        total_incidents: number;
-        avg_speed: number | null;
-        avg_delay: number;
-        conditions_summary: string;
-    };
+  // Datos descriptivos (raw data)
+  raw_data?: {
+    total_jams: number;
+    total_incidents: number;
+    avg_speed: number | null;
+    avg_delay: number;
+    conditions_summary: string;
+  };
 }
 
 export interface GroupRiskSummary {
-    group_name: string;
-    polygon_count: number;
-    avg_risk_score: number;
-    max_risk_score: number;
-    critical_polygons: number;
-    risk_distribution: {
-        low: number;
-        moderate: number;
-        high: number;
-        critical: number;
-        severe: number;
-    };
+  group_name: string;
+  polygon_count: number;
+  avg_risk_score: number;
+  max_risk_score: number;
+  critical_polygons: number;
+  risk_distribution: {
+    low: number;
+    moderate: number;
+    high: number;
+    critical: number;
+    severe: number;
+  };
 }
 
 class RiskScoringService {
-    private strategies: RiskFactorStrategy[] = [];
+  private strategies: RiskFactorStrategy[] = [];
 
-    constructor() {
-        // Inicializar estrategias
-        this.strategies = [
-            new TrafficJamStrategy(),
-            new IncidentStrategy(),
-            new WeatherStrategy(),
-            new SpeedStrategy(),
-            new DelayStrategy()
-        ];
+  constructor() {
+    // Inicializar estrategias
+    this.strategies = [
+      new TrafficJamStrategy(),
+      new IncidentStrategy(),
+      new WeatherStrategy(),
+      new SpeedStrategy(),
+      new DelayStrategy(),
+    ];
+  }
+
+  /**
+   * Calcula el score de riesgo para todos los polígonos
+   */
+  async calculateAllRiskScores(): Promise<void> {
+    logger.info("Iniciando cálculo de risk scores via Strategy Pattern...");
+
+    for (const polygon of REAL_POLYGONS) {
+      try {
+        await this.calculatePolygonRiskScore(polygon.id);
+      } catch (error) {
+        logger.error(`Error calculando score para ${polygon.id}: ${error}`);
+      }
     }
 
-    /**
-     * Calcula el score de riesgo para todos los polígonos
-     */
-    async calculateAllRiskScores(): Promise<void> {
-        console.log('Iniciando cálculo de risk scores via Strategy Pattern...');
+    // Refrescar vista materializada
+    await dbService.query("SELECT refresh_risk_scores_view()");
+    logger.info("Cálculo de risk scores completado");
+  }
 
-        for (const polygon of REAL_POLYGONS) {
-            try {
-                await this.calculatePolygonRiskScore(polygon.id);
-            } catch (error) {
-                console.error(`Error calculando score para ${polygon.id}:`, error);
-            }
-        }
-
-        // Refrescar vista materializada
-        await dbService.query('SELECT refresh_risk_scores_view()');
-        console.log('Cálculo de risk scores completado');
+  /**
+   * Calcula el score de riesgo para un polígono específico
+   */
+  async calculatePolygonRiskScore(polygonId: string): Promise<RiskScore> {
+    const polygon = REAL_POLYGONS.find((p) => p.id === polygonId);
+    if (!polygon) {
+      throw new Error(`Polígono ${polygonId} no encontrado`);
     }
 
-    /**
-     * Calcula el score de riesgo para un polígono específico
-     */
-    async calculatePolygonRiskScore(polygonId: string): Promise<RiskScore> {
-        const polygon = REAL_POLYGONS.find(p => p.id === polygonId);
-        if (!polygon) {
-            throw new Error(`Polígono ${polygonId} no encontrado`);
-        }
-
-        // Obtener snapshot más reciente
-        const snapshotResult = await dbService.query(
-            `SELECT * FROM polygon_snapshots
+    // Obtener snapshot más reciente
+    const snapshotResult = await dbService.query(
+      `SELECT * FROM polygon_snapshots
              WHERE polygon_id = $1
              ORDER BY timestamp DESC
              LIMIT 1`,
-            [polygonId]
-        );
-        const snapshot = snapshotResult.rows[0];
+      [polygonId],
+    );
+    const snapshot = snapshotResult.rows[0];
 
-        // Obtener clima
-        const weather = await repositories().weather.findLatestByPolygon(polygonId);
+    // Obtener clima
+    const weather = await repositories().weather.findLatestByPolygon(polygonId);
 
-        // Contexto de análisis
-        const context: RiskAnalysisData = {
-            snapshot: snapshot,
-            weather: weather,
-            polygonId: polygonId
-        };
+    // Contexto de análisis
+    const context: RiskAnalysisData = {
+      snapshot: snapshot,
+      weather: weather,
+      polygonId: polygonId,
+    };
 
-        // Calcular scores usando estrategias
-        const scores: Record<string, number> = {};
+    // Calcular scores usando estrategias
+    const scores: Record<string, number> = {};
 
-        for (const strategy of this.strategies) {
-            scores[strategy.name] = await strategy.calculate(context);
-        }
-
-        // Guardar resultado
-        return this.saveRiskScore(polygonId, polygon.name, polygon.group || 'Sin Grupo', scores, snapshot);
+    for (const strategy of this.strategies) {
+      scores[strategy.name] = await strategy.calculate(context);
     }
 
-    /**
-     * Genera resumen descriptivo de condiciones
-     */
-    private generateConditionsSummary(snapshot: any): string {
-        if (!snapshot) return 'Sin datos';
+    // Guardar resultado
+    return this.saveRiskScore(
+      polygonId,
+      polygon.name,
+      polygon.group || "Sin Grupo",
+      scores,
+      snapshot,
+    );
+  }
 
-        const parts: string[] = [];
+  /**
+   * Genera resumen descriptivo de condiciones
+   */
+  private generateConditionsSummary(snapshot: any): string {
+    if (!snapshot) return "Sin datos";
 
-        const jams = snapshot.total_jams || 0;
-        if (jams > 0) parts.push(`${jams} atasco${jams > 1 ? 's' : ''}`);
+    const parts: string[] = [];
 
-        const incidents = snapshot.total_incidents || 0;
-        if (incidents > 0) parts.push(`${incidents} incidente${incidents > 1 ? 's' : ''}`);
+    const jams = snapshot.total_jams || 0;
+    if (jams > 0) parts.push(`${jams} atasco${jams > 1 ? "s" : ""}`);
 
-        if (snapshot.avg_speed) {
-            const speed = Math.round(snapshot.avg_speed);
-            parts.push(`velocidad ${speed} km/h`);
-        }
+    const incidents = snapshot.total_incidents || 0;
+    if (incidents > 0)
+      parts.push(`${incidents} incidente${incidents > 1 ? "s" : ""}`);
 
-        const delayMin = Math.round((snapshot.avg_delay || 0) / 60);
-        if (delayMin > 0) parts.push(`${delayMin} min de demora`);
-
-        return parts.length > 0 ? parts.join(', ') : 'Sin incidencias';
+    if (snapshot.avg_speed) {
+      const speed = Math.round(snapshot.avg_speed);
+      parts.push(`velocidad ${speed} km/h`);
     }
 
-    /**
-     * Guarda el score calculado en la base de datos
-     */
-    private async saveRiskScore(
-        polygonId: string,
-        polygonName: string,
-        groupName: string,
-        strategyScores: Record<string, number>,
-        snapshot: any
-    ): Promise<RiskScore> {
-        // Calcular score final ponderado
-        let finalScore = 0;
+    const delayMin = Math.round((snapshot.avg_delay || 0) / 60);
+    if (delayMin > 0) parts.push(`${delayMin} min de demora`);
 
-        for (const strategy of this.strategies) {
-            finalScore += (strategyScores[strategy.name] || 0) * strategy.weight;
-        }
+    return parts.length > 0 ? parts.join(", ") : "Sin incidencias";
+  }
 
-        // Determinar nivel de riesgo
-        let riskLevel: RiskScore['risk_level'];
-        if (finalScore >= 81) riskLevel = 'SEVERE';
-        else if (finalScore >= 61) riskLevel = 'CRITICAL';
-        else if (finalScore >= 41) riskLevel = 'HIGH';
-        else if (finalScore >= 21) riskLevel = 'MODERATE';
-        else riskLevel = 'LOW';
+  /**
+   * Guarda el score calculado en la base de datos
+   */
+  private async saveRiskScore(
+    polygonId: string,
+    polygonName: string,
+    groupName: string,
+    strategyScores: Record<string, number>,
+    snapshot: any,
+  ): Promise<RiskScore> {
+    // Calcular score final ponderado
+    let finalScore = 0;
 
-        // Determinar categoría dominante
-        let maxScore = -1;
-        let maxStrategy = '';
-
-        for (const [name, score] of Object.entries(strategyScores)) {
-            if (score > maxScore) {
-                maxScore = score;
-                maxStrategy = name;
-            }
-        }
-
-        let category = 'normal';
-        if (maxStrategy === 'incidents' && maxScore > 50) category = 'incident_zone';
-        else if (maxStrategy === 'weather' && maxScore > 50) category = 'weather_hazard';
-        else if (maxStrategy === 'traffic' && maxScore > 50) category = 'traffic_congestion';
-        else if (finalScore > 60) category = 'mixed';
-
-        // Trigger de alerta
-        const alertTriggered = finalScore >= 61;
-
-        // Use defaults if scores missing
-        const trafficScore = strategyScores['traffic'] || 0;
-        const incidentScore = strategyScores['incidents'] || 0;
-        const weatherScore = strategyScores['weather'] || 0;
-        const speedScore = strategyScores['speed'] || 0;
-        const delayScore = strategyScores['delay'] || 0;
-
-        await repositories().riskScores.create({
-            polygon_id: polygonId,
-            polygon_name: polygonName,
-            group_name: groupName,
-            traffic_score: trafficScore,
-            incident_score: incidentScore,
-            weather_score: weatherScore,
-            speed_score: speedScore,
-            delay_score: delayScore,
-            final_risk_score: finalScore,
-            risk_level: riskLevel,
-            risk_category: category,
-            alert_triggered: alertTriggered
-        });
-
-        // EventBus notification
-        eventBus.emit(SystemEvents.RISK_SCORE_CALCULATED, {
-            polygonId,
-            score: finalScore,
-            level: riskLevel,
-            factors: strategyScores
-        });
-
-        const rawData = snapshot ? {
-            total_jams: snapshot.total_jams || 0,
-            total_incidents: snapshot.total_incidents || 0,
-            avg_speed: snapshot.avg_speed || null,
-            avg_delay: snapshot.avg_delay || 0,
-            conditions_summary: this.generateConditionsSummary(snapshot)
-        } : {
-            total_jams: 0,
-            total_incidents: 0,
-            avg_speed: null,
-            avg_delay: 0,
-            conditions_summary: 'Sin datos'
-        };
-
-        return {
-            polygon_id: polygonId,
-            polygon_name: polygonName,
-            group_name: groupName,
-            calculated_at: new Date(),
-            traffic_score: trafficScore,
-            incident_score: incidentScore,
-            weather_score: weatherScore,
-            speed_score: speedScore,
-            delay_score: delayScore,
-            final_risk_score: finalScore,
-            risk_level: riskLevel,
-            risk_category: category,
-            alert_triggered: alertTriggered,
-            raw_data: rawData
-        };
+    for (const strategy of this.strategies) {
+      finalScore += (strategyScores[strategy.name] || 0) * strategy.weight;
     }
 
-    /**
-     * Obtiene los últimos scores por grupo CON raw_data del snapshot actual
-     */
-    async getRiskScoresByGroup(groupName?: string): Promise<RiskScore[]> {
-        // Query que combina scores con datos del snapshot más reciente
-        let query = `
+    // Determinar nivel de riesgo
+    let riskLevel: RiskScore["risk_level"];
+    if (finalScore >= 81) riskLevel = "SEVERE";
+    else if (finalScore >= 61) riskLevel = "CRITICAL";
+    else if (finalScore >= 41) riskLevel = "HIGH";
+    else if (finalScore >= 21) riskLevel = "MODERATE";
+    else riskLevel = "LOW";
+
+    // Determinar categoría dominante
+    let maxScore = -1;
+    let maxStrategy = "";
+
+    for (const [name, score] of Object.entries(strategyScores)) {
+      if (score > maxScore) {
+        maxScore = score;
+        maxStrategy = name;
+      }
+    }
+
+    let category = "normal";
+    if (maxStrategy === "incidents" && maxScore > 50)
+      category = "incident_zone";
+    else if (maxStrategy === "weather" && maxScore > 50)
+      category = "weather_hazard";
+    else if (maxStrategy === "traffic" && maxScore > 50)
+      category = "traffic_congestion";
+    else if (finalScore > 60) category = "mixed";
+
+    // Trigger de alerta
+    const alertTriggered = finalScore >= 61;
+
+    // Use defaults if scores missing
+    const trafficScore = strategyScores["traffic"] || 0;
+    const incidentScore = strategyScores["incidents"] || 0;
+    const weatherScore = strategyScores["weather"] || 0;
+    const speedScore = strategyScores["speed"] || 0;
+    const delayScore = strategyScores["delay"] || 0;
+
+    await repositories().riskScores.create({
+      polygon_id: polygonId,
+      polygon_name: polygonName,
+      group_name: groupName,
+      traffic_score: trafficScore,
+      incident_score: incidentScore,
+      weather_score: weatherScore,
+      speed_score: speedScore,
+      delay_score: delayScore,
+      final_risk_score: finalScore,
+      risk_level: riskLevel,
+      risk_category: category,
+      alert_triggered: alertTriggered,
+    });
+
+    // EventBus notification
+    eventBus.emit(SystemEvents.RISK_SCORE_CALCULATED, {
+      polygonId,
+      score: finalScore,
+      level: riskLevel,
+      factors: strategyScores,
+    });
+
+    const rawData = snapshot
+      ? {
+          total_jams: snapshot.total_jams || 0,
+          total_incidents: snapshot.total_incidents || 0,
+          avg_speed: snapshot.avg_speed || null,
+          avg_delay: snapshot.avg_delay || 0,
+          conditions_summary: this.generateConditionsSummary(snapshot),
+        }
+      : {
+          total_jams: 0,
+          total_incidents: 0,
+          avg_speed: null,
+          avg_delay: 0,
+          conditions_summary: "Sin datos",
+        };
+
+    return {
+      polygon_id: polygonId,
+      polygon_name: polygonName,
+      group_name: groupName,
+      calculated_at: new Date(),
+      traffic_score: trafficScore,
+      incident_score: incidentScore,
+      weather_score: weatherScore,
+      speed_score: speedScore,
+      delay_score: delayScore,
+      final_risk_score: finalScore,
+      risk_level: riskLevel,
+      risk_category: category,
+      alert_triggered: alertTriggered,
+      raw_data: rawData,
+    };
+  }
+
+  /**
+   * Obtiene los últimos scores por grupo CON raw_data del snapshot actual
+   */
+  async getRiskScoresByGroup(groupName?: string): Promise<RiskScore[]> {
+    // Query que combina scores con datos del snapshot más reciente
+    let query = `
             SELECT
                 lrs.*,
                 ps.total_jams,
@@ -287,115 +300,118 @@ class RiskScoringService {
                 LIMIT 1
             ) ps ON true
         `;
-        const params: string[] = [];
+    const params: string[] = [];
 
-        if (groupName) {
-            query += ' WHERE lrs.group_name = $1';
-            params.push(groupName);
-        }
-
-        query += ' ORDER BY lrs.final_risk_score DESC';
-
-        const result = await dbService.query(query, params);
-        return result.rows.map(row => {
-            // Generar conditions_summary
-            const parts: string[] = [];
-            const jams = row.total_jams || 0;
-            if (jams > 0) parts.push(`${jams} atasco${jams > 1 ? 's' : ''}`);
-            const incidents = row.total_incidents || 0;
-            if (incidents > 0) parts.push(`${incidents} incidente${incidents > 1 ? 's' : ''}`);
-            if (row.avg_speed) parts.push(`${Math.round(row.avg_speed)} km/h`);
-            const delayMin = Math.round((row.avg_delay || 0) / 60);
-            if (delayMin > 0) parts.push(`${delayMin} min demora`);
-            const conditionsSummary = parts.length > 0 ? parts.join(', ') : 'Sin incidencias';
-
-            return {
-                polygon_id: row.polygon_id as string,
-                polygon_name: row.polygon_name as string,
-                group_name: row.group_name as string,
-                calculated_at: row.calculated_at as Date,
-                traffic_score: parseFloat(row.traffic_score as string),
-                incident_score: parseFloat(row.incident_score as string),
-                weather_score: parseFloat(row.weather_score as string),
-                speed_score: parseFloat(row.speed_score as string),
-                delay_score: parseFloat(row.delay_score as string),
-                final_risk_score: parseFloat(row.final_risk_score as string),
-                risk_level: row.risk_level as RiskScore['risk_level'],
-                risk_category: row.risk_category as string,
-                alert_triggered: row.alert_triggered as boolean,
-                raw_data: {
-                    total_jams: row.total_jams || 0,
-                    total_incidents: row.total_incidents || 0,
-                    avg_speed: row.avg_speed ? parseFloat(row.avg_speed) : null,
-                    avg_delay: row.avg_delay || 0,
-                    conditions_summary: conditionsSummary
-                }
-            };
-        });
+    if (groupName) {
+      query += " WHERE lrs.group_name = $1";
+      params.push(groupName);
     }
 
-    /**
-     * Obtiene resumen de riesgos por todos los grupos
-     */
-    async getGroupRiskSummaries(): Promise<GroupRiskSummary[]> {
-        const groups = getAllGroups();
-        const summaries: GroupRiskSummary[] = [];
+    query += " ORDER BY lrs.final_risk_score DESC";
 
-        for (const group of groups) {
-            const scores = await this.getRiskScoresByGroup(group);
+    const result = await dbService.query(query, params);
+    return result.rows.map((row) => {
+      // Generar conditions_summary
+      const parts: string[] = [];
+      const jams = row.total_jams || 0;
+      if (jams > 0) parts.push(`${jams} atasco${jams > 1 ? "s" : ""}`);
+      const incidents = row.total_incidents || 0;
+      if (incidents > 0)
+        parts.push(`${incidents} incidente${incidents > 1 ? "s" : ""}`);
+      if (row.avg_speed) parts.push(`${Math.round(row.avg_speed)} km/h`);
+      const delayMin = Math.round((row.avg_delay || 0) / 60);
+      if (delayMin > 0) parts.push(`${delayMin} min demora`);
+      const conditionsSummary =
+        parts.length > 0 ? parts.join(", ") : "Sin incidencias";
 
-            if (scores.length === 0) continue;
+      return {
+        polygon_id: row.polygon_id as string,
+        polygon_name: row.polygon_name as string,
+        group_name: row.group_name as string,
+        calculated_at: row.calculated_at as Date,
+        traffic_score: parseFloat(row.traffic_score as string),
+        incident_score: parseFloat(row.incident_score as string),
+        weather_score: parseFloat(row.weather_score as string),
+        speed_score: parseFloat(row.speed_score as string),
+        delay_score: parseFloat(row.delay_score as string),
+        final_risk_score: parseFloat(row.final_risk_score as string),
+        risk_level: row.risk_level as RiskScore["risk_level"],
+        risk_category: row.risk_category as string,
+        alert_triggered: row.alert_triggered as boolean,
+        raw_data: {
+          total_jams: row.total_jams || 0,
+          total_incidents: row.total_incidents || 0,
+          avg_speed: row.avg_speed ? parseFloat(row.avg_speed) : null,
+          avg_delay: row.avg_delay || 0,
+          conditions_summary: conditionsSummary,
+        },
+      };
+    });
+  }
 
-            const distribution = {
-                low: scores.filter(s => s.risk_level === 'LOW').length,
-                moderate: scores.filter(s => s.risk_level === 'MODERATE').length,
-                high: scores.filter(s => s.risk_level === 'HIGH').length,
-                critical: scores.filter(s => s.risk_level === 'CRITICAL').length,
-                severe: scores.filter(s => s.risk_level === 'SEVERE').length,
-            };
+  /**
+   * Obtiene resumen de riesgos por todos los grupos
+   */
+  async getGroupRiskSummaries(): Promise<GroupRiskSummary[]> {
+    const groups = getAllGroups();
+    const summaries: GroupRiskSummary[] = [];
 
-            summaries.push({
-                group_name: group,
-                polygon_count: scores.length,
-                avg_risk_score: scores.reduce((sum, s) => sum + s.final_risk_score, 0) / scores.length,
-                max_risk_score: Math.max(...scores.map(s => s.final_risk_score)),
-                critical_polygons: distribution.critical + distribution.severe,
-                risk_distribution: distribution
-            });
-        }
+    for (const group of groups) {
+      const scores = await this.getRiskScoresByGroup(group);
 
-        return summaries.sort((a, b) => b.avg_risk_score - a.avg_risk_score);
+      if (scores.length === 0) continue;
+
+      const distribution = {
+        low: scores.filter((s) => s.risk_level === "LOW").length,
+        moderate: scores.filter((s) => s.risk_level === "MODERATE").length,
+        high: scores.filter((s) => s.risk_level === "HIGH").length,
+        critical: scores.filter((s) => s.risk_level === "CRITICAL").length,
+        severe: scores.filter((s) => s.risk_level === "SEVERE").length,
+      };
+
+      summaries.push({
+        group_name: group,
+        polygon_count: scores.length,
+        avg_risk_score:
+          scores.reduce((sum, s) => sum + s.final_risk_score, 0) /
+          scores.length,
+        max_risk_score: Math.max(...scores.map((s) => s.final_risk_score)),
+        critical_polygons: distribution.critical + distribution.severe,
+        risk_distribution: distribution,
+      });
     }
 
-    /**
-     * Obtiene score de un polígono específico
-     */
-    async getPolygonRiskScore(polygonId: string): Promise<RiskScore | null> {
-        const result = await dbService.query(
-            'SELECT * FROM latest_polygon_risk_scores WHERE polygon_id = $1',
-            [polygonId]
-        );
+    return summaries.sort((a, b) => b.avg_risk_score - a.avg_risk_score);
+  }
 
-        if (result.rows.length === 0) return null;
+  /**
+   * Obtiene score de un polígono específico
+   */
+  async getPolygonRiskScore(polygonId: string): Promise<RiskScore | null> {
+    const result = await dbService.query(
+      "SELECT * FROM latest_polygon_risk_scores WHERE polygon_id = $1",
+      [polygonId],
+    );
 
-        const row = result.rows[0];
-        return {
-            polygon_id: row.polygon_id as string,
-            polygon_name: row.polygon_name as string,
-            group_name: row.group_name as string,
-            calculated_at: row.calculated_at as Date,
-            traffic_score: parseFloat(row.traffic_score as string),
-            incident_score: parseFloat(row.incident_score as string),
-            weather_score: parseFloat(row.weather_score as string),
-            speed_score: parseFloat(row.speed_score as string),
-            delay_score: parseFloat(row.delay_score as string),
-            final_risk_score: parseFloat(row.final_risk_score as string),
-            risk_level: row.risk_level as RiskScore['risk_level'],
-            risk_category: row.risk_category as string,
-            alert_triggered: row.alert_triggered as boolean
-        };
-    }
+    if (result.rows.length === 0) return null;
+
+    const row = result.rows[0];
+    return {
+      polygon_id: row.polygon_id as string,
+      polygon_name: row.polygon_name as string,
+      group_name: row.group_name as string,
+      calculated_at: row.calculated_at as Date,
+      traffic_score: parseFloat(row.traffic_score as string),
+      incident_score: parseFloat(row.incident_score as string),
+      weather_score: parseFloat(row.weather_score as string),
+      speed_score: parseFloat(row.speed_score as string),
+      delay_score: parseFloat(row.delay_score as string),
+      final_risk_score: parseFloat(row.final_risk_score as string),
+      risk_level: row.risk_level as RiskScore["risk_level"],
+      risk_category: row.risk_category as string,
+      alert_triggered: row.alert_triggered as boolean,
+    };
+  }
 }
 
 export const riskScoringService = new RiskScoringService();
-

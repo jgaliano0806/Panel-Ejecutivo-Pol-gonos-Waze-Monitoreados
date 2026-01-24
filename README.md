@@ -24,12 +24,15 @@ panel-waze-monorepo/
 ## 🚀 Inicio Rápido
 
 ### Prerrequisitos
+
 - Node.js 18+
 - npm 8+
 - PostgreSQL 16+
+- Redis (Memurai para Windows)
 - Docker & Docker Compose (opcional)
 
 ### Instalación
+
 ```bash
 # Instalar dependencias de todos los workspaces
 npm install
@@ -40,6 +43,7 @@ npm run db:seed
 ```
 
 ### Desarrollo
+
 ```bash
 # Desarrollo completo (frontend + backend)
 npm run dev:all
@@ -52,6 +56,7 @@ npm run dev:backend
 ```
 
 ### Producción
+
 ```bash
 # Build completo
 npm run build
@@ -63,6 +68,7 @@ npm run docker:compose:prod
 ## 📦 Workspaces
 
 ### Frontend (`apps/frontend`)
+
 - **Framework**: React 18 + TypeScript
 - **Build Tool**: Vite
 - **Styling**: Tailwind CSS
@@ -71,36 +77,56 @@ npm run docker:compose:prod
 - **UI**: Radix UI + Framer Motion
 
 ### Backend (`apps/backend`)
+
 - **Runtime**: Node.js + TypeScript
 - **Framework**: Fastify
 - **Database**: PostgreSQL + pg
 - **Validation**: Built-in Fastify validation
-- **Caching**: Redis (futuro)
+- **Caching**: Redis (Memurai en Windows)
 
 ### Paquetes Compartidos
 
 #### Types (`packages/types`)
+
 Definiciones TypeScript compartidas entre frontend y backend.
 
 #### Config (`packages/config`)
+
 Configuraciones centralizadas y constantes.
 
 #### Database (`packages/database`)
+
 Capa de abstracción de base de datos y migraciones.
 
 #### Shared (`packages/shared`)
+
 Utilidades, helpers y lógica de negocio compartida.
 
 ## 🗄️ Base de Datos
 
 ### Esquema Principal
+
 - **Usuarios y Roles**: Sistema de autenticación y permisos
 - **Catálogos**: Tipos y subtipos de incidentes
 - **Polígonos**: Configuración de áreas de monitoreo
-- **Incidentes**: Historial y datos en tiempo real
+- **Usuarios y Roles**: Sistema de autenticación y permisos
+- **Catálogos**: Tipos y subtipos de incidentes (Sincronizables con Waze)
+- **Polígonos**: Configuración de áreas de monitoreo
+- **Incidentes**:
+  - `waze_alerts` / `waze_jams`: Datos en tiempo real
+  - `incidents_history`: Histórico consolidado con IDs únicos y métricas
 - **Auditoría**: Logs de cambios y operaciones
 
+### Integración Waze
+
+El sistema consume el **Waze Traffic Feed (GeoRSS)**.
+
+- **Alertas**: Accidentes, peligros, clima (con iconos SVG oficiales).
+- **Jams**: Congestión vehicular con polígonos de tráfico.
+- **Catálogos**: Gestión centralizada de tipos de incidentes (`/api/catalogs`).
+
 ### Migraciones
+
 ```bash
 # Ejecutar migraciones
 npm run db:migrate
@@ -112,6 +138,7 @@ npm run db:migrate
 ## 🔧 Desarrollo
 
 ### Scripts Disponibles
+
 ```bash
 # Desarrollo
 npm run dev:all          # Frontend + Backend
@@ -137,6 +164,7 @@ npm run docker:compose:prod  # Producción con Docker
 ```
 
 ### Estructura de Commits
+
 ```
 feat: nueva funcionalidad
 fix: corrección de bug
@@ -150,6 +178,7 @@ chore: tareas de mantenimiento
 ## 🚀 Deployment
 
 ### Docker
+
 ```bash
 # Desarrollo
 docker-compose --profile dev up
@@ -159,6 +188,7 @@ docker-compose --profile prod up -d
 ```
 
 ### Variables de Entorno
+
 ```bash
 # Frontend (.env)
 VITE_API_URL=http://localhost:3001
@@ -171,16 +201,20 @@ DB_HOST=localhost
 DB_NAME=panel_waze
 DB_USER=postgres
 DB_PASSWORD=your_password
+REDIS_HOST=localhost
+REDIS_PORT=6379
 ```
 
 ## 📊 Monitoreo
 
 ### Health Checks
+
 - `/health` - Estado general del sistema
 - `/health/live` - Liveness probe
 - `/health/ready` - Readiness probe
 
 ### Métricas
+
 - **Performance**: Response times, throughput
 - **Errors**: Error rates, stack traces
 - **Database**: Connection pools, query performance
@@ -198,6 +232,7 @@ DB_PASSWORD=your_password
 
 - [Arquitectura](./docs/ARCHITECTURE.md)
 - [API](./docs/API.md)
+- [Catálogos](./docs/CATALOGOS_INCIDENTES.md)
 - [Deployment](./docs/DEPLOYMENT.md)
 - [Contribución](./docs/CONTRIBUTING.md)
 
@@ -215,4 +250,4 @@ Este proyecto es propiedad de **CASISA - Caminos de las Sierras**.
 
 ---
 
-**Desarrollado con ❤️ por el equipo de CASISA**
+**Desarrollado por el equipo de GED**

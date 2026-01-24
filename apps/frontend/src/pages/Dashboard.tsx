@@ -18,41 +18,48 @@ import {
   type ViewType,
 } from "../components/layout/modern-navigation";
 import { AppSidebar } from "../components/layout/AppSidebar";
-import Filters from "../components/Filters";
-import Footer from "../components/Footer";
-import PolygonDetail from "../components/PolygonDetail";
-import { BlockingIncidents } from "../components/BlockingIncidents";
-import { AlertsBadge } from "../components/AlertsBadge";
-import { WazeOMeter } from "../components/WazeOMeter";
+import Filters from "../components/common/Filters";
+import Footer from "../components/layout/Footer";
+import PolygonDetail from "../components/dashboard/PolygonDetail";
+import { EventsDashboard } from "../components/alerts/EventsDashboard";
+import { BlockingIncidents } from "../components/alerts/BlockingIncidents";
+import { AlertsBadge } from "../components/alerts/AlertsBadge";
+import { WazeOMeter } from "../components/dashboard/WazeOMeter";
 import { useHistoricalData, useTrends } from "../hooks/useWazeData";
-import { Map } from "../components/Map";
+import { Map } from "../components/map/Map";
+import { GlobalNotifications } from "../components/notifications/GlobalNotifications";
+import { useRealtimeNotifications } from "@/hooks/useRealtimeNotifications";
 
 // Lazy loading (otros componentes)
 // const Map = lazy(() => import("../components/Map")); // REMOVIDO - causaba conflictos con Suspense
 const TrendsChart = lazy(() =>
-  import("../components/TrendsChart").then((m) => ({ default: m.TrendsChart }))
+  import("../components/dashboard/TrendsChart").then((m) => ({
+    default: m.TrendsChart,
+  })),
 );
 const GroupTrafficComparison = lazy(() =>
-  import("../components/GroupTrafficComparison").then((m) => ({
+  import("../components/dashboard/GroupTrafficComparison").then((m) => ({
     default: m.GroupTrafficComparison,
-  }))
+  })),
 );
-const AdminPanel = lazy(() => import("../components/AdminPanel"));
-const PolygonManagement = lazy(() => import("../components/PolygonManagement"));
+const AdminPanel = lazy(() => import("../components/admin/AdminPanel"));
+const PolygonManagement = lazy(
+  () => import("../components/admin/PolygonManagement"),
+);
 const ModernExecutiveSummary = lazy(() =>
   import("../components/dashboard/modern-executive-summary").then((m) => ({
     default: m.ModernExecutiveSummary,
-  }))
+  })),
 );
 const TopCriticalDashboard = lazy(() =>
-  import("../components/TopCriticalDashboard").then((m) => ({
+  import("../components/dashboard/TopCriticalDashboard").then((m) => ({
     default: m.TopCriticalDashboard,
-  }))
+  })),
 );
 const WeatherAlertsPanel = lazy(() =>
   import("../components/weather/WeatherAlertsPanel").then((m) => ({
     default: m.WeatherAlertsPanel,
-  }))
+  })),
 );
 
 // Fallback de carga con soporte Dark Mode estilo Veltrix
@@ -89,38 +96,70 @@ const Dashboard: React.FC = () => {
   } = useWazeData();
   const historicalData = useHistoricalData(24);
   useTrends();
+  useRealtimeNotifications(); // Ensure audio notifications work globally in Dashboard
   const [selectedPolygon, setSelectedPolygon] = useState<string | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
-  const [currentView, setCurrentView] = useState<ViewType>("home");
-  const [singlePolygonMode, setSinglePolygonMode] = useState(false);
 
+  // Inicializar vista basada en la ruta actual para evitar renderizados innecesarios de 'home'
+  const [currentView, setCurrentView] = useState<ViewType>(() => {
+    const path = window.location.pathname;
+    if (path === "/mapa") return "map";
+    if (path === "/alertas") return "events";
+    if (path === "/admin") return "admin";
+    return "home";
+  });
+
+  const [singlePolygonMode, setSinglePolygonMode] = useState(false);
+  const [focusIncidentId, setFocusIncidentId] = useState<string | null>(null);
+  const [focusIncidentData, setFocusIncidentData] = useState<any | null>(null);
+
+  // Sincronizar vista con cambios de ruta (ej: botones de atrás/adelante del navegador)
   useEffect(() => {
-    React.startTransition(() => {
-      if (location.pathname === "/" || location.pathname === "/dashboard") {
-        setCurrentView("home");
-      } else if (location.pathname === "/mapa") {
-        setCurrentView("map");
-      } else if (location.pathname === "/alertas") {
-        setCurrentView("events");
-      } else if (location.pathname === "/admin") {
-        setCurrentView("admin");
-      }
-    });
-  }, [location.pathname]);
+    const path = location.pathname;
+    let newView: ViewType = "home";
+    if (path === "/mapa") newView = "map";
+    else if (path === "/alertas") newView = "events";
+    else if (path === "/admin") newView = "admin";
+
+    if (newView !== currentView) {
+      React.startTransition(() => {
+        setCurrentView(newView);
+      });
+    }
+  }, [location.pathname, currentView]);
 
   useEffect(() => {
     const state = location.state as {
       selectedPolygonId?: string;
+      focusEventId?: string;
+      forcedIncident?: any;
       filterType?: string;
     } | null;
-    if (state?.selectedPolygonId) {
+
+    if (state) {
+      console.log("🔍 Dashboard received state:", state);
       React.startTransition(() => {
-        setSelectedPolygon(state.selectedPolygonId ?? null);
-        setSelectedGroup(null);
-        setSinglePolygonMode(true);
-        setCurrentView("map");
+        if (state.selectedPolygonId) {
+          console.log("✅ Setting selectedPolygon:", state.selectedPolygonId);
+          setSelectedPolygon(state.selectedPolygonId ?? null);
+          setSelectedGroup(null);
+          setSinglePolygonMode(true);
+        }
+        if (state.focusEventId) {
+          console.log("✅ Setting focusEventId:", state.focusEventId);
+          setFocusIncidentId(state.focusEventId);
+        }
+        if (state.forcedIncident) {
+          console.log("✅ Setting forcedIncident data");
+          setFocusIncidentData(state.forcedIncident);
+        }
+        // Asegurar que vamos al mapa si hay intención de enfocar
+        if (state.selectedPolygonId || state.focusEventId) {
+          setCurrentView("map");
+        }
       });
-      window.history.replaceState({}, document.title);
+      // Limpiamos el state para no re-ejecutar en recargas, pero cuidado con borrar el history stack
+      // window.history.replaceState({}, document.title);
     }
   }, [location.state]);
 
@@ -163,7 +202,7 @@ const Dashboard: React.FC = () => {
         }
       });
     },
-    [singlePolygonMode]
+    [singlePolygonMode],
   );
 
   const handleGroupChange = useCallback((group: string | null) => {
@@ -226,7 +265,7 @@ const Dashboard: React.FC = () => {
 
   const criticalPolygonsCount = useMemo(() => {
     return polygons.filter(
-      (p) => p.trafficMetrics && p.trafficMetrics.congestionIndex >= 60
+      (p) => p.trafficMetrics && p.trafficMetrics.congestionIndex >= 60,
     ).length;
   }, [polygons]);
 
@@ -353,16 +392,24 @@ const Dashboard: React.FC = () => {
               }`}
             >
               <div
-                className={selectedPolygonData ? "lg:col-span-7" : "col-span-1"}
+                className={`relative ${
+                  selectedPolygonData ? "lg:col-span-7" : "col-span-1"
+                }`}
               >
-                <Map
-                  polygons={filteredPolygons}
-                  incidents={incidents}
-                  jams={jams}
-                  selectedPolygon={selectedPolygon}
-                  selectedGroup={selectedGroup}
-                  onPolygonClick={handlePolygonChange}
-                />
+                <Suspense
+                  fallback={<LoadingFallback message="Cargando mapa base..." />}
+                >
+                  <Map
+                    polygons={filteredPolygons}
+                    incidents={incidents}
+                    jams={jams}
+                    selectedPolygon={selectedPolygon}
+                    selectedGroup={selectedGroup}
+                    selectedIncidentId={focusIncidentId}
+                    forcedIncident={focusIncidentData}
+                    onPolygonClick={handlePolygonChange}
+                  />
+                </Suspense>
               </div>
 
               {selectedPolygonData && (
@@ -379,14 +426,18 @@ const Dashboard: React.FC = () => {
               )}
             </div>
 
-            <GroupTrafficComparison polygons={polygons} groups={allGroups} />
+            <Suspense
+              fallback={<LoadingFallback message="Cargando comparativa..." />}
+            >
+              <GroupTrafficComparison polygons={polygons} groups={allGroups} />
+            </Suspense>
           </div>
         );
 
       case "events":
         return (
           <div className="space-y-4">
-            <BlockingIncidents />
+            <EventsDashboard />
           </div>
         );
 
@@ -450,9 +501,7 @@ const Dashboard: React.FC = () => {
               }}
             />
           </div>
-
           <ModernHeader lastUpdate={lastUpdate} onRefresh={handleRefreshAll} />
-
           <main className="relative w-full px-6 py-6">
             {alertStats &&
               alertStats.bySeverity.critical > 0 &&
@@ -478,7 +527,7 @@ const Dashboard: React.FC = () => {
               {renderContent()}
             </motion.div>
           </main>
-
+          <GlobalNotifications className="fixed bottom-6 right-6 w-auto max-w-sm z-50" />
           <Footer />
           <LazyWrapper>
             <WeatherAlertsPanel />

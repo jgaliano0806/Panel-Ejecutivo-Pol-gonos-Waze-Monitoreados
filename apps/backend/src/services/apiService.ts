@@ -1,4 +1,5 @@
 import { repositories } from "../repositories";
+import { logger } from "../utils/logger";
 import { PolygonStatus, Severity, PolygonTrafficMetrics } from "../types";
 import { WazeAlert } from "../repositories/WazeAlertRepository";
 import { WazeJam } from "../repositories/WazeJamRepository";
@@ -13,20 +14,20 @@ export class ApiService {
    */
   async getPolygonsStatus(): Promise<PolygonStatus[]> {
     try {
-      console.log("🔍 getPolygonsStatus: Iniciando...");
+      logger.info("🔍 getPolygonsStatus: Iniciando...");
       const polygons = await repositories().polygons.findAll();
-      console.log(
-        `🔍 getPolygonsStatus: ${polygons.length} polígonos encontrados`
+      logger.info(
+        `🔍 getPolygonsStatus: ${polygons.length} polígonos encontrados`,
       );
 
       const alerts = await repositories().wazeAlerts.findAllActive();
-      console.log(
-        `🔍 getPolygonsStatus: ${alerts.length} alertas activas encontradas`
+      logger.info(
+        `🔍 getPolygonsStatus: ${alerts.length} alertas activas encontradas`,
       );
 
       const jams = await repositories().wazeJams.findAllActive();
-      console.log(
-        `🔍 getPolygonsStatus: ${jams.length} jams activos encontrados`
+      logger.info(
+        `🔍 getPolygonsStatus: ${jams.length} jams activos encontrados`,
       );
 
       const lastUpdate = new Date();
@@ -138,7 +139,7 @@ export class ApiService {
         };
       });
     } catch (error) {
-      console.error("Error en getPolygonsStatus:", error);
+      logger.error(`Error en getPolygonsStatus: ${error}`);
       return [];
     }
   }
@@ -173,13 +174,13 @@ export class ApiService {
         },
       };
     } catch (error) {
-      console.error("Error en getPolygonDetail:", error);
+      logger.error(`Error en getPolygonDetail: ${error}`);
       return null;
     }
   }
 
   async getGlobalKPIs() {
-    console.log("🔍 getGlobalKPIs: Iniciando...");
+    logger.info("🔍 getGlobalKPIs: Iniciando...");
 
     // Variables con valores por defecto
     let polygons: PolygonStatus[] = [];
@@ -190,27 +191,27 @@ export class ApiService {
     // 1. Obtener polígonos (con manejo defensivo)
     try {
       polygons = await this.getPolygonsStatus();
-      console.log(`🔍 getGlobalKPIs: ${polygons.length} polígonos obtenidos`);
+      logger.info(`🔍 getGlobalKPIs: ${polygons.length} polígonos obtenidos`);
     } catch (error) {
-      console.error("❌ getGlobalKPIs: Error obteniendo polígonos:", error);
+      logger.error(`❌ getGlobalKPIs: Error obteniendo polígonos: ${error}`);
     }
 
     // 2. Obtener alertas (con manejo defensivo)
     try {
       alerts = await repositories().wazeAlerts.findAllActive();
-      console.log(
-        `🔍 getGlobalKPIs: ${alerts.length} alertas activas obtenidas`
+      logger.info(
+        `🔍 getGlobalKPIs: ${alerts.length} alertas activas obtenidas`,
       );
     } catch (error) {
-      console.error("❌ getGlobalKPIs: Error obteniendo alertas:", error);
+      logger.error(`❌ getGlobalKPIs: Error obteniendo alertas: ${error}`);
     }
 
     // 3. Obtener jams (con manejo defensivo)
     try {
       jams = await repositories().wazeJams.findAllActive();
-      console.log(`🔍 getGlobalKPIs: ${jams.length} jams activos obtenidos`);
+      logger.info(`🔍 getGlobalKPIs: ${jams.length} jams activos obtenidos`);
     } catch (error) {
-      console.error("❌ getGlobalKPIs: Error obteniendo jams:", error);
+      logger.error(`❌ getGlobalKPIs: Error obteniendo jams: ${error}`);
     }
 
     // 4. Calcular estadísticas de siniestros (BASADO EN WAZE ALERTS REAL-TIME)
@@ -229,7 +230,7 @@ export class ApiService {
     const racPolygonIds = new Set(
       polygons
         .filter((p: any) => RAC_GROUPS.includes(p.group || ""))
-        .map((p: any) => p.id)
+        .map((p: any) => p.id),
     );
 
     // Contar alertas de tipo ACCIDENTE dentro de la RAC
@@ -261,8 +262,8 @@ export class ApiService {
       }
     }
 
-    console.log(
-      `🔍 getGlobalKPIs: Calculado ${racAccidentsTotal} accidentes RAC en vivo (Críticos: ${racAccidentsCritical})`
+    logger.info(
+      `🔍 getGlobalKPIs: Calculado ${racAccidentsTotal} accidentes RAC en vivo (Críticos: ${racAccidentsCritical})`,
     );
 
     // Calcular métricas
@@ -273,28 +274,28 @@ export class ApiService {
       totalPolygons > 0 ? Math.round((fluidPolygons / totalPolygons) * 100) : 0;
 
     const activeConstructions = alerts.filter(
-      (a) => a.type === "CONSTRUCTION" || a.type === "ROAD_CLOSED"
+      (a) => a.type === "CONSTRUCTION" || a.type === "ROAD_CLOSED",
     ).length;
     const totalJams = jams.length;
 
     // Estadísticas por grupo
     const groups = Array.from(
-      new Set(polygons.map((p: any) => p.group || "Sin Grupo"))
+      new Set(polygons.map((p: any) => p.group || "Sin Grupo")),
     ).sort();
     const groupStats = groups.map((groupName) => {
       const groupPolygons = polygons.filter(
-        (p: any) => (p.group || "Sin Grupo") === groupName
+        (p: any) => (p.group || "Sin Grupo") === groupName,
       );
       const groupAlerts = groupPolygons.reduce(
         (sum: number, p: any) => sum + (p.metrics?.alertCount || 0),
-        0
+        0,
       );
       const groupJams = groupPolygons.reduce(
         (sum: number, p: any) => sum + (p.metrics?.jamCount || 0),
-        0
+        0,
       );
       const criticalInGroup = groupPolygons.filter(
-        (p: any) => p.state === "high"
+        (p: any) => p.state === "high",
       ).length;
 
       return {
@@ -349,7 +350,7 @@ export class ApiService {
 
         if (pastIncidents > 0) {
           incidentsChange = Math.round(
-            ((currentIncidents - pastIncidents) / pastIncidents) * 100
+            ((currentIncidents - pastIncidents) / pastIncidents) * 100,
           );
         } else if (currentIncidents > 0) {
           incidentsChange = 100; // 0 -> N is 100% (or infinite) increase
@@ -372,14 +373,14 @@ export class ApiService {
           active_jams: jams.length, // totalJams
           timestamp: new Date(),
         });
-        console.log("📸 KPI Snapshot saved");
+        logger.info("📸 KPI Snapshot saved");
       }
     } catch (error) {
-      console.error("❌ Error managing KPI snapshots:", error);
+      logger.error(`❌ Error managing KPI snapshots: ${error}`);
     }
 
-    console.log(
-      `🔍 getGlobalKPIs: Completado - fluidity=${fluidityPercentage}%, trend=${fluidityChange}%, alerts=${alerts.length}, jams=${jams.length}`
+    logger.info(
+      `🔍 getGlobalKPIs: Completado - fluidity=${fluidityPercentage}%, trend=${fluidityChange}%, alerts=${alerts.length}, jams=${jams.length}`,
     );
 
     return {
@@ -405,12 +406,11 @@ export class ApiService {
    * Obtiene métricas de tráfico para un polígono
    */
   async getTrafficMetricsByPolygon(
-    polygonId: string
+    polygonId: string,
   ): Promise<PolygonTrafficMetrics | null> {
     try {
-      const polygonJams = await repositories().wazeJams.findActiveByPolygon(
-        polygonId
-      );
+      const polygonJams =
+        await repositories().wazeJams.findActiveByPolygon(polygonId);
 
       if (polygonJams.length === 0) {
         return {
@@ -452,8 +452,8 @@ export class ApiService {
         0,
         Math.min(
           100,
-          Math.round(((freeFlowSpeed - avgSpeed) / freeFlowSpeed) * 100)
-        )
+          Math.round(((freeFlowSpeed - avgSpeed) / freeFlowSpeed) * 100),
+        ),
       );
 
       return {
@@ -470,7 +470,7 @@ export class ApiService {
         lastUpdate: new Date(),
       };
     } catch (error) {
-      console.error("Error en getTrafficMetricsByPolygon:", error);
+      logger.error(`Error en getTrafficMetricsByPolygon: ${error}`);
       return null;
     }
   }
@@ -540,8 +540,8 @@ export class ApiService {
           0,
           Math.min(
             100,
-            Math.round(((freeFlowSpeed - avgSpeed) / freeFlowSpeed) * 100)
-          )
+            Math.round(((freeFlowSpeed - avgSpeed) / freeFlowSpeed) * 100),
+          ),
         );
 
         metrics.push({
@@ -561,7 +561,7 @@ export class ApiService {
 
       return metrics.sort((a, b) => b.congestionIndex - a.congestionIndex);
     } catch (error) {
-      console.error("Error en getAllTrafficMetrics:", error);
+      logger.error(`Error en getAllTrafficMetrics: ${error}`);
       return [];
     }
   }

@@ -10,12 +10,12 @@ export class IncidentsHistoryListener {
   private setupListeners(): void {
     eventBus.on(
       SystemEvents.WAZE_POLL_COMPLETE,
-      this.handleWazePollComplete.bind(this)
+      this.handleWazePollComplete.bind(this),
     );
   }
 
   private async handleWazePollComplete(
-    payload: WazePollCompletePayload
+    payload: WazePollCompletePayload,
   ): Promise<void> {
     try {
       const { alerts, jams } = payload;
@@ -23,9 +23,13 @@ export class IncidentsHistoryListener {
 
       // Procesar alertas
       for (const alert of alerts) {
+        // Generar ID si no existe usando timestamp + coordenadas
+        const alertId =
+          alert.id ||
+          `alert_${Date.now()}_${alert.location?.lng?.toFixed(4) || 0}_${alert.location?.lat?.toFixed(4) || 0}_${Math.random().toString(36).substring(7)}`;
         try {
           await incidentsHistoryService.saveIncident({
-            incident_id: alert.id,
+            incident_id: alertId,
             polygon_id: alert.polygonId || "UNKNOWN",
             polygon_name: alert.polygonName,
             type: alert.type,
@@ -54,9 +58,13 @@ export class IncidentsHistoryListener {
 
       // Procesar jams (congestiones)
       for (const jam of jams) {
+        // Generar ID si no existe usando timestamp + coordenadas
+        const jamId =
+          jam.id ||
+          `jam_${Date.now()}_${jam.line?.[0]?.x?.toFixed(4) || 0}_${jam.line?.[0]?.y?.toFixed(4) || 0}_${Math.random().toString(36).substring(7)}`;
         try {
           await incidentsHistoryService.saveIncident({
-            incident_id: jam.id,
+            incident_id: jamId,
             polygon_id: jam.polygonId || "UNKNOWN",
             polygon_name: jam.polygonName,
             type: "JAM",
@@ -86,7 +94,7 @@ export class IncidentsHistoryListener {
 
       if (alerts.length > 0 || jams.length > 0) {
         console.log(
-          `📊 Saved to history: ${alerts.length} alerts + ${jams.length} jams`
+          `📊 Saved to history: ${alerts.length} alerts + ${jams.length} jams`,
         );
       }
     } catch (error) {

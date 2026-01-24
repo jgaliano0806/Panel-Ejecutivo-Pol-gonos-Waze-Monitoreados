@@ -27,7 +27,7 @@ import { VirtualizedList } from "../components/ui/VirtualizedList";
 
 export const RoadAccidentsPage: React.FC = () => {
   const [selectedAccidentId, setSelectedAccidentId] = useState<string | null>(
-    null
+    null,
   );
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploadFiles, setUploadFiles] = useState<FileList | null>(null);
@@ -51,7 +51,7 @@ export const RoadAccidentsPage: React.FC = () => {
 
     const confirmed = window.confirm(
       "¿Deseas obtener datos climáticos históricos para todos los accidentes sin información meteorológica?\n\n" +
-        "Esto puede tardar varios minutos dependiendo de la cantidad de registros."
+        "Esto puede tardar varios minutos dependiendo de la cantidad de registros.",
     );
 
     if (!confirmed) return;
@@ -61,7 +61,7 @@ export const RoadAccidentsPage: React.FC = () => {
     setBackfillStats(null);
 
     try {
-      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
 
       // Simular progreso mientras se procesa
       const progressInterval = setInterval(() => {
@@ -75,7 +75,7 @@ export const RoadAccidentsPage: React.FC = () => {
         `${API_URL}/api/accidents/backfill-weather`,
         {
           method: "POST",
-        }
+        },
       );
 
       clearInterval(progressInterval);
@@ -100,14 +100,14 @@ export const RoadAccidentsPage: React.FC = () => {
             `Elegibles (últimos 92 días): ${result.eligible}\n` +
             `Procesados: ${result.processed}\n` +
             `Exitosos: ${result.successful}\n` +
-            `Fallidos: ${result.failed}`
+            `Fallidos: ${result.failed}`,
         );
         // Refrescar lista
         window.location.reload();
       } else {
         const error = await response.json();
         alert(
-          `❌ Error: ${error.message || "No se pudo completar el proceso"}`
+          `❌ Error: ${error.message || "No se pudo completar el proceso"}`,
         );
       }
     } catch (error) {
@@ -144,7 +144,7 @@ export const RoadAccidentsPage: React.FC = () => {
     return "bg-blue-500";
   };
 
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
 
   return (
     <div className="flex h-[calc(100vh-200px)] bg-gray-50 dark:bg-veltrix-bg transition-colors">
@@ -199,7 +199,7 @@ export const RoadAccidentsPage: React.FC = () => {
                   <div className="flex justify-between items-start mb-1">
                     <span
                       className={`px-2 py-0.5 rounded text-[10px] font-bold text-white uppercase ${getSeverityColor(
-                        acc.severity
+                        acc.severity,
                       )}`}
                     >
                       {acc.subtype || acc.type}
@@ -262,7 +262,7 @@ export const RoadAccidentsPage: React.FC = () => {
                     </h2>
                     <span
                       className={`px-3 py-1 rounded-full text-sm font-bold text-white ${getSeverityColor(
-                        accident.severity
+                        accident.severity,
                       )}`}
                     >
                       Nivel {accident.severity || "?"}
@@ -295,6 +295,8 @@ export const RoadAccidentsPage: React.FC = () => {
                         lat: accident.location_lat,
                         lng: accident.location_lng,
                         id: accident.id,
+                        type: accident.type || "ACCIDENT",
+                        subtype: accident.subtype,
                         color: "#ef4444", // red-500
                         popup: (
                           <div>

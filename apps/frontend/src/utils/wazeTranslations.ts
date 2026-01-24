@@ -175,9 +175,21 @@ export const JAM_LEVEL_TRANSLATIONS: Record<string, string> = {
   "0": "Flujo libre",
   "1": "Tránsito fluido",
   "2": "Tránsito lento",
-  "3": "Demora importante",
-  "4": "Muy demorado",
-  "5": "Detenido",
+  "3": "Demora moderada",
+  "4": "Congestionado",
+  "5": "Tránsito detenido (Bloqueo)",
+};
+
+/**
+ * Descripciones operativas basadas en documentación oficial de Waze Partners
+ */
+export const JAM_LEVEL_DESCRIPTIONS: Record<string, string> = {
+  "0": "Circulación a velocidad nominal de la vía.",
+  "1": "Tránsito con leves reducciones de velocidad.",
+  "2": "Demoras menores detectadas en el tramo.",
+  "3": "Velocidad reducida significativamente.",
+  "4": "Congestión severa, avance a paso de hombre.",
+  "5": "Bloqueo total del flujo vehicular.",
 };
 
 export const IRREGULARITY_TYPE_TRANSLATIONS: Record<string, string> = {

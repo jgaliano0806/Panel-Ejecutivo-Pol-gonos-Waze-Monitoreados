@@ -22,8 +22,9 @@ import {
   Car,
   ArrowRight,
 } from "lucide-react";
-import { EventsListModal } from "../EventsListModal";
+import { EventsListModal } from "../alerts/EventsListModal";
 import { NETWORK_CONFIG } from "../../config/constants";
+import { StatCard } from "../common/StatCard";
 
 const RAC_GROUPS = NETWORK_CONFIG.racGroups;
 
@@ -54,7 +55,7 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(
     const navigate = useNavigate();
     const [showEventsModal, setShowEventsModal] = useState(false);
     const [modalFilter, setModalFilter] = useState<"all" | "rac-accidents">(
-      "all"
+      "all",
     );
     const [hoveredCard, setHoveredCard] = useState<number | null>(null);
 
@@ -65,24 +66,24 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(
           onEventSelect(event as Incident);
         }
       },
-      [onEventSelect]
+      [onEventSelect],
     );
 
     const totalEvents = useMemo(
       () => incidents.length + alerts.length,
-      [incidents.length, alerts.length]
+      [incidents.length, alerts.length],
     );
     const criticalIncidents = useMemo(
       () => incidents.filter((i) => i.severity >= 4).length,
-      [incidents]
+      [incidents],
     );
     const criticalAlerts = useMemo(
       () => alerts.filter((a) => a.severity === "critical").length,
-      [alerts]
+      [alerts],
     );
     const totalCritical = useMemo(
       () => criticalIncidents + criticalAlerts,
-      [criticalIncidents, criticalAlerts]
+      [criticalIncidents, criticalAlerts],
     );
 
     const racAccidents = useMemo(() => {
@@ -93,7 +94,7 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(
         (i) =>
           i.type === IncidentType.ACCIDENT &&
           i.polygonId &&
-          racPolygonIds.includes(i.polygonId)
+          racPolygonIds.includes(i.polygonId),
       );
     }, [incidents, polygons]);
 
@@ -106,7 +107,7 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(
           totalPolygons - criticalPolygons
         }/${totalPolygons} polígonos fluidos`,
         icon: Target,
-        color: "#556ee6", // Veltrix Primary Blue
+        status: "primary",
         trend: kpis.trends?.fluidityChange || 0,
         isClickable: false,
       },
@@ -119,7 +120,7 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(
             ? `${totalCritical} críticos activos`
             : "Sistema nominal",
         icon: AlertTriangle,
-        color: totalCritical > 0 ? "#f46a6a" : "#556ee6", // Red if critical, else Blue
+        status: totalCritical > 0 ? "critical" : "primary",
         trend: kpis.trends?.incidentsChange || 0,
         isClickable: true,
         pulse: totalCritical > 0,
@@ -130,7 +131,7 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(
         value: kpis.roadAccidents || 0,
         subtext: `${kpis.roadAccidentsCritical || 0} críticos`,
         icon: Car,
-        color: (kpis.roadAccidentsCritical || 0) > 0 ? "#f1b44c" : "#556ee6", // Yellow/Blue
+        status: (kpis.roadAccidentsCritical || 0) > 0 ? "warning" : "primary",
         trend: 0,
         isClickable: true,
         pulse: (kpis.roadAccidentsCritical || 0) > 0,
@@ -141,7 +142,7 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(
         value: criticalPolygons,
         subtext: "Tramos con scoring alto",
         icon: MapPin,
-        color: "#556ee6",
+        status: "primary",
         trend: 0,
         isClickable: true,
       },
@@ -179,95 +180,33 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(
                 : metric.isClickable && hasEvents;
 
             return (
-              <motion.div
+              <div
                 key={metric.id}
-                variants={item}
-                whileHover={
-                  isClickable
-                    ? {
-                        y: -5,
-                        boxShadow:
-                          "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
-                      }
-                    : {}
-                }
-                onHoverStart={() => setHoveredCard(index)}
-                onHoverEnd={() => setHoveredCard(null)}
-                onClick={() => {
-                  if (metric.id === "critical" && isClickable)
-                    navigate("/riesgos");
-                  else if (metric.id === "incidents" && isClickable)
-                    navigate("/siniestros");
-                  else if (isClickable) {
-                    setModalFilter("all");
-                    setShowEventsModal(true);
-                  }
-                }}
-                className={cn(
-                  "relative rounded-xl p-5 text-white shadow-lg overflow-hidden transition-all duration-300",
-                  isClickable ? "cursor-pointer" : "cursor-default"
-                )}
-                style={{ backgroundColor: metric.color }}
+                onMouseEnter={() => setHoveredCard(index)}
+                onMouseLeave={() => setHoveredCard(null)}
               >
-                {/* Background Glow Effect */}
-                {isClickable && hoveredCard === index && (
-                  <motion.div
-                    className="absolute -right-10 -top-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                  />
-                )}
-
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex gap-4 items-center">
-                    <div className="h-12 w-12 rounded-lg bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                      <Icon className="h-6 w-6 text-white" />
-                    </div>
-                    <div>
-                      <div className="text-[11px] font-bold uppercase tracking-wider opacity-80 mb-0.5">
-                        {metric.label}
-                      </div>
-                      <div className="text-2xl font-bold font-mono tracking-tight">
-                        {metric.value}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Trend Badge */}
-                  {metric.trend !== 0 && (
-                    <Badge
-                      className={cn(
-                        "ml-auto px-2 py-0.5 text-xs font-bold border-0",
-                        metric.trend > 0
-                          ? "bg-green-400/30 text-white"
-                          : "bg-red-400/30 text-white"
-                      )}
-                    >
-                      {metric.trend > 0 ? "+" : ""}
-                      {metric.trend}%
-                    </Badge>
-                  )}
-                </div>
-
-                {/* Footer */}
-                <div className="flex justify-between items-end pt-3 border-t border-white/10 mt-2">
-                  <div className="text-xs font-medium opacity-75 truncate max-w-[85%] pr-2">
-                    {metric.subtext}
-                  </div>
-                  {isClickable && (
-                    <ArrowRight className="h-4 w-4 text-white/80" />
-                  )}
-                </div>
-
-                {/* Pulse effect for critical */}
-                {metric.pulse && (
-                  <motion.div
-                    className="absolute top-0 right-0 w-3 h-3 bg-white rounded-full translate-x-1/2 -translate-y-1/2"
-                    animate={{ scale: [1, 2], opacity: [0.5, 0] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                  />
-                )}
-              </motion.div>
+                <StatCard
+                  label={metric.label}
+                  value={metric.value}
+                  subtext={metric.subtext}
+                  icon={metric.icon}
+                  trend={metric.trend}
+                  status={metric.status as any}
+                  interactive={isClickable}
+                  active={hoveredCard === index}
+                  onClick={() => {
+                    if (metric.id === "critical" && isClickable)
+                      navigate("/riesgos");
+                    else if (metric.id === "incidents" && isClickable)
+                      navigate("/siniestros");
+                    else if (isClickable) {
+                      setModalFilter("all");
+                      setShowEventsModal(true);
+                    }
+                  }}
+                  className="text-white" // Mantenemos text-white como base global, los bg vienen por status
+                />
+              </div>
             );
           })}
         </motion.div>
@@ -297,7 +236,7 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(
       prevProps.incidents?.length === nextProps.incidents?.length &&
       prevProps.alerts?.length === nextProps.alerts?.length
     );
-  }
+  },
 );
 
 ModernExecutiveSummary.displayName = "ModernExecutiveSummary";

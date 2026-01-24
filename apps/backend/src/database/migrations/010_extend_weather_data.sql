@@ -65,8 +65,8 @@ ADD COLUMN IF NOT EXISTS alert_description TEXT;
 -- ============================================================================
 -- Migrar datos de visibility_m a visibility_meters si existen
 -- ============================================================================
-UPDATE polygon_weather_data
-SET visibility_meters = visibility_m
-WHERE visibility_m IS NOT NULL AND visibility_meters IS NULL;
+-- UPDATE polygon_weather_data
+-- SET visibility_meters = visibility_m
+-- WHERE visibility_m IS NOT NULL AND visibility_meters IS NULL;
 
 COMMENT ON TABLE polygon_weather_data IS 'Datos meteorológicos extendidos por polígono (Open-Meteo/AccuWeather)';
