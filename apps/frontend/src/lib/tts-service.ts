@@ -279,6 +279,19 @@ export const stopSpeaking = () => {
 };
 
 /**
+ * Consultar cola TTS local: cuántas lecturas quedan pendientes y si está reproduciendo.
+ */
+export const getTTSQueueStatus = (): {
+  pendingCount: number;
+  isPlaying: boolean;
+  totalPending: number;
+} => {
+  const pendingCount = audioQueue.length;
+  const totalPending = isPlaying ? pendingCount + 1 : pendingCount;
+  return { pendingCount, isPlaying, totalPending };
+};
+
+/**
  * Probar la voz configurada
  */
 export const testVoice = async (): Promise<void> => {

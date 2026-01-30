@@ -5,10 +5,12 @@ import {
   translateIncidentType,
   translateIncidentSubtype,
   getIncidentTypeColor,
+} from "@/hooks/useIncidentsModule";
+import {
   formatRelativeTime,
   getSeverityColor,
   formatStreetName,
-} from "../../lib/utils";
+} from "@/lib/utils";
 import {
   MapPin,
   FileText,
