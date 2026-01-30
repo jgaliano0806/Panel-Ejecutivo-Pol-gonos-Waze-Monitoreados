@@ -51,15 +51,14 @@ export class RiskScoringListener {
         criticalKm = criticalLengthMeters / 1000;
       }
 
-      const affectedPolygons = 1;
       const criticalPolygons = criticalKm > 1 ? 1 : 0;
       const currentTime = timestamp || new Date();
 
-      // 2. Insertar Snapshot en tiempo real
+      // 2. Insertar Snapshot en tiempo real (sin affected_polygons, eliminada en migración 023)
       await dbService.query(
         `INSERT INTO polygon_snapshots
-        (polygon_id, timestamp, total_jams, total_incidents, avg_speed, avg_delay, critical_km, affected_polygons, critical_polygons)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        (polygon_id, timestamp, total_jams, total_incidents, avg_speed, avg_delay, critical_km, critical_polygons)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [
           polygonId,
           currentTime,
@@ -68,7 +67,6 @@ export class RiskScoringListener {
           avgSpeed,
           avgDelay,
           criticalKm,
-          affectedPolygons,
           criticalPolygons,
         ],
       );
@@ -87,7 +85,9 @@ export class RiskScoringListener {
       logger.info(`✅ Risk Score recalculado para ${polygonId}`);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      logger.error(`❌ Error en RiskScoringListener para ${polygonId}: ${errorMsg}`);
+      logger.error(
+        `❌ Error en RiskScoringListener para ${polygonId}: ${errorMsg}`,
+      );
     }
   }
 }
