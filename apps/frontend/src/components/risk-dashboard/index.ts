@@ -46,3 +46,8 @@ export type { TrafficInfoModalProps } from "./TrafficInfoModal";
 
 export { default as IncidentsInfoModal } from "./IncidentsInfoModal";
 export type { IncidentsInfoModalProps } from "./IncidentsInfoModal";
+
+// ============================================================================
+// Vistas especializadas (Análisis Predictivo)
+// ============================================================================
+export { default as PredictiveRiskView } from "./PredictiveRiskView";

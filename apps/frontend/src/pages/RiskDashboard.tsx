@@ -19,6 +19,7 @@ import {
   IncidentsInfoModal,
   WeatherDetailModal,
   PolygonDetailPanel,
+  PredictiveRiskView,
 } from "../components/risk-dashboard";
 import {
   RiskDashboardViewSelector,
@@ -296,6 +297,12 @@ export const RiskDashboard: React.FC = () => {
                 )}
                 {viewMode === "heatmap" && (
                   <RiskHeatMap scores={filteredScores} polygons={polygons} />
+                )}
+                {viewMode === "predictive" && (
+                  <PredictiveRiskView
+                    scores={filteredScores}
+                    onPolygonSelect={setSelectedPolygon}
+                  />
                 )}
               </div>
             </>

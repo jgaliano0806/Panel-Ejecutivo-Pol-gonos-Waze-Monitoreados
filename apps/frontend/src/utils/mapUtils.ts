@@ -24,7 +24,7 @@ export const expandAndJitterIncidents = (
       a.incident.street || a.polygonName || "Tramo no identificado";
 
     // Normalización defensiva
-    if (streetName.toUpperCase() === "UNKNOWN" || streetName === "null") {
+    if (!streetName || streetName.toUpperCase() === "UNKNOWN" || streetName === "null") {
       streetName =
         a.polygonName && a.polygonName.toUpperCase() !== "UNKNOWN"
           ? a.polygonName

@@ -20,6 +20,9 @@ interface PolygonData {
   };
 }
 
+// API base URL (VITE_API_URL ya incluye /api)
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:3002/api";
+
 const PolygonManagement: React.FC = () => {
   const [polygons, setPolygons] = useState<PolygonData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -203,7 +206,7 @@ const PolygonManagement: React.FC = () => {
 
   const fetchPolygons = async () => {
     try {
-      const response = await fetch("/api/polygons");
+      const response = await fetch(`${API_URL}/polygons`);
       if (response.ok) {
         const data = await response.json();
         setPolygons(data);

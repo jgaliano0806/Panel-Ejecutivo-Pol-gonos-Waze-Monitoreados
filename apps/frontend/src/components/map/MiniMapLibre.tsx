@@ -91,7 +91,9 @@ export const MiniMapLibre: React.FC<MiniMapLibreProps> = ({
       center: [center[1], center[0]], // MapLibre usa [lng, lat]
       zoom: zoom,
       attributionControl: { compact: true },
-    });
+      // @ts-ignore - preserveDrawingBuffer es necesario para exportar canvas a imagen/PDF
+      preserveDrawingBuffer: true,
+    } as maplibregl.MapOptions);
 
     // Agregar controles de navegación
     map.current.addControl(new maplibregl.NavigationControl(), "top-right");
@@ -160,7 +162,7 @@ export const MiniMapLibre: React.FC<MiniMapLibreProps> = ({
       if (markerData.type) {
         const iconUrl = getWazePartnerHubIconUrl(
           markerData.type,
-          markerData.subtype
+          markerData.subtype,
         );
         const svgContent = getWazeIconSvg(markerData.type, markerData.subtype);
         const encodedSvg = encodeURIComponent(svgContent);
@@ -205,10 +207,10 @@ export const MiniMapLibre: React.FC<MiniMapLibreProps> = ({
               src="${markerData.icon}"
               alt="marker"
               style="width: ${Math.round(
-                markerSize * 0.55
+                markerSize * 0.55,
               )}px; height: ${Math.round(
-          markerSize * 0.55
-        )}px; object-fit: contain;"
+                markerSize * 0.55,
+              )}px; object-fit: contain;"
               onerror="this.onerror=null; this.src='https://web-assets.waze.com/webapps/partnerhub-web/1.1.1333/assets/icons/alerts/hazard.svg';"
             />
           </div>
@@ -246,7 +248,7 @@ export const MiniMapLibre: React.FC<MiniMapLibreProps> = ({
             <div className={`${isDark ? "text-gray-100" : "text-gray-800"}`}>
               {markerData.popup}
             </div>
-          </div>
+          </div>,
         );
 
         const popup = new maplibregl.Popup({

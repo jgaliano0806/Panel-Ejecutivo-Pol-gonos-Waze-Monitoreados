@@ -54,7 +54,7 @@ export class RoadAccidentService {
    */
   async uploadMediaFile(
     fileName: string,
-    content: Buffer | NodeJS.ReadableStream
+    content: Buffer | NodeJS.ReadableStream,
   ): Promise<string> {
     return this.storage.uploadFile(fileName, content);
   }
@@ -95,10 +95,10 @@ export class RoadAccidentService {
       console.error("Error en createAccident:", error);
       if (error instanceof Error && error.message.includes("does not exist")) {
         console.error(
-          "❌ La tabla road_accidents no existe. Ejecutar: npx ts-node scripts/create-accidents-table.ts"
+          "❌ La tabla road_accidents no existe. Ejecutar: npx ts-node scripts/create-accidents-table.ts",
         );
         throw new Error(
-          "La tabla road_accidents no existe. Ejecutar la migración 003_road_accidents_multimedia.sql"
+          "La tabla road_accidents no existe. Ejecutar la migración 003_road_accidents_multimedia.sql",
         );
       }
       throw error;
@@ -114,7 +114,7 @@ export class RoadAccidentService {
       to?: Date;
       limit?: number;
       offset?: number;
-    } = {}
+    } = {},
   ): Promise<RoadAccident[]> {
     let query = `
             SELECT a.id,
@@ -135,6 +135,8 @@ export class RoadAccidentService {
             FROM road_accidents a
             LEFT JOIN accident_media m ON a.id = m.accident_id
             WHERE 1=1
+            AND a.type = 'ACCIDENT'
+            AND (a.subtype IS NULL OR a.subtype NOT LIKE 'HAZARD%')
         `;
     const params: any[] = [];
     let pIndex = 1;
@@ -167,7 +169,7 @@ export class RoadAccidentService {
       // Si la tabla no existe, retornar array vacío
       if (error instanceof Error && error.message.includes("does not exist")) {
         console.warn(
-          "Tabla road_accidents no existe. Ejecutar migración 003_road_accidents_multimedia.sql"
+          "Tabla road_accidents no existe. Ejecutar migración 003_road_accidents_multimedia.sql",
         );
         return [];
       }
@@ -207,7 +209,7 @@ export class RoadAccidentService {
       console.error("Error en getAccidentById:", error);
       if (error instanceof Error && error.message.includes("does not exist")) {
         console.warn(
-          "Tabla road_accidents no existe. Ejecutar migración 003_road_accidents_multimedia.sql"
+          "Tabla road_accidents no existe. Ejecutar migración 003_road_accidents_multimedia.sql",
         );
         return null;
       }
@@ -244,7 +246,7 @@ export class RoadAccidentService {
    */
   async updateAccident(
     id: string,
-    updates: Partial<RoadAccident>
+    updates: Partial<RoadAccident>,
   ): Promise<RoadAccident | null> {
     const allowedUpdates = ["operator_notes", "type", "subtype", "severity"];
     const keys = Object.keys(updates).filter((k) => allowedUpdates.includes(k));
@@ -345,7 +347,7 @@ export class RoadAccidentService {
       if ((error as any).code === "42P01") {
         // Tabla no existe
         console.warn(
-          "Tabla road_accidents no existe. Ejecutar migración 004_create_road_accidents_tables.sql"
+          "Tabla road_accidents no existe. Ejecutar migración 004_create_road_accidents_tables.sql",
         );
         return { total: 0, critical: 0, high: 0 };
       }
@@ -383,8 +385,8 @@ export class RoadAccidentService {
       const accidentDate = accident.accident_at
         ? new Date(accident.accident_at)
         : accident.created_at
-        ? new Date(accident.created_at)
-        : new Date();
+          ? new Date(accident.created_at)
+          : new Date();
       const now = new Date();
       const daysDiff =
         (now.getTime() - accidentDate.getTime()) / (1000 * 60 * 60 * 24);
@@ -392,8 +394,8 @@ export class RoadAccidentService {
       if (daysDiff > 92) {
         console.log(
           `⚠️ Accidente ${accidentId} es muy antiguo (${Math.floor(
-            daysDiff
-          )} días). Open-Meteo solo permite hasta 92 días.`
+            daysDiff,
+          )} días). Open-Meteo solo permite hasta 92 días.`,
         );
         return false;
       }
@@ -405,8 +407,8 @@ export class RoadAccidentService {
 
       console.log(
         `📊 Obteniendo clima histórico para accidente ${accidentId} (${Math.floor(
-          daysDiff
-        )} días atrás)...`
+          daysDiff,
+        )} días atrás)...`,
       );
 
       // Importar weatherService dinámicamente para evitar dependencia circular
@@ -416,12 +418,12 @@ export class RoadAccidentService {
       const weatherData = await weatherService.fetchHistoricalWeatherForDate(
         accident.location_lat,
         accident.location_lng,
-        accidentDate
+        accidentDate,
       );
 
       if (!weatherData) {
         console.log(
-          `❌ No se pudo obtener clima histórico para accidente ${accidentId}`
+          `❌ No se pudo obtener clima histórico para accidente ${accidentId}`,
         );
         return false;
       }
@@ -440,14 +442,14 @@ export class RoadAccidentService {
           temperature: weatherData.temperature_celsius,
           precipitation: weatherData.precipitation_mm,
           description: weatherData.weather_description,
-        }
+        },
       );
 
       return true;
     } catch (error) {
       console.error(
         `❌ Error en backfillWeatherData para ${accidentId}:`,
-        error
+        error,
       );
       return false;
     }

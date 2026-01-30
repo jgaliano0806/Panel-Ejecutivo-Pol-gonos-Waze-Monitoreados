@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   getIncidentTypeColors,
   getUIIconSvg,
@@ -6,6 +6,7 @@ import {
   getWazePartnerHubIconUrl,
 } from "../../utils/wazeIcons";
 import { iconCacheService } from "../../utils/iconCache";
+import { getIncidentDescription } from "../../utils/wazeTranslations";
 
 interface WazeIconProps {
   type: string;
@@ -42,6 +43,12 @@ export const WazeIcon: React.FC<WazeIconProps> = ({
     ? { bg: "bg-gray-100", text: "text-gray-700", border: "border-gray-300" }
     : getIncidentTypeColors(type);
 
+  // Descripción traducida para alt/title
+  const translatedDescription = useMemo(
+    () => getIncidentDescription(type, subtype),
+    [type, subtype]
+  );
+
   // Si es icono de UI, usar SVG inline
   if (uiIcon) {
     const svgContent = getUIIconSvg(type);
@@ -73,7 +80,7 @@ export const WazeIcon: React.FC<WazeIconProps> = ({
       >
         <img
           src={officialIconUrl}
-          alt={subtype || type}
+          alt={translatedDescription}
           className={`${sizeClasses[size]} object-contain`}
           onError={() => {
             console.warn(
@@ -105,7 +112,7 @@ export const WazeIcon: React.FC<WazeIconProps> = ({
       <div
         className={`${sizeClasses[size]} flex items-center justify-center`}
         dangerouslySetInnerHTML={{ __html: svgContent }}
-        title={subtype || type}
+        title={translatedDescription}
       />
       {showBadge && (
         <span

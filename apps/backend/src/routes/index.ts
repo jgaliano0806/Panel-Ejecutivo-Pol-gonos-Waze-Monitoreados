@@ -13,6 +13,8 @@ import { notificationRoutes } from "./notificationRoutes";
 import tvtRoutes from "./tvt.routes";
 import incidentsRoutes from "./incidents.routes";
 import jamsRoutes from "./jams.routes";
+import ttsRoutes from "./tts.routes";
+import riskRoutes from "./risk.routes";
 
 /**
  * Registra todos los módulos de rutas en la instancia de Fastify
@@ -39,6 +41,12 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
   // Gestión de Jams (Congestión)
   await app.register(jamsRoutes, { prefix: "/api/jams" });
+
+  // Text-to-Speech (voces neuronales gratuitas)
+  await app.register(ttsRoutes, { prefix: "/api/tts" });
+
+  // Risk Scoring Dashboard
+  await app.register(riskRoutes, { prefix: "/api/risk" });
 
   // Aquí se agregarán más módulos de rutas:
   // await app.register(polygonsRoutes, { prefix: '/api/polygons' });

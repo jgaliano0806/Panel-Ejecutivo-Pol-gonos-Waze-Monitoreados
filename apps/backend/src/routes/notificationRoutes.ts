@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { notificationService } from "../services/notificationService";
+import { websocketService } from "../services/websocketService";
 
 export async function notificationRoutes(server: FastifyInstance) {
   server.get("/", async (request, reply) => {
@@ -33,6 +34,43 @@ export async function notificationRoutes(server: FastifyInstance) {
     } catch (error) {
       server.log.error({ error }, "Error marking all as read");
       reply.code(500).send({ error: "Failed to update notifications" });
+    }
+  });
+
+  // Endpoint de prueba para emitir notificación por WebSocket
+  server.post("/test", async (request, reply) => {
+    try {
+      const io = websocketService.getIO();
+      if (!io) {
+        return reply.code(500).send({ error: "Socket.IO not initialized" });
+      }
+
+      const testNotification = {
+        id: crypto.randomUUID(),
+        title: "⚠️ Prueba de Notificación",
+        message: "Esta es una notificación de prueba del sistema",
+        type: "HAZARD" as const,
+        timestamp: new Date().toISOString(),
+        is_read: false,
+        created_at: new Date().toISOString(),
+        data: {
+          polygonId: "test-polygon",
+          alertId: `test-${Date.now()}`,
+          incidentType: "HAZARD",
+          subtype: "HAZARD_ON_ROAD_OBJECT",
+          street: "Av. Prueba 123",
+          city: "Córdoba",
+          polygonName: "Zona de Prueba",
+        },
+      };
+
+      io.emit("notification:new", testNotification);
+      server.log.info("🔔 Test notification emitted via WebSocket");
+
+      return { success: true, notification: testNotification };
+    } catch (error) {
+      server.log.error({ error }, "Error emitting test notification");
+      reply.code(500).send({ error: "Failed to emit test notification" });
     }
   });
 }

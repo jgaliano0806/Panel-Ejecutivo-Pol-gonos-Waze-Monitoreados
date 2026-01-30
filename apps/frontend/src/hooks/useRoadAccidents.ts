@@ -135,7 +135,9 @@ export const useRoadAccidents = (
       if (filters.limit) params.append("limit", filters.limit.toString());
       if (filters.offset) params.append("offset", filters.offset.toString());
 
-      const response = await fetch(`${API_URL}/api/accidents?${params}`);
+      // Asegurar que la URL base no duplique /api
+      const baseUrl = API_URL.endsWith("/api") ? API_URL : `${API_URL}/api`;
+      const response = await fetch(`${baseUrl}/accidents?${params}`);
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(
@@ -185,7 +187,8 @@ export const useRoadAccident = (id: string | null) => {
     queryFn: async () => {
       if (!id) return null;
 
-      const response = await fetch(`${API_URL}/api/accidents/${id}`);
+      const baseUrl = API_URL.endsWith("/api") ? API_URL : `${API_URL}/api`;
+      const response = await fetch(`${baseUrl}/accidents/${id}`);
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(
@@ -232,7 +235,9 @@ export const useCreateAccident = () => {
           data.severity !== undefined ? Number(data.severity) : undefined,
       };
 
-      const response = await fetch(`${API_URL}/api/accidents`, {
+      const baseUrl = API_URL.endsWith("/api") ? API_URL : `${API_URL}/api`;
+
+      const response = await fetch(`${baseUrl}/accidents`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -294,7 +299,8 @@ export const useUploadAccidentMedia = () => {
         formData.append("files", files[i]);
       }
 
-      const response = await fetch(`${API_URL}/api/accidents/${id}/media`, {
+      const baseUrl = API_URL.endsWith("/api") ? API_URL : `${API_URL}/api`;
+      const response = await fetch(`${baseUrl}/accidents/${id}/media`, {
         method: "POST",
         body: formData,
       });

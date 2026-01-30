@@ -25,11 +25,13 @@ const TrafficInfoModal: React.FC<TrafficInfoModalProps> = ({
 
   const handleViewOnMap = () => {
     onClose();
-    // Navegar al dashboard con el polígono seleccionado y filtro de jams
-    navigate("/", {
+    // Navegar al mapa con el polígono seleccionado y filtro de jams
+    navigate("/mapa", {
       state: {
         selectedPolygonId: polygonId,
         filterType: "jams",
+        showJams: true,
+        highlightTraffic: true,
       },
     });
   };

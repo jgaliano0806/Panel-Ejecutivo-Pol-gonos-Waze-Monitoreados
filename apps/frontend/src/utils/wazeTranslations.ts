@@ -1,6 +1,7 @@
 /**
  * Traducciones de tipos y subtipos de Waze al español
  */
+import { getTranslationFromCache } from "../hooks/useCatalogTranslations";
 
 /**
  * Traducciones completas basadas en los iconos oficiales de Waze
@@ -342,17 +343,14 @@ export const MAIN_TYPE_TRANSLATIONS: Record<string, string> = {
  * Prioridad: 1) Cache de BD, 2) Mapeo directo, 3) Búsqueda en WAZE_TRANSLATIONS
  */
 export function getSubtypeTranslation(type: string, subtype: string): string {
+  // Validar parámetros - evitar errores de undefined
+  if (!subtype) return "";
+  if (!type) type = "HAZARD"; // Fallback a tipo genérico
+
   // PRIMERO: Intentar desde cache de BD (si está disponible)
-  try {
-    const {
-      getTranslationFromCache,
-    } = require("../hooks/useCatalogTranslations");
-    const cachedTranslation = getTranslationFromCache(subtype);
-    if (cachedTranslation) {
-      return cachedTranslation;
-    }
-  } catch {
-    // Si el módulo no está disponible, continuar con fallback
+  const cachedTranslation = getTranslationFromCache(subtype);
+  if (cachedTranslation) {
+    return cachedTranslation;
   }
 
   // SEGUNDO: Intentar con el mapeo directo de subtipos (más rápido)
@@ -387,7 +385,8 @@ export function getSubtypeTranslation(type: string, subtype: string): string {
  * Ejemplo: "HAZARD_ON_SHOULDER_CAR_STOPPED" -> "Peligro en banquina - auto detenido"
  */
 function formatSubtypeToReadable(subtype: string): string {
-  return subtype
+  if (!subtype) return "";
+  return String(subtype)
     .toLowerCase()
     .replace(/_/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
@@ -398,17 +397,13 @@ function formatSubtypeToReadable(subtype: string): string {
  * Prioridad: 1) Cache de BD, 2) Traducciones estáticas
  */
 export function getMainTypeTranslation(type: string): string {
+  // Validación defensiva
+  if (!type) return "Alerta";
+
   // PRIMERO: Intentar desde cache de BD (si está disponible)
-  try {
-    const {
-      getTranslationFromCache,
-    } = require("../hooks/useCatalogTranslations");
-    const cachedTranslation = getTranslationFromCache(type);
-    if (cachedTranslation) {
-      return cachedTranslation;
-    }
-  } catch {
-    // Si el módulo no está disponible, continuar con fallback
+  const cachedTranslation = getTranslationFromCache(type);
+  if (cachedTranslation) {
+    return cachedTranslation;
   }
 
   // SEGUNDO: Buscar primero tal cual viene
@@ -416,12 +411,12 @@ export function getMainTypeTranslation(type: string): string {
     return MAIN_TYPE_TRANSLATIONS[type];
   }
   // Buscar en minúsculas
-  const lowerType = type.toLowerCase();
+  const lowerType = (type || "").toLowerCase();
   if (MAIN_TYPE_TRANSLATIONS[lowerType]) {
     return MAIN_TYPE_TRANSLATIONS[lowerType];
   }
   // Buscar en mayúsculas
-  const upperType = type.toUpperCase();
+  const upperType = (type || "").toUpperCase();
   if (MAIN_TYPE_TRANSLATIONS[upperType]) {
     return MAIN_TYPE_TRANSLATIONS[upperType];
   }
@@ -467,7 +462,7 @@ export function getIncidentDescription(type: string, subtype?: string): string {
 }
 
 export function getIncidentEmoji(type: string, subtype?: string): string {
-  const typeLower = type.toLowerCase();
+  const typeLower = (type || "").toLowerCase();
   const subtypeLower = (subtype || "").toLowerCase();
 
   // Iconos específicos por subtipo
@@ -520,5 +515,5 @@ export function getIncidentColor(type: string): string {
     weather: "#60a5fa", // Sky blue weather
     misc: "#6b7280", // Gray
   };
-  return colorMap[type.toLowerCase()] || "#6b7280";
+  return colorMap[(type || "").toLowerCase()] || "#6b7280";
 }

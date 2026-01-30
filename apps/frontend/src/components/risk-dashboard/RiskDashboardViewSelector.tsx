@@ -1,8 +1,8 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { List, LayoutGrid, Map as MapIcon } from "lucide-react";
+import { List, LayoutGrid, Map as MapIcon, BrainCircuit } from "lucide-react";
 
-export type RiskViewMode = "list" | "matrix" | "heatmap";
+export type RiskViewMode = "list" | "matrix" | "heatmap" | "predictive";
 
 interface RiskDashboardViewSelectorProps {
   currentView: RiskViewMode;
@@ -16,6 +16,7 @@ export const RiskDashboardViewSelector: React.FC<
     { id: "list", label: "Lista", icon: List },
     { id: "matrix", label: "Matriz Estratégica", icon: LayoutGrid },
     { id: "heatmap", label: "Mapa de Calor", icon: MapIcon },
+    { id: "predictive", label: "Análisis Predictivo", icon: BrainCircuit },
   ] as const;
 
   return (

@@ -18,6 +18,7 @@ export const useSyncMapNotifications = () => {
 
   // Función para obtener el título según el tipo
   const getTitle = (t: string) => {
+    if (!t) return "📌 Alerta de Tráfico";
     const normalized = t.toUpperCase();
     if (normalized === "ACCIDENT") return "🔴 Accidente Reportado";
     if (normalized === "HAZARD") return "⚠️ Peligro en la Vía";
@@ -29,6 +30,7 @@ export const useSyncMapNotifications = () => {
 
   // Función para obtener el tipo de notificación
   const getNotificationType = (t: string): "ACCIDENT" | "HAZARD" | "SYSTEM" => {
+    if (!t) return "SYSTEM";
     const normalized = t.toUpperCase();
     if (normalized === "ACCIDENT") return "ACCIDENT";
     if (normalized === "HAZARD" || normalized === "WEATHERHAZARD")

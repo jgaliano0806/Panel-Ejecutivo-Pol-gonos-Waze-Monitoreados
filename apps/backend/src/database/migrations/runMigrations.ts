@@ -38,6 +38,86 @@ export async function runMigrations(): Promise<void> {
             console.log('✅ Migración 010 ejecutada: polygon_weather_data extendida');
         }
 
+        // Migración 015: Agregar predictive_score a polygon_criticality_scores
+        try {
+            await dbService.query(`
+                ALTER TABLE polygon_criticality_scores
+                ADD COLUMN IF NOT EXISTS predictive_score DECIMAL(5,2) DEFAULT 0
+            `);
+            console.log('✅ Migración 015 ejecutada: predictive_score agregado a polygon_criticality_scores');
+        } catch (migError: any) {
+            if (!migError.message?.includes('already exists')) {
+                console.warn('⚠️ Migración 015 (predictive_score):', migError.message);
+            }
+        }
+
+        // Migración 016: Agregar probability_score e impact_score a latest_polygon_risk_scores
+        try {
+            await dbService.query(`
+                ALTER TABLE polygon_criticality_scores
+                ADD COLUMN IF NOT EXISTS probability_score DECIMAL(5,2) DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS impact_score DECIMAL(5,2) DEFAULT 0
+            `);
+            console.log('✅ Migración 016 ejecutada: probability_score e impact_score agregados');
+        } catch (migError: any) {
+            if (!migError.message?.includes('already exists')) {
+                console.warn('⚠️ Migración 016:', migError.message);
+            }
+        }
+
+        // Migración 017: Limpiar prefijo [RUIDO] de subtypes en waze_alerts
+        try {
+            const cleanResult = await dbService.query(`
+                UPDATE waze_alerts
+                SET subtype = REGEXP_REPLACE(subtype, '^\\[RUIDO\\]\\s*', '', 'i')
+                WHERE subtype LIKE '[RUIDO]%'
+            `);
+            if (cleanResult.rowCount && cleanResult.rowCount > 0) {
+                console.log(`✅ Migración 017: Limpiados ${cleanResult.rowCount} subtypes con prefijo [RUIDO]`);
+            }
+        } catch (migError: any) {
+            console.warn('⚠️ Migración 017 (limpieza [RUIDO]):', migError.message);
+        }
+
+        // Migración 018: Poblar subtipos de incidentes con traducciones al español
+        const migration018Path = path.join(migrationsDir, '018_populate_incident_subtypes.sql');
+        if (fs.existsSync(migration018Path)) {
+            try {
+                const sql = fs.readFileSync(migration018Path, 'utf-8');
+                await dbService.query(sql);
+                console.log('✅ Migración 018 ejecutada: Subtipos de incidentes poblados con traducciones');
+            } catch (migError: any) {
+                // Ignorar errores de duplicados
+                if (!migError.message?.includes('duplicate key') && !migError.message?.includes('already exists')) {
+                    console.warn('⚠️ Migración 018:', migError.message);
+                }
+            }
+        }
+
+        // Migración 019: Limpiar tipos duplicados y actualizar traducciones
+        const migration019Path = path.join(migrationsDir, '019_cleanup_duplicate_types.sql');
+        if (fs.existsSync(migration019Path)) {
+            try {
+                const sql = fs.readFileSync(migration019Path, 'utf-8');
+                await dbService.query(sql);
+                console.log('✅ Migración 019 ejecutada: Tipos duplicados limpiados y traducciones actualizadas');
+            } catch (migError: any) {
+                console.warn('⚠️ Migración 019:', migError.message);
+            }
+        }
+
+        // Migración 020: Eliminar subtipos duplicados
+        const migration020Path = path.join(migrationsDir, '020_remove_duplicate_subtypes.sql');
+        if (fs.existsSync(migration020Path)) {
+            try {
+                const sql = fs.readFileSync(migration020Path, 'utf-8');
+                await dbService.query(sql);
+                console.log('✅ Migración 020 ejecutada: Subtipos duplicados eliminados');
+            } catch (migError: any) {
+                console.warn('⚠️ Migración 020:', migError.message);
+            }
+        }
+
         console.log('✅ Migraciones completadas exitosamente');
     } catch (error: any) {
         // Si el error es por tabla/columna ya existente, es OK

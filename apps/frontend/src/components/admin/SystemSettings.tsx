@@ -10,8 +10,10 @@ import {
   Globe,
   Clock,
   HardDrive,
-  Zap
+  Zap,
+  Volume2
 } from 'lucide-react';
+import { TTSConfiguration } from './TTSConfiguration';
 
 interface SystemSetting {
   id: string;
@@ -226,6 +228,7 @@ const SystemSettings: React.FC = () => {
 
   const categories = [
     { id: 'all', name: 'Todas', icon: Settings, color: 'gray' },
+    { id: 'voice', name: 'Voz (TTS)', icon: Volume2, color: 'indigo' },
     { id: 'database', name: 'Base de Datos', icon: Database, color: 'blue' },
     { id: 'email', name: 'Email', icon: Mail, color: 'green' },
     { id: 'notifications', name: 'Notificaciones', icon: Bell, color: 'yellow' },
@@ -364,7 +367,13 @@ const SystemSettings: React.FC = () => {
         })}
       </div>
 
-      {/* Configuraciones */}
+      {/* Configuración de Voz TTS (categoría especial) */}
+      {activeCategory === 'voice' && (
+        <TTSConfiguration />
+      )}
+
+      {/* Configuraciones estándar */}
+      {activeCategory !== 'voice' && (
       <div className="space-y-6">
         {filteredSettings.map((setting) => (
           <motion.div
@@ -398,6 +407,7 @@ const SystemSettings: React.FC = () => {
           </motion.div>
         ))}
       </div>
+      )}
 
       {/* Barra de acciones */}
       {hasChanges && (

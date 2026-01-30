@@ -666,7 +666,7 @@ export const INCIDENT_SUBTYPE_ICONS: Record<string, string> = {
  */
 export const getWazeIconSvg = (type: string, subtype?: string): string => {
   // Primero intentar con el subtipo específico
-  if (subtype) {
+  if (subtype && typeof subtype === "string") {
     const subtypeIcon = INCIDENT_SUBTYPE_ICONS[subtype.toUpperCase()];
     if (subtypeIcon && WAZE_ICONS_SVG[subtypeIcon]) {
       return WAZE_ICONS_SVG[subtypeIcon];
@@ -762,21 +762,29 @@ export const getWazePartnerHubIconUrl = (
   type: string,
   subtype?: string,
 ): string => {
+  // Validación defensiva - si type es undefined o null, devolver icono por defecto
+  if (!type) {
+    return `${LOCAL_ICONS_BASE}/peligro.svg`;
+  }
+
+  // Limpiar subtype si tiene prefijos como "[RUIDO]"
+  const cleanSubtype = subtype?.replace(/^\[.*?\]\s*/i, "");
+
   // 1. Intentar buscar por Subtipo Exacto
-  if (subtype) {
-    const subtypeKey = subtype.toUpperCase();
+  if (cleanSubtype && typeof cleanSubtype === "string") {
+    const subtypeKey = cleanSubtype.toUpperCase();
     if (LOCAL_ICONS_MAP[subtypeKey]) {
       return `${LOCAL_ICONS_BASE}/${LOCAL_ICONS_MAP[subtypeKey]}`;
     }
     // Intentar por subtipo tal cual viene (ej. snake_case)
-    if (LOCAL_ICONS_MAP[subtype]) {
-      return `${LOCAL_ICONS_BASE}/${LOCAL_ICONS_MAP[subtype]}`;
+    if (LOCAL_ICONS_MAP[cleanSubtype]) {
+      return `${LOCAL_ICONS_BASE}/${LOCAL_ICONS_MAP[cleanSubtype]}`;
     }
   }
 
   // 2. Intentar inferir key map (usando INCIDENT_SUBTYPE_ICONS)
-  if (subtype) {
-    const mappedKey = INCIDENT_SUBTYPE_ICONS[subtype.toUpperCase()];
+  if (cleanSubtype && typeof cleanSubtype === "string") {
+    const mappedKey = INCIDENT_SUBTYPE_ICONS[cleanSubtype.toUpperCase()];
     if (mappedKey && LOCAL_ICONS_MAP[mappedKey]) {
       return `${LOCAL_ICONS_BASE}/${LOCAL_ICONS_MAP[mappedKey]}`;
     }
@@ -789,8 +797,8 @@ export const getWazePartnerHubIconUrl = (
   }
 
   // 4. Mapeos especiales por texto si no se encontró
-  if (subtype) {
-    const s = subtype.toLowerCase();
+  if (cleanSubtype) {
+    const s = cleanSubtype.toLowerCase();
     if (s.includes("pothole")) return `${LOCAL_ICONS_BASE}/bache.svg`;
     if (s.includes("fog")) return `${LOCAL_ICONS_BASE}/niebla.svg`;
     if (s.includes("flood")) return `${LOCAL_ICONS_BASE}/inundacion.svg`;

@@ -14,9 +14,11 @@ import {
   WeatherStrategy,
   SpeedStrategy,
   DelayStrategy,
+  PredictiveStrategy,
   RiskAnalysisData,
 } from "../strategies";
 import { eventBus, SystemEvents } from "../events";
+import { predictiveRiskService } from "./PredictiveRiskService";
 
 export interface RiskScore {
   polygon_id: string;
@@ -30,6 +32,7 @@ export interface RiskScore {
   weather_score: number;
   speed_score: number;
   delay_score: number;
+  predictive_score: number;
 
   // Score final
   final_risk_score: number;
@@ -44,6 +47,7 @@ export interface RiskScore {
     avg_speed: number | null;
     avg_delay: number;
     conditions_summary: string;
+    prediction_confidence?: number;
   };
 }
 
@@ -71,6 +75,8 @@ class RiskScoringService {
       new TrafficJamStrategy(),
       new IncidentStrategy(),
       new WeatherStrategy(),
+      new SpeedStrategy(),
+      new DelayStrategy(),
       new SpeedStrategy(),
       new DelayStrategy(),
     ];
@@ -131,6 +137,11 @@ class RiskScoringService {
       scores[strategy.name] = await strategy.calculate(context);
     }
 
+    // Call Predictive Service explicitly to get metadata (confidence)
+    const prediction =
+      await predictiveRiskService.predictPolygonRisk(polygonId);
+    scores["predictive"] = prediction.predicted_risk_score;
+
     // Guardar resultado
     return this.saveRiskScore(
       polygonId,
@@ -138,6 +149,7 @@ class RiskScoringService {
       polygon.group || "Sin Grupo",
       scores,
       snapshot,
+      prediction.confidence,
     );
   }
 
@@ -176,6 +188,7 @@ class RiskScoringService {
     groupName: string,
     strategyScores: Record<string, number>,
     snapshot: any,
+    predictionConfidence: number = 0,
   ): Promise<RiskScore> {
     // Calcular score final ponderado
     let finalScore = 0;
@@ -183,6 +196,9 @@ class RiskScoringService {
     for (const strategy of this.strategies) {
       finalScore += (strategyScores[strategy.name] || 0) * strategy.weight;
     }
+
+    // Add predictive weight manually (since strategy removed from list)
+    finalScore += (strategyScores["predictive"] || 0) * 0.15;
 
     // Determinar nivel de riesgo
     let riskLevel: RiskScore["risk_level"];
@@ -221,6 +237,7 @@ class RiskScoringService {
     const weatherScore = strategyScores["weather"] || 0;
     const speedScore = strategyScores["speed"] || 0;
     const delayScore = strategyScores["delay"] || 0;
+    const predictiveScore = strategyScores["predictive"] || 0;
 
     await repositories().riskScores.create({
       polygon_id: polygonId,
@@ -231,6 +248,7 @@ class RiskScoringService {
       weather_score: weatherScore,
       speed_score: speedScore,
       delay_score: delayScore,
+      predictive_score: predictiveScore,
       final_risk_score: finalScore,
       risk_level: riskLevel,
       risk_category: category,
@@ -252,6 +270,7 @@ class RiskScoringService {
           avg_speed: snapshot.avg_speed || null,
           avg_delay: snapshot.avg_delay || 0,
           conditions_summary: this.generateConditionsSummary(snapshot),
+          prediction_confidence: predictionConfidence,
         }
       : {
           total_jams: 0,
@@ -271,6 +290,7 @@ class RiskScoringService {
       weather_score: weatherScore,
       speed_score: speedScore,
       delay_score: delayScore,
+      predictive_score: predictiveScore,
       final_risk_score: finalScore,
       risk_level: riskLevel,
       risk_category: category,
@@ -334,6 +354,7 @@ class RiskScoringService {
         weather_score: parseFloat(row.weather_score as string),
         speed_score: parseFloat(row.speed_score as string),
         delay_score: parseFloat(row.delay_score as string),
+        predictive_score: parseFloat((row.predictive_score || 0) as string),
         final_risk_score: parseFloat(row.final_risk_score as string),
         risk_level: row.risk_level as RiskScore["risk_level"],
         risk_category: row.risk_category as string,
@@ -344,6 +365,7 @@ class RiskScoringService {
           avg_speed: row.avg_speed ? parseFloat(row.avg_speed) : null,
           avg_delay: row.avg_delay || 0,
           conditions_summary: conditionsSummary,
+          prediction_confidence: 75, // Default for list view until joined
         },
       };
     });
@@ -406,6 +428,7 @@ class RiskScoringService {
       weather_score: parseFloat(row.weather_score as string),
       speed_score: parseFloat(row.speed_score as string),
       delay_score: parseFloat(row.delay_score as string),
+      predictive_score: parseFloat((row.predictive_score || 0) as string),
       final_risk_score: parseFloat(row.final_risk_score as string),
       risk_level: row.risk_level as RiskScore["risk_level"],
       risk_category: row.risk_category as string,

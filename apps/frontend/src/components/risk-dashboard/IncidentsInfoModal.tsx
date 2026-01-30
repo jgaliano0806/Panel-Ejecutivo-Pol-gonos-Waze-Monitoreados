@@ -25,8 +25,8 @@ const IncidentsInfoModal: React.FC<IncidentsInfoModalProps> = ({
 
   const handleViewOnMap = () => {
     onClose();
-    // Navegar al dashboard con el polígono seleccionado y filtro de alertas
-    navigate("/", {
+    // Navegar al mapa con el polígono seleccionado y filtro de alertas
+    navigate("/mapa", {
       state: {
         selectedPolygonId: polygonId,
         filterType: "alerts",

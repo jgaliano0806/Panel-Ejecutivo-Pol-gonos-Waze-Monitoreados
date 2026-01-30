@@ -1,10 +1,14 @@
 /**
  * Hook para obtener traducciones de incidentes desde la base de datos
  * con fallback a traducciones estáticas
+ *
+ * Este hook es la fuente de verdad para las traducciones de tipos/subtipos.
+ * El catálogo en /admin alimenta estas traducciones.
  */
 import { useQuery } from "@tanstack/react-query";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
+// VITE_API_URL ya incluye /api (ej: http://127.0.0.1:3002/api)
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:3002/api";
 
 export interface CatalogType {
   id: number;
@@ -37,7 +41,7 @@ export function useCatalogTranslations() {
   const query = useQuery({
     queryKey: ["catalog-translations"],
     queryFn: async () => {
-      const response = await fetch(`${API_URL}/api/catalogs/types`);
+      const response = await fetch(`${API_URL}/catalogs/types`);
       if (!response.ok) {
         throw new Error("Error cargando catálogo de traducciones");
       }
@@ -102,7 +106,7 @@ export async function preloadTranslationsCache(): Promise<void> {
   if (cacheLoaded) return;
 
   try {
-    const response = await fetch(`${API_URL}/api/catalogs/types`);
+    const response = await fetch(`${API_URL}/catalogs/types`);
     if (!response.ok) return;
 
     const result = await response.json();

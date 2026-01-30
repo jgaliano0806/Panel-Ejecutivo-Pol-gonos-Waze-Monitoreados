@@ -57,7 +57,7 @@ export const useRACAccidentsMap = (
         endDate = range.endDate;
       }
 
-      const url = `${API_BASE}/api/road-accidents/map?startDate=${startDate}&endDate=${endDate}`;
+      const url = `${API_BASE}/road-accidents/map?startDate=${startDate}&endDate=${endDate}`;
       const response = await fetch(url);
 
       if (!response.ok) {

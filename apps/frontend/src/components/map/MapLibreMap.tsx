@@ -28,16 +28,15 @@ import { useThemeStore } from "../../stores/useThemeStore";
 import {
   Clock,
   MapPin,
-  AlertTriangle,
   X,
   ShieldCheck,
   Navigation,
+  Car,
+  Gauge,
+  Timer,
+  Route,
 } from "lucide-react";
 import { MapSidebar } from "./MapSidebar";
-import {
-  useRACAccidentsMap,
-  RACAccidentsFilter,
-} from "../../hooks/useRACAccidents";
 import { NETWORK_CONFIG } from "../../config/constants";
 
 // Configuración inicial
@@ -94,6 +93,10 @@ interface MapLibreMapProps {
   selectedGroup?: string | null;
   selectedIncidentId?: string | null;
   forcedIncident?: any | null; // Datos completos del incidente para visualización histórica/notificación
+  // Props para filtros de polígonos en el sidebar del mapa
+  allPolygons?: Polygon[];
+  onPolygonChange?: (polygonId: string | null) => void;
+  onGroupChange?: (group: string | null) => void;
 }
 
 export const MapLibreMap: React.FC<MapLibreMapProps> = ({
@@ -107,25 +110,23 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   selectedGroup,
   selectedIncidentId,
   forcedIncident,
+  allPolygons,
+  onPolygonChange,
+  onGroupChange,
 }) => {
   const mapRef = useRef<MapRef>(null);
   const isDark = useThemeStore((state) => state.isDark);
   const [selectedIncident, setSelectedIncident] = useState<any>(null);
+  const [selectedJam, setSelectedJam] = useState<any>(null);
 
   // Estado para capas y sidebar
   const [showWazeIncidents, setShowWazeIncidents] = useState(true);
-  const [showRACAccidents, setShowRACAccidents] = useState(false);
   const [showTraffic, setShowTraffic] = useState(true);
-  const [racFilter, setRACFilter] = useState<RACAccidentsFilter>({
-    viewMode: "active",
-    dateFilter: { mode: "day", date: new Date() },
-  });
-
-  // Obtener datos de accidentes RAC
-  const { data: racAccidents } = useRACAccidentsMap(
-    racFilter,
-    showRACAccidents,
-  );
+  
+  // Estados para sub-capas de tráfico
+  const [showFlowLayer, setShowFlowLayer] = useState(true);
+  const [showJamsLayer, setShowJamsLayer] = useState(true);
+  const [showRoadClosures, setShowRoadClosures] = useState(true);
 
   // Estado para controlar si el mapa está cargado
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -423,17 +424,30 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     return {
       type: "FeatureCollection",
       features: flowLines
-        .filter((j) => j.line && j.line.length > 1)
+        .filter((j) => {
+          // Validar que la línea existe y tiene coordenadas válidas
+          if (!j.line || j.line.length < 2) return false;
+          return j.line.every((p: { x: number; y: number }) => 
+            p && typeof p.x === 'number' && typeof p.y === 'number' && 
+            !isNaN(p.x) && !isNaN(p.y) && isFinite(p.x) && isFinite(p.y)
+          );
+        })
         .map((jam) => ({
           type: "Feature",
           geometry: {
             type: "LineString",
-            coordinates: jam.line!.map((p) => [p.x, p.y]),
+            coordinates: jam.line!.map((p: { x: number; y: number }) => [p.x, p.y]),
           },
           properties: {
             id: jam.id,
-            speed: jam.speed,
+            speed: jam.speed || 0,
+            delay: jam.delay || 0,
+            length: jam.length || 0,
+            street: jam.street || "Vía sin nombre",
+            level: jam.level || 0,
             color: getFlowColor(jam.speed || 0),
+            // Para flechas de dirección
+            bearing: calculateBearing(jam.line),
           },
         })),
     };
@@ -441,24 +455,93 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
 
   const jamsGeoJSON = useMemo(() => {
     const congested = jams.filter(
-      (j) => (j.level || 0) >= 3 || (j.speed || 0) <= 20,
+      (j) => (j.level || 0) >= 2 || (j.speed || 0) <= 25,
     );
     return {
       type: "FeatureCollection",
       features: congested
-        .filter((j) => j.line && j.line.length > 1)
-        .map((jam) => ({
-          type: "Feature",
-          geometry: {
-            type: "LineString",
-            coordinates: jam.line!.map((p) => [p.x, p.y]),
-          },
-          properties: {
-            id: jam.id,
-            level: jam.level || 0,
-            color: getJamColor(jam.level || 0, jam.speed || 0),
-          },
-        })),
+        .filter((j) => {
+          // Validar que la línea existe y tiene coordenadas válidas
+          if (!j.line || j.line.length < 2) return false;
+          // Verificar que todas las coordenadas son números válidos
+          return j.line.every((p: { x: number; y: number }) => 
+            p && typeof p.x === 'number' && typeof p.y === 'number' && 
+            !isNaN(p.x) && !isNaN(p.y) && isFinite(p.x) && isFinite(p.y)
+          );
+        })
+        .map((jam) => {
+          // Calcular punto medio para el popup
+          const midIndex = Math.floor(jam.line!.length / 2);
+          const midPoint = jam.line![midIndex];
+          
+          return {
+            type: "Feature",
+            geometry: {
+              type: "LineString",
+              coordinates: jam.line!.map((p: { x: number; y: number }) => [p.x, p.y]),
+            },
+            properties: {
+              id: jam.id,
+              level: jam.level || 0,
+              speed: jam.speed || 0,
+              delay: jam.delay || 0,
+              length: jam.length || 0,
+              street: jam.street || "Vía sin nombre",
+              city: jam.city || "",
+              roadType: jam.roadType || 0,
+              color: getJamColor(jam.level || 0, jam.speed || 0),
+              // Punto medio para labels/popups
+              midLng: midPoint?.x || 0,
+              midLat: midPoint?.y || 0,
+              // Label de velocidad
+              speedLabel: `${Math.round(jam.speed || 0)} km/h`,
+              // Severidad textual
+              severityText: getJamSeverityText(jam.level || 0, jam.speed || 0),
+            },
+          };
+        }),
+    };
+  }, [jams]);
+
+  // GeoJSON para puntos de etiquetas de velocidad en atascos
+  const jamLabelsGeoJSON = useMemo(() => {
+    const congested = jams.filter(
+      (j) => (j.level || 0) >= 3 || (j.speed || 0) <= 15,
+    );
+    return {
+      type: "FeatureCollection",
+      features: congested
+        .filter((j) => {
+          if (!j.line || j.line.length < 2) return false;
+          const midIndex = Math.floor(j.line.length / 2);
+          const midPoint = j.line[midIndex];
+          // Validar que el punto medio tiene coordenadas válidas
+          return midPoint && 
+            typeof midPoint.x === 'number' && typeof midPoint.y === 'number' &&
+            !isNaN(midPoint.x) && !isNaN(midPoint.y) &&
+            isFinite(midPoint.x) && isFinite(midPoint.y);
+        })
+        .map((jam) => {
+          const midIndex = Math.floor(jam.line!.length / 2);
+          const midPoint = jam.line![midIndex];
+          return {
+            type: "Feature",
+            geometry: {
+              type: "Point",
+              coordinates: [midPoint.x, midPoint.y],
+            },
+            properties: {
+              id: jam.id,
+              speed: jam.speed || 0,
+              level: jam.level || 0,
+              delay: jam.delay || 0,
+              length: jam.length || 0,
+              street: jam.street || "Vía sin nombre",
+              speedLabel: `${Math.round(jam.speed || 0)}`,
+              delayLabel: jam.delay > 60 ? `+${Math.round(jam.delay / 60)}min` : "",
+            },
+          };
+        }),
     };
   }, [jams]);
 
@@ -536,12 +619,19 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
 
       // Convertir jams asociados a features de línea roja
       return associatedJams
-        .filter((jam) => jam.line && jam.line.length > 1)
+        .filter((jam) => {
+          if (!jam.line || jam.line.length < 2) return false;
+          // Validar coordenadas
+          return jam.line.every((p: { x: number; y: number }) => 
+            p && typeof p.x === 'number' && typeof p.y === 'number' && 
+            !isNaN(p.x) && !isNaN(p.y) && isFinite(p.x) && isFinite(p.y)
+          );
+        })
         .map((jam) => ({
           type: "Feature",
           geometry: {
             type: "LineString",
-            coordinates: jam.line!.map((p) => [p.x, p.y]),
+            coordinates: jam.line!.map((p: { x: number; y: number }) => [p.x, p.y]),
           },
           properties: {
             closureId: closure.id,
@@ -560,55 +650,56 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     };
   }, [incidents, jams]);
 
-  // Funciones de color para flujo de tráfico
+  // Calcular bearing/dirección de una línea
+  function calculateBearing(line?: Array<{ x: number; y: number }>): number {
+    if (!line || line.length < 2) return 0;
+    const start = line[0];
+    const end = line[line.length - 1];
+    const dLng = end.x - start.x;
+    const dLat = end.y - start.y;
+    return (Math.atan2(dLng, dLat) * 180) / Math.PI;
+  }
+
+  // Obtener texto de severidad del atasco
+  function getJamSeverityText(level: number, speed: number): string {
+    if (speed < 5 || level >= 5) return "Detenido";
+    if (level >= 4 || speed < 10) return "Muy Lento";
+    if (level >= 3 || speed < 20) return "Lento";
+    if (level >= 2 || speed < 30) return "Moderado";
+    return "Fluido";
+  }
+
+  // Funciones de color para flujo de tráfico (estilo Waze)
   function getFlowColor(speed: number): string {
-    // Verde: flujo libre (>= 60 km/h)
-    if (speed >= 60) return "#22c55e";
-    // Amarillo: flujo moderado (40-60 km/h)
-    if (speed >= 40) return "#eab308";
-    // Naranja: flujo lento (20-40 km/h)
-    if (speed >= 20) return "#f97316";
-    // Rojo: muy lento (< 20 km/h)
-    return "#ef4444";
+    // Colores estilo Waze Traffic
+    if (speed >= 65) return "#00c853"; // Verde brillante - flujo libre
+    if (speed >= 50) return "#64dd17"; // Verde lima - buen flujo
+    if (speed >= 35) return "#ffeb3b"; // Amarillo - flujo moderado
+    if (speed >= 20) return "#ff9800"; // Naranja - flujo lento
+    if (speed >= 10) return "#ff5722"; // Naranja oscuro - muy lento
+    return "#d32f2f"; // Rojo - casi detenido
   }
 
   function getJamColor(level: number, speed: number): string {
-    // Rojo oscuro para tráfico detenido
-    if (speed < 5 || level >= 5) return "#7f1d1d";
-    // Rojo para congestión severa
-    if (level >= 4) return "#991b1b";
-    // Rojo normal para congestión moderada
-    if (level >= 3) return "#dc2626";
-    // Naranja para congestión leve
-    return "#f97316";
+    // Colores estilo Waze para congestión
+    if (speed < 5 || level >= 5) return "#b71c1c"; // Rojo muy oscuro - detenido
+    if (speed < 10 || level >= 4) return "#c62828"; // Rojo oscuro - muy lento
+    if (speed < 20 || level >= 3) return "#e53935"; // Rojo - lento
+    if (speed < 30 || level >= 2) return "#ff7043"; // Naranja rojizo - moderado
+    return "#ffa726"; // Naranja - leve
   }
 
-  // Animación ciclo - solo cuando el mapa esté cargado
-  useEffect(() => {
-    if (!mapLoaded || !mapRef.current) return;
+  // Color de fondo para el glow según severidad
+  function getJamGlowColor(level: number, speed: number): string {
+    if (speed < 5 || level >= 5) return "#ff1744"; // Rojo brillante
+    if (speed < 15 || level >= 4) return "#ff5252";
+    if (speed < 25 || level >= 3) return "#ff8a80";
+    return "#ffab91";
+  }
 
-    let animationFrameId: number;
-    const animate = (time: number) => {
-      const newOffset = (time / 100) % 2;
-      if (mapRef.current) {
-        const map = mapRef.current.getMap();
-        try {
-          if (map.getLayer("flow-line-dashed")) {
-            map.setPaintProperty(
-              "flow-line-dashed",
-              "line-dashoffset",
-              newOffset,
-            );
-          }
-        } catch (e) {
-          // Ignorar errores si la capa no está lista todavía
-        }
-      }
-      animationFrameId = requestAnimationFrame(animate);
-    };
-    animationFrameId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [mapLoaded]);
+  // Nota: Se removió la animación dinámica de line-dasharray porque causaba errores
+  // de MapLibre cuando las geometrías tenían coordenadas nulas o inválidas.
+  // La capa jams-animated usa un dasharray estático que es más estable.
 
   const handleClick = (event: any) => {
     const feature = event.features?.[0];
@@ -617,27 +708,49 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     // Click en Polígono
     if (feature.layer.id === "polygons-fill" && onPolygonClick) {
       onPolygonClick(feature.properties.id);
-      setSelectedIncident(null); // Limpiar incidente seleccionado
+      setSelectedIncident(null);
+      setSelectedJam(null);
       return;
     }
 
-    // Click en Incidente
+    // Click en Incidente Waze
     if (
       feature.layer.id === "incidents-icon" ||
       feature.layer.id === "incidents-base"
     ) {
       const { geometry, properties } = feature;
-      // geometry.coordinates is [lng, lat] for Point
       const [lng, lat] = geometry.coordinates;
 
+      setSelectedJam(null);
       setSelectedIncident({
         lng,
         lat,
         properties,
       });
 
-      // Centrar mapa suavemente
       mapRef.current?.flyTo({ center: [lng, lat], zoom: 15, duration: 800 });
+      return;
+    }
+
+    // Click en Atasco/Jam
+    if (
+      feature.layer.id === "jams-core" ||
+      feature.layer.id === "jam-labels-bg"
+    ) {
+      const { properties } = feature;
+      // Usar punto medio guardado en properties o calcular desde event
+      const lng = properties.midLng || event.lngLat.lng;
+      const lat = properties.midLat || event.lngLat.lat;
+
+      setSelectedIncident(null);
+      setSelectedJam({
+        lng,
+        lat,
+        properties,
+      });
+
+      mapRef.current?.flyTo({ center: [lng, lat], zoom: 15, duration: 800 });
+      return;
     }
   };
 
@@ -651,26 +764,18 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
       {/* Sidebar */}
       <MapSidebar
         onLayerToggle={(layer, enabled) => {
-          if (layer === "rac") {
-            setShowRACAccidents(enabled);
-          } else if (layer === "waze") {
+          if (layer === "waze") {
             setShowWazeIncidents(enabled);
-          } else if (layer === "traffic") {
-            setShowTraffic(enabled);
           }
         }}
-        onViewModeChange={(mode) =>
-          setRACFilter({ ...racFilter, viewMode: mode })
-        }
-        onFilterChange={(filter) =>
-          setRACFilter({ ...racFilter, dateFilter: filter })
-        }
-        showRACAccidents={showRACAccidents}
         showWazeIncidents={showWazeIncidents}
-        showTraffic={showTraffic}
-        racViewMode={racFilter.viewMode}
-        dateFilter={racFilter.dateFilter || { mode: "day", date: new Date() }}
         jams={jams}
+        // Props para filtros de polígonos
+        polygons={allPolygons || polygons}
+        selectedPolygon={selectedPolygon}
+        selectedGroup={selectedGroup}
+        onPolygonChange={onPolygonChange}
+        onGroupChange={onGroupChange}
       />
 
       {/* Mapa */}
@@ -695,6 +800,8 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             "polygons-fill",
             "incidents-icon",
             "incidents-base",
+            "jams-core",
+            "jam-labels-bg",
           ]}
         >
           <NavigationControl position="top-right" showCompass showZoom />
@@ -748,16 +855,39 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             )}
           </Source>
 
-          {/* Flujo de Tráfico (TVT) */}
-          {showTraffic && (
+          {/* Flujo de Tráfico - Capa base con gradiente */}
+          {showTraffic && showFlowLayer && (
             <Source id="flow" type="geojson" data={flowGeoJSON as any}>
+              {/* Capa de borde/sombra */}
+              <Layer
+                id="flow-line-border"
+                type="line"
+                paint={{
+                  "line-color": "#000000",
+                  "line-width": 7,
+                  "line-opacity": 0.15,
+                  "line-blur": 2,
+                }}
+                layout={{
+                  "line-cap": "round",
+                  "line-join": "round",
+                }}
+              />
+              {/* Capa principal de flujo */}
               <Layer
                 id="flow-line"
                 type="line"
                 paint={{
                   "line-color": ["get", "color"],
-                  "line-width": 5,
-                  "line-opacity": 0.85,
+                  "line-width": [
+                    "interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    10, 3,
+                    14, 5,
+                    18, 8,
+                  ],
+                  "line-opacity": 0.9,
                 }}
                 layout={{
                   "line-cap": "round",
@@ -767,9 +897,36 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             </Source>
           )}
 
-          {/* Jams - Solo visible cuando showTraffic está activo y el mapa cargó */}
-          {showTraffic && mapLoaded && (
+          {/* Jams/Atascos - Capas mejoradas con efecto Waze */}
+          {showTraffic && showJamsLayer && mapLoaded && (
             <Source id="jams-source" type="geojson" data={jamsGeoJSON as any}>
+              {/* Capa de glow exterior pulsante */}
+              <Layer
+                id="jams-outer-glow"
+                type="line"
+                layout={{ "line-join": "round", "line-cap": "round" }}
+                paint={{
+                  "line-color": ["get", "color"],
+                  "line-width": [
+                    "interpolate",
+                    ["linear"],
+                    ["get", "level"],
+                    2, 12,
+                    3, 16,
+                    4, 20,
+                    5, 26,
+                  ],
+                  "line-opacity": [
+                    "interpolate",
+                    ["linear"],
+                    ["get", "level"],
+                    2, 0.15,
+                    5, 0.35,
+                  ],
+                  "line-blur": 6,
+                }}
+              />
+              {/* Capa de glow interior */}
               <Layer
                 id="jams-glow"
                 type="line"
@@ -780,15 +937,16 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                     "interpolate",
                     ["linear"],
                     ["get", "level"],
-                    3,
-                    8,
-                    5,
-                    16,
+                    2, 8,
+                    3, 10,
+                    4, 14,
+                    5, 18,
                   ],
-                  "line-opacity": 0.4,
-                  "line-blur": 4,
+                  "line-opacity": 0.5,
+                  "line-blur": 3,
                 }}
               />
+              {/* Capa núcleo - línea principal */}
               <Layer
                 id="jams-core"
                 type="line"
@@ -798,20 +956,115 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                   "line-width": [
                     "interpolate",
                     ["linear"],
-                    ["get", "level"],
-                    3,
-                    3,
-                    5,
-                    6,
+                    ["zoom"],
+                    10, ["interpolate", ["linear"], ["get", "level"], 2, 3, 5, 5],
+                    14, ["interpolate", ["linear"], ["get", "level"], 2, 4, 5, 7],
+                    18, ["interpolate", ["linear"], ["get", "level"], 2, 6, 5, 10],
                   ],
                   "line-opacity": 1,
+                }}
+              />
+              {/* Patrón de línea animada para indicar dirección del flujo lento */}
+              <Layer
+                id="jams-animated"
+                type="line"
+                layout={{ "line-join": "round", "line-cap": "round" }}
+                paint={{
+                  "line-color": "#ffffff",
+                  "line-width": [
+                    "interpolate",
+                    ["linear"],
+                    ["get", "level"],
+                    2, 1,
+                    5, 2,
+                  ],
+                  "line-opacity": [
+                    "interpolate",
+                    ["linear"],
+                    ["get", "level"],
+                    2, 0.3,
+                    5, 0.6,
+                  ],
+                  "line-dasharray": [0.5, 3],
+                }}
+              />
+            </Source>
+          )}
+
+          {/* Etiquetas de velocidad en atascos severos - solo en zoom alto */}
+          {showTraffic && showJamsLayer && mapLoaded && (
+            <Source id="jam-labels-source" type="geojson" data={jamLabelsGeoJSON as any}>
+              {/* Fondo del label */}
+              <Layer
+                id="jam-labels-bg"
+                type="circle"
+                minzoom={13}
+                paint={{
+                  "circle-radius": [
+                    "interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    13, 10,
+                    16, 14,
+                  ],
+                  "circle-color": ["case",
+                    ["<", ["get", "speed"], 5], "#b71c1c",
+                    ["<", ["get", "speed"], 15], "#c62828",
+                    ["<", ["get", "speed"], 25], "#e53935",
+                    "#ff7043"
+                  ],
+                  "circle-opacity": 0.95,
+                  "circle-stroke-width": 2,
+                  "circle-stroke-color": "#ffffff",
+                }}
+              />
+              {/* Texto de velocidad */}
+              <Layer
+                id="jam-labels-text"
+                type="symbol"
+                minzoom={13}
+                layout={{
+                  "text-field": ["get", "speedLabel"],
+                  "text-size": [
+                    "interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    13, 9,
+                    16, 12,
+                  ],
+                  "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+                  "text-allow-overlap": true,
+                  "text-ignore-placement": true,
+                }}
+                paint={{
+                  "text-color": "#ffffff",
+                  "text-halo-color": "rgba(0,0,0,0.3)",
+                  "text-halo-width": 1,
+                }}
+              />
+              {/* Label de demora (minutos extra) */}
+              <Layer
+                id="jam-delay-labels"
+                type="symbol"
+                minzoom={14}
+                layout={{
+                  "text-field": ["get", "delayLabel"],
+                  "text-size": 10,
+                  "text-font": ["Open Sans Semibold", "Arial Unicode MS Regular"],
+                  "text-offset": [0, 1.8],
+                  "text-allow-overlap": false,
+                }}
+                paint={{
+                  "text-color": "#ffcdd2",
+                  "text-halo-color": "rgba(0,0,0,0.7)",
+                  "text-halo-width": 1,
                 }}
               />
             </Source>
           )}
 
           {/* Líneas de cierres de camino (usando datos reales de jams) */}
-          {showWazeIncidents && (
+          {showRoadClosures && (
             <Source
               id="road-closures"
               type="geojson"
@@ -900,6 +1153,157 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             </Source>
           )}
 
+          {/* Popup de Atasco/Tráfico */}
+          {selectedJam && (
+            <Popup
+              longitude={selectedJam.lng}
+              latitude={selectedJam.lat}
+              anchor="bottom"
+              onClose={() => setSelectedJam(null)}
+              closeButton={false}
+              className="jam-popup"
+              maxWidth="320px"
+            >
+              <div
+                className={`rounded-xl shadow-2xl overflow-hidden min-w-[280px] ${
+                  isDark
+                    ? "bg-veltrix-card text-white"
+                    : "bg-white text-gray-800"
+                }`}
+              >
+                {/* Header con gradiente según severidad */}
+                <div 
+                  className="flex items-start justify-between p-4 border-b border-gray-100 dark:border-veltrix-border"
+                  style={{
+                    background: isDark 
+                      ? `linear-gradient(135deg, ${selectedJam.properties.color}30 0%, transparent 100%)`
+                      : `linear-gradient(135deg, ${selectedJam.properties.color}20 0%, transparent 100%)`
+                  }}
+                >
+                  <div className="flex items-start gap-3">
+                    <div 
+                      className="p-2.5 rounded-xl shadow-lg"
+                      style={{ backgroundColor: selectedJam.properties.color }}
+                    >
+                      <Car className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest leading-none mb-1">
+                        Congestión de Tráfico
+                      </p>
+                      <h3 className="font-bold text-lg leading-tight">
+                        {selectedJam.properties.street || "Vía"}
+                      </h3>
+                      {selectedJam.properties.city && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                          {selectedJam.properties.city}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSelectedJam(null)}
+                    className="p-1.5 hover:bg-gray-200 dark:hover:bg-zinc-800 rounded-full transition-colors text-gray-500"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Indicador de severidad visual */}
+                <div className="px-4 py-3 bg-gray-50/50 dark:bg-zinc-900/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                      Estado del tráfico
+                    </span>
+                    <span 
+                      className="text-xs font-bold px-2 py-0.5 rounded-full text-white"
+                      style={{ backgroundColor: selectedJam.properties.color }}
+                    >
+                      {selectedJam.properties.severityText || getJamSeverityText(selectedJam.properties.level, selectedJam.properties.speed)}
+                    </span>
+                  </div>
+                  {/* Barra de nivel de congestión */}
+                  <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ 
+                        width: `${Math.min(100, (selectedJam.properties.level || 1) * 20)}%`,
+                        backgroundColor: selectedJam.properties.color 
+                      }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                    <span>Fluido</span>
+                    <span>Detenido</span>
+                  </div>
+                </div>
+
+                {/* Métricas principales */}
+                <div className="p-4 grid grid-cols-3 gap-3">
+                  {/* Velocidad */}
+                  <div className="text-center p-2 bg-gray-50 dark:bg-veltrix-bg rounded-lg">
+                    <Gauge className="w-5 h-5 mx-auto mb-1 text-gray-400" />
+                    <p className="text-lg font-bold" style={{ color: selectedJam.properties.color }}>
+                      {Math.round(selectedJam.properties.speed || 0)}
+                    </p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400">km/h</p>
+                  </div>
+                  {/* Demora */}
+                  <div className="text-center p-2 bg-gray-50 dark:bg-veltrix-bg rounded-lg">
+                    <Timer className="w-5 h-5 mx-auto mb-1 text-gray-400" />
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">
+                      {selectedJam.properties.delay > 60 
+                        ? `+${Math.round(selectedJam.properties.delay / 60)}` 
+                        : `+${Math.round(selectedJam.properties.delay || 0)}`}
+                    </p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                      {selectedJam.properties.delay > 60 ? "min" : "seg"}
+                    </p>
+                  </div>
+                  {/* Longitud */}
+                  <div className="text-center p-2 bg-gray-50 dark:bg-veltrix-bg rounded-lg">
+                    <Route className="w-5 h-5 mx-auto mb-1 text-gray-400" />
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">
+                      {selectedJam.properties.length > 1000 
+                        ? (selectedJam.properties.length / 1000).toFixed(1) 
+                        : Math.round(selectedJam.properties.length || 0)}
+                    </p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                      {selectedJam.properties.length > 1000 ? "km" : "m"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Footer con nivel de congestión Waze */}
+                <div className="px-4 py-3 bg-gray-50 dark:bg-zinc-900 border-t border-gray-100 dark:border-veltrix-border flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500 dark:text-gray-400">Nivel Waze:</span>
+                    <div className="flex gap-0.5">
+                      {[1, 2, 3, 4, 5].map((lvl) => (
+                        <div
+                          key={lvl}
+                          className={`w-3 h-3 rounded-sm ${
+                            lvl <= (selectedJam.properties.level || 0)
+                              ? ""
+                              : "bg-gray-200 dark:bg-gray-700"
+                          }`}
+                          style={{
+                            backgroundColor: lvl <= (selectedJam.properties.level || 0) 
+                              ? selectedJam.properties.color 
+                              : undefined
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <span className="text-gray-400 font-mono text-[10px]">
+                    Tipo vía: {selectedJam.properties.roadType || "-"}
+                  </span>
+                </div>
+              </div>
+            </Popup>
+          )}
+
           {/* Popup de Incidente */}
           {selectedIncident && (
             <Popup
@@ -986,6 +1390,19 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                     <span className="font-mono text-xs bg-gray-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded w-fit text-blue-600 dark:text-blue-400">
                       {selectedIncident.properties.reportBy || "Wazer"}
                     </span>
+
+                    {selectedIncident.properties.magvar !== undefined && selectedIncident.properties.magvar !== null && (
+                      <>
+                        <span className="font-medium text-gray-500 dark:text-gray-400">
+                          Dirección
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <Navigation className="h-3.5 w-3.5 text-blue-500" style={{ transform: `rotate(${selectedIncident.properties.magvar}deg)` }} />
+                          {getCardinalDirection(selectedIncident.properties.magvar)}
+                          <span className="text-gray-400 text-xs">({Math.round(selectedIncident.properties.magvar)}°)</span>
+                        </span>
+                      </>
+                    )}
 
                     <span className="font-medium text-gray-500 dark:text-gray-400">
                       ID

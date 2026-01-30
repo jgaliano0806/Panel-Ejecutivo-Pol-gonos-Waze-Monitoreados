@@ -106,11 +106,11 @@ RETURNS void AS $$
 BEGIN
     -- Eliminar snapshots globales más antiguos que 7 días
     DELETE FROM historical_snapshots
-    WHERE timestamp < NOW() - INTERVAL '7 days';
+    WHERE timestamp < NOW() - INTERVAL '90 days';
 
     -- Eliminar snapshots de polígonos más antiguos que 7 días
     DELETE FROM polygon_snapshots
-    WHERE timestamp < NOW() - INTERVAL '7 days';
+    WHERE timestamp < NOW() - INTERVAL '90 days';
 END;
 $$ LANGUAGE plpgsql;
 

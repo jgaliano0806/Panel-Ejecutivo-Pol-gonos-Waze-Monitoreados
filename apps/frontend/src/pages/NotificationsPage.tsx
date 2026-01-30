@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   useNotificationStore,
@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { speakNotification } from "@/lib/tts-utils";
+import { socket } from "@/services/websocket";
 
 export const NotificationsPage: React.FC = () => {
   const notifications = useNotificationStore((state) => state.notifications);
@@ -25,9 +26,17 @@ export const NotificationsPage: React.FC = () => {
   const addNotification = useNotificationStore(
     (state) => state.addNotification,
   );
+  const removeDuplicates = useNotificationStore(
+    (state) => state.removeDuplicates,
+  );
 
   const [filter, setFilter] = useState<"ALL" | "UNREAD" | "READ">("ALL");
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Limpiar duplicados al montar el componente
+  useEffect(() => {
+    removeDuplicates();
+  }, [removeDuplicates]);
 
   const filteredNotifications = notifications.filter((n) => {
     const matchesFilter =
@@ -119,34 +128,76 @@ export const NotificationsPage: React.FC = () => {
                   {
                     id: `test-1-${Date.now()}`,
                     type: "HAZARD",
-                    title: "⚠️ Peligro en la Vía en RP E73",
-                    message: "Vehículo detenido en banquina",
+                    title: "Peligro en la Vía",
+                    message: "Vehículo detenido en banquina, RP E73",
                     created_at: new Date().toISOString(),
                     is_read: false,
+                    data: {
+                      incidentType: "HAZARD",
+                      subtype: "HAZARD_ON_SHOULDER_CAR_STOPPED",
+                      street: "RP E73",
+                      city: "Córdoba",
+                      polygonName: "Ruta Provincial E73",
+                    },
                   },
                   {
                     id: `test-2-${Date.now()}`,
                     type: "ACCIDENT",
-                    title: "🚨 Accidente en RN 20",
-                    message: "Colisión múltiple con demoras",
+                    title: "Accidente Reportado",
+                    message: "Colisión múltiple con demoras, RN 20",
                     created_at: new Date().toISOString(),
                     is_read: false,
+                    data: {
+                      incidentType: "ACCIDENT",
+                      subtype: "ACCIDENT_MAJOR",
+                      street: "RN 20",
+                      city: "Villa María",
+                      polygonName: "Ruta Nacional 20",
+                    },
                   },
                   {
                     id: `test-3-${Date.now()}`,
                     type: "HAZARD",
-                    title: "🚧 Corte total en Circunvalación",
+                    title: "Obras en la Vía",
                     message: "Obras preventivas por mantenimiento",
                     created_at: new Date().toISOString(),
                     is_read: false,
+                    data: {
+                      incidentType: "HAZARD",
+                      subtype: "HAZARD_ON_ROAD_CONSTRUCTION",
+                      street: "Circunvalación",
+                      city: "Córdoba Capital",
+                      polygonName: "Circunvalación",
+                    },
                   },
                 ];
 
                 tests.forEach((t, i) => {
                   setTimeout(() => {
                     console.log("🧪 Disparando notificación de prueba:", t.id);
-                    addNotification(t);
-                    speakNotification(t.title, t.message);
+                    // Simular notificación que viene por WebSocket
+                    // Disparamos el evento directamente en el socket para que el listener lo capture
+                    // Esto simula el comportamiento del servidor
+                    if (socket.connected) {
+                      // Usar el método interno del socket para disparar el evento localmente
+                      // Esto activará el listener en useRealtimeNotifications
+                      const listeners = (socket as any)._callbacks?.["$notification:new"] ||
+                                       (socket as any).listeners?.("notification:new");
+                      if (listeners && listeners.length > 0) {
+                        listeners.forEach((listener: Function) => listener(t));
+                        console.log("📡 Notificación simulada por WebSocket (activó listeners)");
+                      } else {
+                        // Si no hay listeners registrados, agregar directamente
+                        console.warn("⚠️ No hay listeners registrados, agregando directamente");
+                        addNotification(t);
+                        speakNotification(t.title, t.message);
+                      }
+                    } else {
+                      // Si el socket no está conectado, agregar directamente al store
+                      console.warn("⚠️ Socket no conectado, agregando directamente al store");
+                      addNotification(t);
+                      speakNotification(t.title, t.message);
+                    }
                   }, i * 2000);
                 });
               }}
@@ -203,6 +254,36 @@ const FilterButton = ({ active, onClick, label, count }: any) => (
   </button>
 );
 
+// Función para obtener título con emoji según tipo
+const getNotificationTitle = (notification: Notification): string => {
+  const baseTitle = notification.title || "";
+  
+  // Si ya tiene emoji, devolverlo tal cual
+  if (baseTitle.startsWith("🔴") || baseTitle.startsWith("🟡") || baseTitle.startsWith("🟠")) {
+    return baseTitle;
+  }
+  
+  // Agregar emoji según tipo
+  if (notification.type === "ACCIDENT") {
+    return `🔴 ${baseTitle.replace(/^Accidente\s*/i, "Accidente ")}`;
+  }
+  if (notification.type === "HAZARD") {
+    return `🟠 ${baseTitle.replace(/^Peligro\s*/i, "Peligro ")}`;
+  }
+  return `🔵 ${baseTitle}`;
+};
+
+// Función para limpiar el mensaje de metadatos de AI
+const cleanNotificationMessage = (message: string): string => {
+  return message
+    .replace(/\[AI:\s*[^\]]+\]/gi, "")
+    .replace(/\[Ruido\]/gi, "")
+    .replace(/\[Accionable\]/gi, "")
+    .replace(/\[Conf:\s*\d+%?\]/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
 const NotificationCard = ({ notification }: { notification: Notification }) => {
   const markAsRead = useNotificationStore((state) => state.markAsRead);
   const navigate = useNavigate();
@@ -215,12 +296,36 @@ const NotificationCard = ({ notification }: { notification: Notification }) => {
           state: {
             selectedPolygonId: notification.data.polygonId,
             focusEventId: notification.id,
-            forcedIncident: notification.data, // Pasamos el objeto completo para asegurar que el mapa pueda mostrarlo
+            forcedIncident: notification.data,
           },
         });
       });
     }
   };
+
+  // Construir mensaje descriptivo
+  const displayMessage = React.useMemo(() => {
+    const data = notification.data;
+    const cleanedMessage = cleanNotificationMessage(notification.message);
+    
+    // Si tenemos datos estructurados, construir mensaje más descriptivo
+    if (data?.street) {
+      const typeLabel = notification.type === "ACCIDENT" 
+        ? "Accidente reportado" 
+        : notification.type === "HAZARD" 
+          ? "Peligro reportado"
+          : "Evento";
+      
+      const location = data.city 
+        ? `${data.street} - ${data.city}`
+        : data.street;
+        
+      return `${typeLabel} en ${location}`;
+    }
+    
+    // Fallback al mensaje original traducido y limpio
+    return translateWazeMessage(cleanedMessage) || cleanedMessage;
+  }, [notification]);
 
   return (
     <div
@@ -259,10 +364,10 @@ const NotificationCard = ({ notification }: { notification: Notification }) => {
                   : "text-gray-600 dark:text-gray-300",
               )}
             >
-              {notification.title}
+              {getNotificationTitle(notification)}
             </h4>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              {translateWazeMessage(notification.message)}
+              {displayMessage}
             </p>
             <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
               <Clock className="h-3 w-3" />

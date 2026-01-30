@@ -26,6 +26,14 @@ import { MiniMapLibre } from "../components/map/MiniMapLibre";
 import { VirtualizedList } from "../components/ui/VirtualizedList";
 
 export const RoadAccidentsPage: React.FC = () => {
+  // Estados para filtros y paginación
+  const [dateRange, setDateRange] = useState<{ from: string; to: string }>({
+    from: "",
+    to: "",
+  });
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
+
   const [selectedAccidentId, setSelectedAccidentId] = useState<string | null>(
     null,
   );
@@ -40,7 +48,30 @@ export const RoadAccidentsPage: React.FC = () => {
     failed: number;
   } | null>(null);
 
-  const { data: accidents, isLoading: listLoading } = useRoadAccidents();
+  const { data: accidents, isLoading: listLoading } = useRoadAccidents({
+    from: dateRange.from ? new Date(dateRange.from).toISOString() : undefined,
+    to: dateRange.to ? new Date(dateRange.to).toISOString() : undefined,
+    limit: PAGE_SIZE,
+    offset: page * PAGE_SIZE,
+  });
+
+  // Reset page when filters change
+  const handleDateChange = (type: "from" | "to", value: string) => {
+    setDateRange((prev) => ({ ...prev, [type]: value }));
+    setPage(0);
+  };
+
+  const getAccidentSubtypeLabel = (subtype?: string) => {
+    if (!subtype) return "ACCIDENTE";
+    const map: Record<string, string> = {
+      ACCIDENT_MINOR: "Accidente Leve",
+      ACCIDENT_MAJOR: "Accidente Grave",
+      ACCIDENT_CONSTRUCTION: "En Construcción",
+      NO_SUBTYPE: "Accidente",
+      ROAD_CLOSED_EVENT: "Calle Cerrada",
+    };
+    return map[subtype] || subtype.replace(/_/g, " ");
+  };
   const { data: accident, isLoading: detailsLoading } =
     useRoadAccident(selectedAccidentId);
 
@@ -71,12 +102,9 @@ export const RoadAccidentsPage: React.FC = () => {
         });
       }, 500);
 
-      const response = await fetch(
-        `${API_URL}/api/accidents/backfill-weather`,
-        {
-          method: "POST",
-        },
-      );
+      const response = await fetch(`${API_URL}/accidents/backfill-weather`, {
+        method: "POST",
+      });
 
       clearInterval(progressInterval);
       setBackfillProgress(100);
@@ -151,10 +179,10 @@ export const RoadAccidentsPage: React.FC = () => {
       {/* Sidebar: Lista de Accidentes */}
       <div className="w-96 border-r border-gray-200 dark:border-veltrix-border bg-white dark:bg-veltrix-card flex flex-col transition-colors">
         <div className="p-4 border-b border-gray-200 dark:border-veltrix-border">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-4">
             <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <Car className="w-6 h-6 text-red-600 dark:text-red-500" />
-              Siniestros Viales
+              Siniestros
             </h1>
             <div className="flex gap-2">
               <button
@@ -170,9 +198,28 @@ export const RoadAccidentsPage: React.FC = () => {
               </button>
             </div>
           </div>
-          <p className="text-sm text-gray-500 dark:text-veltrix-muted">
-            Gestión de siniestros y respaldo multimedia
-          </p>
+
+          {/* Filtros de Fecha */}
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <label className="text-gray-500 block mb-1">Desde</label>
+              <input
+                type="date"
+                className="w-full p-2 border rounded dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white"
+                value={dateRange.from}
+                onChange={(e) => handleDateChange("from", e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-gray-500 block mb-1">Hasta</label>
+              <input
+                type="date"
+                className="w-full p-2 border rounded dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white"
+                value={dateRange.to}
+                onChange={(e) => handleDateChange("to", e.target.value)}
+              />
+            </div>
+          </div>
         </div>
 
         <div className="flex-1 min-h-0">
@@ -202,7 +249,7 @@ export const RoadAccidentsPage: React.FC = () => {
                         acc.severity,
                       )}`}
                     >
-                      {acc.subtype || acc.type}
+                      {getAccidentSubtypeLabel(acc.subtype)}
                     </span>
                     <span className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-1">
                       <Clock className="w-3 h-3" />
@@ -243,6 +290,25 @@ export const RoadAccidentsPage: React.FC = () => {
               )}
             />
           )}
+        </div>
+
+        {/* Paginación */}
+        <div className="p-3 border-t border-gray-200 dark:border-veltrix-border flex justify-between items-center bg-gray-50 dark:bg-veltrix-bg text-xs">
+          <button
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+            className="px-3 py-1 bg-white dark:bg-veltrix-card border rounded disabled:opacity-50"
+          >
+            Anterior
+          </button>
+          <span className="dark:text-gray-300">Pág {page + 1}</span>
+          <button
+            onClick={() => setPage((p) => p + 1)}
+            disabled={!accidents || accidents.length < PAGE_SIZE}
+            className="px-3 py-1 bg-white dark:bg-veltrix-card border rounded disabled:opacity-50"
+          >
+            Siguiente
+          </button>
         </div>
       </div>
 

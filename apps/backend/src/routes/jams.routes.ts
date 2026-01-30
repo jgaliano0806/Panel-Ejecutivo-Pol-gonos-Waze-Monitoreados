@@ -10,6 +10,7 @@ export default async function jamsRoutes(fastify: FastifyInstance) {
       const query = `
         SELECT
             uuid as id,
+            polygon_id as "polygonId",
             level,
             speed_kmh as speed,
             length_meters as length,
@@ -20,7 +21,8 @@ export default async function jamsRoutes(fastify: FastifyInstance) {
             blocking_alert_uuid as "blockingAlertUuid"
         FROM waze_jams
         WHERE is_active = true
-        LIMIT 500
+        ORDER BY level DESC, delay_seconds DESC
+        LIMIT 1000
       `;
 
       const result = await dbService.query(query);

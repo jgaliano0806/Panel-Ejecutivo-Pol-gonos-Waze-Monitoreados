@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -13,10 +13,12 @@ import {
   ChevronRight,
   Menu,
   X,
+  Bell,
+  FileSearch,
 } from "lucide-react";
 
 import { useNotificationStore } from "@/stores/useNotificationStore";
-import { Bell } from "lucide-react";
+import { useSidebarStore } from "@/stores/useSidebarStore";
 
 interface NavItem {
   id: string;
@@ -25,10 +27,10 @@ interface NavItem {
   path: string;
 }
 
-export const AppSidebar = () => {
+export const AppSidebar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isExpanded, setIsExpanded] = useState(true);
+  const { isExpanded, setExpanded } = useSidebarStore();
   const unreadCount = useNotificationStore((state) => state.unreadCount);
 
   // Determinar item activo basado en la ruta actual
@@ -40,6 +42,7 @@ export const AppSidebar = () => {
     if (location.pathname === "/alertas") return "alerts";
     if (location.pathname === "/siniestros") return "accidents";
     if (location.pathname === "/notificaciones") return "notifications";
+    if (location.pathname === "/incidentes") return "incidents";
     if (location.pathname === "/historial") return "history";
     if (location.pathname === "/estadisticas") return "stats";
     if (location.pathname === "/admin") return "admin";
@@ -84,6 +87,12 @@ export const AppSidebar = () => {
       label: "Siniestros Viales",
       icon: <Car size={20} />,
       path: "/siniestros",
+    },
+    {
+      id: "incidents",
+      label: "Módulo Incidentes",
+      icon: <FileSearch size={20} />,
+      path: "/incidentes",
     },
     {
       id: "history",
@@ -133,7 +142,7 @@ export const AppSidebar = () => {
           </motion.div>
         )}
         <button
-          onClick={() => setIsExpanded(!isExpanded)}
+          onClick={() => setExpanded(!isExpanded)}
           className="p-2 hover:bg-gray-800 dark:hover:bg-veltrix-bg rounded-lg transition-colors"
         >
           {isExpanded ? <X size={18} /> : <Menu size={18} />}

@@ -1,20 +1,17 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Home,
   Map,
   Layers,
-  Calendar,
-  Settings,
-  Search,
   ChevronDown,
   ChevronRight,
   Menu,
   X,
-  AlertTriangle,
-  Car,
+  Filter,
 } from "lucide-react";
 import { WazeOMeter } from "../dashboard/WazeOMeter";
+import type { Polygon } from "../../types";
+import { getPolygonGroups } from "../../utils/polygonHelpers";
 
 interface MenuItem {
   id: string;
@@ -26,35 +23,46 @@ interface MenuItem {
 
 interface MapSidebarProps {
   onLayerToggle: (layer: string, enabled: boolean) => void;
-  onFilterChange: (filter: {
-    mode: "day" | "month" | "year";
-    date: Date;
-  }) => void;
-  onViewModeChange: (mode: "active" | "historical") => void;
-  showRACAccidents: boolean;
   showWazeIncidents: boolean;
-  showTraffic?: boolean;
-  racViewMode: "active" | "historical";
-  dateFilter: { mode: "day" | "month" | "year"; date: Date };
   jams: any[]; // TrafficJam array for WazeOMeter
+  // Props para filtros de polígonos
+  polygons?: Polygon[];
+  selectedPolygon?: string | null;
+  selectedGroup?: string | null;
+  onPolygonChange?: (polygonId: string | null) => void;
+  onGroupChange?: (group: string | null) => void;
 }
 
 export const MapSidebar = ({
   onLayerToggle,
-  onFilterChange,
-  onViewModeChange,
-  showRACAccidents,
   showWazeIncidents,
-  showTraffic = true,
-  racViewMode,
-  dateFilter,
   jams,
+  // Props de filtros de polígonos
+  polygons = [],
+  selectedPolygon = null,
+  selectedGroup = null,
+  onPolygonChange,
+  onGroupChange,
 }: MapSidebarProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(
-    new Set(["layers"]),
+    new Set(["layers", "polygon-filters"]),
   );
-  const [searchQuery, setSearchQuery] = useState("");
+
+  // Calcular grupos únicos desde los polígonos reales
+  const polygonGroups = useMemo(
+    () => getPolygonGroups(polygons).sort(),
+    [polygons]
+  );
+
+  const filteredPolygons = useMemo(() => {
+    if (selectedGroup) {
+      return polygons
+        .filter((p) => p.group === selectedGroup)
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return polygons.sort((a, b) => a.name.localeCompare(b.name));
+  }, [polygons, selectedGroup]);
 
   const menuItems: MenuItem[] = [
     {
@@ -67,54 +75,10 @@ export const MapSidebar = ({
           label: "Incidentes Waze",
           icon: <Map size={18} />,
           action: () => onLayerToggle("waze", !showWazeIncidents),
-        },
-        {
-          id: "rac",
-          label: "Accidentes RAC",
-          icon: <AlertTriangle size={18} />,
-          action: () => onLayerToggle("rac", !showRACAccidents),
-        },
-        {
-          id: "traffic",
-          label: "Tráfico",
-          icon: <Car size={18} />,
-          action: () => onLayerToggle("traffic", !showTraffic),
+          color: "green",
         },
       ],
     },
-    // Solo mostrar período histórico cuando Accidentes RAC está activo
-    ...(showRACAccidents
-      ? [
-          {
-            id: "date-filters",
-            label: "Período Histórico",
-            icon: <Calendar size={20} />,
-            children: [
-              {
-                id: "day",
-                label: "Por día",
-                icon: <Calendar size={18} />,
-                action: () =>
-                  onFilterChange({ mode: "day", date: dateFilter.date }),
-              },
-              {
-                id: "month",
-                label: "Por mes",
-                icon: <Calendar size={18} />,
-                action: () =>
-                  onFilterChange({ mode: "month", date: dateFilter.date }),
-              },
-              {
-                id: "year",
-                label: "Por año",
-                icon: <Calendar size={18} />,
-                action: () =>
-                  onFilterChange({ mode: "year", date: dateFilter.date }),
-              },
-            ],
-          },
-        ]
-      : []),
   ];
 
   const toggleMenu = (menuId: string) => {
@@ -127,24 +91,6 @@ export const MapSidebar = ({
       }
       return newSet;
     });
-  };
-
-  const formatDateInput = (
-    date: Date,
-    mode: "day" | "month" | "year",
-  ): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-
-    switch (mode) {
-      case "day":
-        return `${year}-${month}-${day}`;
-      case "month":
-        return `${year}-${month}`;
-      case "year":
-        return String(year);
-    }
   };
 
   return (
@@ -172,25 +118,6 @@ export const MapSidebar = ({
           {isExpanded ? <X size={20} /> : <Menu size={20} />}
         </button>
       </div>
-
-      {/* Search */}
-      {isExpanded && (
-        <div className="p-4">
-          <div className="relative">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              size={18}
-            />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar..."
-              className="w-full pl-10 pr-3 py-2 bg-gray-800 dark:bg-veltrix-bg border border-gray-700 dark:border-veltrix-border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
-            />
-          </div>
-        </div>
-      )}
 
       {/* Estado de la Red Vial - Compacto */}
       {isExpanded && (
@@ -258,71 +185,124 @@ export const MapSidebar = ({
                       {child.id === "waze" && showWazeIncidents && (
                         <span className="ml-auto w-2 h-2 bg-green-500 rounded-full"></span>
                       )}
-                      {child.id === "rac" && showRACAccidents && (
-                        <span className="ml-auto w-2 h-2 bg-red-500 rounded-full"></span>
-                      )}
-                      {child.id === "traffic" && showTraffic && (
-                        <span className="ml-auto w-2 h-2 bg-blue-500 rounded-full"></span>
-                      )}
-                      {/* Indicador de modo seleccionado */}
-                      {child.id === "active" && racViewMode === "active" && (
-                        <span className="ml-auto w-2 h-2 bg-blue-500 rounded-full"></span>
-                      )}
-                      {child.id === "historical" &&
-                        racViewMode === "historical" && (
-                          <span className="ml-auto w-2 h-2 bg-blue-500 rounded-full"></span>
-                        )}
-                      {/* Indicador de filtro de fecha seleccionado */}
-                      {child.id === dateFilter.mode &&
-                        item.id === "date-filters" && (
-                          <span className="ml-auto w-2 h-2 bg-purple-500 rounded-full"></span>
-                        )}
                     </button>
                   ))}
-                  {/* Date Filter Input - Solo mostrar en modo histórico */}
-                  {item.id === "date-filters" &&
-                    showRACAccidents &&
-                    racViewMode === "historical" && (
-                      <div className="px-3 py-2 space-y-2">
-                        <label className="text-xs text-gray-400">
-                          Seleccionar fecha:
-                        </label>
-                        <input
-                          type={
-                            dateFilter.mode === "day"
-                              ? "date"
-                              : dateFilter.mode === "month"
-                                ? "month"
-                                : "number"
-                          }
-                          value={formatDateInput(
-                            dateFilter.date,
-                            dateFilter.mode,
-                          )}
-                          onChange={(e) => {
-                            const newDate =
-                              dateFilter.mode === "year"
-                                ? new Date(parseInt(e.target.value), 0, 1)
-                                : new Date(e.target.value);
-                            if (!isNaN(newDate.getTime())) {
-                              onFilterChange({ ...dateFilter, date: newDate });
-                            }
-                          }}
-                          min={dateFilter.mode === "year" ? "2020" : undefined}
-                          max={
-                            dateFilter.mode === "year"
-                              ? new Date().getFullYear().toString()
-                              : undefined
-                          }
-                          className="w-full px-2 py-1.5 bg-gray-800 dark:bg-veltrix-bg border border-gray-700 dark:border-veltrix-border rounded text-xs text-white"
-                        />
-                      </div>
-                    )}
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
         ))}
+
+        {/* Filtros de Polígonos - Solo si hay callbacks definidos */}
+        {onPolygonChange && onGroupChange && polygons.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-gray-800 dark:border-veltrix-border">
+            <button
+              onClick={() => toggleMenu("polygon-filters")}
+              className={`
+                w-full flex items-center gap-3 px-3 py-2.5 rounded-lg
+                transition-colors mb-1
+                ${
+                  expandedMenus.has("polygon-filters")
+                    ? "bg-gray-800 dark:bg-veltrix-bg"
+                    : "hover:bg-gray-800 dark:hover:bg-veltrix-bg"
+                }
+              `}
+            >
+              <span className="text-gray-400">
+                <Filter size={20} />
+              </span>
+              {isExpanded && (
+                <>
+                  <span className="flex-1 text-left text-sm">Filtros</span>
+                  {(selectedPolygon || selectedGroup) && (
+                    <span className="w-2 h-2 bg-blue-500 rounded-full mr-1"></span>
+                  )}
+                  {expandedMenus.has("polygon-filters") ? (
+                    <ChevronDown size={16} />
+                  ) : (
+                    <ChevronRight size={16} />
+                  )}
+                </>
+              )}
+            </button>
+
+            <AnimatePresence>
+              {isExpanded && expandedMenus.has("polygon-filters") && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden px-2"
+                >
+                  <div className="space-y-3 py-2">
+                    {/* Filtro por Grupo */}
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1.5 px-1">
+                        Grupo de Rutas
+                      </label>
+                      <select
+                        value={selectedGroup || ""}
+                        onChange={(e) => {
+                          const value = e.target.value || null;
+                          onGroupChange(value);
+                          onPolygonChange(null);
+                        }}
+                        className="w-full px-3 py-2 bg-gray-800 dark:bg-veltrix-bg border border-gray-700 dark:border-veltrix-border text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                      >
+                        <option value="">Todos los grupos</option>
+                        {polygonGroups.map((group) => (
+                          <option key={group} value={group}>
+                            {group}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Filtro por Polígono */}
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1.5 px-1">
+                        Polígono
+                      </label>
+                      <select
+                        value={selectedPolygon || ""}
+                        onChange={(e) => {
+                          const value = e.target.value || null;
+                          onPolygonChange(value);
+                        }}
+                        className="w-full px-3 py-2 bg-gray-800 dark:bg-veltrix-bg border border-gray-700 dark:border-veltrix-border text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                      >
+                        <option value="">Todos los polígonos</option>
+                        {filteredPolygons.map((polygon) => (
+                          <option key={polygon.id} value={polygon.id}>
+                            {polygon.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Contador y botón limpiar */}
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-xs text-gray-500">
+                        {filteredPolygons.length} de {polygons.length}
+                      </span>
+                      {(selectedPolygon || selectedGroup) && (
+                        <button
+                          onClick={() => {
+                            onPolygonChange(null);
+                            onGroupChange(null);
+                          }}
+                          className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                        >
+                          Limpiar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
       </nav>
 
       {/* Collapsed Icons */}

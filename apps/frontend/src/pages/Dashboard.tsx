@@ -5,6 +5,7 @@ import React, {
   Suspense,
   useCallback,
   useEffect,
+  useRef,
 } from "react";
 import { useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -18,6 +19,7 @@ import {
   type ViewType,
 } from "../components/layout/modern-navigation";
 import { AppSidebar } from "../components/layout/AppSidebar";
+import { useSidebarStore } from "../stores/useSidebarStore";
 import Filters from "../components/common/Filters";
 import Footer from "../components/layout/Footer";
 import PolygonDetail from "../components/dashboard/PolygonDetail";
@@ -27,8 +29,7 @@ import { AlertsBadge } from "../components/alerts/AlertsBadge";
 import { WazeOMeter } from "../components/dashboard/WazeOMeter";
 import { useHistoricalData, useTrends } from "../hooks/useWazeData";
 import { Map } from "../components/map/Map";
-import { GlobalNotifications } from "../components/notifications/GlobalNotifications";
-import { useRealtimeNotifications } from "@/hooks/useRealtimeNotifications";
+// GlobalNotifications ahora está dentro del componente Map
 
 // Lazy loading (otros componentes)
 // const Map = lazy(() => import("../components/Map")); // REMOVIDO - causaba conflictos con Suspense
@@ -83,6 +84,8 @@ const LazyWrapper = ({
 const Dashboard: React.FC = () => {
   const location = useLocation();
   const queryClient = useQueryClient();
+  const { setExpanded: setSidebarExpanded } = useSidebarStore();
+  const hasCollapsedForMap = useRef(false);
   const {
     polygons,
     incidents,
@@ -96,7 +99,7 @@ const Dashboard: React.FC = () => {
   } = useWazeData();
   const historicalData = useHistoricalData(24);
   useTrends();
-  useRealtimeNotifications(); // Ensure audio notifications work globally in Dashboard
+  // useRealtimeNotifications ya se ejecuta en AppLayout - no duplicar aquí
   const [selectedPolygon, setSelectedPolygon] = useState<string | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
 
@@ -126,7 +129,16 @@ const Dashboard: React.FC = () => {
         setCurrentView(newView);
       });
     }
-  }, [location.pathname, currentView]);
+
+    // Colapsar sidebar al entrar a la vista de mapa (solo una vez por sesión de navegación)
+    if (path === "/mapa" && !hasCollapsedForMap.current) {
+      setSidebarExpanded(false);
+      hasCollapsedForMap.current = true;
+    } else if (path !== "/mapa") {
+      // Resetear el flag cuando salimos del mapa
+      hasCollapsedForMap.current = false;
+    }
+  }, [location.pathname, currentView, setSidebarExpanded]);
 
   useEffect(() => {
     const state = location.state as {
@@ -134,6 +146,8 @@ const Dashboard: React.FC = () => {
       focusEventId?: string;
       forcedIncident?: any;
       filterType?: string;
+      showJams?: boolean;
+      highlightTraffic?: boolean;
     } | null;
 
     if (state) {
@@ -153,15 +167,64 @@ const Dashboard: React.FC = () => {
           console.log("✅ Setting forcedIncident data");
           setFocusIncidentData(state.forcedIncident);
         }
+        // Log para mostrar jams/tráfico
+        if (state.showJams || state.highlightTraffic) {
+          console.log(
+            "🚗 Mostrando tráfico/jams del polígono:",
+            state.selectedPolygonId,
+          );
+        }
         // Asegurar que vamos al mapa si hay intención de enfocar
         if (state.selectedPolygonId || state.focusEventId) {
           setCurrentView("map");
         }
       });
-      // Limpiamos el state para no re-ejecutar en recargas, pero cuidado con borrar el history stack
-      // window.history.replaceState({}, document.title);
+      // Limpiar el state para evitar re-ejecución pero mantener la navegación
+      window.history.replaceState({}, document.title);
     }
   }, [location.state]);
+
+  // Manejar parámetros de URL para "Ver en el mapa" desde el módulo de incidentes
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const lat = searchParams.get("lat");
+    const lng = searchParams.get("lng");
+    const zoom = searchParams.get("zoom");
+    const highlight = searchParams.get("highlight");
+
+    if (lat && lng) {
+      console.log("🗺️ Navegando a coordenadas desde URL:", {
+        lat,
+        lng,
+        zoom,
+        highlight,
+      });
+
+      React.startTransition(() => {
+        // Cambiar a vista de mapa
+        setCurrentView("map");
+
+        // Si hay un ID de incidente para resaltar
+        if (highlight) {
+          setFocusIncidentId(highlight);
+
+          // Crear datos de incidente temporal para forzar el enfoque
+          setFocusIncidentData({
+            uuid: highlight,
+            location: {
+              x: parseFloat(lng),
+              y: parseFloat(lat),
+            },
+            latitude: parseFloat(lat),
+            longitude: parseFloat(lng),
+          });
+        }
+      });
+
+      // Limpiar los parámetros de URL después de procesarlos
+      window.history.replaceState({}, document.title, location.pathname);
+    }
+  }, [location.search, location.pathname]);
 
   const globalKPIs: GlobalKPIs = useMemo(() => {
     if (backendKPIs) return backendKPIs;
@@ -313,22 +376,23 @@ const Dashboard: React.FC = () => {
               </Suspense>
             )}
 
-            <Suspense
+            {/* <Suspense
               fallback={<LoadingFallback message="Cargando comparativa..." />}
             >
               <GroupTrafficComparison polygons={polygons} groups={allGroups} />
-            </Suspense>
+            </Suspense> */}
           </div>
         );
 
       case "map":
         return (
-          <div className="space-y-4">
+          <div className="h-full flex flex-col relative">
+            {/* Banner de polígono seleccionado (modo single polygon) */}
             {singlePolygonMode && selectedPolygonData && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-primary-50 dark:bg-veltrix-card border-2 border-primary-300 dark:border-veltrix-border rounded-xl p-4 flex items-center justify-between"
+                className="absolute top-4 left-4 right-4 z-20 bg-primary-50 dark:bg-veltrix-card border-2 border-primary-300 dark:border-veltrix-border rounded-xl p-4 flex items-center justify-between shadow-lg"
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-primary-100 dark:bg-veltrix-bg rounded-lg">
@@ -374,25 +438,17 @@ const Dashboard: React.FC = () => {
               </motion.div>
             )}
 
-            {!singlePolygonMode && (
-              <Filters
-                polygons={polygons}
-                selectedPolygon={selectedPolygon}
-                selectedGroup={selectedGroup}
-                onPolygonChange={handlePolygonChange}
-                onGroupChange={handleGroupChange}
-              />
-            )}
+            {/* Los filtros ahora están en el sidebar - ya no flotantes */}
 
             <div
-              className={`grid gap-4 ${
+              className={`flex-1 grid gap-0 ${
                 selectedPolygonData
                   ? "grid-cols-1 lg:grid-cols-10"
                   : "grid-cols-1"
-              }`}
+              } h-full`}
             >
               <div
-                className={`relative ${
+                className={`relative h-full ${
                   selectedPolygonData ? "lg:col-span-7" : "col-span-1"
                 }`}
               >
@@ -401,20 +457,25 @@ const Dashboard: React.FC = () => {
                 >
                   <Map
                     polygons={filteredPolygons}
-                    incidents={incidents}
-                    jams={jams}
+                    incidents={filteredIncidents}
+                    jams={filteredJams}
                     selectedPolygon={selectedPolygon}
                     selectedGroup={selectedGroup}
                     selectedIncidentId={focusIncidentId}
                     forcedIncident={focusIncidentData}
                     onPolygonClick={handlePolygonChange}
+                    className="rounded-none"
+                    // Props para filtros en el sidebar del mapa
+                    allPolygons={polygons}
+                    onPolygonChange={handlePolygonChange}
+                    onGroupChange={handleGroupChange}
                   />
                 </Suspense>
               </div>
 
               {selectedPolygonData && (
-                <div className="lg:col-span-3">
-                  <div className="bg-white dark:bg-veltrix-card rounded-xl shadow-lg h-[600px] overflow-hidden flex flex-col border border-transparent dark:border-veltrix-border">
+                <div className="lg:col-span-3 h-full overflow-hidden border-l border-gray-200 dark:border-veltrix-border bg-white dark:bg-veltrix-card z-10">
+                  <div className="h-full overflow-y-auto custom-scrollbar">
                     <PolygonDetail
                       polygon={selectedPolygonData}
                       incidents={filteredIncidents}
@@ -425,12 +486,6 @@ const Dashboard: React.FC = () => {
                 </div>
               )}
             </div>
-
-            <Suspense
-              fallback={<LoadingFallback message="Cargando comparativa..." />}
-            >
-              <GroupTrafficComparison polygons={polygons} groups={allGroups} />
-            </Suspense>
           </div>
         );
 
@@ -485,12 +540,14 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Sidebar de Navegación Global */}
+      {/* Sidebar de Navegación Global - Siempre visible */}
       <AppSidebar />
 
       {/* Contenido Principal */}
-      <div className="flex-1 flex flex-col overflow-y-auto">
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 via-green-50/20 to-yellow-50/30 dark:from-veltrix-bg dark:via-[#1e2330] dark:to-veltrix-bg transition-colors duration-500">
+      <div className="flex-1 flex flex-col h-full relative">
+        <div
+          className={`h-full flex flex-col bg-gradient-to-br from-gray-50 via-blue-50/30 via-green-50/20 to-yellow-50/30 dark:from-veltrix-bg dark:via-[#1e2330] dark:to-veltrix-bg transition-colors duration-500`}
+        >
           {/* Background Pattern */}
           <div className="fixed inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none z-0">
             <div
@@ -501,11 +558,25 @@ const Dashboard: React.FC = () => {
               }}
             />
           </div>
-          <ModernHeader lastUpdate={lastUpdate} onRefresh={handleRefreshAll} />
-          <main className="relative w-full px-6 py-6">
+
+          {currentView !== "map" && (
+            <ModernHeader
+              lastUpdate={lastUpdate}
+              onRefresh={handleRefreshAll}
+            />
+          )}
+
+          <main
+            className={`relative w-full flex-1 flex flex-col ${
+              currentView === "map"
+                ? "p-0 h-full overflow-hidden"
+                : "px-6 py-6 overflow-y-auto"
+            }`}
+          >
             {alertStats &&
               alertStats.bySeverity.critical > 0 &&
-              currentView !== "events" && (
+              currentView !== "events" &&
+              currentView !== "map" && (
                 <motion.div
                   className="mb-6"
                   initial={{ opacity: 0, y: -20 }}
@@ -520,6 +591,7 @@ const Dashboard: React.FC = () => {
               )}
 
             <motion.div
+              className={`flex-1 flex flex-col ${currentView === "map" ? "h-full" : ""}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, ease: "easeOut" }}
@@ -527,8 +599,8 @@ const Dashboard: React.FC = () => {
               {renderContent()}
             </motion.div>
           </main>
-          <GlobalNotifications className="fixed bottom-6 right-6 w-auto max-w-sm z-50" />
-          <Footer />
+          {/* GlobalNotifications ahora está dentro del componente Map */}
+          {currentView !== "map" && <Footer />}
           <LazyWrapper>
             <WeatherAlertsPanel />
           </LazyWrapper>

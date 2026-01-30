@@ -8,6 +8,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CACHE_CONFIG } from "./config/constants";
 // Inicializar caché de iconos de Waze
 import { iconCache } from "./utils/iconCache";
+// Inicializar caché de traducciones desde catálogo BD
+import { preloadTranslationsCache } from "./hooks/useCatalogTranslations";
 
 // Configurar React Query client con valores de constantes centralizadas
 const queryClient = new QueryClient({
@@ -18,6 +20,10 @@ const queryClient = new QueryClient({
 
 // Pre-cargar iconos comunes de Waze para mejorar rendimiento
 iconCache.preloadCommonIcons();
+
+// Pre-cargar traducciones desde el catálogo de BD
+// Esto permite que las traducciones estén disponibles inmediatamente
+preloadTranslationsCache();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

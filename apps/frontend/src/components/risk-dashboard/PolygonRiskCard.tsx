@@ -14,6 +14,9 @@ import {
   CloudRain,
   AlertCircle as AlertIcon,
   MapPin,
+  TrendingDown,
+  TrendingUp,
+  BrainCircuit,
 } from "lucide-react";
 import ClickableFactorBadge from "./ClickableFactorBadge";
 import type { RiskScore } from "../../hooks/useRiskScoring";
@@ -204,6 +207,29 @@ const PolygonRiskCard: React.FC<PolygonRiskCardProps> = ({
     );
   };
 
+  const getPredictiveTrend = () => {
+    const predictiveScore = score.predictive_score || 0;
+    const currentScore = score.final_risk_score;
+    const diff = predictiveScore - currentScore;
+
+    if (Math.abs(diff) < 5)
+      return { label: "Estable", icon: TrendingDown, color: "text-blue-500" };
+    if (diff > 0)
+      return {
+        label: "Tendencia al Alza",
+        icon: TrendingUp,
+        color: "text-red-500",
+      };
+    return {
+      label: "Tendencia a la Baja",
+      icon: TrendingDown,
+      color: "text-green-500",
+    };
+  };
+
+  const trend = getPredictiveTrend();
+  const TrendIcon = trend.icon;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -345,6 +371,61 @@ const PolygonRiskCard: React.FC<PolygonRiskCardProps> = ({
           </p>
           <p className="text-sm text-gray-700 dark:text-veltrix-muted leading-relaxed">
             {generateDetailedRiskExplanation()}
+          </p>
+        </div>
+
+        {/* Módulo Predictivo (AI Integration) */}
+        <div className="p-4 bg-primary-50/50 dark:bg-primary-900/10 rounded-lg border border-primary-100 dark:border-primary-800/30">
+          <div className="flex justify-between items-center mb-2">
+            <p className="text-sm font-black text-primary-900 dark:text-primary-300 flex items-center gap-2">
+              <BrainCircuit className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+              Pronóstico de Riesgo (IA)
+            </p>
+            <div
+              className={`flex items-center gap-1 text-xs font-bold ${trend.color}`}
+            >
+              <TrendIcon className="w-4 h-4" />
+              {trend.label}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <div className="flex justify-between text-[10px] text-gray-500 mb-1 font-bold uppercase">
+                <span>Progreso esperado</span>
+                <span>
+                  Confianza: {score.raw_data?.prediction_confidence || 75}%
+                </span>
+              </div>
+              <div className="w-full h-2 bg-gray-200 dark:bg-veltrix-bg rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${score.predictive_score}%` }}
+                  className={`h-full ${
+                    score.predictive_score >= 80
+                      ? "bg-red-500"
+                      : score.predictive_score >= 50
+                        ? "bg-orange-500"
+                        : "bg-green-500"
+                  }`}
+                />
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-xs text-gray-500 block">Predicho</span>
+              <span className="text-lg font-black text-primary-900 dark:text-primary-100">
+                {Math.round(score.predictive_score)}
+              </span>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-primary-800/70 dark:text-primary-400/70 mt-2 italic font-medium">
+            Basado en patrones históricos de {score.group_name} para{" "}
+            {new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+            .
           </p>
         </div>
       </div>

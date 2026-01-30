@@ -8,7 +8,8 @@ Write-Host "  Iniciador Completo (PowerShell)" -ForegroundColor Cyan
 Write-Host "===============================================" -ForegroundColor Cyan
 Write-Host ""
 
-$ROOT = $PSScriptRoot
+# Navegar al directorio padre (root del proyecto)
+$ROOT = Split-Path $PSScriptRoot -Parent
 
 # ============================================
 # PASO 0: Limpiar servicios existentes
@@ -16,23 +17,23 @@ $ROOT = $PSScriptRoot
 Write-Host "[0/4] Limpiando servicios existentes..." -ForegroundColor Yellow
 Write-Host ""
 
-# Detener procesos en puerto 3001 (Backend)
-Write-Host "   Verificando puerto 3001 (Backend)..."
-$backend = Get-NetTCPConnection -LocalPort 3001 -State Listen -ErrorAction SilentlyContinue
+# Detener procesos en puerto 3002 (Backend)
+Write-Host "   Verificando puerto 3002 (Backend)..."
+$backend = Get-NetTCPConnection -LocalPort 3002 -State Listen -ErrorAction SilentlyContinue
 if ($backend) {
     $targetPid = $backend.OwningProcess
-    Write-Host "   Puerto 3001 ocupado por PID: $targetPid" -ForegroundColor Yellow
+    Write-Host "   Puerto 3002 ocupado por PID: $targetPid" -ForegroundColor Yellow
     Write-Host "   Deteniendo proceso..."
     Stop-Process -Id $targetPid -Force -ErrorAction SilentlyContinue
     Write-Host "   OK: Proceso detenido" -ForegroundColor Green
 }
 
-# Detener procesos en puerto 5173 (Frontend)
-Write-Host "   Verificando puerto 5173 (Frontend)..."
-$frontend = Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue
+# Detener procesos en puerto 5180 (Frontend)
+Write-Host "   Verificando puerto 5180 (Frontend)..."
+$frontend = Get-NetTCPConnection -LocalPort 5180 -State Listen -ErrorAction SilentlyContinue
 if ($frontend) {
     $targetPid = $frontend.OwningProcess
-    Write-Host "   Puerto 5173 ocupado por PID: $targetPid" -ForegroundColor Yellow
+    Write-Host "   Puerto 5180 ocupado por PID: $targetPid" -ForegroundColor Yellow
     Write-Host "   Deteniendo proceso..."
     Stop-Process -Id $targetPid -Force -ErrorAction SilentlyContinue
     Write-Host "   OK: Proceso detenido" -ForegroundColor Green
@@ -77,7 +78,7 @@ DB_PASSWORD=CASISA
 
 # Configuracion del servidor
 NODE_ENV=development
-PORT=3001
+PORT=3002
 "@ | Out-File -FilePath $envPath -Encoding utf8
     Write-Host "   OK: Archivo .env creado" -ForegroundColor Green
 }
@@ -94,9 +95,9 @@ $backendPath = Join-Path $ROOT "apps\backend"
 
 # Verificar que el puerto esté libre
 Start-Sleep -Milliseconds 500
-$backendTest = Get-NetTCPConnection -LocalPort 3001 -State Listen -ErrorAction SilentlyContinue
+$backendTest = Get-NetTCPConnection -LocalPort 3002 -State Listen -ErrorAction SilentlyContinue
 if ($backendTest) {
-    Write-Host "   ADVERTENCIA: Puerto 3001 aun ocupado" -ForegroundColor Yellow
+    Write-Host "   ADVERTENCIA: Puerto 3002 aun ocupado" -ForegroundColor Yellow
 }
 
 # Iniciar en nueva ventana CMD
@@ -113,9 +114,9 @@ Write-Host "[4/4] Iniciando Frontend..." -ForegroundColor Yellow
 
 # Verificar que el puerto esté libre
 Start-Sleep -Milliseconds 500
-$frontendTest = Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue
+$frontendTest = Get-NetTCPConnection -LocalPort 5180 -State Listen -ErrorAction SilentlyContinue
 if ($frontendTest) {
-    Write-Host "   ADVERTENCIA: Puerto 5173 aun ocupado" -ForegroundColor Yellow
+    Write-Host "   ADVERTENCIA: Puerto 5180 aun ocupado" -ForegroundColor Yellow
 }
 
 # Iniciar en nueva ventana CMD
@@ -131,10 +132,10 @@ Write-Host "===============================================" -ForegroundColor Cy
 Write-Host "  SERVICIOS INICIADOS" -ForegroundColor Cyan
 Write-Host "===============================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  Frontend:  http://localhost:5173" -ForegroundColor White
-Write-Host "  Backend:   http://localhost:3001" -ForegroundColor White
-Write-Host "  Health:    http://localhost:3001/health" -ForegroundColor White
-Write-Host "  API:       http://localhost:3001/api" -ForegroundColor White
+Write-Host "  Frontend:  http://localhost:5180" -ForegroundColor White
+Write-Host "  Backend:   http://localhost:3002" -ForegroundColor White
+Write-Host "  Health:    http://localhost:3002/health" -ForegroundColor White
+Write-Host "  API:       http://localhost:3002/api" -ForegroundColor White
 Write-Host ""
 
 if ($POSTGRES_OK) {

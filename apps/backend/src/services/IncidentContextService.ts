@@ -76,10 +76,9 @@ class IncidentContextService {
         supportingFactors: factors,
       };
     } catch (error) {
-      logger.error("Error inferring incident context", {
-        error,
-        incidentId: incident.id,
-      });
+      logger.error(
+        `Error inferring incident context for incident ${incident.id}: ${error instanceof Error ? error.message : String(error)}`
+      );
       return null;
     }
   }

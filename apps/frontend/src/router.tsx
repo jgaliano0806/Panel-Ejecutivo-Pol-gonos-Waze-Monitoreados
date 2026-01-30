@@ -4,6 +4,7 @@ import { IncidentsHistoryPage } from "./pages/IncidentsHistoryPage";
 import { StatsPage } from "./pages/StatsPage";
 import { RiskDashboard } from "./pages/RiskDashboard";
 import { RoadAccidentsPage } from "./pages/RoadAccidentsPage";
+import { IncidentsModule } from "./pages/IncidentsModule";
 import { AppLayout } from "./components/layout/AppLayout";
 import { SectionErrorBoundary } from "./components/common/ErrorBoundary";
 import { NotificationsPage } from "./pages/NotificationsPage";
@@ -89,6 +90,16 @@ export const router = createBrowserRouter(
         <AppLayout>
           <SectionErrorBoundary sectionName="Notificaciones">
             <NotificationsPage />
+          </SectionErrorBoundary>
+        </AppLayout>
+      ),
+    },
+    {
+      path: "/incidentes",
+      element: (
+        <AppLayout>
+          <SectionErrorBoundary sectionName="Módulo de Incidentes">
+            <IncidentsModule />
           </SectionErrorBoundary>
         </AppLayout>
       ),

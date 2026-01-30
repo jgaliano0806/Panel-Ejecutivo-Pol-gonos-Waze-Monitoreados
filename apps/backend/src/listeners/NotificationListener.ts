@@ -6,9 +6,20 @@ interface AppNotification {
   id: string;
   title: string;
   message: string;
-  type: "info" | "warning" | "critical" | "success";
+  type: "ACCIDENT" | "HAZARD" | "SYSTEM";
   timestamp: string;
-  metadata?: any;
+  is_read: boolean;
+  created_at: string;
+  data?: {
+    polygonId?: string;
+    alertId?: string;
+    location?: { x: number; y: number };
+    incidentType?: string;
+    subtype?: string;
+    street?: string;
+    city?: string;
+    polygonName?: string;
+  };
 }
 
 export class NotificationListener {
@@ -39,6 +50,16 @@ export class NotificationListener {
     try {
       const { polygonId, alerts } = payload;
 
+      // Debug: Log alertas recibidas
+      const importantAlerts = alerts.filter(
+        (a) => a.type === "ACCIDENT" || a.type === "HAZARD"
+      );
+      if (importantAlerts.length > 0) {
+        logger.debug(
+          `📥 ${polygonId}: ${importantAlerts.length} alertas importantes recibidas, ${this.processedAlertIds.size} ya procesadas`
+        );
+      }
+
       // Filtrar alertas nuevas y relevantes (ej: accidentes o jams críticos)
       const newHighPriorityAlerts = alerts.filter((alert) => {
         const isNew = !this.processedAlertIds.has(alert.uuid);
@@ -46,6 +67,10 @@ export class NotificationListener {
           alert.type === "ACCIDENT" ||
           alert.type === "HAZARD" ||
           alert.subtype === "ACCIDENT_MAJOR";
+
+        if (isImportant && !isNew) {
+          logger.debug(`⏭️ Alerta ${alert.uuid?.slice(0, 8)} ya procesada`);
+        }
 
         return isNew && isImportant;
       });
@@ -78,12 +103,19 @@ export class NotificationListener {
           id: crypto.randomUUID(),
           title: this.getNotificationTitle(alert.type, alert.subtype),
           message,
-          type: alert.type === "ACCIDENT" ? "critical" : "warning",
+          type: alert.type === "ACCIDENT" ? "ACCIDENT" : "HAZARD",
           timestamp: new Date().toISOString(),
-          metadata: {
+          is_read: false,
+          created_at: new Date().toISOString(),
+          data: {
             polygonId,
             alertId: alert.uuid,
             location: alert.location,
+            incidentType: alert.type,
+            subtype: alert.subtype,
+            street: alert.street,
+            city: alert.city,
+            polygonName: polygonId, // Se podría enriquecer con el nombre real
           },
         };
 

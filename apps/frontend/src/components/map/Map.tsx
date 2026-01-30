@@ -2,6 +2,7 @@ import React from "react";
 import { MapLibreMap } from "./MapLibreMap";
 import { Polygon, Incident, TrafficJam } from "../../types";
 import { MAP_CONFIG } from "../../config/constants";
+import { GlobalNotifications } from "../notifications/GlobalNotifications";
 
 // ==========================================
 // MAPA WRAPPER - TRANSICIÓN A WEBGL (MAPLIBRE)
@@ -19,16 +20,26 @@ interface MapProps {
   center?: [number, number];
   selectedIncidentId?: string | null;
   forcedIncident?: any | null;
+  className?: string;
+  // Props para filtros de polígonos en el sidebar del mapa
+  allPolygons?: Polygon[];
+  onPolygonChange?: (polygonId: string | null) => void;
+  onGroupChange?: (group: string | null) => void;
 }
 
 export const Map: React.FC<MapProps> = (props) => {
   return (
-    <div className="overflow-hidden bg-slate-900 rounded-xl relative w-full h-full min-h-[400px] shadow-inner">
+    <div
+      className={`overflow-hidden bg-slate-900 relative w-full h-full min-h-[400px] shadow-inner ${
+        props.className || "rounded-xl"
+      }`}
+    >
       <MapLibreMap
         polygons={props.polygons}
         jams={props.jams}
-        // Pasamos jams como flujo también, el componente interno ya sabe filtrar
-        trafficFlow={props.jams}
+        // trafficFlow no se pasa - MapLibreMap usa su lógica interna:
+        // - flowGeoJSON: muestra jams con speed > 20 km/h (flujo normal)
+        // - jamsGeoJSON: muestra jams con level >= 3 o speed <= 20 (congestión)
         incidents={props.incidents}
         onPolygonClick={props.onPolygonClick}
         selectedPolygon={props.selectedPolygon}
@@ -36,7 +47,13 @@ export const Map: React.FC<MapProps> = (props) => {
         selectedIncidentId={props.selectedIncidentId}
         forcedIncident={props.forcedIncident}
         className="w-full h-full"
+        // Props para filtros de polígonos
+        allPolygons={props.allPolygons}
+        onPolygonChange={props.onPolygonChange}
+        onGroupChange={props.onGroupChange}
       />
+      {/* Notificaciones flotantes SOLO dentro del mapa */}
+      <GlobalNotifications className="absolute bottom-4 right-4 w-auto max-w-sm z-50" />
     </div>
   );
 };

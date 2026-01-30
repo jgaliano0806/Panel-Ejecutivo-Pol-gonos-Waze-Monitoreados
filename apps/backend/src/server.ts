@@ -1849,101 +1849,7 @@ server.get("/api/weather/all", async (request, reply) => {
   }
 });
 
-// ============================================================================
-// 📊 ENDPOINTS DE RISK SCORING
-// ============================================================================
-
-import { riskScoringService } from "./services/riskScoringService";
-import { getAllGroups } from "./config/realPolygons";
-
-// Obtener lista de grupos disponibles
-server.get("/api/risk/groups", async (request, reply) => {
-  try {
-    const groups = getAllGroups();
-    return { groups };
-  } catch (error: unknown) {
-    server.log.error({ error }, "Error obteniendo grupos");
-    if (error instanceof Error) {
-      server.log.error(error.stack || error.message);
-    }
-    return reply.code(500).send({ error: "Error obteniendo grupos" });
-  }
-});
-
-// Calcular scores para todos los polígonos (admin endpoint)
-server.post("/api/risk/calculate", async (request, reply) => {
-  try {
-    await riskScoringService.calculateAllRiskScores();
-    return { success: true, message: "Risk scores calculados exitosamente" };
-  } catch (error: unknown) {
-    server.log.error({ error }, "Error calculando risk scores");
-    if (error instanceof Error) {
-      server.log.error(error.stack || error.message);
-    }
-    return reply.code(500).send({ error: "Error calculando risk scores" });
-  }
-});
-
-// Obtener resumen global de riesgos por grupo
-server.get("/api/risk/summary", async (request, reply) => {
-  try {
-    const summaries = await riskScoringService.getGroupRiskSummaries();
-    // Serializar correctamente asegurando que todos los valores numéricos sean válidos
-    const serialized = summaries.map((s) => ({
-      group_name: s.group_name,
-      polygon_count: s.polygon_count || 0,
-      avg_risk_score: isNaN(s.avg_risk_score)
-        ? 0
-        : Number(s.avg_risk_score.toFixed(2)),
-      max_risk_score: isNaN(s.max_risk_score)
-        ? 0
-        : Number(s.max_risk_score.toFixed(2)),
-      critical_polygons: s.critical_polygons || 0,
-      risk_distribution: {
-        low: s.risk_distribution.low || 0,
-        moderate: s.risk_distribution.moderate || 0,
-        high: s.risk_distribution.high || 0,
-        critical: s.risk_distribution.critical || 0,
-        severe: s.risk_distribution.severe || 0,
-      },
-    }));
-    return reply.send({
-      summaries: serialized,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error: unknown) {
-    server.log.error({ error }, "Error obteniendo resumen de riesgos");
-    if (error instanceof Error) {
-      server.log.error(error.stack || error.message);
-    }
-    return reply.code(500).send({
-      error: "Error obteniendo resumen",
-      message: error instanceof Error ? error.message : String(error),
-    });
-  }
-});
-
-// Obtener scores por grupo específico
-server.get<{ Querystring: { group?: string } }>(
-  "/api/risk/scores",
-  async (request, reply) => {
-    try {
-      const { group } = request.query;
-      const scores = await riskScoringService.getRiskScoresByGroup(group);
-      return {
-        scores,
-        group: group || "all",
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error: unknown) {
-      server.log.error({ error }, "Error obteniendo scores por grupo");
-      if (error instanceof Error) {
-        server.log.error(error.stack || error.message);
-      }
-      return reply.code(500).send({ error: "Error obteniendo scores" });
-    }
-  },
-);
+// Risk Scoring endpoints have been moved to routes/risk.routes.ts
 
 // POST /api/accidents/backfill-weather - Obtener clima histórico para todos los accidentes sin datos
 server.post("/api/accidents/backfill-weather", async (request, reply) => {
@@ -2060,48 +1966,6 @@ server.post("/api/accidents/backfill-weather", async (request, reply) => {
 });
 
 // Obtener score de un polígono específico
-server.get<{ Params: { polygon_id: string } }>(
-  "/api/risk/polygon/:polygon_id",
-  async (request, reply) => {
-    try {
-      const { polygon_id } = request.params;
-      const score = await riskScoringService.getPolygonRiskScore(polygon_id);
-
-      if (!score) {
-        return reply
-          .code(404)
-          .send({ error: "Score no encontrado para este polígono" });
-      }
-
-      return score;
-    } catch (error: unknown) {
-      server.log.error({ error }, "Error obteniendo score de polígono");
-      if (error instanceof Error) {
-        server.log.error(error.stack || error.message);
-      }
-      return reply.code(500).send({ error: "Error obteniendo score" });
-    }
-  },
-);
-
-// Recalcular score de un polígono específico
-server.post<{ Params: { polygon_id: string } }>(
-  "/api/risk/polygon/:polygon_id/recalculate",
-  async (request, reply) => {
-    try {
-      const { polygon_id } = request.params;
-      const score =
-        await riskScoringService.calculatePolygonRiskScore(polygon_id);
-      return score;
-    } catch (error: unknown) {
-      server.log.error({ error }, "Error recalculando score");
-      if (error instanceof Error) {
-        server.log.error(error.stack || error.message);
-      }
-      return reply.code(500).send({ error: "Error recalculando score" });
-    }
-  },
-);
 
 // ============================================================================
 // 🚗 ENDPOINTS DE SINIESTROS VIALES (ROAD ACCIDENTS)
@@ -2536,9 +2400,14 @@ const start = async () => {
         IncidentsHistoryListener,
         NotificationListener,
       } = await import("./listeners");
+      const { riskScoringListener } = await import(
+        "./listeners/RiskScoringListener"
+      );
       new AccidentCaptureListener();
       new IncidentsHistoryListener();
       new NotificationListener(websocketService.getIO()!);
+      // RiskScoringListener ya se auto-inicializa al importarse (singleton)
+      console.log("✓ RiskScoringListener initialized");
       console.log("✓ Event listeners initialized");
 
       // openMeteoService.setSocketIO(websocketService.getIO()); // Keep if openMeteoService still needs it or refactor later

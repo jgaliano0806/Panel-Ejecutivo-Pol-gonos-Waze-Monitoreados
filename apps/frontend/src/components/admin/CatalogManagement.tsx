@@ -17,6 +17,10 @@ import {
   TrendingUp,
   Database,
 } from "lucide-react";
+import {
+  clearTranslationsCache,
+  preloadTranslationsCache,
+} from "../../hooks/useCatalogTranslations";
 
 interface IncidentType {
   id: string;
@@ -140,8 +144,8 @@ const CatalogManagement: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const [stats, setStats] = useState<any>(null);
 
-  // API base URL
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
+  // API base URL (VITE_API_URL ya incluye /api)
+  const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:3002/api";
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -152,7 +156,7 @@ const CatalogManagement: React.FC = () => {
   const loadCatalogs = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/api/catalogs/types`);
+      const response = await fetch(`${API_URL}/catalogs/types`);
       if (response.ok) {
         const result = await response.json();
         const data = result.data || [];
@@ -211,7 +215,7 @@ const CatalogManagement: React.FC = () => {
 
   const loadStats = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/catalogs/stats`);
+      const response = await fetch(`${API_URL}/catalogs/stats`);
       if (response.ok) {
         const data = await response.json();
         setStats(data);
@@ -224,7 +228,7 @@ const CatalogManagement: React.FC = () => {
   const syncFromWaze = async () => {
     try {
       setSyncing(true);
-      const response = await fetch(`${API_URL}/api/catalogs/sync`, {
+      const response = await fetch(`${API_URL}/catalogs/sync`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -241,6 +245,10 @@ const CatalogManagement: React.FC = () => {
         // Recargar datos
         await loadCatalogs();
         await loadStats();
+
+        // Invalidar y recargar cache de traducciones global
+        clearTranslationsCache();
+        await preloadTranslationsCache();
       } else {
         const error = await response.json();
         alert(
@@ -278,8 +286,8 @@ const CatalogManagement: React.FC = () => {
     try {
       const isEditing = editingType !== null;
       const url = isEditing
-        ? `${API_URL}/api/catalogs/types/${type.id}`
-        : `${API_URL}/api/catalogs/types`;
+        ? `${API_URL}/catalogs/types/${type.id}`
+        : `${API_URL}/catalogs/types`;
       const method = isEditing ? "PUT" : "POST";
 
       const response = await fetch(url, {
@@ -302,6 +310,9 @@ const CatalogManagement: React.FC = () => {
         await loadCatalogs(); // Recargar datos
         setEditingType(null);
         setShowForm(false);
+        // Actualizar cache de traducciones global
+        clearTranslationsCache();
+        preloadTranslationsCache();
         alert(`✅ Tipo ${isEditing ? "actualizado" : "creado"} exitosamente`);
       } else {
         const error = await response.json();
@@ -317,8 +328,8 @@ const CatalogManagement: React.FC = () => {
     try {
       const isEditing = editingSubtype !== null;
       const url = isEditing
-        ? `${API_URL}/api/catalogs/subtypes/${subtype.id}`
-        : `${API_URL}/api/catalogs/subtypes`;
+        ? `${API_URL}/catalogs/subtypes/${subtype.id}`
+        : `${API_URL}/catalogs/subtypes`;
       const method = isEditing ? "PUT" : "POST";
 
       const response = await fetch(url, {
@@ -341,6 +352,9 @@ const CatalogManagement: React.FC = () => {
         await loadCatalogs(); // Recargar datos
         setEditingSubtype(null);
         setShowForm(false);
+        // Actualizar cache de traducciones global
+        clearTranslationsCache();
+        preloadTranslationsCache();
         alert(
           `✅ Subtipo ${isEditing ? "actualizado" : "creado"} exitosamente`,
         );
@@ -364,12 +378,15 @@ const CatalogManagement: React.FC = () => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/catalogs/types/${id}`, {
+      const response = await fetch(`${API_URL}/catalogs/types/${id}`, {
         method: "DELETE",
       });
 
       if (response.ok) {
         await loadCatalogs(); // Recargar datos
+        // Actualizar cache de traducciones global
+        clearTranslationsCache();
+        preloadTranslationsCache();
         alert("✅ Tipo eliminado exitosamente");
       } else {
         const error = await response.json();
@@ -387,12 +404,15 @@ const CatalogManagement: React.FC = () => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/catalogs/subtypes/${id}`, {
+      const response = await fetch(`${API_URL}/catalogs/subtypes/${id}`, {
         method: "DELETE",
       });
 
       if (response.ok) {
         await loadCatalogs(); // Recargar datos
+        // Actualizar cache de traducciones global
+        clearTranslationsCache();
+        preloadTranslationsCache();
         alert("✅ Subtipo eliminado exitosamente");
       } else {
         const error = await response.json();
@@ -548,7 +568,7 @@ const CatalogManagement: React.FC = () => {
 
                       try {
                         const response = await fetch(
-                          `${API_URL}/api/upload/icon`,
+                          `${API_URL}/upload/icon`,
                           {
                             method: "POST",
                             body: uploadFormData,

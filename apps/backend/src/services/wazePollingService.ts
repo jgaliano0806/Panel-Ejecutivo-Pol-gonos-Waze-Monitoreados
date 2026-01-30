@@ -31,7 +31,7 @@ export class WazePollingService {
   private lastPollTime: Date = new Date(0);
 
   // Configuración
-  private readonly POLLING_INTERVAL_MS = 120000; // 2 minutos
+  private readonly POLLING_INTERVAL_MS = 30000; // 30 segundos
   private readonly REQUEST_TIMEOUT_MS = 10000; // 10 segundos
   private readonly MAX_RETRIES = 3;
   private readonly INACTIVE_THRESHOLD_MINUTES = 30;
@@ -388,6 +388,11 @@ export class WazePollingService {
         magvar: a.magvar || null,
         is_active: true, // Renueva estado activo
       }));
+
+      // NOTA: Se eliminó la clasificación AI heurística ya que los datos deben mantenerse
+      // exactamente como los reporta Waze para uso en seguridad vial.
+      // Los campos reliability y confidence de Waze ya proveen esta información de forma oficial.
+
       await repositories().wazeAlerts.bulkUpsert(entities as any);
 
       // 2. Marcar como INACTIVOS los que ya no están en el feed para este polígono
@@ -457,48 +462,61 @@ export class WazePollingService {
         // We can check the `waze_alerts.created_at` timestamp. If it is very recent (last 2 mins), notify.
       }
 
-      // Restaurando lógica de notificación simplificada:
+      // Restaurando lógica de notificación con prevención de duplicados:
       for (const alert of criticalAlerts) {
-        // Verificar si la alerta fue creada recientemente (en este ciclo)
-        // Hacemos una query ligera
-        const res = await dbService.query(
+        // 1. Verificar si la alerta es RECIENTE (creada en los últimos 5 minutos)
+        // Esto evita notificar cosas viejas que Waze republica
+        const resAlert = await dbService.query(
           `SELECT created_at FROM waze_alerts WHERE uuid = $1`,
           [alert.uuid],
         );
-        if (res.rows.length > 0) {
-          const createdAt = new Date(res.rows[0].created_at).getTime();
+
+        if (resAlert.rows.length > 0) {
+          const createdAt = new Date(resAlert.rows[0].created_at).getTime();
           const now = Date.now();
-          // Si fue creado en los últimos 2.5 minutos (margen de polling)
-          if (now - createdAt < 150000) {
-            // Verificamos si YA se mandó notificación (opcional, o confiamos en no repetir)
-            // Para evitar spam, podríamos tener una tabla de 'sent_notifications' o chequear logs
-            // Por ahora, asumimos que si es "nuevo" en DB, es nuevo para el usuario.
-            // PERO: Si reiniciamos el server, poll corre, upserty todo. created_at se mantiene OLD si ya existía.
-            // Si es nuevo upsert, created_at es NOW.
-            // Entonces: logic is solid. If created_at is OLD, active=true, no notification. ok.
-
-            // Check if notification already sent?
-            // notificationService doesn't allow dupes? It does.
-            // We need to check if we recently notified this alert UUID.
-            // Notification table data field stores alert. Let's assume we notify only if created_at is fresh.
-
-            const title = this.getNotificationTitle(alert);
-            const message =
-              alert.reportDescription ||
-              alert.subtype ||
-              "Reporte sin descripción";
-            await notificationService.create(
-              alert.type === "ACCIDENT" ? "ACCIDENT" : "HAZARD",
-              title,
-              message,
-              { ...alert, polygonId },
+          // Margen de 5 minutos para considerar "nueva" una alerta
+          if (now - createdAt < 300000) {
+            // 2. VERIFICACIÓN CRÍTICA: ¿Ya notificamos este UUID?
+            // Buscamos en la tabla de notificaciones si existe alguna con data->>'uuid' igual
+            const existingNotification = await dbService.query(
+              `SELECT 1 FROM notifications WHERE data->>'uuid' = $1 LIMIT 1`,
+              [alert.uuid],
             );
+
+            if (existingNotification.rowCount === 0) {
+              // NO existe notificación previa, procedemos a crearla
+              const title = this.getNotificationTitle(alert);
+              // Generar mensaje descriptivo, excluyendo tags AI internos
+              const message = this.getNotificationMessage(alert);
+
+              await notificationService.create(
+                alert.type === "ACCIDENT" ? "ACCIDENT" : "HAZARD",
+                title,
+                message,
+                { ...alert, polygonId },
+              );
+              logger.info(`🔔 Notificación enviada para alerta ${alert.uuid}`);
+            } else {
+              logger.debug(
+                `🔕 Notificación duplicada prevenida para ${alert.uuid}`,
+              );
+            }
           }
         }
       }
 
       // Auto-crear siniestros en road_accidents para accidentes (type='ACCIDENT')
-      const accidents = alerts.filter((a) => a.type === "ACCIDENT");
+      // Filtro estricto: Solo Accidentes Mayores, Menores o Genéricos (sin subtipo raro)
+      const allowedSubtypes = [
+        "ACCIDENT_MAJOR",
+        "ACCIDENT_MINOR",
+        "NO_SUBTYPE",
+      ];
+      const accidents = alerts.filter(
+        (a) =>
+          a.type === "ACCIDENT" &&
+          (!a.subtype || allowedSubtypes.includes(a.subtype)),
+      );
       if (accidents.length > 0) {
         // ... (mantener lógica road_accidents) ...
         for (const accident of accidents) {
@@ -815,6 +833,84 @@ export class WazePollingService {
     const prefix = typeMap[alert.type] || "Alerta";
     const location = alert.street ? ` en ${alert.street}` : "";
     return `${prefix}${location}`;
+  }
+
+  /**
+   * Genera un mensaje descriptivo para la notificación basado en tipo/subtipo
+   * Excluye cualquier tag interno de AI
+   */
+  private getNotificationMessage(alert: WazeAlert): string {
+    // Mapa de subtipos a descripciones en español
+    const subtypeMessages: Record<string, string> = {
+      // Accidentes
+      ACCIDENT_MAJOR:
+        "Accidente grave reportado. Precaución, posibles demoras.",
+      ACCIDENT_MINOR: "Accidente menor reportado en la vía.",
+      // Peligros en la vía
+      HAZARD_ON_ROAD_OBJECT: "Objeto en la calzada. Circule con precaución.",
+      HAZARD_ON_ROAD_CAR_STOPPED:
+        "Vehículo detenido en el carril. Reduzca velocidad.",
+      HAZARD_ON_ROAD_CONSTRUCTION: "Zona de construcción activa.",
+      HAZARD_ON_ROAD_ICE: "Hielo en la calzada. Máxima precaución.",
+      HAZARD_ON_ROAD_LANE_CLOSED: "Carril cerrado. Espere demoras.",
+      HAZARD_ON_ROAD_OIL: "Derrame de aceite en la vía.",
+      HAZARD_ON_ROAD_POT_HOLE: "Bache peligroso reportado.",
+      HAZARD_ON_ROAD_ROAD_KILL: "Animal atropellado en la vía.",
+      HAZARD_ON_ROAD_TRAFFIC_LIGHT_FAULT: "Semáforo fuera de servicio.",
+      // Peligros en banquina
+      HAZARD_ON_SHOULDER: "Peligro en la banquina.",
+      HAZARD_ON_SHOULDER_ANIMALS:
+        "Animales sueltos cerca de la vía. Precaución.",
+      HAZARD_ON_SHOULDER_CAR_STOPPED: "Vehículo detenido en la banquina.",
+      HAZARD_ON_SHOULDER_MISSING_SIGN: "Señalización faltante o dañada.",
+      // Clima
+      HAZARD_WEATHER: "Condiciones climáticas adversas reportadas.",
+      HAZARD_WEATHER_FLOOD: "Inundación en la vía. Busque ruta alternativa.",
+      HAZARD_WEATHER_FOG: "Niebla densa. Reduzca velocidad y use luces.",
+      HAZARD_WEATHER_HAIL: "Granizo reportado en la zona.",
+      HAZARD_WEATHER_HEAVY_RAIN: "Lluvia intensa. Precaución al conducir.",
+      HAZARD_WEATHER_HEAVY_SNOW: "Nevada intensa. Condiciones peligrosas.",
+      HAZARD_WEATHER_FREEZING_RAIN: "Lluvia congelante. Piso resbaladizo.",
+      // Camino cerrado
+      ROAD_CLOSED: "Camino cerrado. Busque ruta alternativa.",
+      ROAD_CLOSED_CONSTRUCTION: "Cierre por construcción.",
+      ROAD_CLOSED_EVENT: "Cierre por evento especial.",
+      ROAD_CLOSED_HAZARD: "Cierre por peligro en la vía.",
+      // Jams
+      JAM_HEAVY_TRAFFIC: "Tráfico pesado. Espere demoras significativas.",
+      JAM_MODERATE_TRAFFIC: "Tráfico moderado en la zona.",
+      JAM_STAND_STILL_TRAFFIC: "Tráfico detenido. Congestionamiento severo.",
+    };
+
+    // 1. Intentar usar el subtipo para mensaje específico
+    if (alert.subtype && subtypeMessages[alert.subtype]) {
+      const baseMessage = subtypeMessages[alert.subtype];
+      // Agregar ubicación si está disponible
+      if (alert.street) {
+        return `${baseMessage} Ubicación: ${alert.street}.`;
+      }
+      return baseMessage;
+    }
+
+    // 2. Si hay reportDescription y NO contiene tags AI, usarla
+    if (alert.reportDescription && !alert.reportDescription.includes("[AI")) {
+      return alert.reportDescription;
+    }
+
+    // 3. Mensaje genérico basado en tipo principal
+    const typeMessages: Record<string, string> = {
+      ACCIDENT: "Accidente reportado en la vía.",
+      HAZARD: "Peligro reportado en la vía.",
+      WEATHERHAZARD: "Alerta climática en la zona.",
+      ROAD_CLOSED: "Vía cerrada.",
+      JAM: "Congestión de tráfico detectada.",
+    };
+
+    const genericMessage = typeMessages[alert.type] || "Incidente reportado.";
+    if (alert.street) {
+      return `${genericMessage} Ubicación: ${alert.street}.`;
+    }
+    return genericMessage;
   }
 }
 
