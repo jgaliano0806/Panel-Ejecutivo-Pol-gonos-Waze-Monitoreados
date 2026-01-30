@@ -1,0 +1,24 @@
+# Propietarios del código - Panel Waze Monitoreados
+# Ver: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Archivos de configuración del proyecto
+*.yml @jgaliano0806
+*.yaml @jgaliano0806
+*.json @jgaliano0806
+*.env.example @jgaliano0806
+
+# Workflows de GitHub Actions
+.github/ @jgaliano0806
+
+# Migraciones de base de datos (requieren revisión cuidadosa)
+apps/backend/src/database/migrations/ @jgaliano0806
+
+# Configuración de polígonos
+apps/backend/src/config/realPolygons.ts @jgaliano0806
+
+# Tipos compartidos
+packages/types/ @jgaliano0806
+
+# Documentación
+*.md @jgaliano0806
+docs/ @jgaliano0806

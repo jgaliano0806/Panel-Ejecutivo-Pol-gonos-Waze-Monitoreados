@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: "20"
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
@@ -25,7 +25,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
@@ -33,14 +33,48 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
-      - name: TypeScript check
+      - name: TypeScript check (Frontend)
+        working-directory: apps/frontend
+        run: npx tsc --noEmit
+
+      - name: TypeScript check (Backend)
+        working-directory: apps/backend
         run: npx tsc --noEmit
 
   # =============================================
-  # BUILD
+  # SECURITY AUDIT (paralelo con lint)
   # =============================================
-  build:
-    name: 🏗️ Build
+  security:
+    name: 🔒 Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run npm audit (root)
+        run: npm audit --audit-level=high || true
+
+      - name: Run npm audit (backend)
+        working-directory: apps/backend
+        run: npm audit --audit-level=high || true
+
+      - name: Run npm audit (frontend)
+        working-directory: apps/frontend
+        run: npm audit --audit-level=high || true
+
+  # =============================================
+  # BUILD FRONTEND
+  # =============================================
+  build-frontend:
+    name: 🏗️ Build Frontend
     runs-on: ubuntu-latest
     needs: lint
     steps:
@@ -50,25 +84,26 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
       - name: Build frontend
+        working-directory: apps/frontend
         run: npm run build
         env:
-          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
-          path: dist/
+          path: apps/frontend/dist/
           retention-days: 7
 
   # =============================================
-  # BACKEND BUILD
+  # BUILD BACKEND
   # =============================================
   build-backend:
     name: 🔧 Build Backend
@@ -81,31 +116,30 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
+          cache: "npm"
 
       - name: Install backend dependencies
-        working-directory: backend
+        working-directory: apps/backend
         run: npm ci
 
       - name: Build backend
-        working-directory: backend
+        working-directory: apps/backend
         run: npm run build
 
       - name: Upload backend build
         uses: actions/upload-artifact@v4
         with:
           name: backend-build
-          path: backend/dist/
+          path: apps/backend/dist/
           retention-days: 7
 
   # =============================================
-  # TESTS E2E (Playwright)
+  # UNIT TESTS
   # =============================================
-  test-e2e:
-    name: 🧪 E2E Tests
+  test-unit:
+    name: 🧪 Unit Tests
     runs-on: ubuntu-latest
-    needs: [build, build-backend]
+    needs: lint
     steps:
       - uses: actions/checkout@v4
 
@@ -113,7 +147,29 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run unit tests
+        run: npm run test --if-present
+
+  # =============================================
+  # TESTS E2E (Playwright)
+  # =============================================
+  test-e2e:
+    name: 🎭 E2E Tests
+    runs-on: ubuntu-latest
+    needs: [build-frontend, build-backend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
@@ -125,22 +181,20 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: frontend-build
-          path: dist/
+          path: apps/frontend/dist/
 
       - name: Download backend build
         uses: actions/download-artifact@v4
         with:
           name: backend-build
-          path: backend/dist/
+          path: apps/backend/dist/
 
       - name: Install backend dependencies
-        working-directory: backend
+        working-directory: apps/backend
         run: npm ci --production
 
       - name: Run E2E tests
-        run: npm run test:e2e
-        env:
-          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+        run: npm run test:e2e --if-present
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -149,31 +203,6 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 30
-
-  # =============================================
-  # SECURITY AUDIT
-  # =============================================
-  security:
-    name: 🔒 Security Audit
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: Run npm audit
-        run: npm audit --audit-level=high || true
-
-      - name: Run backend audit
-        working-directory: backend
-        run: npm audit --audit-level=high || true
 
   # =============================================
   # DOCKER BUILD & PUSH
@@ -213,11 +242,9 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            VITE_GOOGLE_MAPS_API_KEY=${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
 
   # =============================================
-  # DEPLOY (Staging/Production)
+  # DEPLOY (Production)
   # =============================================
   deploy:
     name: 🚀 Deploy
@@ -233,8 +260,3 @@ jobs:
           echo "🎉 Deployment triggered for ${{ github.sha }}"
           echo "📦 Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
           # Add your deployment commands here
-          # Example: SSH to server, docker pull, docker-compose up, etc.
-
-
-
-
