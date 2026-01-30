@@ -10,7 +10,7 @@ import healthRoutes from "./health.routes";
 import { iconUploadRoutes } from "./iconUploadRoute";
 import { iconProxyRoutes } from "./iconProxy.routes";
 import { notificationRoutes } from "./notificationRoutes";
-import tvtRoutes from "./tvt.routes";
+import polygonsRoutes from "./polygons.routes";
 import incidentsRoutes from "./incidents.routes";
 import jamsRoutes from "./jams.routes";
 import ttsRoutes from "./tts.routes";
@@ -33,13 +33,13 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   // System Notifications
   await app.register(notificationRoutes, { prefix: "/api/notifications" });
 
-  // Traffic View Tool Metrics
-  await app.register(tvtRoutes, { prefix: "/api/tvt" });
+  // Gestión de Polígonos
+  await app.register(polygonsRoutes, { prefix: "/api/polygons" });
 
   // Gestión de Incidentes (Histórico y Live)
   await app.register(incidentsRoutes, { prefix: "/api/incidents" });
 
-  // Gestión de Jams (Congestión)
+  // Gestión de Jams (Congestión y Métricas)
   await app.register(jamsRoutes, { prefix: "/api/jams" });
 
   // Text-to-Speech (voces neuronales gratuitas)
@@ -47,12 +47,6 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
   // Risk Scoring Dashboard
   await app.register(riskRoutes, { prefix: "/api/risk" });
-
-  // Aquí se agregarán más módulos de rutas:
-  // await app.register(polygonsRoutes, { prefix: '/api/polygons' });
-  // await app.register(weatherRoutes, { prefix: '/api/weather' });
-  // await app.register(jamsRoutes, { prefix: '/api/jams' });
-  // await app.register(kpisRoutes, { prefix: '/api/kpis' });
 }
 
 export { catalogsRoutes, healthRoutes, iconUploadRoutes };

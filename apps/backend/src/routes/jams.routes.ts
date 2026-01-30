@@ -32,4 +32,17 @@ export default async function jamsRoutes(fastify: FastifyInstance) {
       return reply.code(500).send({ error: "Database error retrieving jams" });
     }
   });
+
+  // GET /api/jams/metrics (Anteriormente TVT)
+  fastify.get("/metrics", async (request, reply) => {
+    const mockMetrics = [
+      {
+        polygonId: "mock-poly-1",
+        wazersCount: 150,
+        jamLevels: { low: 10, medium: 5, high: 2 },
+        updateTime: new Date().toISOString(),
+      },
+    ];
+    return mockMetrics;
+  });
 }

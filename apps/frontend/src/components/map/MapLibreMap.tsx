@@ -122,7 +122,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   // Estado para capas y sidebar
   const [showWazeIncidents, setShowWazeIncidents] = useState(true);
   const [showTraffic, setShowTraffic] = useState(true);
-  
+
   // Estados para sub-capas de tráfico
   const [showFlowLayer, setShowFlowLayer] = useState(true);
   const [showJamsLayer, setShowJamsLayer] = useState(true);
@@ -378,8 +378,31 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
       { id: "waze-hazard", type: "hazard" },
       { id: "waze-construction", type: "construction" },
       { id: "waze-roadclosed", type: "roadclosed" },
+      { id: "waze-road_closed", type: "road_closed" }, // Alias snake_case
       { id: "waze-police", type: "police" },
       { id: "waze-weatherhazard", type: "weatherhazard" },
+      { id: "waze-pothole", type: "pothole" },
+      // Subtipos frecuentes que causan warnings
+      {
+        id: "waze-hazard-hazard_on_road_construction",
+        type: "hazard",
+        subtype: "hazard_on_road_construction",
+      },
+      {
+        id: "waze-hazard-hazard_on_shoulder_car_stopped",
+        type: "hazard",
+        subtype: "hazard_on_shoulder_car_stopped",
+      },
+      {
+        id: "waze-hazard-hazard_on_road_pot_hole",
+        type: "hazard",
+        subtype: "hazard_on_road_pot_hole",
+      },
+      {
+        id: "waze-road_closed-road_closed_event",
+        type: "road_closed",
+        subtype: "road_closed_event",
+      },
     ];
 
     commonIcons.forEach((icon) => {
@@ -427,16 +450,25 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         .filter((j) => {
           // Validar que la línea existe y tiene coordenadas válidas
           if (!j.line || j.line.length < 2) return false;
-          return j.line.every((p: { x: number; y: number }) => 
-            p && typeof p.x === 'number' && typeof p.y === 'number' && 
-            !isNaN(p.x) && !isNaN(p.y) && isFinite(p.x) && isFinite(p.y)
+          return j.line.every(
+            (p: { x: number; y: number }) =>
+              p &&
+              typeof p.x === "number" &&
+              typeof p.y === "number" &&
+              !isNaN(p.x) &&
+              !isNaN(p.y) &&
+              isFinite(p.x) &&
+              isFinite(p.y),
           );
         })
         .map((jam) => ({
           type: "Feature",
           geometry: {
             type: "LineString",
-            coordinates: jam.line!.map((p: { x: number; y: number }) => [p.x, p.y]),
+            coordinates: jam.line!.map((p: { x: number; y: number }) => [
+              p.x,
+              p.y,
+            ]),
           },
           properties: {
             id: jam.id,
@@ -464,21 +496,30 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
           // Validar que la línea existe y tiene coordenadas válidas
           if (!j.line || j.line.length < 2) return false;
           // Verificar que todas las coordenadas son números válidos
-          return j.line.every((p: { x: number; y: number }) => 
-            p && typeof p.x === 'number' && typeof p.y === 'number' && 
-            !isNaN(p.x) && !isNaN(p.y) && isFinite(p.x) && isFinite(p.y)
+          return j.line.every(
+            (p: { x: number; y: number }) =>
+              p &&
+              typeof p.x === "number" &&
+              typeof p.y === "number" &&
+              !isNaN(p.x) &&
+              !isNaN(p.y) &&
+              isFinite(p.x) &&
+              isFinite(p.y),
           );
         })
         .map((jam) => {
           // Calcular punto medio para el popup
           const midIndex = Math.floor(jam.line!.length / 2);
           const midPoint = jam.line![midIndex];
-          
+
           return {
             type: "Feature",
             geometry: {
               type: "LineString",
-              coordinates: jam.line!.map((p: { x: number; y: number }) => [p.x, p.y]),
+              coordinates: jam.line!.map((p: { x: number; y: number }) => [
+                p.x,
+                p.y,
+              ]),
             },
             properties: {
               id: jam.id,
@@ -516,10 +557,15 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
           const midIndex = Math.floor(j.line.length / 2);
           const midPoint = j.line[midIndex];
           // Validar que el punto medio tiene coordenadas válidas
-          return midPoint && 
-            typeof midPoint.x === 'number' && typeof midPoint.y === 'number' &&
-            !isNaN(midPoint.x) && !isNaN(midPoint.y) &&
-            isFinite(midPoint.x) && isFinite(midPoint.y);
+          return (
+            midPoint &&
+            typeof midPoint.x === "number" &&
+            typeof midPoint.y === "number" &&
+            !isNaN(midPoint.x) &&
+            !isNaN(midPoint.y) &&
+            isFinite(midPoint.x) &&
+            isFinite(midPoint.y)
+          );
         })
         .map((jam) => {
           const midIndex = Math.floor(jam.line!.length / 2);
@@ -538,7 +584,8 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
               length: jam.length || 0,
               street: jam.street || "Vía sin nombre",
               speedLabel: `${Math.round(jam.speed || 0)}`,
-              delayLabel: jam.delay > 60 ? `+${Math.round(jam.delay / 60)}min` : "",
+              delayLabel:
+                jam.delay > 60 ? `+${Math.round(jam.delay / 60)}min` : "",
             },
           };
         }),
@@ -622,16 +669,25 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         .filter((jam) => {
           if (!jam.line || jam.line.length < 2) return false;
           // Validar coordenadas
-          return jam.line.every((p: { x: number; y: number }) => 
-            p && typeof p.x === 'number' && typeof p.y === 'number' && 
-            !isNaN(p.x) && !isNaN(p.y) && isFinite(p.x) && isFinite(p.y)
+          return jam.line.every(
+            (p: { x: number; y: number }) =>
+              p &&
+              typeof p.x === "number" &&
+              typeof p.y === "number" &&
+              !isNaN(p.x) &&
+              !isNaN(p.y) &&
+              isFinite(p.x) &&
+              isFinite(p.y),
           );
         })
         .map((jam) => ({
           type: "Feature",
           geometry: {
             type: "LineString",
-            coordinates: jam.line!.map((p: { x: number; y: number }) => [p.x, p.y]),
+            coordinates: jam.line!.map((p: { x: number; y: number }) => [
+              p.x,
+              p.y,
+            ]),
           },
           properties: {
             closureId: closure.id,
@@ -883,9 +939,12 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                     "interpolate",
                     ["linear"],
                     ["zoom"],
-                    10, 3,
-                    14, 5,
-                    18, 8,
+                    10,
+                    3,
+                    14,
+                    5,
+                    18,
+                    8,
                   ],
                   "line-opacity": 0.9,
                 }}
@@ -911,17 +970,23 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                     "interpolate",
                     ["linear"],
                     ["get", "level"],
-                    2, 12,
-                    3, 16,
-                    4, 20,
-                    5, 26,
+                    2,
+                    12,
+                    3,
+                    16,
+                    4,
+                    20,
+                    5,
+                    26,
                   ],
                   "line-opacity": [
                     "interpolate",
                     ["linear"],
                     ["get", "level"],
-                    2, 0.15,
-                    5, 0.35,
+                    2,
+                    0.15,
+                    5,
+                    0.35,
                   ],
                   "line-blur": 6,
                 }}
@@ -937,10 +1002,14 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                     "interpolate",
                     ["linear"],
                     ["get", "level"],
-                    2, 8,
-                    3, 10,
-                    4, 14,
-                    5, 18,
+                    2,
+                    8,
+                    3,
+                    10,
+                    4,
+                    14,
+                    5,
+                    18,
                   ],
                   "line-opacity": 0.5,
                   "line-blur": 3,
@@ -957,9 +1026,12 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                     "interpolate",
                     ["linear"],
                     ["zoom"],
-                    10, ["interpolate", ["linear"], ["get", "level"], 2, 3, 5, 5],
-                    14, ["interpolate", ["linear"], ["get", "level"], 2, 4, 5, 7],
-                    18, ["interpolate", ["linear"], ["get", "level"], 2, 6, 5, 10],
+                    10,
+                    ["interpolate", ["linear"], ["get", "level"], 2, 3, 5, 5],
+                    14,
+                    ["interpolate", ["linear"], ["get", "level"], 2, 4, 5, 7],
+                    18,
+                    ["interpolate", ["linear"], ["get", "level"], 2, 6, 5, 10],
                   ],
                   "line-opacity": 1,
                 }}
@@ -975,15 +1047,19 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                     "interpolate",
                     ["linear"],
                     ["get", "level"],
-                    2, 1,
-                    5, 2,
+                    2,
+                    1,
+                    5,
+                    2,
                   ],
                   "line-opacity": [
                     "interpolate",
                     ["linear"],
                     ["get", "level"],
-                    2, 0.3,
-                    5, 0.6,
+                    2,
+                    0.3,
+                    5,
+                    0.6,
                   ],
                   "line-dasharray": [0.5, 3],
                 }}
@@ -993,7 +1069,11 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
 
           {/* Etiquetas de velocidad en atascos severos - solo en zoom alto */}
           {showTraffic && showJamsLayer && mapLoaded && (
-            <Source id="jam-labels-source" type="geojson" data={jamLabelsGeoJSON as any}>
+            <Source
+              id="jam-labels-source"
+              type="geojson"
+              data={jamLabelsGeoJSON as any}
+            >
               {/* Fondo del label */}
               <Layer
                 id="jam-labels-bg"
@@ -1004,14 +1084,20 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                     "interpolate",
                     ["linear"],
                     ["zoom"],
-                    13, 10,
-                    16, 14,
+                    13,
+                    10,
+                    16,
+                    14,
                   ],
-                  "circle-color": ["case",
-                    ["<", ["get", "speed"], 5], "#b71c1c",
-                    ["<", ["get", "speed"], 15], "#c62828",
-                    ["<", ["get", "speed"], 25], "#e53935",
-                    "#ff7043"
+                  "circle-color": [
+                    "case",
+                    ["<", ["get", "speed"], 5],
+                    "#b71c1c",
+                    ["<", ["get", "speed"], 15],
+                    "#c62828",
+                    ["<", ["get", "speed"], 25],
+                    "#e53935",
+                    "#ff7043",
                   ],
                   "circle-opacity": 0.95,
                   "circle-stroke-width": 2,
@@ -1029,8 +1115,10 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                     "interpolate",
                     ["linear"],
                     ["zoom"],
-                    13, 9,
-                    16, 12,
+                    13,
+                    9,
+                    16,
+                    12,
                   ],
                   "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
                   "text-allow-overlap": true,
@@ -1050,7 +1138,10 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                 layout={{
                   "text-field": ["get", "delayLabel"],
                   "text-size": 10,
-                  "text-font": ["Open Sans Semibold", "Arial Unicode MS Regular"],
+                  "text-font": [
+                    "Open Sans Semibold",
+                    "Arial Unicode MS Regular",
+                  ],
                   "text-offset": [0, 1.8],
                   "text-allow-overlap": false,
                 }}
@@ -1172,16 +1263,16 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                 }`}
               >
                 {/* Header con gradiente según severidad */}
-                <div 
+                <div
                   className="flex items-start justify-between p-4 border-b border-gray-100 dark:border-veltrix-border"
                   style={{
-                    background: isDark 
+                    background: isDark
                       ? `linear-gradient(135deg, ${selectedJam.properties.color}30 0%, transparent 100%)`
-                      : `linear-gradient(135deg, ${selectedJam.properties.color}20 0%, transparent 100%)`
+                      : `linear-gradient(135deg, ${selectedJam.properties.color}20 0%, transparent 100%)`,
                   }}
                 >
                   <div className="flex items-start gap-3">
-                    <div 
+                    <div
                       className="p-2.5 rounded-xl shadow-lg"
                       style={{ backgroundColor: selectedJam.properties.color }}
                     >
@@ -1215,20 +1306,24 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                     <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
                       Estado del tráfico
                     </span>
-                    <span 
+                    <span
                       className="text-xs font-bold px-2 py-0.5 rounded-full text-white"
                       style={{ backgroundColor: selectedJam.properties.color }}
                     >
-                      {selectedJam.properties.severityText || getJamSeverityText(selectedJam.properties.level, selectedJam.properties.speed)}
+                      {selectedJam.properties.severityText ||
+                        getJamSeverityText(
+                          selectedJam.properties.level,
+                          selectedJam.properties.speed,
+                        )}
                     </span>
                   </div>
                   {/* Barra de nivel de congestión */}
                   <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className="h-full rounded-full transition-all duration-500"
-                      style={{ 
+                      style={{
                         width: `${Math.min(100, (selectedJam.properties.level || 1) * 20)}%`,
-                        backgroundColor: selectedJam.properties.color 
+                        backgroundColor: selectedJam.properties.color,
                       }}
                     />
                   </div>
@@ -1243,17 +1338,22 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                   {/* Velocidad */}
                   <div className="text-center p-2 bg-gray-50 dark:bg-veltrix-bg rounded-lg">
                     <Gauge className="w-5 h-5 mx-auto mb-1 text-gray-400" />
-                    <p className="text-lg font-bold" style={{ color: selectedJam.properties.color }}>
+                    <p
+                      className="text-lg font-bold"
+                      style={{ color: selectedJam.properties.color }}
+                    >
                       {Math.round(selectedJam.properties.speed || 0)}
                     </p>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400">km/h</p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                      km/h
+                    </p>
                   </div>
                   {/* Demora */}
                   <div className="text-center p-2 bg-gray-50 dark:bg-veltrix-bg rounded-lg">
                     <Timer className="w-5 h-5 mx-auto mb-1 text-gray-400" />
                     <p className="text-lg font-bold text-gray-900 dark:text-white">
-                      {selectedJam.properties.delay > 60 
-                        ? `+${Math.round(selectedJam.properties.delay / 60)}` 
+                      {selectedJam.properties.delay > 60
+                        ? `+${Math.round(selectedJam.properties.delay / 60)}`
                         : `+${Math.round(selectedJam.properties.delay || 0)}`}
                     </p>
                     <p className="text-[10px] text-gray-500 dark:text-gray-400">
@@ -1264,8 +1364,8 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                   <div className="text-center p-2 bg-gray-50 dark:bg-veltrix-bg rounded-lg">
                     <Route className="w-5 h-5 mx-auto mb-1 text-gray-400" />
                     <p className="text-lg font-bold text-gray-900 dark:text-white">
-                      {selectedJam.properties.length > 1000 
-                        ? (selectedJam.properties.length / 1000).toFixed(1) 
+                      {selectedJam.properties.length > 1000
+                        ? (selectedJam.properties.length / 1000).toFixed(1)
                         : Math.round(selectedJam.properties.length || 0)}
                     </p>
                     <p className="text-[10px] text-gray-500 dark:text-gray-400">
@@ -1277,7 +1377,9 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                 {/* Footer con nivel de congestión Waze */}
                 <div className="px-4 py-3 bg-gray-50 dark:bg-zinc-900 border-t border-gray-100 dark:border-veltrix-border flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-500 dark:text-gray-400">Nivel Waze:</span>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Nivel Waze:
+                    </span>
                     <div className="flex gap-0.5">
                       {[1, 2, 3, 4, 5].map((lvl) => (
                         <div
@@ -1288,9 +1390,10 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                               : "bg-gray-200 dark:bg-gray-700"
                           }`}
                           style={{
-                            backgroundColor: lvl <= (selectedJam.properties.level || 0) 
-                              ? selectedJam.properties.color 
-                              : undefined
+                            backgroundColor:
+                              lvl <= (selectedJam.properties.level || 0)
+                                ? selectedJam.properties.color
+                                : undefined,
                           }}
                         />
                       ))}
@@ -1391,18 +1494,29 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                       {selectedIncident.properties.reportBy || "Wazer"}
                     </span>
 
-                    {selectedIncident.properties.magvar !== undefined && selectedIncident.properties.magvar !== null && (
-                      <>
-                        <span className="font-medium text-gray-500 dark:text-gray-400">
-                          Dirección
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <Navigation className="h-3.5 w-3.5 text-blue-500" style={{ transform: `rotate(${selectedIncident.properties.magvar}deg)` }} />
-                          {getCardinalDirection(selectedIncident.properties.magvar)}
-                          <span className="text-gray-400 text-xs">({Math.round(selectedIncident.properties.magvar)}°)</span>
-                        </span>
-                      </>
-                    )}
+                    {selectedIncident.properties.magvar !== undefined &&
+                      selectedIncident.properties.magvar !== null && (
+                        <>
+                          <span className="font-medium text-gray-500 dark:text-gray-400">
+                            Dirección
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <Navigation
+                              className="h-3.5 w-3.5 text-blue-500"
+                              style={{
+                                transform: `rotate(${selectedIncident.properties.magvar}deg)`,
+                              }}
+                            />
+                            {getCardinalDirection(
+                              selectedIncident.properties.magvar,
+                            )}
+                            <span className="text-gray-400 text-xs">
+                              ({Math.round(selectedIncident.properties.magvar)}
+                              °)
+                            </span>
+                          </span>
+                        </>
+                      )}
 
                     <span className="font-medium text-gray-500 dark:text-gray-400">
                       ID

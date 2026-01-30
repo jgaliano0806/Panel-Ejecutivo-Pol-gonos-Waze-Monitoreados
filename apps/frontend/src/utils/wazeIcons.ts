@@ -566,18 +566,39 @@ export const WAZE_ICONS_SVG: Record<string, string> = {
         <path d="M24 14v12" stroke="white" stroke-width="4" stroke-linecap="round"/>
         <circle cx="24" cy="32" r="3" fill="white"/>
     </svg>`,
+
+  // === ALIAS PARA MAPLIBRE (snake_case) ===
+  // MapLibre usa iconIds como "waze-road_closed" que parsean a tipo "road_closed"
+  // Estos alias permiten encontrar el SVG directamente sin pasar por el mapeo
+  road_closed: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <circle cx="100" cy="100" r="90" fill="#3d4a5c"/>
+  <g transform="translate(100, 100)">
+    <rect x="-45" y="-5" width="8" height="35" fill="#6b7280"/>
+    <rect x="37" y="-5" width="8" height="35" fill="#6b7280"/>
+    <rect x="-37" y="-5" width="74" height="15" fill="#ef4444" rx="2"/>
+    <g stroke="#ffffff" stroke-width="4">
+      <line x1="-35" y1="-5" x2="-25" y2="10"/>
+      <line x1="-20" y1="-5" x2="-10" y2="10"/>
+      <line x1="-5" y1="-5" x2="5" y2="10"/>
+      <line x1="10" y1="-5" x2="20" y2="10"/>
+      <line x1="25" y1="-5" x2="35" y2="10"/>
+    </g>
+  </g>
+</svg>`,
 };
 
 // Mapeo de tipos principales a iconos
+// IMPORTANTE: Incluir tanto snake_case como camelCase para compatibilidad con MapLibre
 export const INCIDENT_TYPE_ICONS: Record<string, string> = {
   accident: "accident",
   jam: "jam",
   hazard: "hazard",
   construction: "construction",
   roadclosed: "roadclosed",
-  road_closed: "roadclosed",
+  road_closed: "roadclosed", // Alias para MapLibre que usa snake_case
   pothole: "pothole",
   weatherhazard: "weatherhazard",
+  weather_hazard: "weatherhazard", // Alias snake_case
   police: "police",
   camera: "camera",
   event: "event",
@@ -590,18 +611,18 @@ export const INCIDENT_SUBTYPE_ICONS: Record<string, string> = {
   ACCIDENT_MINOR: "accident",
   ACCIDENT_MAJOR: "accident_major",
 
-  // Peligros
-  HAZARD_ON_ROAD: "hazard_on_road",
+  // Peligros (MAYÚSCULAS)
+  HAZARD_ON_ROAD: "hazard",
   HAZARD_ON_SHOULDER: "hazard_on_shoulder",
   HAZARD_ON_ROAD_CAR_STOPPED: "hazard_on_shoulder",
   HAZARD_ON_ROAD_CONSTRUCTION: "construction",
   HAZARD_ON_ROAD_OBJECT: "object_on_road",
-  HAZARD_ON_ROAD_POT_HOLE: "pothole", // Fixed typo (was "bache")
-  HAZARD_ON_ROAD_ROAD_KILL: "hazard_on_road",
+  HAZARD_ON_ROAD_POT_HOLE: "pothole",
+  HAZARD_ON_ROAD_ROAD_KILL: "hazard",
   HAZARD_ON_SHOULDER_CAR_STOPPED: "hazard_on_shoulder",
   HAZARD_ON_SHOULDER_ANIMALS: "hazard",
   HAZARD_ON_SHOULDER_MISSING_SIGN: "hazard",
-  HAZARD_WEATHER: "hazard_weather",
+  HAZARD_WEATHER: "weatherhazard",
   HAZARD_WEATHER_FOG: "weather_fog",
   HAZARD_WEATHER_HAIL: "weather_hail",
   HAZARD_WEATHER_HEAVY_RAIN: "weatherhazard",
@@ -609,15 +630,42 @@ export const INCIDENT_SUBTYPE_ICONS: Record<string, string> = {
   HAZARD_WEATHER_FLOOD: "weather_flood",
   HAZARD_WEATHER_MONSOON: "weatherhazard",
   HAZARD_WEATHER_TORNADO: "weatherhazard",
-  HAZARD_WEATHER_HEAT_WAVE: "hazard_weather",
+  HAZARD_WEATHER_HEAT_WAVE: "weatherhazard",
   HAZARD_WEATHER_HURRICANE: "weatherhazard",
   HAZARD_WEATHER_FREEZING_RAIN: "weather_ice",
   HAZARD_ON_ROAD_ICE: "slippery_road",
 
-  // Camino cerrado
+  // Peligros (minúsculas para MapLibre que usa snake_case)
+  hazard_on_road: "hazard",
+  hazard_on_shoulder: "hazard_on_shoulder",
+  hazard_on_road_car_stopped: "hazard_on_shoulder",
+  hazard_on_road_construction: "construction",
+  hazard_on_road_object: "object_on_road",
+  hazard_on_road_pot_hole: "pothole",
+  hazard_on_road_road_kill: "hazard",
+  hazard_on_shoulder_car_stopped: "hazard_on_shoulder",
+  hazard_on_shoulder_animals: "hazard",
+  hazard_on_shoulder_missing_sign: "hazard",
+  hazard_weather: "weatherhazard",
+  hazard_weather_fog: "weather_fog",
+  hazard_weather_hail: "weather_hail",
+  hazard_weather_heavy_rain: "weatherhazard",
+  hazard_weather_heavy_snow: "weather_snow",
+  hazard_weather_flood: "weather_flood",
+  hazard_weather_monsoon: "weatherhazard",
+  hazard_weather_tornado: "weatherhazard",
+  hazard_weather_heat_wave: "weatherhazard",
+  hazard_weather_hurricane: "weatherhazard",
+  hazard_weather_freezing_rain: "weather_ice",
+  hazard_on_road_ice: "slippery_road",
+
+  // Camino cerrado (MAYÚSCULAS y minúsculas para compatibilidad con MapLibre)
   ROAD_CLOSED_HAZARD: "roadclosed",
   ROAD_CLOSED_CONSTRUCTION: "roadclosed",
   ROAD_CLOSED_EVENT: "roadclosed_event",
+  road_closed_hazard: "roadclosed",
+  road_closed_construction: "roadclosed",
+  road_closed_event: "roadclosed_event",
 
   // Clima
   WEATHERHAZARD_FLOOD: "weather_flood",
@@ -663,20 +711,41 @@ export const INCIDENT_SUBTYPE_ICONS: Record<string, string> = {
 
 /**
  * Obtiene el SVG del icono para un tipo de incidente
+ * Busca en el mapeo de subtipos e iconos principales
  */
 export const getWazeIconSvg = (type: string, subtype?: string): string => {
   // Primero intentar con el subtipo específico
   if (subtype && typeof subtype === "string") {
-    const subtypeIcon = INCIDENT_SUBTYPE_ICONS[subtype.toUpperCase()];
-    if (subtypeIcon && WAZE_ICONS_SVG[subtypeIcon]) {
-      return WAZE_ICONS_SVG[subtypeIcon];
+    // Intentar en MAYÚSCULAS (formato original de Waze)
+    const subtypeUpper = subtype.toUpperCase();
+    const subtypeIconUpper = INCIDENT_SUBTYPE_ICONS[subtypeUpper];
+    if (subtypeIconUpper && WAZE_ICONS_SVG[subtypeIconUpper]) {
+      return WAZE_ICONS_SVG[subtypeIconUpper];
+    }
+
+    // Intentar en minúsculas (formato de MapLibre)
+    const subtypeLower = subtype.toLowerCase();
+    const subtypeIconLower = INCIDENT_SUBTYPE_ICONS[subtypeLower];
+    if (subtypeIconLower && WAZE_ICONS_SVG[subtypeIconLower]) {
+      return WAZE_ICONS_SVG[subtypeIconLower];
+    }
+
+    // Intentar directamente si existe el SVG con ese nombre
+    if (WAZE_ICONS_SVG[subtypeLower]) {
+      return WAZE_ICONS_SVG[subtypeLower];
     }
   }
 
   // Luego intentar con el tipo principal
-  const typeIcon = INCIDENT_TYPE_ICONS[type.toLowerCase()];
+  const typeLower = type.toLowerCase();
+  const typeIcon = INCIDENT_TYPE_ICONS[typeLower];
   if (typeIcon && WAZE_ICONS_SVG[typeIcon]) {
     return WAZE_ICONS_SVG[typeIcon];
+  }
+
+  // Intentar directamente si existe el SVG con el nombre del tipo
+  if (WAZE_ICONS_SVG[typeLower]) {
+    return WAZE_ICONS_SVG[typeLower];
   }
 
   // Fallback al icono default

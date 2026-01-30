@@ -299,121 +299,12 @@ server.get("/api/road-accidents/map", async (request, reply) => {
   }
 });
 
-// --- Endpoints de Polígonos (Gestión) ---
-
-/**
- * GET /api/polygons
- * Obtiene todos los polígonos desde la base de datos
- */
-server.get("/api/polygons", async (request, reply) => {
-  try {
-    const polygons = await repositories().polygons.findAll();
-    reply.send(serializeObject(polygons));
-  } catch (error) {
-    server.log.error({ error }, "Error al obtener polígonos");
-    reply.code(500).send({ error: "Failed to get polygons" });
-  }
-});
-
-/**
- * POST /api/polygons/sync
- * Sincroniza los polígonos iniciales desde el archivo estático a la base de datos
- */
-server.post("/api/polygons/sync", async (request, reply) => {
-  try {
-    server.log.info(
-      "🔄 Sincronizando polígonos desde configuración estática...",
-    );
-    let added = 0;
-    let updated = 0;
-
-    for (const poly of REAL_POLYGONS) {
-      const existing = await repositories().polygons.findById(poly.id);
-      if (existing) {
-        await repositories().polygons.update(poly.id, poly);
-        updated++;
-      } else {
-        await repositories().polygons.create(poly);
-        added++;
-      }
-    }
-
-    reply.send({
-      success: true,
-      message: `Sincronización completada: ${added} añadidos, ${updated} actualizados`,
-      data: { added, updated },
-    });
-  } catch (error) {
-    server.log.error({ error }, "Error al sincronizar polígonos");
-    reply.code(500).send({
-      error: "Sync failed",
-      message: error instanceof Error ? error.message : "Unknown error",
-    });
-  }
-});
-
-/**
- * POST /api/polygons
- * Crea un nuevo polígono
- */
-server.post("/api/polygons", async (request, reply) => {
-  try {
-    const data = request.body as Partial<RealPolygonConfig>;
-    if (!data.id || !data.name || !data.feedUrl) {
-      reply.code(400).send({ error: "id, name and feedUrl are required" });
-      return;
-    }
-
-    const result = await repositories().polygons.create(data);
-    reply.send(serializeObject(result));
-  } catch (error) {
-    server.log.error({ error }, "Error al crear polígono");
-    reply.code(500).send({ error: "Failed to create polygon" });
-  }
-});
-
-/**
- * PUT /api/polygons/:id
- * Actualiza un polígono existente
- */
-server.put("/api/polygons/:id", async (request, reply) => {
-  try {
-    const { id } = request.params as { id: string };
-    const data = request.body as Partial<RealPolygonConfig>;
-
-    const result = await repositories().polygons.update(id, data);
-    if (!result) {
-      reply.code(404).send({ error: "Polygon not found" });
-      return;
-    }
-
-    reply.send(serializeObject(result));
-  } catch (error) {
-    server.log.error({ error }, "Error al actualizar polígono");
-    reply.code(500).send({ error: "Failed to update polygon" });
-  }
-});
-
-/**
- * DELETE /api/polygons/:id
- * Elimina (soft delete) un polígono
- */
-server.delete("/api/polygons/:id", async (request, reply) => {
-  try {
-    const { id } = request.params as { id: string };
-    const success = await repositories().polygons.delete(id);
-
-    if (!success) {
-      reply.code(404).send({ error: "Polygon not found" });
-      return;
-    }
-
-    reply.send({ success: true, message: "Polygon deleted successfully" });
-  } catch (error) {
-    server.log.error({ error }, "Error al eliminar polígono");
-    reply.code(500).send({ error: "Failed to delete polygon" });
-  }
-});
+// =====================================================
+// 📦 RUTAS DE POLÍGONOS MODULARIZADAS
+// =====================================================
+// Las rutas de polígonos (GET/POST/PUT/DELETE) fueron movidas a:
+// /routes/polygons.routes.ts
+// Registrado vía registerRoutes() en línea 144
 
 server.get("/api/kpis/global", async (request, reply) => {
   try {
@@ -2400,9 +2291,8 @@ const start = async () => {
         IncidentsHistoryListener,
         NotificationListener,
       } = await import("./listeners");
-      const { riskScoringListener } = await import(
-        "./listeners/RiskScoringListener"
-      );
+      const { riskScoringListener } =
+        await import("./listeners/RiskScoringListener");
       new AccidentCaptureListener();
       new IncidentsHistoryListener();
       new NotificationListener(websocketService.getIO()!);
