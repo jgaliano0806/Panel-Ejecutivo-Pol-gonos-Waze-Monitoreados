@@ -84,6 +84,7 @@ export default [
       "no-debugger": "warn",
       "no-unused-vars": "off", // Use TypeScript version
       "no-undef": "off", // TypeScript handles this
+      "no-redeclare": "off", // TypeScript handles this (allows type/value merging)
     },
   },
   {
@@ -93,6 +94,7 @@ export default [
       "*.config.js",
       "*.config.ts",
       "vite.config.ts",
+      "scripts/**",
     ],
   },
 ];

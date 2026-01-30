@@ -25,10 +25,10 @@ export const RiskMatrix: React.FC<RiskMatrixProps> = ({
 }) => {
   const isDark = useThemeStore((state) => state.isDark);
 
-  // Transform data for scatter plot: x = probability, y = impact
+  // Transform data for scatter plot: x = probability (predictive_score), y = impact (incident_score)
   const chartData = data.map((item) => ({
-    x: item.probability_score,
-    y: item.impact_score,
+    x: item.predictive_score || 0, // Use predictive_score as probability
+    y: item.incident_score || 0, // Use incident_score as impact
     z: 1, // Bubble size factor (optional, could use severity)
     name: item.polygon_name || "Sin nombre",
     ...item,
@@ -173,7 +173,7 @@ export const RiskMatrix: React.FC<RiskMatrixProps> = ({
             name="Tramos"
             data={chartData}
             fill="#8884d8"
-            onClick={(e) => {
+            onClick={(e: { payload?: RiskScore }) => {
               if (e.payload) onPolygonSelect(e.payload);
             }}
             cursor="pointer"

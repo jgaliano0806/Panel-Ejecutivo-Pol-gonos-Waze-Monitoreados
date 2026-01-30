@@ -85,7 +85,7 @@ export const GlobalNotifications: React.FC<GlobalNotificationsProps> = ({
     .filter((n) => {
       // Solo mostrar no leídas
       if (n.is_read) return false;
-      
+
       // Aplicar filtro de incidentes permitidos
       const incidentType = n.type || n.data?.incidentType;
       const subtype = n.data?.subtype;

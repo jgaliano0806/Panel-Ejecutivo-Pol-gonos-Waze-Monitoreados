@@ -72,7 +72,7 @@ export const useSyncMapNotifications = () => {
             city: incident.city,
             latitude: incident.location?.lat,
             longitude: incident.location?.lng,
-            polygonId: incident.polygonId,
+            polygonId: incident.polygonId || undefined,
             impactScore: analysis.impactScore,
           },
           is_read: true, // Marcar como leídas para no saturar el badge

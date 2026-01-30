@@ -19,6 +19,7 @@ interface MenuItem {
   icon: React.ReactNode;
   children?: MenuItem[];
   action?: () => void;
+  color?: string;
 }
 
 interface MapSidebarProps {
@@ -52,7 +53,7 @@ export const MapSidebar = ({
   // Calcular grupos únicos desde los polígonos reales
   const polygonGroups = useMemo(
     () => getPolygonGroups(polygons).sort(),
-    [polygons]
+    [polygons],
   );
 
   const filteredPolygons = useMemo(() => {

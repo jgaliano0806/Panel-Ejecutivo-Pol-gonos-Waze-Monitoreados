@@ -2,11 +2,7 @@
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
-    "lib": [
-      "ES2020",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
     "moduleResolution": "bundler",
@@ -21,22 +17,18 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@panel-waze/types": [
-        "../../packages/types/src"
-      ],
-      "@panel-waze/shared": [
-        "../../packages/shared/src"
-      ],
-      "@panel-waze/config": [
-        "../../packages/config/src"
-      ]
+      "@/*": ["./src/*"],
+      "@panel-waze/types": ["../../packages/types/src"],
+      "@panel-waze/shared": ["../../packages/shared/src"],
+      "@panel-waze/config": ["../../packages/config/src"]
     }
   },
-  "include": [
-    "src"
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/*.spec.ts",
+    "src/**/*.spec.tsx"
   ],
   "references": [
     {

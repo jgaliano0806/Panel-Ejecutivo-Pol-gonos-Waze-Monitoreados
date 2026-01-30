@@ -13,7 +13,9 @@ import {
 } from "../../lib/tts-service";
 
 export const TTSConfiguration = () => {
-  const [selectedVoice, setSelectedVoice] = useState(EDGE_TTS_VOICES.ELENA_AR);
+  const [selectedVoice, setSelectedVoice] = useState<string>(
+    EDGE_TTS_VOICES.ELENA_AR,
+  );
   const [rate, setRate] = useState("-5%");
   const [isTesting, setIsTesting] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved">("idle");
@@ -93,10 +95,18 @@ export const TTSConfiguration = () => {
               ))
             ) : (
               <>
-                <option value="es-AR-ElenaNeural">Elena - Femenina argentina (recomendada)</option>
-                <option value="es-AR-TomasNeural">Tomás - Masculina argentina</option>
-                <option value="es-MX-DaliaNeural">Dalia - Femenina mexicana</option>
-                <option value="es-MX-JorgeNeural">Jorge - Masculina mexicana</option>
+                <option value="es-AR-ElenaNeural">
+                  Elena - Femenina argentina (recomendada)
+                </option>
+                <option value="es-AR-TomasNeural">
+                  Tomás - Masculina argentina
+                </option>
+                <option value="es-MX-DaliaNeural">
+                  Dalia - Femenina mexicana
+                </option>
+                <option value="es-MX-JorgeNeural">
+                  Jorge - Masculina mexicana
+                </option>
               </>
             )}
           </select>
@@ -147,11 +157,22 @@ export const TTSConfiguration = () => {
           ¿Por qué Edge TTS?
         </h4>
         <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-          <li>✅ <strong>100% gratuito</strong> - Sin límites de uso</li>
-          <li>✅ <strong>Voces neuronales</strong> - Calidad profesional</li>
-          <li>✅ <strong>Español argentino nativo</strong> - Elena y Tomás</li>
-          <li>✅ <strong>Ideal para salas de control</strong> - Claridad y naturalidad</li>
-          <li>✅ <strong>Sin API keys</strong> - Funciona out-of-the-box</li>
+          <li>
+            ✅ <strong>100% gratuito</strong> - Sin límites de uso
+          </li>
+          <li>
+            ✅ <strong>Voces neuronales</strong> - Calidad profesional
+          </li>
+          <li>
+            ✅ <strong>Español argentino nativo</strong> - Elena y Tomás
+          </li>
+          <li>
+            ✅ <strong>Ideal para salas de control</strong> - Claridad y
+            naturalidad
+          </li>
+          <li>
+            ✅ <strong>Sin API keys</strong> - Funciona out-of-the-box
+          </li>
         </ul>
       </div>
     </div>

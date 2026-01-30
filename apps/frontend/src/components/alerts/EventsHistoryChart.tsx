@@ -61,7 +61,7 @@ export const EventsHistoryChart: React.FC = () => {
       }),
       timestamp: new Date(snapshot.timestamp).getTime(),
       incidentes: snapshot.totalIncidents,
-      demora: Math.round(snapshot.totalDelay / 60),
+      demora: Math.round(snapshot.avgDelay / 60),
     }))
     .reverse();
 

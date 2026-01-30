@@ -167,12 +167,13 @@ const buildTTSMessage = (notification: Notification): string => {
   let mensaje = subtypeMessages[subtype];
 
   if (!mensaje) {
-    // Mensaje genérico basado en tipo principal
-    if (type === "ACCIDENT") {
+    // Mensaje genérico basado en tipo principal (cast to string for comparison)
+    const typeStr = String(type);
+    if (typeStr === "ACCIDENT") {
       mensaje = "Accidente reportado en la vía.";
-    } else if (type === "HAZARD") {
+    } else if (typeStr === "HAZARD") {
       mensaje = "Peligro reportado en la vía.";
-    } else if (type === "WEATHERHAZARD") {
+    } else if (typeStr === "WEATHERHAZARD") {
       mensaje = "Alerta climática en la zona.";
     } else {
       mensaje = "Incidente reportado.";

@@ -138,17 +138,7 @@ export const EventsDashboard: React.FC = () => {
     polygonName: h.polygon_name || h.polygon_id,
     polygonGroup: null,
     affectedStreets: h.street ? [h.street] : [],
-    // Override top-level location with parsed values just in case
-    location: {
-      lat:
-        typeof h.latitude === "string"
-          ? parseFloat(h.latitude)
-          : h.latitude || 0,
-      lng:
-        typeof h.longitude === "string"
-          ? parseFloat(h.longitude)
-          : h.longitude || 0,
-    },
+    // Note: location is already set in incident.location above
   });
 
   // Combinar y filtrar datos según dataSource

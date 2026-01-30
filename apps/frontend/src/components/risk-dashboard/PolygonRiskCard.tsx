@@ -107,19 +107,21 @@ const PolygonRiskCard: React.FC<PolygonRiskCardProps> = ({
             } reportado${rawData.total_incidents > 1 ? "s" : ""}`
           : "Sin incidentes";
 
-      case "speed":
+      case "speed": {
         if (!rawData.avg_speed) return "Sin datos de velocidad";
         const speed = Math.round(rawData.avg_speed);
         if (speed < 20) return `${speed} km/h - Muy lento`;
         if (speed < 40) return `${speed} km/h - Lento`;
         if (speed < 60) return `${speed} km/h - Moderado`;
         return `${speed} km/h - Fluido`;
+      }
 
-      case "delay":
+      case "delay": {
         const delayMin = Math.round((rawData.avg_delay || 0) / 60);
         return delayMin > 0
           ? `${delayMin} min de demora promedio`
           : "Sin demoras significativas";
+      }
     }
   };
 

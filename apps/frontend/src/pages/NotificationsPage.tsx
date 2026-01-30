@@ -181,20 +181,27 @@ export const NotificationsPage: React.FC = () => {
                     if (socket.connected) {
                       // Usar el método interno del socket para disparar el evento localmente
                       // Esto activará el listener en useRealtimeNotifications
-                      const listeners = (socket as any)._callbacks?.["$notification:new"] ||
-                                       (socket as any).listeners?.("notification:new");
+                      const listeners =
+                        (socket as any)._callbacks?.["$notification:new"] ||
+                        (socket as any).listeners?.("notification:new");
                       if (listeners && listeners.length > 0) {
                         listeners.forEach((listener: Function) => listener(t));
-                        console.log("📡 Notificación simulada por WebSocket (activó listeners)");
+                        console.log(
+                          "📡 Notificación simulada por WebSocket (activó listeners)",
+                        );
                       } else {
                         // Si no hay listeners registrados, agregar directamente
-                        console.warn("⚠️ No hay listeners registrados, agregando directamente");
+                        console.warn(
+                          "⚠️ No hay listeners registrados, agregando directamente",
+                        );
                         addNotification(t);
                         speakNotification(t.title, t.message);
                       }
                     } else {
                       // Si el socket no está conectado, agregar directamente al store
-                      console.warn("⚠️ Socket no conectado, agregando directamente al store");
+                      console.warn(
+                        "⚠️ Socket no conectado, agregando directamente al store",
+                      );
                       addNotification(t);
                       speakNotification(t.title, t.message);
                     }
@@ -257,12 +264,16 @@ const FilterButton = ({ active, onClick, label, count }: any) => (
 // Función para obtener título con emoji según tipo
 const getNotificationTitle = (notification: Notification): string => {
   const baseTitle = notification.title || "";
-  
+
   // Si ya tiene emoji, devolverlo tal cual
-  if (baseTitle.startsWith("🔴") || baseTitle.startsWith("🟡") || baseTitle.startsWith("🟠")) {
+  if (
+    baseTitle.startsWith("🔴") ||
+    baseTitle.startsWith("🟡") ||
+    baseTitle.startsWith("🟠")
+  ) {
     return baseTitle;
   }
-  
+
   // Agregar emoji según tipo
   if (notification.type === "ACCIDENT") {
     return `🔴 ${baseTitle.replace(/^Accidente\s*/i, "Accidente ")}`;
@@ -294,7 +305,7 @@ const NotificationCard = ({ notification }: { notification: Notification }) => {
       React.startTransition(() => {
         navigate("/mapa", {
           state: {
-            selectedPolygonId: notification.data.polygonId,
+            selectedPolygonId: notification.data?.polygonId,
             focusEventId: notification.id,
             forcedIncident: notification.data,
           },
@@ -307,22 +318,23 @@ const NotificationCard = ({ notification }: { notification: Notification }) => {
   const displayMessage = React.useMemo(() => {
     const data = notification.data;
     const cleanedMessage = cleanNotificationMessage(notification.message);
-    
+
     // Si tenemos datos estructurados, construir mensaje más descriptivo
     if (data?.street) {
-      const typeLabel = notification.type === "ACCIDENT" 
-        ? "Accidente reportado" 
-        : notification.type === "HAZARD" 
-          ? "Peligro reportado"
-          : "Evento";
-      
-      const location = data.city 
+      const typeLabel =
+        notification.type === "ACCIDENT"
+          ? "Accidente reportado"
+          : notification.type === "HAZARD"
+            ? "Peligro reportado"
+            : "Evento";
+
+      const location = data.city
         ? `${data.street} - ${data.city}`
         : data.street;
-        
+
       return `${typeLabel} en ${location}`;
     }
-    
+
     // Fallback al mensaje original traducido y limpio
     return translateWazeMessage(cleanedMessage) || cleanedMessage;
   }, [notification]);
