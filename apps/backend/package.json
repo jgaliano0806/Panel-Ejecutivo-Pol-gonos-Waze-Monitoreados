@@ -31,7 +31,8 @@
     "msedge-tts": "^2.0.4",
     "pg": "^8.11.3",
     "socket.io": "^4.8.3",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "@panel-waze/types": "*"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
