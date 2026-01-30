@@ -14,10 +14,10 @@
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
     "bundle:analyze": "npm run build:analyze && open dist/bundle-analysis.html",
-    "test": "playwright test",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
-    "test:e2e:headed": "playwright test --headed",
+    "test": "npx playwright test",
+    "test:e2e": "npx playwright test",
+    "test:e2e:ui": "npx playwright test --ui",
+    "test:e2e:headed": "npx playwright test --headed",
     "clean": "rimraf dist node_modules/.vite"
   },
   "dependencies": {
