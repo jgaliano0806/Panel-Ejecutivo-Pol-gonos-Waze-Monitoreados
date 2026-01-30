@@ -109,7 +109,16 @@ Esquema relacional en PostgreSQL.
 - **Fechas**: Almacenar UTC en DB, serializar ISO-8601 en API.
 - **Tipos**: Definiciones compartidas en `packages/types`.
 
+## Notificaciones y TTS
+
+- **WebSocket**: El backend emite `notification:new` con alertas traducidas. El frontend las recibe en `services/websocket.ts`, las añade al store y reproduce TTS (una sola vez por notificación).
+- **TTS**: Edge TTS (Microsoft) vía `POST /api/tts/speak`. Cola local en `lib/tts-service.ts`; estado con `getTTSQueueStatus()`. Ver [docs/TTS.md](./docs/TTS.md).
+
 ## Deuda Técnica Identificada
 
 1.  **Servicios de Clima**: Existe redundancia entre `weatherService.ts` (legacy, soporte AccuWeather) y `openMeteoService.ts` (activo). Se recomienda consolidar en `openMeteoService`.
 2.  **Alert Service**: El servicio de alertas (`alertService.ts`) contiene lógica de negocio que podría estar duplicada en `wazePollingService` si se expande. Mantener separación estricta: Polling = Ingesta, AlertService = Inteligencia.
+
+---
+
+**Documentación ampliada**: [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) y [docs/README.md](./docs/README.md).

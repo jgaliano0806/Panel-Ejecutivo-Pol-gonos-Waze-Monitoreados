@@ -131,6 +131,7 @@ export class RoadAccidentService {
                    a.accident_at,
                    a.created_at,
                    a.updated_at,
+                   a.polygon_id,
                    COALESCE(json_agg(m.*) FILTER (WHERE m.id IS NOT NULL), '[]') as media
             FROM road_accidents a
             LEFT JOIN accident_media m ON a.id = m.accident_id
@@ -150,7 +151,7 @@ export class RoadAccidentService {
       params.push(filters.to);
     }
 
-    query += ` GROUP BY a.id, a.incident_id, a.waze_data, a.weather_data, a.type, a.subtype, a.severity, a.street, a.location_lat, a.location_lng, a.operator_notes, a.accident_at, a.created_at, a.updated_at ORDER BY a.accident_at DESC`;
+    query += ` GROUP BY a.id, a.incident_id, a.waze_data, a.weather_data, a.type, a.subtype, a.severity, a.street, a.location_lat, a.location_lng, a.operator_notes, a.accident_at, a.created_at, a.updated_at, a.polygon_id ORDER BY a.accident_at DESC`;
 
     if (filters.limit) {
       query += ` LIMIT $${pIndex++}`;
@@ -196,11 +197,12 @@ export class RoadAccidentService {
                    a.accident_at,
                    a.created_at,
                    a.updated_at,
+                   a.polygon_id,
                    COALESCE(json_agg(m.*) FILTER (WHERE m.id IS NOT NULL), '[]') as media
             FROM road_accidents a
             LEFT JOIN accident_media m ON a.id = m.accident_id
             WHERE a.id = $1
-            GROUP BY a.id, a.incident_id, a.waze_data, a.weather_data, a.type, a.subtype, a.severity, a.street, a.location_lat, a.location_lng, a.operator_notes, a.accident_at, a.created_at, a.updated_at
+            GROUP BY a.id, a.incident_id, a.waze_data, a.weather_data, a.type, a.subtype, a.severity, a.street, a.location_lat, a.location_lng, a.operator_notes, a.accident_at, a.created_at, a.updated_at, a.polygon_id
         `;
     try {
       const result = await dbService.query(query, [id]);

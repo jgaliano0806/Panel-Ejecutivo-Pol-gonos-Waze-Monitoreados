@@ -27,6 +27,8 @@ import { EventsDashboard } from "../components/alerts/EventsDashboard";
 import { BlockingIncidents } from "../components/alerts/BlockingIncidents";
 import { AlertsBadge } from "../components/alerts/AlertsBadge";
 import { WazeOMeter } from "../components/dashboard/WazeOMeter";
+import { MapKPIFooter } from "../components/map/MapKPIFooter";
+import { MapSidebar } from "../components/map/MapSidebar";
 import { useHistoricalData, useTrends } from "../hooks/useWazeData";
 import { Map } from "../components/map/Map";
 // GlobalNotifications ahora está dentro del componente Map
@@ -115,6 +117,13 @@ const Dashboard: React.FC = () => {
   const [singlePolygonMode, setSinglePolygonMode] = useState(false);
   const [focusIncidentId, setFocusIncidentId] = useState<string | null>(null);
   const [focusIncidentData, setFocusIncidentData] = useState<any | null>(null);
+  const [showWazeIncidents, setShowWazeIncidents] = useState(true);
+
+  const handleLayerToggle = useCallback((layer: string, enabled: boolean) => {
+    if (layer === "waze") {
+      setShowWazeIncidents(enabled);
+    }
+  }, []);
 
   // Sincronizar vista con cambios de ruta (ej: botones de atrás/adelante del navegador)
   useEffect(() => {
@@ -440,16 +449,27 @@ const Dashboard: React.FC = () => {
 
             {/* Los filtros ahora están en el sidebar - ya no flotantes */}
 
-            <div
-              className={`flex-1 grid gap-0 ${
-                selectedPolygonData
-                  ? "grid-cols-1 lg:grid-cols-10"
-                  : "grid-cols-1"
-              } h-full`}
-            >
+            <div className="flex h-full overflow-hidden relative">
+              {/* Sidebar de filtros y capas - Overlay Flotante */}
+              <div className="absolute left-4 top-4 bottom-4 z-[1002] pointer-events-none flex flex-col justify-center">
+                <div className="pointer-events-auto h-auto max-h-full shadow-2xl rounded-2xl overflow-hidden">
+                  <MapSidebar
+                    onLayerToggle={handleLayerToggle}
+                    showWazeIncidents={showWazeIncidents}
+                    jams={jams}
+                    polygons={polygons}
+                    selectedPolygon={selectedPolygon}
+                    selectedGroup={selectedGroup}
+                    onPolygonChange={handlePolygonChange}
+                    onGroupChange={handleGroupChange}
+                  />
+                </div>
+              </div>
+
+              {/* Contenedor del Mapa - Ocupa todo el espacio */}
               <div
-                className={`relative h-full ${
-                  selectedPolygonData ? "lg:col-span-7" : "col-span-1"
+                className={`relative h-full flex-1 w-full transition-all duration-300 ${
+                  selectedPolygonData ? "lg:mr-[400px]" : ""
                 }`}
               >
                 <Suspense
@@ -469,12 +489,23 @@ const Dashboard: React.FC = () => {
                     allPolygons={polygons}
                     onPolygonChange={handlePolygonChange}
                     onGroupChange={handleGroupChange}
+                    showWazeIncidents={showWazeIncidents}
+                  />
+                  {/* Footer de KPIs Flotante */}
+                  <MapKPIFooter
+                    kpis={globalKPIs}
+                    totalPolygons={polygons.length}
+                    criticalPolygons={criticalPolygonsCount}
+                    incidents={incidents}
+                    alerts={alerts}
+                    polygons={polygons}
                   />
                 </Suspense>
               </div>
 
+              {/* Sidebar de Detalle de Polígono (Panel Derecho) */}
               {selectedPolygonData && (
-                <div className="lg:col-span-3 h-full overflow-hidden border-l border-gray-200 dark:border-veltrix-border bg-white dark:bg-veltrix-card z-10">
+                <div className="absolute right-0 top-0 h-full w-[400px] border-l border-gray-200 dark:border-veltrix-border bg-white dark:bg-veltrix-card z-[1001] shadow-2xl">
                   <div className="h-full overflow-y-auto custom-scrollbar">
                     <PolygonDetail
                       polygon={selectedPolygonData}

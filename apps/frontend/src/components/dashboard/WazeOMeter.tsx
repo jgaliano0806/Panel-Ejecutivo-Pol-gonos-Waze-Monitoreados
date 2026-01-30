@@ -141,7 +141,7 @@ export const WazeOMeter: React.FC<WazeOMeterProps> = ({
       </div>
 
       {/* Desglose por Nivel */}
-      <div className="space-y-1.5 flex-1 overflow-y-auto pr-1 custom-scrollbar">
+      <div className="space-y-1.5 flex-1 pr-1">
         <h3 className="text-[10px] font-bold text-gray-600 dark:text-veltrix-muted uppercase mb-1">
           Distribución por Nivel
         </h3>

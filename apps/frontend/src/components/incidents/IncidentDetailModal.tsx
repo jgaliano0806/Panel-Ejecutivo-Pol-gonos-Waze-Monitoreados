@@ -161,7 +161,8 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                       Ubicación
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {incident.street || "Sin calle"}
+                      {incident.street ||
+                        `${incident.location.lat.toFixed(5)}, ${incident.location.lng.toFixed(5)}`}
                     </p>
                     {incident.city && (
                       <p className="text-xs text-gray-500 dark:text-gray-500">

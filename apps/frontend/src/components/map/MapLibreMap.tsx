@@ -24,6 +24,7 @@ import {
   getIncidentDescription,
   getMainTypeTranslation,
 } from "../../utils/wazeTranslations";
+import { formatStreetName } from "../../lib/utils";
 import { useThemeStore } from "../../stores/useThemeStore";
 import {
   Clock,
@@ -36,7 +37,6 @@ import {
   Timer,
   Route,
 } from "lucide-react";
-import { MapSidebar } from "./MapSidebar";
 import { NETWORK_CONFIG } from "../../config/constants";
 
 // Configuración inicial
@@ -97,6 +97,7 @@ interface MapLibreMapProps {
   allPolygons?: Polygon[];
   onPolygonChange?: (polygonId: string | null) => void;
   onGroupChange?: (group: string | null) => void;
+  showWazeIncidents?: boolean; // Controlado desde fuera
 }
 
 export const MapLibreMap: React.FC<MapLibreMapProps> = ({
@@ -113,14 +114,14 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   allPolygons,
   onPolygonChange,
   onGroupChange,
+  showWazeIncidents = true,
 }) => {
   const mapRef = useRef<MapRef>(null);
   const isDark = useThemeStore((state) => state.isDark);
   const [selectedIncident, setSelectedIncident] = useState<any>(null);
   const [selectedJam, setSelectedJam] = useState<any>(null);
 
-  // Estado para capas y sidebar
-  const [showWazeIncidents, setShowWazeIncidents] = useState(true);
+  // Estado para capas (Tráfico sigue siendo interno por ahora, a menos que el sidebar lo quiera controlar también)
   const [showTraffic, setShowTraffic] = useState(true);
 
   // Estados para sub-capas de tráfico
@@ -272,7 +273,9 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             incidentDetails.description ||
             incidentDetails.reportDescription ||
             "Sin descripción",
-          street: incidentDetails.street || "Ubicación desconocida",
+          street:
+            incidentDetails.street ||
+            `${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}`,
           type: incidentDetails.type,
           subtype: incidentDetails.subtype || "",
           timestamp: incidentDetails.timestamp
@@ -614,7 +617,9 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             }`,
             // Datos para Popup
             description: inc.description || "Sin descripción",
-            street: inc.street || "Ubicación desconocida",
+            street:
+              inc.street ||
+              `${inc.location.lat.toFixed(5)}, ${inc.location.lng.toFixed(5)}`,
             type: inc.type,
             subtype: inc.subtype || "",
             timestamp: inc.timestamp
@@ -816,739 +821,712 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     : "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 
   return (
-    <div className="flex h-full w-full">
-      {/* Sidebar */}
-      <MapSidebar
-        onLayerToggle={(layer, enabled) => {
-          if (layer === "waze") {
-            setShowWazeIncidents(enabled);
-          }
+    <div
+      className={`h-full w-full ${isDark ? "bg-[#222736]" : "bg-gray-100"} relative`}
+    >
+      <Map
+        ref={mapRef}
+        initialViewState={INITIAL_VIEW_STATE}
+        style={{ width: "100%", height: "100%" }}
+        mapStyle={mapStyleUrl}
+        attributionControl={false}
+        onClick={handleClick}
+        onStyleLoad={onMapLoad}
+        onLoad={(e: any) => {
+          startTransition(() => {
+            setMapLoaded(true);
+            onMapLoad(e);
+          });
         }}
-        showWazeIncidents={showWazeIncidents}
-        jams={jams}
-        // Props para filtros de polígonos
-        polygons={allPolygons || polygons}
-        selectedPolygon={selectedPolygon}
-        selectedGroup={selectedGroup}
-        onPolygonChange={onPolygonChange}
-        onGroupChange={onGroupChange}
-      />
-
-      {/* Mapa */}
-      <div
-        className={`flex-1 ${isDark ? "bg-[#222736]" : "bg-gray-100"} relative`}
+        interactiveLayerIds={[
+          "polygons-fill",
+          "incidents-icon",
+          "incidents-base",
+          "jams-core",
+          "jam-labels-bg",
+        ]}
       >
-        <Map
-          ref={mapRef}
-          initialViewState={INITIAL_VIEW_STATE}
-          style={{ width: "100%", height: "100%" }}
-          mapStyle={mapStyleUrl}
-          attributionControl={false}
-          onClick={handleClick}
-          onStyleLoad={onMapLoad}
-          onLoad={(e: any) => {
-            startTransition(() => {
-              setMapLoaded(true);
-              onMapLoad(e);
-            });
-          }}
-          interactiveLayerIds={[
-            "polygons-fill",
-            "incidents-icon",
-            "incidents-base",
-            "jams-core",
-            "jam-labels-bg",
-          ]}
-        >
-          <NavigationControl position="top-right" showCompass showZoom />
+        <NavigationControl position="top-right" showCompass showZoom />
 
-          {/* Polígonos */}
-          <Source
-            id="polygons-source"
-            type="geojson"
-            data={polygonsGeoJSON as any}
-          >
+        {/* Polígonos */}
+        <Source
+          id="polygons-source"
+          type="geojson"
+          data={polygonsGeoJSON as any}
+        >
+          <Layer
+            id="polygons-fill"
+            type="fill"
+            paint={{
+              "fill-color": ["get", "color"],
+              "fill-opacity": isDark ? 0.1 : 0.2, // Más opaco en claro
+            }}
+          />
+          <Layer
+            id="polygons-border"
+            type="line"
+            paint={{
+              "line-color": ["get", "color"],
+              "line-width": 1,
+              "line-opacity": isDark ? 0.5 : 0.7,
+            }}
+          />
+          {/* Resaltado de Polígono Seleccionado */}
+          {selectedPolygon && (
             <Layer
-              id="polygons-fill"
-              type="fill"
+              id="polygons-selected"
+              type="line"
+              filter={["==", ["get", "id"], selectedPolygon]}
               paint={{
-                "fill-color": ["get", "color"],
-                "fill-opacity": isDark ? 0.1 : 0.2, // Más opaco en claro
+                "line-color": "#6366f1", // Color Indigo de la marca
+                "line-width": 4,
+                "line-opacity": 1,
               }}
             />
+          )}
+          {selectedPolygon && (
             <Layer
-              id="polygons-border"
+              id="polygons-selected-fill"
+              type="fill"
+              filter={["==", ["get", "id"], selectedPolygon]}
+              paint={{
+                "fill-color": "#6366f1",
+                "fill-opacity": isDark ? 0.25 : 0.35,
+              }}
+            />
+          )}
+        </Source>
+
+        {/* Flujo de Tráfico - Capa base con gradiente */}
+        {showTraffic && showFlowLayer && (
+          <Source id="flow" type="geojson" data={flowGeoJSON as any}>
+            {/* Capa de borde/sombra */}
+            <Layer
+              id="flow-line-border"
+              type="line"
+              paint={{
+                "line-color": "#000000",
+                "line-width": 7,
+                "line-opacity": 0.15,
+                "line-blur": 2,
+              }}
+              layout={{
+                "line-cap": "round",
+                "line-join": "round",
+              }}
+            />
+            {/* Capa principal de flujo */}
+            <Layer
+              id="flow-line"
               type="line"
               paint={{
                 "line-color": ["get", "color"],
-                "line-width": 1,
-                "line-opacity": isDark ? 0.5 : 0.7,
+                "line-width": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  10,
+                  3,
+                  14,
+                  5,
+                  18,
+                  8,
+                ],
+                "line-opacity": 0.9,
+              }}
+              layout={{
+                "line-cap": "round",
+                "line-join": "round",
               }}
             />
-            {/* Resaltado de Polígono Seleccionado */}
-            {selectedPolygon && (
-              <Layer
-                id="polygons-selected"
-                type="line"
-                filter={["==", ["get", "id"], selectedPolygon]}
-                paint={{
-                  "line-color": "#6366f1", // Color Indigo de la marca
-                  "line-width": 4,
-                  "line-opacity": 1,
-                }}
-              />
-            )}
-            {selectedPolygon && (
-              <Layer
-                id="polygons-selected-fill"
-                type="fill"
-                filter={["==", ["get", "id"], selectedPolygon]}
-                paint={{
-                  "fill-color": "#6366f1",
-                  "fill-opacity": isDark ? 0.25 : 0.35,
-                }}
-              />
-            )}
           </Source>
+        )}
 
-          {/* Flujo de Tráfico - Capa base con gradiente */}
-          {showTraffic && showFlowLayer && (
-            <Source id="flow" type="geojson" data={flowGeoJSON as any}>
-              {/* Capa de borde/sombra */}
-              <Layer
-                id="flow-line-border"
-                type="line"
-                paint={{
-                  "line-color": "#000000",
-                  "line-width": 7,
-                  "line-opacity": 0.15,
-                  "line-blur": 2,
-                }}
-                layout={{
-                  "line-cap": "round",
-                  "line-join": "round",
-                }}
-              />
-              {/* Capa principal de flujo */}
-              <Layer
-                id="flow-line"
-                type="line"
-                paint={{
-                  "line-color": ["get", "color"],
-                  "line-width": [
-                    "interpolate",
-                    ["linear"],
-                    ["zoom"],
-                    10,
-                    3,
-                    14,
-                    5,
-                    18,
-                    8,
-                  ],
-                  "line-opacity": 0.9,
-                }}
-                layout={{
-                  "line-cap": "round",
-                  "line-join": "round",
-                }}
-              />
-            </Source>
-          )}
+        {/* Jams/Atascos - Capas mejoradas con efecto Waze */}
+        {showTraffic && showJamsLayer && mapLoaded && (
+          <Source id="jams-source" type="geojson" data={jamsGeoJSON as any}>
+            {/* Capa de glow exterior pulsante */}
+            <Layer
+              id="jams-outer-glow"
+              type="line"
+              layout={{ "line-join": "round", "line-cap": "round" }}
+              paint={{
+                "line-color": ["get", "color"],
+                "line-width": [
+                  "interpolate",
+                  ["linear"],
+                  ["get", "level"],
+                  2,
+                  12,
+                  3,
+                  16,
+                  4,
+                  20,
+                  5,
+                  26,
+                ],
+                "line-opacity": [
+                  "interpolate",
+                  ["linear"],
+                  ["get", "level"],
+                  2,
+                  0.15,
+                  5,
+                  0.35,
+                ],
+                "line-blur": 6,
+              }}
+            />
+            {/* Capa de glow interior */}
+            <Layer
+              id="jams-glow"
+              type="line"
+              layout={{ "line-join": "round", "line-cap": "round" }}
+              paint={{
+                "line-color": ["get", "color"],
+                "line-width": [
+                  "interpolate",
+                  ["linear"],
+                  ["get", "level"],
+                  2,
+                  8,
+                  3,
+                  10,
+                  4,
+                  14,
+                  5,
+                  18,
+                ],
+                "line-opacity": 0.5,
+                "line-blur": 3,
+              }}
+            />
+            {/* Capa núcleo - línea principal */}
+            <Layer
+              id="jams-core"
+              type="line"
+              layout={{ "line-join": "round", "line-cap": "round" }}
+              paint={{
+                "line-color": ["get", "color"],
+                "line-width": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  10,
+                  ["interpolate", ["linear"], ["get", "level"], 2, 3, 5, 5],
+                  14,
+                  ["interpolate", ["linear"], ["get", "level"], 2, 4, 5, 7],
+                  18,
+                  ["interpolate", ["linear"], ["get", "level"], 2, 6, 5, 10],
+                ],
+                "line-opacity": 1,
+              }}
+            />
+            {/* Patrón de línea animada para indicar dirección del flujo lento */}
+            <Layer
+              id="jams-animated"
+              type="line"
+              layout={{ "line-join": "round", "line-cap": "round" }}
+              paint={{
+                "line-color": "#ffffff",
+                "line-width": [
+                  "interpolate",
+                  ["linear"],
+                  ["get", "level"],
+                  2,
+                  1,
+                  5,
+                  2,
+                ],
+                "line-opacity": [
+                  "interpolate",
+                  ["linear"],
+                  ["get", "level"],
+                  2,
+                  0.3,
+                  5,
+                  0.6,
+                ],
+                "line-dasharray": [0.5, 3],
+              }}
+            />
+          </Source>
+        )}
 
-          {/* Jams/Atascos - Capas mejoradas con efecto Waze */}
-          {showTraffic && showJamsLayer && mapLoaded && (
-            <Source id="jams-source" type="geojson" data={jamsGeoJSON as any}>
-              {/* Capa de glow exterior pulsante */}
-              <Layer
-                id="jams-outer-glow"
-                type="line"
-                layout={{ "line-join": "round", "line-cap": "round" }}
-                paint={{
-                  "line-color": ["get", "color"],
-                  "line-width": [
-                    "interpolate",
-                    ["linear"],
-                    ["get", "level"],
-                    2,
-                    12,
-                    3,
-                    16,
-                    4,
-                    20,
-                    5,
-                    26,
-                  ],
-                  "line-opacity": [
-                    "interpolate",
-                    ["linear"],
-                    ["get", "level"],
-                    2,
-                    0.15,
-                    5,
-                    0.35,
-                  ],
-                  "line-blur": 6,
-                }}
-              />
-              {/* Capa de glow interior */}
-              <Layer
-                id="jams-glow"
-                type="line"
-                layout={{ "line-join": "round", "line-cap": "round" }}
-                paint={{
-                  "line-color": ["get", "color"],
-                  "line-width": [
-                    "interpolate",
-                    ["linear"],
-                    ["get", "level"],
-                    2,
-                    8,
-                    3,
-                    10,
-                    4,
-                    14,
-                    5,
-                    18,
-                  ],
-                  "line-opacity": 0.5,
-                  "line-blur": 3,
-                }}
-              />
-              {/* Capa núcleo - línea principal */}
-              <Layer
-                id="jams-core"
-                type="line"
-                layout={{ "line-join": "round", "line-cap": "round" }}
-                paint={{
-                  "line-color": ["get", "color"],
-                  "line-width": [
-                    "interpolate",
-                    ["linear"],
-                    ["zoom"],
-                    10,
-                    ["interpolate", ["linear"], ["get", "level"], 2, 3, 5, 5],
-                    14,
-                    ["interpolate", ["linear"], ["get", "level"], 2, 4, 5, 7],
-                    18,
-                    ["interpolate", ["linear"], ["get", "level"], 2, 6, 5, 10],
-                  ],
-                  "line-opacity": 1,
-                }}
-              />
-              {/* Patrón de línea animada para indicar dirección del flujo lento */}
-              <Layer
-                id="jams-animated"
-                type="line"
-                layout={{ "line-join": "round", "line-cap": "round" }}
-                paint={{
-                  "line-color": "#ffffff",
-                  "line-width": [
-                    "interpolate",
-                    ["linear"],
-                    ["get", "level"],
-                    2,
-                    1,
-                    5,
-                    2,
-                  ],
-                  "line-opacity": [
-                    "interpolate",
-                    ["linear"],
-                    ["get", "level"],
-                    2,
-                    0.3,
-                    5,
-                    0.6,
-                  ],
-                  "line-dasharray": [0.5, 3],
-                }}
-              />
-            </Source>
-          )}
+        {/* Etiquetas de velocidad en atascos severos - solo en zoom alto */}
+        {showTraffic && showJamsLayer && mapLoaded && (
+          <Source
+            id="jam-labels-source"
+            type="geojson"
+            data={jamLabelsGeoJSON as any}
+          >
+            {/* Fondo del label */}
+            <Layer
+              id="jam-labels-bg"
+              type="circle"
+              minzoom={13}
+              paint={{
+                "circle-radius": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  13,
+                  10,
+                  16,
+                  14,
+                ],
+                "circle-color": [
+                  "case",
+                  ["<", ["get", "speed"], 5],
+                  "#b71c1c",
+                  ["<", ["get", "speed"], 15],
+                  "#c62828",
+                  ["<", ["get", "speed"], 25],
+                  "#e53935",
+                  "#ff7043",
+                ],
+                "circle-opacity": 0.95,
+                "circle-stroke-width": 2,
+                "circle-stroke-color": "#ffffff",
+              }}
+            />
+            {/* Texto de velocidad */}
+            <Layer
+              id="jam-labels-text"
+              type="symbol"
+              minzoom={13}
+              layout={{
+                "text-field": ["get", "speedLabel"],
+                "text-size": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  13,
+                  9,
+                  16,
+                  12,
+                ],
+                "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+                "text-allow-overlap": true,
+                "text-ignore-placement": true,
+              }}
+              paint={{
+                "text-color": "#ffffff",
+                "text-halo-color": "rgba(0,0,0,0.3)",
+                "text-halo-width": 1,
+              }}
+            />
+            {/* Label de demora (minutos extra) */}
+            <Layer
+              id="jam-delay-labels"
+              type="symbol"
+              minzoom={14}
+              layout={{
+                "text-field": ["get", "delayLabel"],
+                "text-size": 10,
+                "text-font": ["Open Sans Semibold", "Arial Unicode MS Regular"],
+                "text-offset": [0, 1.8],
+                "text-allow-overlap": false,
+              }}
+              paint={{
+                "text-color": "#ffcdd2",
+                "text-halo-color": "rgba(0,0,0,0.7)",
+                "text-halo-width": 1,
+              }}
+            />
+          </Source>
+        )}
 
-          {/* Etiquetas de velocidad en atascos severos - solo en zoom alto */}
-          {showTraffic && showJamsLayer && mapLoaded && (
-            <Source
-              id="jam-labels-source"
-              type="geojson"
-              data={jamLabelsGeoJSON as any}
+        {/* Líneas de cierres de camino (usando datos reales de jams) */}
+        {showRoadClosures && (
+          <Source
+            id="road-closures"
+            type="geojson"
+            data={roadClosureLinesGeoJSON as any}
+          >
+            {/* Línea roja gruesa para el cierre */}
+            <Layer
+              id="road-closure-lines"
+              type="line"
+              paint={{
+                "line-color": ["get", "color"],
+                "line-width": 8,
+                "line-opacity": 0.85,
+                "line-dasharray": [2, 3], // Línea punteada: 2 pixels línea, 3 pixels espacio
+              }}
+              layout={{
+                "line-cap": "round",
+                "line-join": "round",
+              }}
+            />
+            {/* Línea blanca punteada encima para contraste */}
+            <Layer
+              id="road-closure-dashed"
+              type="line"
+              paint={{
+                "line-color": "#ffffff",
+                "line-width": 3,
+                "line-opacity": 0.7,
+                "line-dasharray": [3, 3],
+              }}
+              layout={{
+                "line-cap": "round",
+                "line-join": "round",
+              }}
+            />
+          </Source>
+        )}
+
+        {/* Incidentes (Puntos) - Solo si el mapa cargó */}
+        {showWazeIncidents && mapLoaded && (
+          <Source
+            id="incidents-source"
+            type="geojson"
+            data={incidentsGeoJSON as any}
+          >
+            <Layer
+              id="incidents-base"
+              type="circle"
+              paint={{
+                "circle-radius": 14,
+                "circle-color": isDark ? "#ffffff" : "#222222",
+                "circle-opacity": 0.9,
+                "circle-stroke-width": 2,
+                "circle-stroke-color": isDark ? "#222222" : "#ffffff",
+              }}
+            />
+            <Layer
+              id="incidents-pulse"
+              type="circle"
+              paint={{
+                "circle-radius": 25,
+                "circle-color": isDark ? "#ffffff" : "#000000",
+                "circle-opacity": [
+                  "interpolate",
+                  ["linear"],
+                  ["get", "isNew"],
+                  0,
+                  0,
+                  1,
+                  0.3,
+                ],
+                "circle-blur": 0.8,
+              }}
+            />
+            <Layer
+              id="incidents-icon"
+              type="symbol"
+              layout={{
+                "icon-image": ["get", "iconId"],
+                "icon-size": 0.75,
+                "icon-allow-overlap": true,
+                "icon-ignore-placement": true,
+              }}
+              paint={{ "icon-opacity": 1 }}
+            />
+          </Source>
+        )}
+
+        {/* Popup de Atasco/Tráfico */}
+        {selectedJam && (
+          <Popup
+            longitude={selectedJam.lng}
+            latitude={selectedJam.lat}
+            anchor="bottom"
+            onClose={() => setSelectedJam(null)}
+            closeButton={false}
+            className="jam-popup"
+            maxWidth="320px"
+          >
+            <div
+              className={`rounded-xl shadow-2xl overflow-hidden min-w-[280px] ${
+                isDark ? "bg-veltrix-card text-white" : "bg-white text-gray-800"
+              }`}
             >
-              {/* Fondo del label */}
-              <Layer
-                id="jam-labels-bg"
-                type="circle"
-                minzoom={13}
-                paint={{
-                  "circle-radius": [
-                    "interpolate",
-                    ["linear"],
-                    ["zoom"],
-                    13,
-                    10,
-                    16,
-                    14,
-                  ],
-                  "circle-color": [
-                    "case",
-                    ["<", ["get", "speed"], 5],
-                    "#b71c1c",
-                    ["<", ["get", "speed"], 15],
-                    "#c62828",
-                    ["<", ["get", "speed"], 25],
-                    "#e53935",
-                    "#ff7043",
-                  ],
-                  "circle-opacity": 0.95,
-                  "circle-stroke-width": 2,
-                  "circle-stroke-color": "#ffffff",
-                }}
-              />
-              {/* Texto de velocidad */}
-              <Layer
-                id="jam-labels-text"
-                type="symbol"
-                minzoom={13}
-                layout={{
-                  "text-field": ["get", "speedLabel"],
-                  "text-size": [
-                    "interpolate",
-                    ["linear"],
-                    ["zoom"],
-                    13,
-                    9,
-                    16,
-                    12,
-                  ],
-                  "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
-                  "text-allow-overlap": true,
-                  "text-ignore-placement": true,
-                }}
-                paint={{
-                  "text-color": "#ffffff",
-                  "text-halo-color": "rgba(0,0,0,0.3)",
-                  "text-halo-width": 1,
-                }}
-              />
-              {/* Label de demora (minutos extra) */}
-              <Layer
-                id="jam-delay-labels"
-                type="symbol"
-                minzoom={14}
-                layout={{
-                  "text-field": ["get", "delayLabel"],
-                  "text-size": 10,
-                  "text-font": [
-                    "Open Sans Semibold",
-                    "Arial Unicode MS Regular",
-                  ],
-                  "text-offset": [0, 1.8],
-                  "text-allow-overlap": false,
-                }}
-                paint={{
-                  "text-color": "#ffcdd2",
-                  "text-halo-color": "rgba(0,0,0,0.7)",
-                  "text-halo-width": 1,
-                }}
-              />
-            </Source>
-          )}
-
-          {/* Líneas de cierres de camino (usando datos reales de jams) */}
-          {showRoadClosures && (
-            <Source
-              id="road-closures"
-              type="geojson"
-              data={roadClosureLinesGeoJSON as any}
-            >
-              {/* Línea roja gruesa para el cierre */}
-              <Layer
-                id="road-closure-lines"
-                type="line"
-                paint={{
-                  "line-color": ["get", "color"],
-                  "line-width": 8,
-                  "line-opacity": 0.85,
-                  "line-dasharray": [2, 3], // Línea punteada: 2 pixels línea, 3 pixels espacio
-                }}
-                layout={{
-                  "line-cap": "round",
-                  "line-join": "round",
-                }}
-              />
-              {/* Línea blanca punteada encima para contraste */}
-              <Layer
-                id="road-closure-dashed"
-                type="line"
-                paint={{
-                  "line-color": "#ffffff",
-                  "line-width": 3,
-                  "line-opacity": 0.7,
-                  "line-dasharray": [3, 3],
-                }}
-                layout={{
-                  "line-cap": "round",
-                  "line-join": "round",
-                }}
-              />
-            </Source>
-          )}
-
-          {/* Incidentes (Puntos) - Solo si el mapa cargó */}
-          {showWazeIncidents && mapLoaded && (
-            <Source
-              id="incidents-source"
-              type="geojson"
-              data={incidentsGeoJSON as any}
-            >
-              <Layer
-                id="incidents-base"
-                type="circle"
-                paint={{
-                  "circle-radius": 14,
-                  "circle-color": isDark ? "#ffffff" : "#222222",
-                  "circle-opacity": 0.9,
-                  "circle-stroke-width": 2,
-                  "circle-stroke-color": isDark ? "#222222" : "#ffffff",
-                }}
-              />
-              <Layer
-                id="incidents-pulse"
-                type="circle"
-                paint={{
-                  "circle-radius": 25,
-                  "circle-color": isDark ? "#ffffff" : "#000000",
-                  "circle-opacity": [
-                    "interpolate",
-                    ["linear"],
-                    ["get", "isNew"],
-                    0,
-                    0,
-                    1,
-                    0.3,
-                  ],
-                  "circle-blur": 0.8,
-                }}
-              />
-              <Layer
-                id="incidents-icon"
-                type="symbol"
-                layout={{
-                  "icon-image": ["get", "iconId"],
-                  "icon-size": 0.75,
-                  "icon-allow-overlap": true,
-                  "icon-ignore-placement": true,
-                }}
-                paint={{ "icon-opacity": 1 }}
-              />
-            </Source>
-          )}
-
-          {/* Popup de Atasco/Tráfico */}
-          {selectedJam && (
-            <Popup
-              longitude={selectedJam.lng}
-              latitude={selectedJam.lat}
-              anchor="bottom"
-              onClose={() => setSelectedJam(null)}
-              closeButton={false}
-              className="jam-popup"
-              maxWidth="320px"
-            >
+              {/* Header con gradiente según severidad */}
               <div
-                className={`rounded-xl shadow-2xl overflow-hidden min-w-[280px] ${
-                  isDark
-                    ? "bg-veltrix-card text-white"
-                    : "bg-white text-gray-800"
-                }`}
+                className="flex items-start justify-between p-4 border-b border-gray-100 dark:border-veltrix-border"
+                style={{
+                  background: isDark
+                    ? `linear-gradient(135deg, ${selectedJam.properties.color}30 0%, transparent 100%)`
+                    : `linear-gradient(135deg, ${selectedJam.properties.color}20 0%, transparent 100%)`,
+                }}
               >
-                {/* Header con gradiente según severidad */}
-                <div
-                  className="flex items-start justify-between p-4 border-b border-gray-100 dark:border-veltrix-border"
-                  style={{
-                    background: isDark
-                      ? `linear-gradient(135deg, ${selectedJam.properties.color}30 0%, transparent 100%)`
-                      : `linear-gradient(135deg, ${selectedJam.properties.color}20 0%, transparent 100%)`,
-                  }}
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className="p-2.5 rounded-xl shadow-lg"
-                      style={{ backgroundColor: selectedJam.properties.color }}
-                    >
-                      <Car className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest leading-none mb-1">
-                        Congestión de Tráfico
-                      </p>
-                      <h3 className="font-bold text-lg leading-tight">
-                        {selectedJam.properties.street || "Vía"}
-                      </h3>
-                      {selectedJam.properties.city && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                          {selectedJam.properties.city}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setSelectedJam(null)}
-                    className="p-1.5 hover:bg-gray-200 dark:hover:bg-zinc-800 rounded-full transition-colors text-gray-500"
+                <div className="flex items-start gap-3">
+                  <div
+                    className="p-2.5 rounded-xl shadow-lg"
+                    style={{ backgroundColor: selectedJam.properties.color }}
                   >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                {/* Indicador de severidad visual */}
-                <div className="px-4 py-3 bg-gray-50/50 dark:bg-zinc-900/30">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                      Estado del tráfico
-                    </span>
-                    <span
-                      className="text-xs font-bold px-2 py-0.5 rounded-full text-white"
-                      style={{ backgroundColor: selectedJam.properties.color }}
-                    >
-                      {selectedJam.properties.severityText ||
-                        getJamSeverityText(
-                          selectedJam.properties.level,
-                          selectedJam.properties.speed,
-                        )}
-                    </span>
+                    <Car className="w-6 h-6 text-white" />
                   </div>
-                  {/* Barra de nivel de congestión */}
-                  <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{
-                        width: `${Math.min(100, (selectedJam.properties.level || 1) * 20)}%`,
-                        backgroundColor: selectedJam.properties.color,
-                      }}
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest leading-none mb-1">
+                      Congestión de Tráfico
+                    </p>
+                    <h3 className="font-bold text-lg leading-tight">
+                      {selectedJam.properties.street || "Vía"}
+                    </h3>
+                    {selectedJam.properties.city && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        {selectedJam.properties.city}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedJam(null)}
+                  className="p-1.5 hover:bg-gray-200 dark:hover:bg-zinc-800 rounded-full transition-colors text-gray-500"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Indicador de severidad visual */}
+              <div className="px-4 py-3 bg-gray-50/50 dark:bg-zinc-900/30">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    Estado del tráfico
+                  </span>
+                  <span
+                    className="text-xs font-bold px-2 py-0.5 rounded-full text-white"
+                    style={{ backgroundColor: selectedJam.properties.color }}
+                  >
+                    {selectedJam.properties.severityText ||
+                      getJamSeverityText(
+                        selectedJam.properties.level,
+                        selectedJam.properties.speed,
+                      )}
+                  </span>
+                </div>
+                {/* Barra de nivel de congestión */}
+                <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${Math.min(100, (selectedJam.properties.level || 1) * 20)}%`,
+                      backgroundColor: selectedJam.properties.color,
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                  <span>Fluido</span>
+                  <span>Detenido</span>
+                </div>
+              </div>
+
+              {/* Métricas principales */}
+              <div className="p-4 grid grid-cols-3 gap-3">
+                {/* Velocidad */}
+                <div className="text-center p-2 bg-gray-50 dark:bg-veltrix-bg rounded-lg">
+                  <Gauge className="w-5 h-5 mx-auto mb-1 text-gray-400" />
+                  <p
+                    className="text-lg font-bold"
+                    style={{ color: selectedJam.properties.color }}
+                  >
+                    {Math.round(selectedJam.properties.speed || 0)}
+                  </p>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                    km/h
+                  </p>
+                </div>
+                {/* Demora */}
+                <div className="text-center p-2 bg-gray-50 dark:bg-veltrix-bg rounded-lg">
+                  <Timer className="w-5 h-5 mx-auto mb-1 text-gray-400" />
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">
+                    {selectedJam.properties.delay > 60
+                      ? `+${Math.round(selectedJam.properties.delay / 60)}`
+                      : `+${Math.round(selectedJam.properties.delay || 0)}`}
+                  </p>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                    {selectedJam.properties.delay > 60 ? "min" : "seg"}
+                  </p>
+                </div>
+                {/* Longitud */}
+                <div className="text-center p-2 bg-gray-50 dark:bg-veltrix-bg rounded-lg">
+                  <Route className="w-5 h-5 mx-auto mb-1 text-gray-400" />
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">
+                    {selectedJam.properties.length > 1000
+                      ? (selectedJam.properties.length / 1000).toFixed(1)
+                      : Math.round(selectedJam.properties.length || 0)}
+                  </p>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                    {selectedJam.properties.length > 1000 ? "km" : "m"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Footer con nivel de congestión Waze */}
+              <div className="px-4 py-3 bg-gray-50 dark:bg-zinc-900 border-t border-gray-100 dark:border-veltrix-border flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500 dark:text-gray-400">
+                    Nivel Waze:
+                  </span>
+                  <div className="flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map((lvl) => (
+                      <div
+                        key={lvl}
+                        className={`w-3 h-3 rounded-sm ${
+                          lvl <= (selectedJam.properties.level || 0)
+                            ? ""
+                            : "bg-gray-200 dark:bg-gray-700"
+                        }`}
+                        style={{
+                          backgroundColor:
+                            lvl <= (selectedJam.properties.level || 0)
+                              ? selectedJam.properties.color
+                              : undefined,
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <span className="text-gray-400 font-mono text-[10px]">
+                  Tipo vía: {selectedJam.properties.roadType || "-"}
+                </span>
+              </div>
+            </div>
+          </Popup>
+        )}
+
+        {/* Popup de Incidente */}
+        {selectedIncident && (
+          <Popup
+            longitude={selectedIncident.lng}
+            latitude={selectedIncident.lat}
+            anchor="bottom"
+            onClose={() => setSelectedIncident(null)}
+            closeButton={false}
+            className="incident-popup"
+            maxWidth="350px"
+          >
+            <div
+              className={`rounded-xl shadow-2xl overflow-hidden min-w-[320px] ${
+                isDark ? "bg-veltrix-card text-white" : "bg-white text-gray-800"
+              }`}
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between p-4 border-b border-gray-100 dark:border-veltrix-border bg-gray-50/50 dark:bg-zinc-900/50">
+                <div className="flex items-start gap-3">
+                  <div className="relative">
+                    <img
+                      src={getWazePartnerHubIconUrl(
+                        selectedIncident.properties.type,
+                        selectedIncident.properties.subtype,
+                      )}
+                      className="w-10 h-10 object-contain drop-shadow-md"
+                      alt="icon"
                     />
                   </div>
-                  <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-                    <span>Fluido</span>
-                    <span>Detenido</span>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest leading-none mb-1">
+                      {selectedIncident.properties.street || "Ubicación"}
+                    </p>
+                    <h3 className="font-bold text-lg leading-tight">
+                      {getIncidentDescription(
+                        selectedIncident.properties.type,
+                        selectedIncident.properties.subtype,
+                      )}
+                    </h3>
                   </div>
                 </div>
+                <button
+                  onClick={() => setSelectedIncident(null)}
+                  className="p-1.5 hover:bg-gray-200 dark:hover:bg-zinc-800 rounded-full transition-colors text-gray-500"
+                >
+                  <X size={18} />
+                </button>
+              </div>
 
-                {/* Métricas principales */}
-                <div className="p-4 grid grid-cols-3 gap-3">
-                  {/* Velocidad */}
-                  <div className="text-center p-2 bg-gray-50 dark:bg-veltrix-bg rounded-lg">
-                    <Gauge className="w-5 h-5 mx-auto mb-1 text-gray-400" />
-                    <p
-                      className="text-lg font-bold"
-                      style={{ color: selectedJam.properties.color }}
-                    >
-                      {Math.round(selectedJam.properties.speed || 0)}
-                    </p>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                      km/h
-                    </p>
-                  </div>
-                  {/* Demora */}
-                  <div className="text-center p-2 bg-gray-50 dark:bg-veltrix-bg rounded-lg">
-                    <Timer className="w-5 h-5 mx-auto mb-1 text-gray-400" />
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">
-                      {selectedJam.properties.delay > 60
-                        ? `+${Math.round(selectedJam.properties.delay / 60)}`
-                        : `+${Math.round(selectedJam.properties.delay || 0)}`}
-                    </p>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                      {selectedJam.properties.delay > 60 ? "min" : "seg"}
-                    </p>
-                  </div>
-                  {/* Longitud */}
-                  <div className="text-center p-2 bg-gray-50 dark:bg-veltrix-bg rounded-lg">
-                    <Route className="w-5 h-5 mx-auto mb-1 text-gray-400" />
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">
-                      {selectedJam.properties.length > 1000
-                        ? (selectedJam.properties.length / 1000).toFixed(1)
-                        : Math.round(selectedJam.properties.length || 0)}
-                    </p>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                      {selectedJam.properties.length > 1000 ? "km" : "m"}
-                    </p>
-                  </div>
-                </div>
+              {/* Body Content */}
+              <div className="p-4 space-y-4 text-sm">
+                {/* Tabla de Informacion */}
+                <div className="grid grid-cols-[110px_1fr] gap-y-3 gap-x-2">
+                  <span className="font-medium text-gray-500 dark:text-gray-400">
+                    Tipo
+                  </span>
+                  <span className="font-medium">
+                    {getMainTypeTranslation(selectedIncident.properties.type)}
+                  </span>
 
-                {/* Footer con nivel de congestión Waze */}
-                <div className="px-4 py-3 bg-gray-50 dark:bg-zinc-900 border-t border-gray-100 dark:border-veltrix-border flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-500 dark:text-gray-400">
-                      Nivel Waze:
-                    </span>
-                    <div className="flex gap-0.5">
-                      {[1, 2, 3, 4, 5].map((lvl) => (
-                        <div
-                          key={lvl}
-                          className={`w-3 h-3 rounded-sm ${
-                            lvl <= (selectedJam.properties.level || 0)
-                              ? ""
-                              : "bg-gray-200 dark:bg-gray-700"
-                          }`}
-                          style={{
-                            backgroundColor:
-                              lvl <= (selectedJam.properties.level || 0)
-                                ? selectedJam.properties.color
-                                : undefined,
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <span className="text-gray-400 font-mono text-[10px]">
-                    Tipo vía: {selectedJam.properties.roadType || "-"}
+                  <span className="font-medium text-gray-500 dark:text-gray-400">
+                    Fecha de inicio
+                  </span>
+                  <span>
+                    {selectedIncident.properties.timestamp
+                      ? new Date(
+                          selectedIncident.properties.timestamp,
+                        ).toLocaleString("es-AR")
+                      : "N/A"}
+                  </span>
+
+                  <span className="font-medium text-gray-500 dark:text-gray-400">
+                    Descripción
+                  </span>
+                  <span className="leading-snug">
+                    {selectedIncident.properties.description}
+                  </span>
+
+                  <span className="font-medium text-gray-500 dark:text-gray-400">
+                    Informante
+                  </span>
+                  <span className="font-mono text-xs bg-gray-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded w-fit text-blue-600 dark:text-blue-400">
+                    {selectedIncident.properties.reportBy || "Wazer"}
+                  </span>
+
+                  {selectedIncident.properties.magvar !== undefined &&
+                    selectedIncident.properties.magvar !== null && (
+                      <>
+                        <span className="font-medium text-gray-500 dark:text-gray-400">
+                          Dirección
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <Navigation
+                            className="h-3.5 w-3.5 text-blue-500"
+                            style={{
+                              transform: `rotate(${selectedIncident.properties.magvar}deg)`,
+                            }}
+                          />
+                          {getCardinalDirection(
+                            selectedIncident.properties.magvar,
+                          )}
+                          <span className="text-gray-400 text-xs">
+                            ({Math.round(selectedIncident.properties.magvar)}
+                            °)
+                          </span>
+                        </span>
+                      </>
+                    )}
+
+                  <span className="font-medium text-gray-500 dark:text-gray-400">
+                    ID
+                  </span>
+                  <span className="text-[10px] uppercase font-mono text-gray-400 break-all leading-tight">
+                    {selectedIncident.properties.id}
                   </span>
                 </div>
               </div>
-            </Popup>
-          )}
 
-          {/* Popup de Incidente */}
-          {selectedIncident && (
-            <Popup
-              longitude={selectedIncident.lng}
-              latitude={selectedIncident.lat}
-              anchor="bottom"
-              onClose={() => setSelectedIncident(null)}
-              closeButton={false}
-              className="incident-popup"
-              maxWidth="350px"
-            >
-              <div
-                className={`rounded-xl shadow-2xl overflow-hidden min-w-[320px] ${
-                  isDark
-                    ? "bg-veltrix-card text-white"
-                    : "bg-white text-gray-800"
-                }`}
-              >
-                {/* Header */}
-                <div className="flex items-start justify-between p-4 border-b border-gray-100 dark:border-veltrix-border bg-gray-50/50 dark:bg-zinc-900/50">
-                  <div className="flex items-start gap-3">
-                    <div className="relative">
-                      <img
-                        src={getWazePartnerHubIconUrl(
-                          selectedIncident.properties.type,
-                          selectedIncident.properties.subtype,
-                        )}
-                        className="w-10 h-10 object-contain drop-shadow-md"
-                        alt="icon"
-                      />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest leading-none mb-1">
-                        {selectedIncident.properties.street || "Ubicación"}
-                      </p>
-                      <h3 className="font-bold text-lg leading-tight">
-                        {getIncidentDescription(
-                          selectedIncident.properties.type,
-                          selectedIncident.properties.subtype,
-                        )}
-                      </h3>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setSelectedIncident(null)}
-                    className="p-1.5 hover:bg-gray-200 dark:hover:bg-zinc-800 rounded-full transition-colors text-gray-500"
-                  >
-                    <X size={18} />
-                  </button>
+              {/* Footer Status */}
+              <div className="px-4 py-3 bg-gray-50 dark:bg-zinc-900 border-t border-gray-100 dark:border-veltrix-border flex items-center justify-between text-xs">
+                <div className="flex items-center gap-4">
+                  <span className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
+                    <span className="w-3.5 h-3.5 flex items-center justify-center">
+                      👍
+                    </span>
+                    {selectedIncident.properties.nThumbsUp} valoraciones
+                  </span>
                 </div>
-
-                {/* Body Content */}
-                <div className="p-4 space-y-4 text-sm">
-                  {/* Tabla de Informacion */}
-                  <div className="grid grid-cols-[110px_1fr] gap-y-3 gap-x-2">
-                    <span className="font-medium text-gray-500 dark:text-gray-400">
-                      Tipo
-                    </span>
-                    <span className="font-medium">
-                      {getMainTypeTranslation(selectedIncident.properties.type)}
-                    </span>
-
-                    <span className="font-medium text-gray-500 dark:text-gray-400">
-                      Fecha de inicio
-                    </span>
-                    <span>
-                      {selectedIncident.properties.timestamp
-                        ? new Date(
-                            selectedIncident.properties.timestamp,
-                          ).toLocaleString("es-AR")
-                        : "N/A"}
-                    </span>
-
-                    <span className="font-medium text-gray-500 dark:text-gray-400">
-                      Descripción
-                    </span>
-                    <span className="leading-snug">
-                      {selectedIncident.properties.description}
-                    </span>
-
-                    <span className="font-medium text-gray-500 dark:text-gray-400">
-                      Informante
-                    </span>
-                    <span className="font-mono text-xs bg-gray-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded w-fit text-blue-600 dark:text-blue-400">
-                      {selectedIncident.properties.reportBy || "Wazer"}
-                    </span>
-
-                    {selectedIncident.properties.magvar !== undefined &&
-                      selectedIncident.properties.magvar !== null && (
-                        <>
-                          <span className="font-medium text-gray-500 dark:text-gray-400">
-                            Dirección
-                          </span>
-                          <span className="flex items-center gap-1.5">
-                            <Navigation
-                              className="h-3.5 w-3.5 text-blue-500"
-                              style={{
-                                transform: `rotate(${selectedIncident.properties.magvar}deg)`,
-                              }}
-                            />
-                            {getCardinalDirection(
-                              selectedIncident.properties.magvar,
-                            )}
-                            <span className="text-gray-400 text-xs">
-                              ({Math.round(selectedIncident.properties.magvar)}
-                              °)
-                            </span>
-                          </span>
-                        </>
-                      )}
-
-                    <span className="font-medium text-gray-500 dark:text-gray-400">
-                      ID
-                    </span>
-                    <span className="text-[10px] uppercase font-mono text-gray-400 break-all leading-tight">
-                      {selectedIncident.properties.id}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Footer Status */}
-                <div className="px-4 py-3 bg-gray-50 dark:bg-zinc-900 border-t border-gray-100 dark:border-veltrix-border flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-4">
-                    <span className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
-                      <span className="w-3.5 h-3.5 flex items-center justify-center">
-                        👍
-                      </span>
-                      {selectedIncident.properties.nThumbsUp} valoraciones
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-veltrix-bg rounded-full shadow-sm border border-gray-100 dark:border-veltrix-border">
-                    <ShieldCheck className="h-3 w-3 text-gray-400" />
-                    <span className="font-medium">
-                      Confianza: {selectedIncident.properties.confidence}/10
-                    </span>
-                  </div>
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-veltrix-bg rounded-full shadow-sm border border-gray-100 dark:border-veltrix-border">
+                  <ShieldCheck className="h-3 w-3 text-gray-400" />
+                  <span className="font-medium">
+                    Confianza: {selectedIncident.properties.confidence}/10
+                  </span>
                 </div>
               </div>
-            </Popup>
-          )}
-        </Map>
-      </div>
+            </div>
+          </Popup>
+        )}
+      </Map>
     </div>
   );
 };

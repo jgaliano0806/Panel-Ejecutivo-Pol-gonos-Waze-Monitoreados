@@ -204,7 +204,7 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(
                       setShowEventsModal(true);
                     }
                   }}
-                  className="text-white" // Mantenemos text-white como base global, los bg vienen por status
+                  // className="text-white" // ELIMINADO: Deja que StatCard maneje el color de texto según el status (bg-primary -> text-primary-foreground)
                 />
               </div>
             );

@@ -5,8 +5,10 @@ Este documento describe cómo desplegar el Panel Ejecutivo Waze en diferentes en
 ## 📋 Prerrequisitos
 
 - **Node.js**: v18 o superior
-- **Docker & Docker Compose**: Para despliegue contenerizado
+- **npm**: v8 o superior
 - **PostgreSQL**: v16+ (si no se usa Docker)
+- **Redis** (opcional): para caché y rate limiting. En Windows puede usarse **Memurai**.
+- **Docker & Docker Compose** (opcional): para despliegue contenerizado
 
 ## 🛠️ Desarrollo Local
 
@@ -83,18 +85,29 @@ Si necesitas construir los artefactos para despliegue manual (ej. en un servidor
 ## ⚙️ Variables de Entorno
 
 ### Backend
+
+Copia `apps/backend/.env.example` a `apps/backend/.env` y ajusta los valores.
+
 | Variable | Descripción | Valor Default/Ejemplo |
-|----------|-------------|-----------------------|
+|----------|-------------|------------------------|
 | `PORT` | Puerto del servidor | `3001` |
 | `NODE_ENV` | Entorno | `development` / `production` |
-| `DB_HOST` | Host de DB | `localhost` |
+| `DB_HOST` | Host de PostgreSQL | `localhost` |
+| `DB_PORT` | Puerto de PostgreSQL | `5432` |
 | `DB_USER` | Usuario DB | `postgres` |
-| `DB_PASSWORD`| Password DB | - |
-| `DB_NAME` | Nombre DB | `panel_waze` |
-| `WAZE_PARTNER_ID` | ID Partner Waze | - |
+| `DB_PASSWORD` | Contraseña DB | (requerido) |
+| `DB_NAME` | Nombre de la base de datos | `panel_waze` |
+| `REDIS_HOST` | Host de Redis (opcional) | `localhost` |
+| `REDIS_PORT` | Puerto de Redis | `6379` |
+| `WAZE_PARTNER_ID` | ID Partner Waze (si aplica) | - |
+
+En Windows se puede usar **Memurai** como compatibilidad con Redis; las variables `REDIS_*` aplican igual.
 
 ### Frontend
+
+Copia `apps/frontend/.env.example` a `apps/frontend/.env` si existe, o crea `.env` con:
+
 | Variable | Descripción | Valor Default/Ejemplo |
-|----------|-------------|-----------------------|
-| `VITE_API_URL` | URL del Backend | `http://localhost:3001` |
-| `VITE_GOOGLE_MAPS_API_KEY` | API Key Maps | - |
+|----------|-------------|------------------------|
+| `VITE_API_URL` | URL base del backend (puede incluir `/api`) | `http://localhost:3001` o `http://localhost:3001/api` |
+| `VITE_GOOGLE_MAPS_API_KEY` | API Key de Google Maps (si se usa) | (opcional) |

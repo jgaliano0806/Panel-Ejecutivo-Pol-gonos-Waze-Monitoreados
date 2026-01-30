@@ -2,11 +2,10 @@ import React from "react";
 import { BlockingAnalysisItem } from "../../hooks/useWazeData";
 import {
   getIncidentDescription,
-  getMainTypeTranslation,
   getIncidentColor,
 } from "../../utils/wazeTranslations";
 import { WazeIcon } from "../ui/WazeIcon";
-import { Clock, MapPin, ExternalLink } from "lucide-react";
+import { MapPin, ExternalLink } from "lucide-react";
 
 interface EventsTableProps {
   analyses: BlockingAnalysisItem[];
@@ -36,7 +35,7 @@ export const EventsTable: React.FC<EventsTableProps> = ({
               analysis.incident.type,
               analysis.incident.subtype,
             );
-            const color = getIncidentColor(analysis.incident.type);
+
             const timestamp = new Date(analysis.incident.timestamp);
 
             return (
@@ -59,18 +58,29 @@ export const EventsTable: React.FC<EventsTableProps> = ({
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex flex-col">
-                    <span
-                      className="text-gray-900 dark:text-gray-200 truncate max-w-[200px]"
-                      title={analysis.incident.street}
-                    >
-                      {analysis.incident.street || "Ubicación desconocida"}
-                    </span>
-                    {analysis.polygonName && (
-                      <span className="text-xs text-gray-500 dark:text-gray-500 truncate max-w-[200px]">
-                        {analysis.polygonName}
+                  <div className="flex items-start gap-2">
+                    <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                    <div className="flex flex-col">
+                      <span
+                        className="text-gray-900 dark:text-gray-200 font-medium truncate max-w-[200px]"
+                        title={analysis.incident.street}
+                      >
+                        {analysis.incident.street ||
+                          analysis.incident.description ||
+                          analysis.polygonName ||
+                          "Ubicación en mapa"}
                       </span>
-                    )}
+                      {analysis.incident.city && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[200px]">
+                          {analysis.incident.city}
+                        </span>
+                      )}
+                      {analysis.polygonName && (
+                        <span className="text-xs text-blue-600/70 dark:text-blue-400/70 truncate max-w-[200px]">
+                          {analysis.polygonName}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </td>
                 <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">

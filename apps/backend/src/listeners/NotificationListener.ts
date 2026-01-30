@@ -52,11 +52,11 @@ export class NotificationListener {
 
       // Debug: Log alertas recibidas
       const importantAlerts = alerts.filter(
-        (a) => a.type === "ACCIDENT" || a.type === "HAZARD"
+        (a) => a.type === "ACCIDENT" || a.type === "HAZARD",
       );
       if (importantAlerts.length > 0) {
         logger.debug(
-          `📥 ${polygonId}: ${importantAlerts.length} alertas importantes recibidas, ${this.processedAlertIds.size} ya procesadas`
+          `📥 ${polygonId}: ${importantAlerts.length} alertas importantes recibidas, ${this.processedAlertIds.size} ya procesadas`,
         );
       }
 
@@ -119,10 +119,11 @@ export class NotificationListener {
           },
         };
 
-        // Emitir evento global o por polígono
-        // Usamos broadcast global para notificaciones importantes
-        this.io.emit("notification:new", notification);
-        logger.info(`🔔 Notification emitted: ${notification.title}`);
+        // NOTA: La emisión de notificaciones se ha centralizado en wazePollingService -> NotificationService
+        // NotificationService emite 'notification:new' al EventBus, y SocketSubscriber lo retransmite al frontend.
+        // Esto evita duplicados y garantiza persistencia.
+        // this.io.emit("notification:new", notification);
+        // logger.info(`🔔 Notification emitted: ${notification.title}`);
       });
     } catch (error) {
       logger.error(`Error in NotificationListener: ${error}`);

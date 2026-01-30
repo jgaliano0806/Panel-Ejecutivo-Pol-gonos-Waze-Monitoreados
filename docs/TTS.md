@@ -1,0 +1,93 @@
+# 🔊 Text-to-Speech (TTS)
+
+Documentación del sistema de lectura en voz alta para notificaciones en sala de control.
+
+---
+
+## Modelo utilizado
+
+El proyecto utiliza **Edge TTS** (Microsoft), voces neuronales de alta calidad, **100% gratuitas** para el uso actual. No requiere API key ni cuenta de Azure.
+
+- **Backend**: librería `msedge-tts` en Node.js.
+- **Frontend**: llama al endpoint `/api/tts/speak` y reproduce el audio en el navegador.
+- **Fallback**: si el backend no está disponible, se usa la Web Speech API del navegador.
+
+---
+
+## Voces disponibles
+
+| ID | Nombre | Descripción |
+|----|--------|-------------|
+| `es-AR-ElenaNeural` | Elena | Femenina argentina (recomendada) |
+| `es-AR-TomasNeural` | Tomás | Masculina argentina |
+| `es-MX-DaliaNeural` | Dalia | Femenina mexicana |
+| `es-MX-JorgeNeural` | Jorge | Masculina mexicana |
+
+La configuración se guarda en `localStorage` (`tts_config`) y se puede cambiar en **Admin → Configuración del sistema → Voz (TTS)**.
+
+---
+
+## Cola de reproducción
+
+El TTS se procesa con una **cola local** en el frontend para evitar solapamientos:
+
+1. Cada llamada a `speakNotification(title, message)` añade un mensaje a la cola.
+2. Un único reproductor procesa la cola en orden (backend TTS o fallback Web Speech).
+3. Las notificaciones nuevas llegan por WebSocket; el TTS se ejecuta **solo en el cliente** (`websocket.ts`), una vez por notificación.
+
+### Consultar lecturas pendientes
+
+Para saber cuántas lecturas quedan por reproducir en la cola local:
+
+```ts
+import { getTTSQueueStatus } from "@/lib/tts-service";
+
+const { pendingCount, isPlaying, totalPending } = getTTSQueueStatus();
+// pendingCount: mensajes en cola esperando
+// isPlaying: true si está reproduciendo uno ahora
+// totalPending: pendientes en cola + 1 si está reproduciendo
+```
+
+**Nota**: Esto refleja solo la **cola del frontend**. Edge TTS no expone una API de "lecturas restantes" o cuota; no hay límite oficial consultable por modelo. Si en el futuro se añade otro proveedor con cuota (ej. Azure Speech), habría que implementar un contador en el backend.
+
+---
+
+## Endpoints TTS (backend)
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/api/tts/speak` | Genera audio. Body: `{ text, voice?, rate?, pitch? }`. Respuesta: audio MP3 (binary). |
+| GET | `/api/tts/voices` | Lista voces disponibles. |
+| GET | `/api/tts/test` | Prueba: devuelve un audio de demostración. |
+
+---
+
+## Flujo de una notificación con voz
+
+1. **Backend**: El feed de Waze (o el servicio que emite alertas) detecta un incidente y emite por Socket.IO el evento `notification:new`.
+2. **Frontend** (`websocket.ts`): Recibe el evento, traduce el mensaje, añade la notificación al store, aplica filtros TTS y, si pasa, reproduce beep + llama a `speakNotification(mensajeTTS, "")`.
+3. **TTS** (`tts-service.ts`): Construye el mensaje natural, lo encola, y `processQueue()` pide el audio al backend (`/api/tts/speak`) y lo reproduce.
+4. Si el backend TTS falla, se usa el fallback Web Speech API.
+
+Los filtros de qué tipos/subtipos activan TTS están en `config/notificationFilters.ts` (`TTS_SNACKBAR_ALLOWED_INCIDENTS`).
+
+---
+
+## Detener reproducción
+
+```ts
+import { stopSpeaking } from "@/lib/tts-service";
+
+stopSpeaking(); // Vacía la cola y detiene el audio actual.
+```
+
+---
+
+## Resumen
+
+| Concepto | Dónde |
+|----------|--------|
+| Cola local (pendientes) | `getTTSQueueStatus()` en `lib/tts-service.ts` |
+| Reproducir notificación | `speakNotification(title, message)` en `lib/tts-utils.ts` |
+| Configuración de voz | Admin → Voz (TTS) y `lib/tts-service.ts` (`configureTTS`, `getTTSConfig`) |
+| Origen del TTS para alertas | Un solo lugar: `services/websocket.ts` (evita doble lectura) |

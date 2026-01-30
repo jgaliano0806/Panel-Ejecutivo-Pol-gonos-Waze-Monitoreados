@@ -269,6 +269,16 @@ panel-waze-monorepo/
                └─────────────┘
 ```
 
+### Flujo TTS y notificaciones en tiempo real
+
+Las notificaciones nuevas llegan por Socket.IO (`notification:new`). El **único** listener que añade al store y reproduce TTS está en el cliente (`services/websocket.ts`), para evitar doble lectura:
+
+1. **Backend** emite `notification:new` con la alerta.
+2. **Frontend** (`websocket.ts`): recibe el evento → añade al store → aplica filtros TTS (`notificationFilters`) → si pasa, reproduce beep y llama a `speakNotification(mensajeTTS, "")`.
+3. **TTS** (`lib/tts-service.ts`): encola el mensaje; la cola se procesa en orden llamando a `POST /api/tts/speak` (Edge TTS) o fallback Web Speech API. El estado de la cola (pendientes, si está reproduciendo) se consulta con `getTTSQueueStatus()`.
+
+El hook `useRealtimeNotifications` no escucha `notification:new`; solo desbloquea audio con la primera interacción del usuario y reintenta TTS pendientes periódicamente. Ver [TTS.md](./TTS.md).
+
 ## 5. Component Architecture
 
 ### Atomic Design Pattern

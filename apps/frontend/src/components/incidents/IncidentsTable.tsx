@@ -5,7 +5,10 @@ import {
   translateIncidentType,
   translateIncidentSubtype,
   getIncidentTypeColor,
-} from "@/hooks/useIncidentsModule";
+  formatRelativeTime,
+  getSeverityColor,
+  formatStreetName,
+} from "../../lib/utils";
 import {
   MapPin,
   FileText,
@@ -140,7 +143,7 @@ export const IncidentsTable: React.FC<IncidentsTableProps> = ({
                     <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="text-sm text-gray-900 dark:text-white font-medium">
-                        {incident.street || "Sin calle"}
+                        {formatStreetName(incident.street)}
                       </p>
                       {incident.city && (
                         <p className="text-xs text-gray-500 dark:text-gray-400">

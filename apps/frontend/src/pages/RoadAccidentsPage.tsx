@@ -25,6 +25,9 @@ import {
 import { MiniMapLibre } from "../components/map/MiniMapLibre";
 import { VirtualizedList } from "../components/ui/VirtualizedList";
 
+import { realCordobaPolygons } from "../data/mock/realCordobaPolygons";
+import { RoadAccident } from "../hooks/useRoadAccidents";
+
 export const RoadAccidentsPage: React.FC = () => {
   // Estados para filtros y paginación
   const [dateRange, setDateRange] = useState<{ from: string; to: string }>({
@@ -172,6 +175,16 @@ export const RoadAccidentsPage: React.FC = () => {
     return "bg-blue-500";
   };
 
+  const getLocationDisplay = (acc: RoadAccident) => {
+    if (acc.street) return acc.street;
+    if (acc.description) return acc.description;
+    if (acc.polygon_id) {
+      const poly = realCordobaPolygons.find((p) => p.id === acc.polygon_id);
+      if (poly) return `Accidente en ${poly.name}`;
+    }
+    return "Ubicación s/d";
+  };
+
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
 
   return (
@@ -257,7 +270,7 @@ export const RoadAccidentsPage: React.FC = () => {
                     </span>
                   </div>
                   <h3 className="font-semibold text-gray-800 dark:text-white text-sm truncate">
-                    {acc.street || "Ubicación desconocida"}
+                    {getLocationDisplay(acc)}
                   </h3>
                   <div className="flex items-center gap-2 mt-2">
                     <div className="flex -space-x-1">
@@ -324,7 +337,7 @@ export const RoadAccidentsPage: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-3 mb-2">
                     <h2 className="text-3xl font-bold text-gray-800 dark:text-white">
-                      {accident.street || "Calle Desconocida"}
+                      {getLocationDisplay(accident)}
                     </h2>
                     <span
                       className={`px-3 py-1 rounded-full text-sm font-bold text-white ${getSeverityColor(
@@ -366,7 +379,9 @@ export const RoadAccidentsPage: React.FC = () => {
                         color: "#ef4444", // red-500
                         popup: (
                           <div>
-                            <div className="font-bold">{accident.street}</div>
+                            <div className="font-bold">
+                              {getLocationDisplay(accident)}
+                            </div>
                             <div className="text-xs">
                               {accident.subtype || accident.type}
                             </div>

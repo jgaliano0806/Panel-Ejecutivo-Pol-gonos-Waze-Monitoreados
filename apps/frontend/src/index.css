@@ -64,6 +64,25 @@
   }
 }
 
+/* Responsive Scaling for Big Screens (TVs & 4K) */
+@media (min-width: 1921px) {
+  html {
+    font-size: 18px; /* Scale up ~12.5% for 2K/QHD */
+  }
+}
+
+@media (min-width: 2561px) {
+  html {
+    font-size: 22px; /* Scale up ~37.5% for ultrawide/mid-4K */
+  }
+}
+
+@media (min-width: 3800px) {
+  html {
+    font-size: 26px; /* Scale up ~62.5% for full 4K on large panels */
+  }
+}
+
 /* Custom scrollbar for modern look */
 ::-webkit-scrollbar {
   width: 8px;

@@ -57,7 +57,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
         {/* Main Content */}
         <main className="flex-1 overflow-auto relative">
-          <div className="max-w-[1900px] mx-auto px-8 py-8 z-10">
+          <div className="w-full px-4 md:px-6 lg:px-8 py-6 z-10">
             {children}
           </div>
         </main>

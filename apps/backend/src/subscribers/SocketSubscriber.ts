@@ -25,6 +25,19 @@ export class SocketSubscriber {
       SystemEvents.RISK_SCORE_CALCULATED,
       this.handleRiskScoreCalculated.bind(this),
     );
+    eventBus.on("notification:new", this.handleNewNotification.bind(this));
+  }
+
+  private handleNewNotification(notification: any): void {
+    try {
+      // Emitir a todos los clientes conectados
+      this.io.emit("notification:new", notification);
+      // logger.info(`🔔 Re-broadcasted notification ${notification.id}`);
+    } catch (error) {
+      logger.error(
+        `Error in SocketSubscriber handling NewNotification: ${error}`,
+      );
+    }
   }
 
   private handleWazePollComplete(payload: WazePollCompletePayload): void {

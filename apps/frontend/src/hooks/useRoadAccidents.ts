@@ -5,12 +5,14 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
 export interface RoadAccident {
   id: string;
   incident_id?: string;
+  polygon_id?: string;
   waze_data: any;
   weather_data: any;
   type?: string;
   subtype?: string;
   severity?: number;
   street?: string;
+  description?: string;
   location_lat: number;
   location_lng: number;
   operator_notes?: string;
@@ -91,6 +93,9 @@ function normalizeAccident(data: any): RoadAccident {
   return {
     id: String(data.id),
     incident_id: data.incident_id ? String(data.incident_id) : undefined,
+    polygon_id: data.polygon_id
+      ? String(data.polygon_id)
+      : data.waze_data?.polygon_id,
     waze_data: data.waze_data || {},
     weather_data: data.weather_data || {},
     type: data.type ? String(data.type) : undefined,
@@ -99,6 +104,8 @@ function normalizeAccident(data: any): RoadAccident {
     street: data.street ? String(data.street) : undefined,
     location_lat: lat,
     location_lng: lng,
+    description:
+      data.description || data.waze_data?.reportDescription || undefined,
     operator_notes: data.operator_notes
       ? String(data.operator_notes)
       : undefined,

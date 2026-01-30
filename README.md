@@ -1,6 +1,6 @@
 # Panel Ejecutivo Waze - Monorepo
 
-> Panel de monitoreo en tiempo real del tráfico vehicular en Córdoba, Argentina
+> Panel de monitoreo en tiempo real del tráfico vehicular en Córdoba, Argentina. Integra datos de Waze, notificaciones en vivo, TTS (voz) y mapas para sala de control.
 
 ## 🏗️ Arquitectura
 
@@ -9,16 +9,16 @@ Este proyecto utiliza una **arquitectura de monorepo** con workspaces npm para u
 ```
 panel-waze-monorepo/
 ├── apps/                          # Aplicaciones principales
-│   ├── frontend/                  # Aplicación React (Vite)
+│   ├── frontend/                  # Aplicación React (Vite + TypeScript)
 │   └── backend/                   # API REST (Fastify + TypeScript)
 ├── packages/                      # Paquetes compartidos
-│   ├── types/                     # Definiciones TypeScript compartidas
+│   ├── types/                     # Definiciones TypeScript (Waze, clima, etc.)
 │   ├── config/                    # Configuraciones compartidas
-│   ├── database/                  # Capa de base de datos
 │   └── shared/                    # Utilidades y helpers
-├── docker/                        # Configuración Docker
-├── docs/                          # Documentación
-└── scripts/                       # Scripts de automatización
+├── docker/                        # Configuración Docker y Nginx
+├── docs/                          # Documentación del proyecto
+├── scripts/                       # Scripts de automatización
+└── tests/                         # Tests E2E (Playwright)
 ```
 
 ## 🚀 Inicio Rápido
@@ -88,19 +88,15 @@ npm run docker:compose:prod
 
 #### Types (`packages/types`)
 
-Definiciones TypeScript compartidas entre frontend y backend.
+Definiciones TypeScript compartidas entre frontend y backend (Waze, clima, API).
 
 #### Config (`packages/config`)
 
 Configuraciones centralizadas y constantes.
 
-#### Database (`packages/database`)
-
-Capa de abstracción de base de datos y migraciones.
-
 #### Shared (`packages/shared`)
 
-Utilidades, helpers y lógica de negocio compartida.
+Utilidades, helpers y lógica reutilizable compartida.
 
 ## 🗄️ Base de Datos
 
@@ -119,11 +115,18 @@ Utilidades, helpers y lógica de negocio compartida.
 
 ### Integración Waze
 
-El sistema consume el **Waze Traffic Feed (GeoRSS)**.
+El sistema consume el **Waze Traffic Feed** (Partners).
 
 - **Alertas**: Accidentes, peligros, clima (con iconos SVG oficiales).
 - **Jams**: Congestión vehicular con polígonos de tráfico.
 - **Catálogos**: Gestión centralizada de tipos de incidentes (`/api/catalogs`).
+- **Notificaciones en tiempo real**: WebSocket (`notification:new`) para alertas al instante.
+
+### Notificaciones y TTS
+
+- **WebSocket**: Las nuevas alertas se envían por Socket.IO desde el backend al frontend.
+- **TTS (Text-to-Speech)**: Lectura en voz alta con **Edge TTS** (Microsoft), voces neuronales gratuitas. Configuración en `/admin` → Voz (TTS).
+- **Cola local**: El frontend mantiene una cola de mensajes por reproducir; ver `getTTSQueueStatus()` en `lib/tts-service.ts` para consultar pendientes.
 
 ### Migraciones
 
@@ -230,11 +233,15 @@ REDIS_PORT=6379
 
 ## 📚 Documentación
 
-- [Arquitectura](./docs/ARCHITECTURE.md)
-- [API](./docs/API.md)
-- [Catálogos](./docs/CATALOGOS_INCIDENTES.md)
-- [Deployment](./docs/DEPLOYMENT.md)
-- [Contribución](./docs/CONTRIBUTING.md)
+| Documento | Descripción |
+|-----------|-------------|
+| [Índice de documentación](./docs/README.md) | Guía de toda la documentación disponible |
+| [Arquitectura](./docs/ARCHITECTURE.md) | Diseño del sistema, capas, flujos de datos |
+| [API](./docs/API.md) | Endpoints REST, WebSocket, health checks |
+| [TTS (Text-to-Speech)](./docs/TTS.md) | Voz en tiempo real, Edge TTS, cola y estado |
+| [Catálogos de incidentes](./docs/CATALOGOS_INCIDENTES.md) | Tipos y subtipos, sincronización con Waze |
+| [Deployment](./docs/DEPLOYMENT.md) | Despliegue local, Docker, variables de entorno |
+| [Contribución](./docs/CONTRIBUTING.md) | Cómo contribuir, convenciones, PRs |
 
 ## 🤝 Contribución
 

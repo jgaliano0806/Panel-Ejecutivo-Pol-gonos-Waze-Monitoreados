@@ -5,6 +5,7 @@
 export {
   speakNotification,
   stopSpeaking,
+  getTTSQueueStatus,
   testVoice,
   configureElevenLabs,
   isElevenLabsConfigured,
