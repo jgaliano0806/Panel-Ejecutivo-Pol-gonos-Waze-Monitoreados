@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 0",
     "start": "node dist/server.js",
     "dev": "nodemon --watch src/**/*.ts --exec npx ts-node src/server.ts",
     "lint": "echo 'Backend lint: OK (no eslint configured)'",

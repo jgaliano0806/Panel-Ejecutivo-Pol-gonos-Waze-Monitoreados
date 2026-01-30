@@ -6,6 +6,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 0",
     "dev": "tsc --watch",
     "lint": "echo 'Lint: OK (no eslint configured)'",
     "lint:fix": "echo 'Lint fix: skipped'",

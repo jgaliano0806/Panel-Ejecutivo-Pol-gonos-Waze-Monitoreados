@@ -123,9 +123,12 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
 
-      - name: Install backend dependencies
-        working-directory: apps/backend
-        run: npm ci
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build Shared Types
+        working-directory: packages/types
+        run: npm run build
 
       - name: Build backend
         working-directory: apps/backend

@@ -1,27 +1,27 @@
 ---
 name: github-actions-templates
-description: Crea flujos de trabajo (workflows) de GitHub Actions listos para producción para la automatización de pruebas, construcción y despliegue de aplicaciones. Úsalo al configurar CI/CD con GitHub Actions, automatizar flujos de trabajo de desarrollo o crear plantillas de flujos de trabajo reutilizables.
+description: Create production-ready GitHub Actions workflows for automated testing, building, and deploying applications. Use when setting up CI/CD with GitHub Actions, automating development workflows, or creating reusable workflow templates.
 ---
 
-# Plantillas de GitHub Actions
+# GitHub Actions Templates
 
-Patrones de flujos de trabajo de GitHub Actions listos para producción para probar, construir y desplegar aplicaciones.
+Production-ready GitHub Actions workflow patterns for testing, building, and deploying applications.
 
-## Propósito
+## Purpose
 
-Crear flujos de trabajo de GitHub Actions eficientes y seguros para la integración y el despliegue continuos en diversos stacks tecnológicos.
+Create efficient, secure GitHub Actions workflows for continuous integration and deployment across various tech stacks.
 
-## Cuándo usar
+## When to Use
 
-- Automatizar pruebas y despliegues.
-- Construir imágenes de Docker y subirlas a registros.
-- Desplegar en clústeres de Kubernetes.
-- Ejecutar escaneos de seguridad.
-- Implementar construcciones matriciales (matrix builds) para múltiples entornos.
+- Automate testing and deployment
+- Build Docker images and push to registries
+- Deploy to Kubernetes clusters
+- Run security scans
+- Implement matrix builds for multiple environments
 
-## Patrones Comunes de Flujos de Trabajo
+## Common Workflow Patterns
 
-### Patrón 1: Flujo de Trabajo de Pruebas (Test Workflow)
+### Pattern 1: Test Workflow
 
 ```yaml
 name: Test
@@ -64,9 +64,9 @@ jobs:
           files: ./coverage/lcov.info
 ```
 
-**Referencia:** Ver `assets/test-workflow.yml`
+**Reference:** See `assets/test-workflow.yml`
 
-### Patrón 2: Construir y Subir Imagen Docker
+### Pattern 2: Build and Push Docker Image
 
 ```yaml
 name: Build and Push
@@ -119,9 +119,9 @@ jobs:
           cache-to: type=gha,mode=max
 ```
 
-**Referencia:** Ver `assets/deploy-workflow.yml`
+**Reference:** See `assets/deploy-workflow.yml`
 
-### Patrón 3: Desplegar en Kubernetes
+### Pattern 3: Deploy to Kubernetes
 
 ```yaml
 name: Deploy to Kubernetes
@@ -160,7 +160,7 @@ jobs:
           kubectl describe deployment my-app -n production
 ```
 
-### Patrón 4: Construcción Matricial (Matrix Build)
+### Pattern 4: Matrix Build
 
 ```yaml
 name: Matrix Build
@@ -193,22 +193,22 @@ jobs:
         run: pytest
 ```
 
-**Referencia:** Ver `assets/matrix-build.yml`
+**Reference:** See `assets/matrix-build.yml`
 
-## Mejores Prácticas para Flujos de Trabajo
+## Workflow Best Practices
 
-1. **Usa versiones específicas de acciones** (@v4, no @latest).
-2. **Cachea las dependencias** para acelerar las construcciones.
-3. **Usa secretos** (secrets) para datos sensibles.
-4. **Implementa comprobaciones de estado** (status checks) en los PRs.
-5. **Usa construcciones matriciales** para pruebas multi-versión.
-6. **Establece permisos apropiados**.
-7. **Usa flujos de trabajo reutilizables** para patrones comunes.
-8. **Implementa puertas de aprobación** (approval gates) para producción.
-9. **Añade pasos de notificación** para fallos.
-10. **Usa ejecutores propios (self-hosted runners)** para cargas de trabajo sensibles.
+1. **Use specific action versions** (@v4, not @latest)
+2. **Cache dependencies** to speed up builds
+3. **Use secrets** for sensitive data
+4. **Implement status checks** on PRs
+5. **Use matrix builds** for multi-version testing
+6. **Set appropriate permissions**
+7. **Use reusable workflows** for common patterns
+8. **Implement approval gates** for production
+9. **Add notification steps** for failures
+10. **Use self-hosted runners** for sensitive workloads
 
-## Flujos de Trabajo Reutilizables
+## Reusable Workflows
 
 ```yaml
 # .github/workflows/reusable-test.yml
@@ -236,7 +236,7 @@ jobs:
       - run: npm test
 ```
 
-**Uso de un flujo de trabajo reutilizable:**
+**Use reusable workflow:**
 
 ```yaml
 jobs:
@@ -248,7 +248,7 @@ jobs:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 ```
 
-## Escaneo de Seguridad
+## Security Scanning
 
 ```yaml
 name: Security Scan
@@ -285,7 +285,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 ```
 
-## Despliegue con Aprobaciones
+## Deployment with Approvals
 
 ```yaml
 name: Deploy to Production
@@ -307,7 +307,7 @@ jobs:
       - name: Deploy application
         run: |
           echo "Deploying to production..."
-          # Comandos de despliegue aquí
+          # Deployment commands here
 
       - name: Notify Slack
         if: success()
@@ -320,15 +320,15 @@ jobs:
             }
 ```
 
-## Archivos de Referencia
+## Reference Files
 
-- `assets/test-workflow.yml` - Plantilla de flujo de trabajo de pruebas.
-- `assets/deploy-workflow.yml` - Plantilla de flujo de trabajo de despliegue.
-- `assets/matrix-build.yml` - Plantilla de construcción matricial.
-- `references/common-workflows.md` - Patrones comunes de flujos de trabajo.
+- `assets/test-workflow.yml` - Testing workflow template
+- `assets/deploy-workflow.yml` - Deployment workflow template
+- `assets/matrix-build.yml` - Matrix build template
+- `references/common-workflows.md` - Common workflow patterns
 
-## Skills Relacionados
+## Related Skills
 
-- `gitlab-ci-patterns` - Para flujos de trabajo de GitLab CI.
-- `deployment-pipeline-design` - Para diseño de arquitectura de tuberías.
-- `secrets-management` - Para gestión de secretos.
+- `gitlab-ci-patterns` - For GitLab CI workflows
+- `deployment-pipeline-design` - For pipeline architecture
+- `secrets-management` - For secrets handling
