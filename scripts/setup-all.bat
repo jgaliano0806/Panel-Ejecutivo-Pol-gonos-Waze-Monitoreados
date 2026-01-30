@@ -13,58 +13,58 @@ echo.
 for %%I in ("%~dp0.") do set "ROOT=%%~fI"
 
 :: ============================================
-:: PASO 1: Instalar dependencias del frontend
+:: PASO 1: Instalar dependencias del monorepo (todos los workspaces)
 :: ============================================
-echo [1/6] Instalando dependencias del frontend...
+echo [1/6] Instalando dependencias del monorepo...
 cd /d "%ROOT%"
 if exist "package.json" (
     call npm install
     if !ERRORLEVEL! EQU 0 (
-        echo    OK: Dependencias del frontend instaladas
+        echo    OK: Dependencias instaladas (frontend, backend, packages)
     ) else (
-        echo    ERROR: Error instalando dependencias del frontend
+        echo    ERROR: Error instalando dependencias
     )
 ) else (
-    echo    ADVERTENCIA: package.json no encontrado
+    echo    ADVERTENCIA: package.json no encontrado en la raiz
 )
 echo.
 
 :: ============================================
-:: PASO 2: Instalar dependencias del backend
+:: PASO 2: Verificar workspace backend
 :: ============================================
-echo [2/6] Instalando dependencias del backend...
-cd /d "%ROOT%\backend"
-if exist "package.json" (
-    call npm install
-    if !ERRORLEVEL! EQU 0 (
-        echo    OK: Dependencias del backend instaladas
-    ) else (
-        echo    ERROR: Error instalando dependencias del backend
-    )
+echo [2/6] Verificando backend...
+if not exist "%ROOT%\apps\backend\package.json" (
+    echo    ADVERTENCIA: apps\backend\package.json no encontrado
 ) else (
-    echo    ADVERTENCIA: package.json del backend no encontrado
+    echo    OK: Backend en apps\backend
 )
 echo.
 
 :: ============================================
-:: PASO 3: Configurar archivo .env
+:: PASO 3: Configurar archivo .env del backend
 :: ============================================
-echo [3/6] Configurando archivo .env...
-cd /d "%ROOT%\backend"
+echo [3/6] Configurando archivo .env del backend...
+cd /d "%ROOT%\apps\backend"
 if not exist ".env" (
-    echo    Creando archivo .env...
-    echo # Configuracion de PostgreSQL> .env
-    echo DB_HOST=localhost>> .env
-    echo DB_PORT=5432>> .env
-    echo DB_NAME=panel_waze>> .env
-    echo DB_USER=postgres>> .env
-    echo DB_PASSWORD=CASISA>> .env
-    echo.>> .env
-    echo # Configuracion del servidor>> .env
-    echo NODE_ENV=development>> .env
-    echo PORT=3001>> .env
-    echo    OK: Archivo .env creado
-    echo    NOTA: Si usas una contrasena diferente, edita backend\.env
+    if exist ".env.example" (
+        echo    Copiando .env.example a .env...
+        copy .env.example .env >nul
+        echo    OK: Archivo .env creado desde .env.example
+    ) else (
+        echo    Creando archivo .env...
+        echo # Configuracion de PostgreSQL> .env
+        echo DB_HOST=localhost>> .env
+        echo DB_PORT=5432>> .env
+        echo DB_NAME=panel_waze>> .env
+        echo DB_USER=postgres>> .env
+        echo DB_PASSWORD=CASISA>> .env
+        echo.>> .env
+        echo # Configuracion del servidor>> .env
+        echo NODE_ENV=development>> .env
+        echo PORT=3001>> .env
+        echo    OK: Archivo .env creado
+    )
+    echo    NOTA: Revisa apps\backend\.env si necesitas cambiar contrasena o puerto
 ) else (
     echo    OK: Archivo .env ya existe
 )
@@ -114,8 +114,8 @@ if !POSTGRES_READY! EQU 0 (
         echo    Verificando conexion...
         :: Leer contraseña del .env si existe, sino usar CASISA por defecto
         set DB_PASSWORD=CASISA
-        if exist "%ROOT%\backend\.env" (
-            for /f "tokens=2 delims==" %%a in ('findstr /C:"DB_PASSWORD" "%ROOT%\backend\.env" 2^>nul') do (
+        if exist "%ROOT%\apps\backend\.env" (
+            for /f "tokens=2 delims==" %%a in ('findstr /C:"DB_PASSWORD" "%ROOT%\apps\backend\.env" 2^>nul') do (
                 set DB_PASSWORD=%%a
             )
         )
@@ -163,8 +163,8 @@ if !POSTGRES_READY! EQU 1 (
     if !ERRORLEVEL! EQU 0 (
         :: Leer contraseña del .env si existe, sino usar CASISA por defecto
         set DB_PASSWORD=CASISA
-        if exist "%ROOT%\backend\.env" (
-            for /f "tokens=2 delims==" %%a in ('findstr /C:"DB_PASSWORD" "%ROOT%\backend\.env" 2^>nul') do (
+        if exist "%ROOT%\apps\backend\.env" (
+            for /f "tokens=2 delims==" %%a in ('findstr /C:"DB_PASSWORD" "%ROOT%\apps\backend\.env" 2^>nul') do (
                 set DB_PASSWORD=%%a
             )
         )
@@ -183,8 +183,8 @@ if !POSTGRES_READY! EQU 1 (
             )
         )
 
-        echo    Ejecutando schema...
-        cd /d "%ROOT%\backend"
+        echo    Ejecutando schema inicial...
+        cd /d "%ROOT%\apps\backend"
         if exist "src\database\schema.sql" (
             psql -U postgres -h localhost -p 5432 -d panel_waze -f "src\database\schema.sql" >nul 2>&1
             if !ERRORLEVEL! EQU 0 (
@@ -194,6 +194,14 @@ if !POSTGRES_READY! EQU 1 (
             )
         ) else (
             echo    ADVERTENCIA: Archivo schema.sql no encontrado
+        )
+        echo    Ejecutando migraciones...
+        cd /d "%ROOT%"
+        call npm run db:migrate >nul 2>&1
+        if !ERRORLEVEL! EQU 0 (
+            echo    OK: Migraciones ejecutadas
+        ) else (
+            echo    ADVERTENCIA: Revisa migraciones manualmente con: npm run db:migrate
         )
     ) else (
         echo    ADVERTENCIA: psql no disponible, saltando configuracion de BD
@@ -207,7 +215,7 @@ echo.
 :: PASO 6: Verificar conexion
 :: ============================================
 echo [6/6] Verificando conexion a PostgreSQL...
-cd /d "%ROOT%\backend"
+cd /d "%ROOT%\apps\backend"
 if exist "scripts\test-db-connection.ts" (
     echo    Ejecutando test de conexion...
     echo.
@@ -243,8 +251,9 @@ echo   Proximos pasos:
 if !POSTGRES_READY! EQU 1 (
     echo   1. Inicia el proyecto con: start-all.bat
     echo.
-    echo   O manualmente:
-    echo   - Backend:  cd backend ^&^& npm run dev
+    echo   O desde la raiz del proyecto:
+    echo   - Todo:     npm run dev:all
+    echo   - Backend:  npm run dev:backend
     echo   - Frontend: npm run dev
 ) else (
     echo   1. Instala PostgreSQL (Docker o local)

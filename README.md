@@ -236,6 +236,8 @@ REDIS_PORT=6379
 | Documento | Descripción |
 |-----------|-------------|
 | [Índice de documentación](./docs/README.md) | Guía de toda la documentación disponible |
+| [Instructivo de despliegue](./docs/INSTRUCTIVO_DESPLIEGUE.md) | Producción: Red Hat (systemd, Nginx, SSL) y PC productiva (Windows/Linux) |
+| [Requisitos del sistema](./docs/REQUISITOS_SISTEMA.md) | Requisitos físicos/lógicos, cargas en BD, hardware para servidor y PC |
 | [Arquitectura](./docs/ARCHITECTURE.md) | Diseño del sistema, capas, flujos de datos |
 | [API](./docs/API.md) | Endpoints REST, WebSocket, health checks |
 | [TTS (Text-to-Speech)](./docs/TTS.md) | Voz en tiempo real, Edge TTS, cola y estado |
