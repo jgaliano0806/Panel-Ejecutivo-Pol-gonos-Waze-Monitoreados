@@ -63,6 +63,7 @@ const cleanTextForTTS = (text: string): string => {
       .replace(/\[Accionable\]/gi, "")
       .replace(/\[Conf:\s*\d+%?\]/gi, "")
       // Normalización fonética para Argentina
+      .replace(/RN\s*A019/gi, "Autovía A-019") // Corrección específica solicitada
       .replace(/\bRN\s*(\d+)/gi, "Ruta Nacional $1")
       .replace(/\bRP\s*([A-Z]?\d+)/gi, "Ruta Provincial $1")
       .replace(/\bAU\s*(\d+)/gi, "Autopista $1")
