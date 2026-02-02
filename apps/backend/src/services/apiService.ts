@@ -217,23 +217,7 @@ export class ApiService {
     // 4. Calcular estadísticas de siniestros (BASADO EN WAZE ALERTS REAL-TIME)
     // Se reemplaza roadAccidentService.getAccidentsCount() para usar la data en vivo del feed
 
-    // Grupos de la RAC (Red de Accesos Córdoba) - Debe coincidir con frontend/config/constants
-    const RAC_GROUPS = [
-      "Autovía A-019",
-      "Área Capital",
-      "Ruta Nacional 9",
-      "Ruta Nacional 19",
-      "Ruta Nacional 36",
-    ];
-
-    // IDs de polígonos que pertenecen a la RAC
-    const racPolygonIds = new Set(
-      polygons
-        .filter((p: any) => RAC_GROUPS.includes(p.group || ""))
-        .map((p: any) => p.id),
-    );
-
-    // Contar alertas de tipo ACCIDENTE dentro de la RAC
+    // Contar alertas de tipo ACCIDENTE en TODOS los polígonos monitoreados
     let racAccidentsTotal = 0;
     let racAccidentsCritical = 0;
     let racAccidentsHigh = 0;
@@ -241,11 +225,10 @@ export class ApiService {
     const { calculateAlertSeverity } = require("../utils/wazeUtils");
 
     for (const alert of alerts) {
-      // Filtrar por tipo y polígono RAC
+      // Filtrar por tipo y que tenga polígono asignado
       if (
         (alert.type === "ACCIDENT" || alert.type.startsWith("ACCIDENT_")) &&
-        alert.polygon_id &&
-        racPolygonIds.has(alert.polygon_id)
+        alert.polygon_id
       ) {
         racAccidentsTotal++;
 
