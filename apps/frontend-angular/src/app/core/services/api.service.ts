@@ -48,6 +48,7 @@ export interface Incident {
   latitude: number;
   longitude: number;
   polygonId?: string;
+  pubMillis?: number;
   timestamp: Date;
 }
 
