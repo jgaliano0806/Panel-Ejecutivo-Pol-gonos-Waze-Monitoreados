@@ -1,76 +1,68 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { WebSocketService } from './core/services';
+import { SidebarComponent } from './shared/components/sidebar/sidebar.component';
+import { HeaderComponent } from './shared/components/header/header.component';
+import { WebSocketService, TTSService } from './core/services';
+import { NotificationStore } from './core/stores';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule],
+  imports: [RouterOutlet, CommonModule, SidebarComponent, HeaderComponent],
   template: `
-    <div class="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <!-- Header -->
-      <header class="sticky top-0 z-50 bg-[var(--card)] border-b border-[var(--border)] shadow-sm">
-        <div class="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div class="flex items-center gap-4">
-            <h1 class="text-xl font-bold text-[var(--primary)]">🚦 Panel Waze Monitoreados</h1>
-            <span
-              class="px-2 py-1 rounded-full text-xs font-medium"
-              [class]="wsConnected() ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
-            >
-              {{ wsConnected() ? '🟢 Conectado' : '🔴 Desconectado' }}
-            </span>
-          </div>
+    <div class="flex h-screen bg-[var(--background)]">
+      <!-- Sidebar -->
+      <app-sidebar />
 
-          <nav class="flex gap-4">
-            <a
-              routerLink="/"
-              routerLinkActive="text-[var(--primary)] font-semibold"
-              [routerLinkActiveOptions]="{ exact: true }"
-              class="px-3 py-2 rounded-md hover:bg-[var(--muted)] transition-colors"
-            >
-              Dashboard
-            </a>
-            <a
-              routerLink="/mapa"
-              routerLinkActive="text-[var(--primary)] font-semibold"
-              class="px-3 py-2 rounded-md hover:bg-[var(--muted)] transition-colors"
-            >
-              Mapa
-            </a>
-            <a
-              routerLink="/admin"
-              routerLinkActive="text-[var(--primary)] font-semibold"
-              class="px-3 py-2 rounded-md hover:bg-[var(--muted)] transition-colors"
-            >
-              Admin
-            </a>
-            <a
-              routerLink="/notificaciones"
-              routerLinkActive="text-[var(--primary)] font-semibold"
-              class="px-3 py-2 rounded-md hover:bg-[var(--muted)] transition-colors"
-            >
-              Notificaciones
-            </a>
-          </nav>
-        </div>
-      </header>
+      <!-- Main content area -->
+      <div class="flex-1 flex flex-col overflow-hidden">
+        <!-- Header -->
+        <app-header />
 
-      <!-- Main content -->
-      <main class="container mx-auto px-4 py-6">
-        <router-outlet />
-      </main>
+        <!-- Content -->
+        <main class="flex-1 overflow-auto p-6">
+          <router-outlet />
+        </main>
+      </div>
     </div>
   `,
-  styles: [],
+  styles: [
+    `
+      :host {
+        display: block;
+        height: 100vh;
+      }
+    `,
+  ],
 })
 export class App implements OnInit {
   private wsService = inject(WebSocketService);
-
-  readonly wsConnected = this.wsService.connected;
+  private ttsService = inject(TTSService);
+  private notificationStore = inject(NotificationStore);
 
   ngOnInit(): void {
     // Suscribirse a updates globales al iniciar
     this.wsService.subscribeToGlobal();
+
+    // Escuchar notificaciones WebSocket y agregarlas al store
+    this.wsService.notifications$.subscribe((notification) => {
+      this.notificationStore.addNotification({
+        title: notification.title,
+        message: notification.message,
+        type:
+          notification.severity === 'critical'
+            ? 'critical'
+            : notification.severity === 'warning'
+              ? 'warning'
+              : 'info',
+        polygonId: notification.data?.polygonId,
+      });
+
+      // Reproducir TTS para notificaciones importantes
+      if (notification.severity === 'critical' || notification.severity === 'warning') {
+        this.ttsService.speakNotification(notification.title, notification.message);
+      }
+    });
   }
 }
