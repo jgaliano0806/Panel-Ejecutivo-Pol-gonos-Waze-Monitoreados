@@ -9,7 +9,6 @@ import {
   ResponsiveContainer,
   ReferenceLine,
   Cell,
-  Label,
 } from "recharts";
 import { useThemeStore } from "../../stores/useThemeStore";
 import type { RiskScore } from "../../hooks/useRiskScoring";

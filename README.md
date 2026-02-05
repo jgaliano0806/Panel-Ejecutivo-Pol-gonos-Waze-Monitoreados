@@ -27,7 +27,7 @@ panel-waze-monorepo/
 
 - Node.js 18+
 - npm 8+
-- PostgreSQL 16+
+- PostgreSQL 16+ (PostGIS recomendado)
 - Redis (Memurai para Windows)
 - Docker & Docker Compose (opcional)
 
@@ -72,8 +72,8 @@ npm run docker:compose:prod
 - **Framework**: React 18 + TypeScript
 - **Build Tool**: Vite
 - **Styling**: Tailwind CSS
-- **Maps**: Leaflet + React Leaflet
-- **State**: TanStack Query
+- **Maps**: MapLibre GL JS + React Map GL
+- **State**: TanStack Query + Zustand
 - **UI**: Radix UI + Framer Motion
 
 ### Backend (`apps/backend`)
@@ -109,8 +109,12 @@ Utilidades, helpers y lógica reutilizable compartida.
 - **Catálogos**: Tipos y subtipos de incidentes (Sincronizables con Waze)
 - **Polígonos**: Configuración de áreas de monitoreo
 - **Incidentes**:
-  - `waze_alerts` / `waze_jams`: Datos en tiempo real
-  - `incidents_history`: Histórico consolidado con IDs únicos y métricas
+  - `waze_alerts`: Accidentes, peligros y otros reportes (Puntos)
+  - `waze_jams`: Congestión vehicular (Líneas)
+  - `waze_irregularities`: Anomalías de tráfico
+  - `incidents_history`: Histórico consolidado para estadísticas
+- **Clima**:
+  - `polygon_weather_data`: Datos meteorológicos por polígono (Open-Meteo)
 - **Auditoría**: Logs de cambios y operaciones
 
 ### Integración Waze
@@ -233,17 +237,17 @@ REDIS_PORT=6379
 
 ## 📚 Documentación
 
-| Documento | Descripción |
-|-----------|-------------|
-| [Índice de documentación](./docs/README.md) | Guía de toda la documentación disponible |
+| Documento                                                     | Descripción                                                               |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| [Índice de documentación](./docs/README.md)                   | Guía de toda la documentación disponible                                  |
 | [Instructivo de despliegue](./docs/INSTRUCTIVO_DESPLIEGUE.md) | Producción: Red Hat (systemd, Nginx, SSL) y PC productiva (Windows/Linux) |
-| [Requisitos del sistema](./docs/REQUISITOS_SISTEMA.md) | Requisitos físicos/lógicos, cargas en BD, hardware para servidor y PC |
-| [Arquitectura](./docs/ARCHITECTURE.md) | Diseño del sistema, capas, flujos de datos |
-| [API](./docs/API.md) | Endpoints REST, WebSocket, health checks |
-| [TTS (Text-to-Speech)](./docs/TTS.md) | Voz en tiempo real, Edge TTS, cola y estado |
-| [Catálogos de incidentes](./docs/CATALOGOS_INCIDENTES.md) | Tipos y subtipos, sincronización con Waze |
-| [Deployment](./docs/DEPLOYMENT.md) | Despliegue local, Docker, variables de entorno |
-| [Contribución](./docs/CONTRIBUTING.md) | Cómo contribuir, convenciones, PRs |
+| [Requisitos del sistema](./docs/REQUISITOS_SISTEMA.md)        | Requisitos físicos/lógicos, cargas en BD, hardware para servidor y PC     |
+| [Arquitectura](./docs/ARCHITECTURE.md)                        | Diseño del sistema, capas, flujos de datos                                |
+| [API](./docs/API.md)                                          | Endpoints REST, WebSocket, health checks                                  |
+| [TTS (Text-to-Speech)](./docs/TTS.md)                         | Voz en tiempo real, Edge TTS, cola y estado                               |
+| [Catálogos de incidentes](./docs/CATALOGOS_INCIDENTES.md)     | Tipos y subtipos, sincronización con Waze                                 |
+| [Deployment](./docs/DEPLOYMENT.md)                            | Despliegue local, Docker, variables de entorno                            |
+| [Contribución](./docs/CONTRIBUTING.md)                        | Cómo contribuir, convenciones, PRs                                        |
 
 ## 🤝 Contribución
 

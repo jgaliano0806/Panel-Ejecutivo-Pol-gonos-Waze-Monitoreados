@@ -385,3 +385,9 @@ div[style*="¿Eres el propietario de este sitio web?"] {
 .incident-popup .maplibregl-popup-close-button {
   display: none !important;
 }
+
+/* Dynamic Catalog Icon */
+.catalog-type-icon {
+  background-color: var(--icon-bg, #eee);
+  color: var(--icon-color, #333);
+}

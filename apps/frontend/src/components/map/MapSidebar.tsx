@@ -271,6 +271,7 @@ export const MapSidebar = ({
                           Grupo
                         </label>
                         <select
+                          aria-label="Filtrar por Grupo"
                           value={selectedGroup || ""}
                           onChange={(e) => {
                             const value = e.target.value || null;
@@ -294,6 +295,7 @@ export const MapSidebar = ({
                           Polígono
                         </label>
                         <select
+                          aria-label="Filtrar por Polígono"
                           value={selectedPolygon || ""}
                           onChange={(e) => {
                             const value = e.target.value || null;

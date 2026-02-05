@@ -4,7 +4,7 @@
  * Usa @tanstack/react-virtual para renderizado eficiente de listas largas
  */
 
-import React, { useRef, useCallback } from "react";
+import React, { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { CheckCircle2 } from "lucide-react";
 import PolygonRiskCard from "./PolygonRiskCard";
@@ -34,19 +34,6 @@ const VirtualizedRiskList: React.FC<VirtualizedRiskListProps> = ({
     estimateSize: () => 320, // Altura estimada de cada card
     overscan: 3,
   });
-
-  const scrollToPolygon = useCallback(
-    (polygonId: string) => {
-      const index = scores.findIndex((s) => s.polygon_id === polygonId);
-      if (index !== -1) {
-        virtualizer.scrollToIndex(index, {
-          align: "center",
-          behavior: "smooth",
-        });
-      }
-    },
-    [scores, virtualizer],
-  );
 
   if (scores.length === 0) {
     return (

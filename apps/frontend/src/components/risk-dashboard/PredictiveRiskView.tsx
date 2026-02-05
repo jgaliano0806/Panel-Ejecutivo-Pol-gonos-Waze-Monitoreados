@@ -13,25 +13,19 @@ import {
   Target,
   Activity,
   AlertTriangle,
-  CheckCircle2,
   Clock,
   Sparkles,
   GitCompare,
   Filter,
 } from "lucide-react";
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  AreaChart,
-  Area,
   BarChart,
   Bar,
-  Cell,
 } from "recharts";
 import { useThemeStore } from "../../stores/useThemeStore";
 import type { RiskScore, PredictionResult } from "../../hooks/useRiskScoring";
@@ -305,7 +299,8 @@ export const PredictiveRiskView: React.FC<PredictiveRiskViewProps> = ({
   // Sort by predicted risk score (highest first)
   const sortedData = useMemo(() => {
     return [...combinedData].sort(
-      (a, b) => b.prediction.predicted_risk_score - a.prediction.predicted_risk_score,
+      (a, b) =>
+        b.prediction.predicted_risk_score - a.prediction.predicted_risk_score,
     );
   }, [combinedData]);
 
@@ -324,7 +319,11 @@ export const PredictiveRiskView: React.FC<PredictiveRiskViewProps> = ({
   // Simulated noise incidents (in real implementation, this would come from the backend)
   // Usar subtipos completos que coinciden con las traducciones de WAZE_TRANSLATIONS
   const noiseExamples = [
-    { type: "HAZARD", subtype: "HAZARD_ON_SHOULDER_CAR_STOPPED", isNoise: true },
+    {
+      type: "HAZARD",
+      subtype: "HAZARD_ON_SHOULDER_CAR_STOPPED",
+      isNoise: true,
+    },
     { type: "HAZARD", subtype: "HAZARD_ON_ROAD_CONSTRUCTION", isNoise: true },
     { type: "ACCIDENT", subtype: "ACCIDENT_MAJOR", isNoise: false },
     { type: "JAM", subtype: "JAM_HEAVY_TRAFFIC", isNoise: false },

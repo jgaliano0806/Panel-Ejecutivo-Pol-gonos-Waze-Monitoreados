@@ -5,7 +5,7 @@ import {
   getWazeIconSvg,
   getWazePartnerHubIconUrl,
 } from "../../utils/wazeIcons";
-import { iconCacheService } from "../../utils/iconCache";
+
 import { getIncidentDescription } from "../../utils/wazeTranslations";
 
 interface WazeIconProps {
@@ -15,7 +15,6 @@ interface WazeIconProps {
   className?: string;
   showBadge?: boolean;
   uiIcon?: boolean; // Si es true, usa iconos genéricos de UI en lugar de incidentes
-  iconCache?: typeof iconCacheService;
 }
 
 const sizeClasses = {
@@ -36,7 +35,6 @@ export const WazeIcon: React.FC<WazeIconProps> = ({
   className = "",
   showBadge = false,
   uiIcon = false,
-  iconCache = iconCacheService,
 }) => {
   const [imgError, setImgError] = useState(false);
   const colors = uiIcon
@@ -46,7 +44,7 @@ export const WazeIcon: React.FC<WazeIconProps> = ({
   // Descripción traducida para alt/title
   const translatedDescription = useMemo(
     () => getIncidentDescription(type, subtype),
-    [type, subtype]
+    [type, subtype],
   );
 
   // Si es icono de UI, usar SVG inline

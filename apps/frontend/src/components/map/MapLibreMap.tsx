@@ -15,7 +15,7 @@ import Map, {
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { TrafficJam, Incident, Polygon, PolygonState } from "../../types";
-import { MAP_FLAGS } from "../../config/mapFlags";
+
 import {
   getWazePartnerHubIconUrl,
   getWazeIconSvg,
@@ -27,8 +27,6 @@ import {
 import { formatStreetName } from "../../lib/utils";
 import { useThemeStore } from "../../stores/useThemeStore";
 import {
-  Clock,
-  MapPin,
   X,
   ShieldCheck,
   Navigation,
@@ -37,7 +35,6 @@ import {
   Timer,
   Route,
 } from "lucide-react";
-import { NETWORK_CONFIG } from "../../config/constants";
 
 // Configuración inicial
 const INITIAL_VIEW_STATE = {
@@ -83,37 +80,37 @@ const getCardinalDirection = (degrees: number): string => {
 };
 
 interface MapLibreMapProps {
-  polygons: Polygon[];
-  jams: TrafficJam[]; // Congestiones (Jams reales)
+  polygons?: Polygon[];
+  jams?: TrafficJam[]; // Congestiones (Jams reales)
   trafficFlow?: TrafficJam[]; // TVT (Flujo general)
-  incidents: Incident[];
+  incidents?: Incident[];
   className?: string;
   onPolygonClick?: (id: string) => void;
   selectedPolygon?: string | null;
   selectedGroup?: string | null;
   selectedIncidentId?: string | null;
-  forcedIncident?: any | null; // Datos completos del incidente para visualización histórica/notificación
+  forcedIncident?: any | null;
   // Props para filtros de polígonos en el sidebar del mapa
   allPolygons?: Polygon[];
   onPolygonChange?: (polygonId: string | null) => void;
-  onGroupChange?: (group: string | null) => void;
-  showWazeIncidents?: boolean; // Controlado desde fuera
+  onGroupChange?: (groupId: string, active: boolean) => void;
+  showWazeIncidents?: boolean; // Controlar visibilidad de iconos Waze
 }
 
 export const MapLibreMap: React.FC<MapLibreMapProps> = ({
-  polygons,
-  jams,
+  polygons = [],
+  jams = [],
   trafficFlow = [],
-  incidents,
-  className,
+  incidents = [],
+  className: _className,
   onPolygonClick,
   selectedPolygon,
   selectedGroup,
   selectedIncidentId,
   forcedIncident,
-  allPolygons,
-  onPolygonChange,
-  onGroupChange,
+  allPolygons: _allPolygons,
+  onPolygonChange: _onPolygonChange,
+  onGroupChange: _onGroupChange,
   showWazeIncidents = true,
 }) => {
   const mapRef = useRef<MapRef>(null);
@@ -122,12 +119,15 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   const [selectedJam, setSelectedJam] = useState<any>(null);
 
   // Estado para capas (Tráfico sigue siendo interno por ahora, a menos que el sidebar lo quiera controlar también)
-  const [showTraffic, setShowTraffic] = useState(true);
+  const [showTraffic] = useState(true);
 
   // Estados para sub-capas de tráfico
-  const [showFlowLayer, setShowFlowLayer] = useState(true);
-  const [showJamsLayer, setShowJamsLayer] = useState(true);
-  const [showRoadClosures, setShowRoadClosures] = useState(true);
+  // const [showFlowLayer, setShowFlowLayer] = useState(true);
+  // const [showJamsLayer, setShowJamsLayer] = useState(true);
+  // const [showRoadClosures, setShowRoadClosures] = useState(true);
+  const showFlowLayer = true;
+  const showJamsLayer = true;
+  const showRoadClosures = true;
 
   // Estado para controlar si el mapa está cargado
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -750,14 +750,6 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     return "#ffa726"; // Naranja - leve
   }
 
-  // Color de fondo para el glow según severidad
-  function getJamGlowColor(level: number, speed: number): string {
-    if (speed < 5 || level >= 5) return "#ff1744"; // Rojo brillante
-    if (speed < 15 || level >= 4) return "#ff5252";
-    if (speed < 25 || level >= 3) return "#ff8a80";
-    return "#ffab91";
-  }
-
   // Nota: Se removió la animación dinámica de line-dasharray porque causaba errores
   // de MapLibre cuando las geometrías tenían coordenadas nulas o inválidas.
   // La capa jams-animated usa un dasharray estático que es más estable.
@@ -1276,6 +1268,8 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                 <button
                   onClick={() => setSelectedJam(null)}
                   className="p-1.5 hover:bg-gray-200 dark:hover:bg-zinc-800 rounded-full transition-colors text-gray-500"
+                  aria-label="Cerrar detalle"
+                  title="Cerrar detalle"
                 >
                   <X size={18} />
                 </button>
@@ -1432,6 +1426,8 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                 <button
                   onClick={() => setSelectedIncident(null)}
                   className="p-1.5 hover:bg-gray-200 dark:hover:bg-zinc-800 rounded-full transition-colors text-gray-500"
+                  aria-label="Cerrar detalle"
+                  title="Cerrar detalle"
                 >
                   <X size={18} />
                 </button>

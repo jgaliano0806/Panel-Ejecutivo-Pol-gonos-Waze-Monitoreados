@@ -225,6 +225,8 @@ export const IncidentsTable: React.FC<IncidentsTableProps> = ({
               onClick={() => onPageChange(pagination.page - 1)}
               disabled={pagination.page <= 1}
               className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Página anterior"
+              title="Página anterior"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -237,6 +239,8 @@ export const IncidentsTable: React.FC<IncidentsTableProps> = ({
               onClick={() => onPageChange(pagination.page + 1)}
               disabled={pagination.page >= pagination.totalPages}
               className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Página siguiente"
+              title="Página siguiente"
             >
               <ChevronRight className="w-4 h-4" />
             </button>

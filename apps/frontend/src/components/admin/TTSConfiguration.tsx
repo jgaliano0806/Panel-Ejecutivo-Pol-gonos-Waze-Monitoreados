@@ -78,11 +78,16 @@ export const TTSConfiguration = () => {
       {/* Configuración */}
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label
+            htmlFor="voice-select"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+          >
             <Mic className="inline h-4 w-4 mr-1" />
             Voz preferida
           </label>
           <select
+            id="voice-select"
+            aria-label="Voz preferida"
             value={selectedVoice}
             onChange={(e) => setSelectedVoice(e.target.value)}
             className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
@@ -113,10 +118,15 @@ export const TTSConfiguration = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label
+            htmlFor="rate-select"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+          >
             Velocidad de lectura
           </label>
           <select
+            id="rate-select"
+            aria-label="Velocidad de lectura"
             value={rate}
             onChange={(e) => setRate(e.target.value)}
             className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"

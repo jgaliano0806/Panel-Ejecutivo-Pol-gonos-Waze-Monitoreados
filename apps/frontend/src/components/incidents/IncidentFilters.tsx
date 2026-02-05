@@ -50,12 +50,16 @@ export const IncidentFilters: React.FC<IncidentFiltersProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
         {/* Búsqueda */}
         <div className="lg:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label
+            htmlFor="search-input"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+          >
             Buscar
           </label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
+              id="search-input"
               type="text"
               placeholder="Calle, ciudad o descripción..."
               value={filters.search || ""}
@@ -69,10 +73,14 @@ export const IncidentFilters: React.FC<IncidentFiltersProps> = ({
 
         {/* Tipo */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label
+            htmlFor="type-select"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+          >
             Tipo
           </label>
           <select
+            id="type-select"
             value={filters.type || ""}
             onChange={(e) =>
               onFilterChange({
@@ -94,10 +102,14 @@ export const IncidentFilters: React.FC<IncidentFiltersProps> = ({
 
         {/* Subtipo */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label
+            htmlFor="subtype-select"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+          >
             Subtipo
           </label>
           <select
+            id="subtype-select"
             value={filters.subtype || ""}
             onChange={(e) =>
               onFilterChange({ subtype: e.target.value || undefined })
@@ -116,12 +128,16 @@ export const IncidentFilters: React.FC<IncidentFiltersProps> = ({
 
         {/* Fecha desde */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label
+            htmlFor="date-from"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+          >
             Desde
           </label>
           <div className="relative">
             <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
+              id="date-from"
               type="date"
               value={filters.from?.split("T")[0] || ""}
               onChange={(e) =>
@@ -138,12 +154,16 @@ export const IncidentFilters: React.FC<IncidentFiltersProps> = ({
 
         {/* Fecha hasta */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label
+            htmlFor="date-to"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+          >
             Hasta
           </label>
           <div className="relative">
             <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
+              id="date-to"
               type="date"
               value={filters.to?.split("T")[0] || ""}
               onChange={(e) =>
@@ -160,10 +180,14 @@ export const IncidentFilters: React.FC<IncidentFiltersProps> = ({
 
         {/* Estado */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label
+            htmlFor="status-select"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+          >
             Estado
           </label>
           <select
+            id="status-select"
             value={
               filters.isActive === undefined ? "" : String(filters.isActive)
             }

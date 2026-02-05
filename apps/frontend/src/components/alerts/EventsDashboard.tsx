@@ -479,6 +479,7 @@ export const EventsDashboard: React.FC = () => {
             </span>
             <input
               type="date"
+              aria-label="Fecha inicial"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
               className="px-2 py-1 text-xs rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -486,6 +487,7 @@ export const EventsDashboard: React.FC = () => {
             <span className="text-xs text-gray-400">-</span>
             <input
               type="date"
+              aria-label="Fecha final"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
               className="px-2 py-1 text-xs rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -505,6 +507,8 @@ export const EventsDashboard: React.FC = () => {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
               className="px-2 py-1 text-xs rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-blue-500"
+              aria-label="Filtrar por estado"
+              title="Filtrar por estado"
             >
               <option value="active">Solo Activos</option>
               <option value="inactive">Solo Inactivos</option>
@@ -676,6 +680,8 @@ export const EventsDashboard: React.FC = () => {
                 <button
                   onClick={() => setDetailMapState(null)}
                   className="p-3 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-2xl transition-colors text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                  title="Cerrar"
+                  aria-label="Cerrar"
                 >
                   <X size={24} />
                 </button>

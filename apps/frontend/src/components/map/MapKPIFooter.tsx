@@ -1,19 +1,10 @@
 import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import type {
-  GlobalKPIs,
-  Incident,
-  TrafficAlert,
-  Polygon,
-  TrafficJam,
-} from "../../types";
-import { IncidentType } from "../../types";
-import { cn } from "../../lib/utils";
-import { TrendingUp, AlertTriangle, Target, MapPin, Car } from "lucide-react";
-import { NETWORK_CONFIG } from "../../config/constants";
+import type { GlobalKPIs, Incident, TrafficAlert, Polygon } from "../../types";
 
-const RAC_GROUPS = NETWORK_CONFIG.racGroups;
+import { Target, AlertTriangle, Car, MapPin } from "lucide-react";
+import { cn } from "../../lib/utils";
 
 interface MapKPIFooterProps {
   kpis: GlobalKPIs;
@@ -26,11 +17,9 @@ interface MapKPIFooterProps {
 
 export const MapKPIFooter: React.FC<MapKPIFooterProps> = ({
   kpis,
-  totalPolygons,
   criticalPolygons,
   incidents = [],
   alerts = [],
-  polygons = [],
 }) => {
   const navigate = useNavigate();
 
@@ -109,19 +98,21 @@ export const MapKPIFooter: React.FC<MapKPIFooterProps> = ({
             colors[metric.status as keyof typeof colors] || colors.primary;
 
           return (
-            <div
+            <button
               key={metric.id}
-              className="flex items-center gap-3 min-w-max cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 py-1 rounded-lg transition-colors"
+              className="flex items-center gap-3 min-w-max cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 py-1 rounded-lg transition-colors border-none bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
               onClick={() => {
                 if (metric.id === "events") navigate("/alertas");
                 if (metric.id === "incidents") navigate("/siniestros");
                 if (metric.id === "critical") navigate("/riesgos");
               }}
+              title={`Ver detalle de ${metric.label}`}
+              aria-label={`Ver detalle de ${metric.label}: ${metric.value}`}
             >
               <div className={cn("p-2 rounded-xl", colorClass)}>
                 <Icon className="w-5 h-5" />
               </div>
-              <div className="flex flex-col">
+              <div className="flex flex-col items-start">
                 <span className="text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400 tracking-wider">
                   {metric.label}
                 </span>
@@ -129,7 +120,7 @@ export const MapKPIFooter: React.FC<MapKPIFooterProps> = ({
                   {metric.value}
                 </span>
               </div>
-            </div>
+            </button>
           );
         })}
       </motion.div>

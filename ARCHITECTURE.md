@@ -27,25 +27,33 @@ El backend sigue una arquitectura de servicios modular con patrón Repository.
 ### Componentes Clave
 
 1.  **WazePollingService** (`services/wazePollingService.ts`)
+    - **Función**: Ingesta de datos desde el feed de Waze Partners (`/waze-feeds/{token}`).
+    - **Proceso**: Polling cada 2 minutos (Rate limit 1 req/seg) → Filtrado por polígono → Upsert en DB.
+    - **Límite**: 5000 eventos máximo por feed.
+    - **Importante**: Maneja tipos `ACCIDENT`, `JAM`, `WEATHERHAZARD`, `HAZARD`, etc.
 
-    - **Función**: Ingesta de datos desde el feed de Waze Partners.
-    - **Proceso**: Polling cada 2 minutos → Filtrado por polígono → Upsert en DB.
-    - **Importante**: Maneja discrepancias de datos (ej. `line` del feed se mapea a `polyline` en DB).
+2.  **OpenMeteoService** (`services/weather/openMeteoService.ts`)
+    - **API Base**: `https://api.open-meteo.com/v1/forecast`
+    - **Frecuencia**: Actualización cada hora.
+    - **Variables**: Temperatura, precipitación, código WMO, viento, visibilidad.
+    - **Detección de Riesgo**: Analiza condiciones peligrosas (niebla, tormenta, hielo).
+    - **Función**: Ingesta de datos desde el feed de Waze Partners (`/waze-feeds/{token}`).
+    - **Proceso**: Polling cada 2 minutos (Rate limit 1 req/seg) → Filtrado por polígono → Upsert en DB.
+    - **Límite**: 5000 eventos máximo por feed.
+    - **Importante**: Maneja tipos `ACCIDENT`, `JAM`, `WEATHERHAZARD`, `HAZARD`, etc.
 
-2.  **API Layer** (`server.ts`, `services/apiService.ts`)
-
+3.  **API Layer** (`server.ts`, `services/apiService.ts`)
     - Expone endpoints REST para el frontend.
     - `/api/jams/all`: Retorna embotellamientos activos.
     - `/api/polygons/status`: Retorna métricas de estado de corredores.
     - Usa `legacyMapper.ts` para transformar entidades DB a formato API legacy.
 
-3.  **Repositories** (`repositories/`)
-
+4.  **Repositories** (`repositories/`)
     - Abstracción de acceso a datos usando `pg` (node-postgres).
     - `WazeJamRepository`: Maneja `waze_jams`. **Nota**: `bulkUpsert` maneja lógica `ON CONFLICT` crítica.
     - `WazeAlertRepository`: Maneja `waze_alerts`.
 
-4.  **WebSocket** (`services/websocketService.ts`)
+5.  **WebSocket** (`services/websocketService.ts`)
     - Emite eventos `waze:update`, `weather:update` a salas por polígono.
 
 ### Flujo de Datos (Waze Jams)
@@ -67,7 +75,6 @@ Aplicación SPA React organizada por dominios.
 ### Componentes Principales
 
 - **MapLibreMap** (`components/map/MapLibreMap.tsx`)
-
   - Renderiza el mapa base y capas.
   - **Capas Waze**:
     - `incidents-*`: Puntos de alertas (iconos).
@@ -98,6 +105,8 @@ Esquema relacional en PostgreSQL.
   - `uuid`: PK.
   - `polyline`: Geometría (JSONB array de puntos).
   - `blocking_alert_uuid`: FK lógica a `waze_alerts` (para cierres).
+- `waze_irregularities`: Anomalías de tráfico (tendencia, velocidad regular vs actual).
+- `polygon_weather_data`: Datos históricos y actuales del clima (Open-Meteo).
 - `polygons`: Definición de corredores viales.
 
 ---

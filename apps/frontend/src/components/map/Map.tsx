@@ -1,7 +1,6 @@
 import React from "react";
 import { MapLibreMap } from "./MapLibreMap";
 import { Polygon, Incident, TrafficJam } from "../../types";
-import { MAP_CONFIG } from "../../config/constants";
 import { GlobalNotifications } from "../notifications/GlobalNotifications";
 
 // ==========================================

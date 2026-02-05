@@ -206,7 +206,10 @@ export const RoadAccidentsPage: React.FC = () => {
               >
                 <Cloud className="w-5 h-5" />
               </button>
-              <button className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors">
+              <button
+                className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                title="Agregar nuevo siniestro"
+              >
                 <Plus className="w-5 h-5" />
               </button>
             </div>
@@ -215,8 +218,12 @@ export const RoadAccidentsPage: React.FC = () => {
           {/* Filtros de Fecha */}
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div>
-              <label className="text-gray-500 block mb-1">Desde</label>
+              <label htmlFor="date-from" className="text-gray-500 block mb-1">
+                Desde
+              </label>
               <input
+                id="date-from"
+                title="Fecha desde"
                 type="date"
                 className="w-full p-2 border rounded dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white"
                 value={dateRange.from}
@@ -224,8 +231,12 @@ export const RoadAccidentsPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="text-gray-500 block mb-1">Hasta</label>
+              <label htmlFor="date-to" className="text-gray-500 block mb-1">
+                Hasta
+              </label>
               <input
+                id="date-to"
+                title="Fecha hasta"
                 type="date"
                 className="w-full p-2 border rounded dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white"
                 value={dateRange.to}
@@ -642,6 +653,8 @@ export const RoadAccidentsPage: React.FC = () => {
               <button
                 onClick={() => setIsUploadOpen(false)}
                 className="p-1 hover:bg-gray-200 dark:hover:bg-veltrix-card rounded-full transition-colors"
+                title="Cerrar"
+                aria-label="Cerrar"
               >
                 <X className="w-6 h-6 text-gray-500 dark:text-gray-400" />
               </button>

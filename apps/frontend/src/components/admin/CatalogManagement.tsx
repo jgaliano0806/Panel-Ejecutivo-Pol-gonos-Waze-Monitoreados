@@ -475,10 +475,14 @@ const CatalogManagement: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  htmlFor="type-code"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Código
                 </label>
                 <input
+                  id="type-code"
                   type="text"
                   value={formData.code}
                   onChange={(e) =>
@@ -494,10 +498,14 @@ const CatalogManagement: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  htmlFor="type-name"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Nombre
                 </label>
                 <input
+                  id="type-name"
                   type="text"
                   value={formData.name}
                   onChange={(e) =>
@@ -510,10 +518,14 @@ const CatalogManagement: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  htmlFor="type-description"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Descripción
                 </label>
                 <textarea
+                  id="type-description"
                   value={formData.description}
                   onChange={(e) =>
                     setFormData({ ...formData, description: e.target.value })
@@ -526,10 +538,15 @@ const CatalogManagement: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label
+                    htmlFor="type-icon"
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                  >
                     Icono
                   </label>
                   <select
+                    id="type-icon"
+                    title="Seleccionar icono"
                     value={formData.icon}
                     onChange={(e) =>
                       setFormData({ ...formData, icon: e.target.value })
@@ -546,10 +563,14 @@ const CatalogManagement: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label
+                    htmlFor="type-svg"
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                  >
                     Icono SVG (Opcional)
                   </label>
                   <input
+                    id="type-svg"
                     type="file"
                     accept=".svg,image/svg+xml"
                     onChange={async (e) => {
@@ -567,13 +588,10 @@ const CatalogManagement: React.FC = () => {
                       uploadFormData.append("file", file);
 
                       try {
-                        const response = await fetch(
-                          `${API_URL}/upload/icon`,
-                          {
-                            method: "POST",
-                            body: uploadFormData,
-                          },
-                        );
+                        const response = await fetch(`${API_URL}/upload/icon`, {
+                          method: "POST",
+                          body: uploadFormData,
+                        });
 
                         if (response.ok) {
                           const result = await response.json();
@@ -609,10 +627,14 @@ const CatalogManagement: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label
+                    htmlFor="type-color"
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                  >
                     Color
                   </label>
                   <input
+                    id="type-color"
                     type="color"
                     value={formData.color}
                     onChange={(e) =>
@@ -704,10 +726,15 @@ const CatalogManagement: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  htmlFor="subtype-parent"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Tipo Padre
                 </label>
                 <select
+                  id="subtype-parent"
+                  title="Tipo Padre"
                   value={formData.typeId}
                   onChange={(e) =>
                     setFormData({ ...formData, typeId: e.target.value })
@@ -727,10 +754,14 @@ const CatalogManagement: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  htmlFor="subtype-code"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Código
                 </label>
                 <input
+                  id="subtype-code"
                   type="text"
                   value={formData.code}
                   onChange={(e) =>
@@ -746,10 +777,14 @@ const CatalogManagement: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  htmlFor="subtype-name"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Nombre
                 </label>
                 <input
+                  id="subtype-name"
                   type="text"
                   value={formData.name}
                   onChange={(e) =>
@@ -762,10 +797,15 @@ const CatalogManagement: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  htmlFor="subtype-severity"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Severidad
                 </label>
                 <select
+                  id="subtype-severity"
+                  title="Severidad"
                   value={formData.severity}
                   onChange={(e) =>
                     setFormData({
@@ -783,10 +823,14 @@ const CatalogManagement: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  htmlFor="subtype-description"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Descripción
                 </label>
                 <textarea
+                  id="subtype-description"
                   value={formData.description}
                   onChange={(e) =>
                     setFormData({ ...formData, description: e.target.value })
@@ -1015,11 +1059,13 @@ const CatalogManagement: React.FC = () => {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                           <div
-                            className="w-12 h-12 rounded-lg flex items-center justify-center"
-                            style={{
-                              backgroundColor: type.color + "20",
-                              color: type.color,
-                            }}
+                            className="w-12 h-12 rounded-lg flex items-center justify-center catalog-type-icon"
+                            style={
+                              {
+                                "--icon-bg": type.color + "20",
+                                "--icon-color": type.color,
+                              } as React.CSSProperties
+                            }
                           >
                             <IconComponent size={24} />
                           </div>
@@ -1053,6 +1099,8 @@ const CatalogManagement: React.FC = () => {
                               setShowForm(true);
                             }}
                             className="p-2 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                            title="Editar tipo"
+                            aria-label="Editar tipo"
                           >
                             <Edit3 size={16} />
                           </button>
@@ -1145,6 +1193,8 @@ const CatalogManagement: React.FC = () => {
                             }}
                             // This is weirdly formatted in previous view, let's fix just the button class
                             className="p-2 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                            title="Editar subtipo"
+                            aria-label="Editar subtipo"
                           >
                             <Edit3 size={16} />
                           </button>
