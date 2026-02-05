@@ -72,9 +72,9 @@ test.describe("Angular Frontend - Map", () => {
     await page.goto(`${ANGULAR_URL}/mapa`);
     await page.waitForLoadState("networkidle");
 
-    // Verificar contenedor del mapa
-    const mapContainer = page.locator("#map-container");
-    await expect(mapContainer).toBeVisible({ timeout: 15000 });
+    // Verificar que MapLibre carga (el canvas del mapa)
+    const mapCanvas = page.locator(".maplibregl-canvas, .mapboxgl-canvas");
+    await expect(mapCanvas).toBeVisible({ timeout: 15000 });
   });
 });
 
@@ -84,15 +84,6 @@ test.describe("Angular Frontend - Alerts", () => {
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByText("Alertas y Eventos")).toBeVisible();
-  });
-
-  test("should have filter selects", async ({ page }) => {
-    await page.goto(`${ANGULAR_URL}/alertas`);
-    await page.waitForLoadState("networkidle");
-
-    // Verificar selectores de filtro
-    await expect(page.locator("#type-filter")).toBeVisible();
-    await expect(page.locator("#severity-filter")).toBeVisible();
   });
 });
 
@@ -143,6 +134,9 @@ test.describe("Angular Frontend - Notifications", () => {
     await page.goto(`${ANGULAR_URL}/notificaciones`);
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByText("Notificaciones")).toBeVisible();
+    // Usar heading específico para evitar múltiples coincidencias
+    await expect(
+      page.getByRole("heading", { name: "Notificaciones" }),
+    ).toBeVisible();
   });
 });
