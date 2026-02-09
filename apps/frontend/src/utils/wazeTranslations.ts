@@ -172,25 +172,35 @@ export const ROAD_TYPE_TRANSLATIONS: Record<string, string> = {
   "21": "Colectora",
 };
 
+/**
+ * Niveles de congestión según especificación oficial Waze Traffic View Feed:
+ * https://support.google.com/waze/partners/answer/13658466
+ *
+ * "A route's jam level scales directly with traffic congestion.
+ *  Level 0 represents no delays, while levels 1 to 3 signify
+ *  increasing traffic slowdown. Level 4 indicates standstill,
+ *  and level 5 signifies a full road closure."
+ */
 export const JAM_LEVEL_TRANSLATIONS: Record<string, string> = {
-  "0": "Flujo libre",
-  "1": "Tránsito fluido",
-  "2": "Tránsito lento",
-  "3": "Demora moderada",
-  "4": "Congestionado",
-  "5": "Tránsito detenido (Bloqueo)",
+  "0": "Sin demoras",           // Level 0: no delays
+  "1": "Demora leve",           // Level 1: increasing slowdown (light)
+  "2": "Tránsito lento",        // Level 2: increasing slowdown (moderate)
+  "3": "Tránsito denso",        // Level 3: increasing slowdown (heavy)
+  "4": "Detenido",              // Level 4: standstill
+  "5": "Vía cerrada",           // Level 5: full road closure
 };
 
 /**
- * Descripciones operativas basadas en documentación oficial de Waze Partners
+ * Descripciones operativas para operador de sala de control
+ * Basadas en documentación oficial de Waze Partners Traffic View Feed
  */
 export const JAM_LEVEL_DESCRIPTIONS: Record<string, string> = {
-  "0": "Circulación a velocidad nominal de la vía.",
-  "1": "Tránsito con leves reducciones de velocidad.",
-  "2": "Demoras menores detectadas en el tramo.",
-  "3": "Velocidad reducida significativamente.",
-  "4": "Congestión severa, avance a paso de hombre.",
-  "5": "Bloqueo total del flujo vehicular.",
+  "0": "Circulación sin demoras. Velocidad nominal de la vía.",
+  "1": "Leve reducción de velocidad respecto al flujo libre.",
+  "2": "Tránsito lento. Demoras moderadas para los usuarios.",
+  "3": "Tránsito denso. Velocidad significativamente reducida.",
+  "4": "Tránsito detenido. Vehículos sin avance (standstill).",
+  "5": "Vía cerrada. Cierre total del tramo (road closure).",
 };
 
 export const IRREGULARITY_TYPE_TRANSLATIONS: Record<string, string> = {

@@ -105,6 +105,39 @@ export const useTrafficMetrics = () => {
   });
 };
 
+/**
+ * TVT (Traffic View Technology) metrics from Waze official feed.
+ * Reference: https://support.google.com/waze/partners/answer/13658466
+ *
+ * usersOnJams: [{wazersCount, jamLevel}] - Users at each jam level (0-4)
+ * lengthOfJams: [{jamLevel, jamLength}] - Total jam length by level (1-5) in meters
+ */
+export interface TvtMetrics {
+  polygonId: string;
+  wazersCount: number;
+  usersOnJams: Array<{ wazersCount: number; jamLevel: number }>;
+  lengthOfJams: Array<{ jamLevel: number; jamLength: number }>;
+  updateTime: string;
+  createdAt: string;
+}
+
+export const useAllTvtMetrics = () => {
+  return useQuery<TvtMetrics[]>({
+    queryKey: ["tvt-metrics"],
+    queryFn: () => fetcher<TvtMetrics[]>("/tvt-metrics"),
+    refetchInterval: REFRESH_INTERVALS.trafficMetrics,
+  });
+};
+
+export const useTvtMetricsByPolygon = (polygonId: string | null) => {
+  return useQuery<TvtMetrics>({
+    queryKey: ["tvt-metrics", polygonId],
+    queryFn: () => fetcher<TvtMetrics>(`/tvt-metrics/${polygonId}`),
+    enabled: !!polygonId,
+    refetchInterval: REFRESH_INTERVALS.trafficMetrics,
+  });
+};
+
 export const useAlerts = () => {
   return useQuery<TrafficAlert[]>({
     queryKey: ["alerts"],

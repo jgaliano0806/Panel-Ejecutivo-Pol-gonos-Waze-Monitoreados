@@ -142,13 +142,12 @@ const PolygonDetail: React.FC<PolygonDetailProps> = ({
           </div>
         </div>
 
-        {/* Índice de Congestión */}
-        {polygon.trafficMetrics && (
-          <CongestionIndexCard
-            polygonId={polygon.id}
-            metrics={polygon.trafficMetrics}
-          />
-        )}
+        {/* Resumen de Tráfico */}
+        <CongestionIndexCard
+          polygonId={polygon.id}
+          metrics={polygon.trafficMetrics || null}
+          jams={polygonJams}
+        />
 
         {/* Lista de incidentes */}
         <div>

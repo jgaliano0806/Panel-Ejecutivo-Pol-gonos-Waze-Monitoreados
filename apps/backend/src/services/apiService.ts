@@ -252,7 +252,8 @@ export class ApiService {
     // Calcular métricas
     const totalPolygons = polygons.length;
     const criticalPolygons = polygons.filter((p) => p.state === "high").length;
-    const fluidPolygons = totalPolygons - criticalPolygons;
+    // Fluidez: solo polígonos con estado "low" se consideran fluidos
+    const fluidPolygons = polygons.filter((p) => p.state === "low").length;
     const fluidityPercentage =
       totalPolygons > 0 ? Math.round((fluidPolygons / totalPolygons) * 100) : 0;
 

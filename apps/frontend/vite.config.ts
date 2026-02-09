@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => {
         "@": path.resolve(__dirname, "./src"),
       },
       // Force resolution from root node_modules for hoisted packages
-      dedupe: ["react", "react-dom", "recharts", "@turf/turf"],
+      dedupe: ["react", "react-dom", "recharts"],
     },
 
     // Configuración del servidor de desarrollo
@@ -107,8 +107,15 @@ export default defineConfig(({ mode }) => {
 
     // Optimización de dependencias
     optimizeDeps: {
-      include: ["react", "react-dom", "react-router-dom", "framer-motion"],
-      exclude: ["@turf/turf", "recharts"], // Bypass optimization for Turf and Recharts
+      include: [
+        "react",
+        "react-dom",
+        "react-router-dom",
+        "framer-motion",
+        "recharts",
+        "@turf/turf",
+        "fast-deep-equal",
+      ],
     },
 
     // Preview server (para probar build de producción)

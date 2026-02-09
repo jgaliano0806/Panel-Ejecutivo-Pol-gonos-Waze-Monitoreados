@@ -66,6 +66,7 @@ export const useSyncMapNotifications = () => {
           message: messageBody,
           data: {
             id: incident.id,
+            alertId: incident.id, // Usar incident.id como alertId para dedup con notificaciones de WebSocket
             type: incident.type,
             subtype: incident.subtype,
             street: incident.street,
@@ -76,6 +77,7 @@ export const useSyncMapNotifications = () => {
             impactScore: analysis.impactScore,
           },
           is_read: true, // Marcar como leídas para no saturar el badge
+          tts_played: true, // Estas son notificaciones de sincronización, NO deben disparar TTS
           created_at:
             incident.timestamp instanceof Date
               ? incident.timestamp.toISOString()

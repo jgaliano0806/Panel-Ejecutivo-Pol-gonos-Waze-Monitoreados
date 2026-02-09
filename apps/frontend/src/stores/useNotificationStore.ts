@@ -195,8 +195,10 @@ export const useNotificationStore = create<NotificationState>()(
         return notifications.filter((n) => {
           // Solo ACCIDENT y HAZARD
           if (n.type !== "ACCIDENT" && n.type !== "HAZARD") return false;
-          // No reproducido
+          // Ya reproducido → skip
           if (n.tts_played) return false;
+          // Ya leídas (sincronizadas desde blocking analysis) → no necesitan TTS
+          if (n.is_read) return false;
           // Creada en los últimos 10 minutos
           const createdAt = new Date(n.created_at).getTime();
           if (createdAt < tenMinutesAgo) return false;

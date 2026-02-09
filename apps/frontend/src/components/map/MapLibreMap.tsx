@@ -814,12 +814,13 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
 
   return (
     <div
-      className={`h-full w-full ${isDark ? "bg-[#222736]" : "bg-gray-100"} relative`}
+      className={`h-full w-full min-h-[500px] ${isDark ? "bg-[#222736]" : "bg-gray-100"} relative`}
+      style={{ minHeight: "500px" }}
     >
       <Map
         ref={mapRef}
         initialViewState={INITIAL_VIEW_STATE}
-        style={{ width: "100%", height: "100%" }}
+        style={{ width: "100%", height: "100%", minHeight: "500px" }}
         mapStyle={mapStyleUrl}
         attributionControl={false}
         onClick={handleClick}

@@ -183,13 +183,15 @@ export class WazePollingService {
         `CREATE INDEX IF NOT EXISTS idx_irreg_polygon ON waze_irregularities(polygon_id, is_active, created_at DESC)`,
       );
 
-      // Crear tabla waze_tvt_metrics
+      // Crear tabla waze_tvt_metrics (datos del TVT Feed oficial de Waze)
+      // Referencia: https://support.google.com/waze/partners/answer/13658466
       await dbService.query(`
                 CREATE TABLE IF NOT EXISTS waze_tvt_metrics (
                     id SERIAL PRIMARY KEY,
                     polygon_id VARCHAR(50) NOT NULL,
                     wazers_count INTEGER DEFAULT 0,
                     jam_level_counts JSONB,
+                    length_of_jams JSONB,
                     update_time TIMESTAMPTZ,
                     created_at TIMESTAMPTZ DEFAULT NOW()
                 )
@@ -197,6 +199,14 @@ export class WazePollingService {
       await dbService.query(
         `CREATE INDEX IF NOT EXISTS idx_tvt_polygon_time ON waze_tvt_metrics(polygon_id, created_at DESC)`,
       );
+      // Agregar columna length_of_jams si no existe (migración)
+      await dbService
+        .query(
+          `ALTER TABLE waze_tvt_metrics ADD COLUMN IF NOT EXISTS length_of_jams JSONB`,
+        )
+        .catch(() => {
+          /* columna ya existe */
+        });
 
       logger.info("✅ Tablas de Waze verificadas/creadas");
     } catch (error) {
@@ -463,6 +473,8 @@ export class WazePollingService {
       }
 
       // Restaurando lógica de notificación con prevención de duplicados:
+      // NOTA: El mismo incidente físico puede aparecer en múltiples feeds de polígonos
+      // con UUIDs diferentes. Por eso usamos doble dedup: por UUID Y por contenido.
       for (const alert of criticalAlerts) {
         // 1. Verificar si la alerta es RECIENTE (creada en los últimos 5 minutos)
         // Esto evita notificar cosas viejas que Waze republica
@@ -476,31 +488,68 @@ export class WazePollingService {
           const now = Date.now();
           // Margen de 5 minutos para considerar "nueva" una alerta
           if (now - createdAt < 300000) {
-            // 2. VERIFICACIÓN CRÍTICA: ¿Ya notificamos este UUID?
-            // Buscamos en la tabla de notificaciones si existe alguna con data->>'uuid' igual
-            const existingNotification = await dbService.query(
+            // 2a. VERIFICACIÓN POR UUID: ¿Ya notificamos este UUID exacto?
+            const existingByUuid = await dbService.query(
               `SELECT 1 FROM notifications WHERE data->>'uuid' = $1 LIMIT 1`,
               [alert.uuid],
             );
 
-            if (existingNotification.rowCount === 0) {
-              // NO existe notificación previa, procedemos a crearla
-              const title = this.getNotificationTitle(alert);
-              // Generar mensaje descriptivo, excluyendo tags AI internos
-              const message = this.getNotificationMessage(alert);
-
-              await notificationService.create(
-                alert.type === "ACCIDENT" ? "ACCIDENT" : "HAZARD",
-                title,
-                message,
-                { ...alert, polygonId },
-              );
-              logger.info(`🔔 Notificación enviada para alerta ${alert.uuid}`);
-            } else {
+            if ((existingByUuid.rowCount ?? 0) > 0) {
               logger.debug(
-                `🔕 Notificación duplicada prevenida para ${alert.uuid}`,
+                `🔕 Notificación duplicada prevenida para UUID ${alert.uuid}`,
               );
+              continue;
             }
+
+            // 2b. VERIFICACIÓN POR CONTENIDO: ¿Ya notificamos un incidente IGUAL
+            // (mismo tipo, subtipo, calle y coordenadas cercanas) en los últimos 10 min?
+            // Esto previene duplicados cuando el mismo incidente físico aparece en
+            // múltiples feeds de polígonos con UUIDs diferentes.
+            const lat = alert.location?.y ?? 0;
+            const lng = alert.location?.x ?? 0;
+            const existingByContent = await dbService.query(
+              `SELECT 1 FROM notifications
+               WHERE type = $1
+                 AND data->>'subtype' = $2
+                 AND data->>'street' = $3
+                 AND created_at > NOW() - INTERVAL '10 minutes'
+                 AND ABS(CAST(data->>'latitude' AS FLOAT) - $4) < 0.002
+                 AND ABS(CAST(data->>'longitude' AS FLOAT) - $5) < 0.002
+               LIMIT 1`,
+              [
+                alert.type === "ACCIDENT" ? "ACCIDENT" : "HAZARD",
+                alert.subtype || "",
+                alert.street || "",
+                lat,
+                lng,
+              ],
+            );
+
+            if ((existingByContent.rowCount ?? 0) > 0) {
+              logger.info(
+                `🔕 Notificación duplicada prevenida por CONTENIDO para ${alert.uuid} (${alert.street}, ${alert.type}/${alert.subtype})`,
+              );
+              continue;
+            }
+
+            // NO existe notificación previa, procedemos a crearla
+            const title = this.getNotificationTitle(alert);
+            // Generar mensaje descriptivo, excluyendo tags AI internos
+            const message = this.getNotificationMessage(alert);
+
+            await notificationService.create(
+              alert.type === "ACCIDENT" ? "ACCIDENT" : "HAZARD",
+              title,
+              message,
+              {
+                ...alert,
+                polygonId,
+                // Almacenar lat/lng explícitamente para la dedup por contenido
+                latitude: lat,
+                longitude: lng,
+              },
+            );
+            logger.info(`🔔 Notificación enviada para alerta ${alert.uuid}`);
           }
         }
       }
@@ -788,7 +837,79 @@ export class WazePollingService {
   }
 
   /**
-   * Procesa el feed TVT
+   * Obtiene las métricas TVT más recientes para un polígono específico.
+   * Basado en TVT Feed oficial de Waze:
+   * https://support.google.com/waze/partners/answer/13658466
+   */
+  public async getLatestTvtMetrics(polygonId: string): Promise<any | null> {
+    try {
+      const result = await dbService.query(
+        `SELECT polygon_id, wazers_count, jam_level_counts, length_of_jams, update_time, created_at
+         FROM waze_tvt_metrics
+         WHERE polygon_id = $1
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [polygonId],
+      );
+      if (result.rows.length === 0) return null;
+      const row = result.rows[0];
+      return {
+        polygonId: row.polygon_id,
+        wazersCount: row.wazers_count,
+        usersOnJams: row.jam_level_counts || [],
+        lengthOfJams: row.length_of_jams || [],
+        updateTime: row.update_time,
+        createdAt: row.created_at,
+      };
+    } catch (error: unknown) {
+      logger.error(
+        `Error getting TVT metrics for ${polygonId}:`,
+        error instanceof Error ? error.message : String(error),
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Obtiene las métricas TVT más recientes para TODOS los polígonos.
+   * Usa DISTINCT ON para obtener solo la fila más reciente por polígono.
+   */
+  public async getAllLatestTvtMetrics(): Promise<any[]> {
+    try {
+      const result = await dbService.query(
+        `SELECT DISTINCT ON (polygon_id)
+           polygon_id, wazers_count, jam_level_counts, length_of_jams, update_time, created_at
+         FROM waze_tvt_metrics
+         ORDER BY polygon_id, created_at DESC`,
+      );
+      return result.rows.map((row: any) => ({
+        polygonId: row.polygon_id,
+        wazersCount: row.wazers_count,
+        usersOnJams: row.jam_level_counts || [],
+        lengthOfJams: row.length_of_jams || [],
+        updateTime: row.update_time,
+        createdAt: row.created_at,
+      }));
+    } catch (error: unknown) {
+      logger.error(
+        "Error getting all TVT metrics:",
+        error instanceof Error ? error.message : String(error),
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Procesa el feed TVT (Traffic View Technology) de Waze
+   *
+   * Referencia oficial: https://support.google.com/waze/partners/answer/13658466
+   *
+   * Campos del TVT feed:
+   * - usersOnJams: [{wazersCount, jamLevel}] - Usuarios en cada nivel de jam (0-4)
+   * - lengthOfJams: [{jamLevel, jamLength}] - Longitud total de jams por nivel (1-5) en metros
+   * - routes: Rutas configuradas con time/historicTime (si aplica)
+   * - irregularities: Anomalías de tráfico
+   * - updateTime: Timestamp de actualización del feed
    */
   private async processTvtFeed(polygon: RealPolygonConfig): Promise<void> {
     try {
@@ -798,28 +919,33 @@ export class WazePollingService {
       });
 
       const data = response.data;
-      if (!data || !data.usersOnJams) return;
+      if (!data) return;
 
-      const totalWazers = data.usersOnJams.reduce(
+      // usersOnJams: [{wazersCount: N, jamLevel: 0-4}]
+      const usersOnJams = data.usersOnJams || [];
+      const totalWazers = usersOnJams.reduce(
         (acc: number, item: any) => acc + (item.wazersCount || 0),
         0,
       );
 
+      // lengthOfJams: [{jamLevel: 1-5, jamLength: N}] - longitud en metros
+      const lengthOfJams = data.lengthOfJams || [];
+
       await dbService.query(
         `
-                INSERT INTO waze_tvt_metrics (polygon_id, wazers_count, jam_level_counts, update_time)
-                VALUES ($1, $2, $3, to_timestamp($4 / 1000.0))
+                INSERT INTO waze_tvt_metrics (polygon_id, wazers_count, jam_level_counts, length_of_jams, update_time)
+                VALUES ($1, $2, $3, $4, to_timestamp($5 / 1000.0))
             `,
         [
           polygon.id,
           totalWazers,
-          JSON.stringify(data.usersOnJams),
+          JSON.stringify(usersOnJams),
+          JSON.stringify(lengthOfJams),
           data.updateTime || Date.now(),
         ],
       );
     } catch (error) {
-      // Silencio errores de TVT por ahora para no ensuciar log principal
-      // console.warn(`TVT Fetch error ${polygon.id}:`, error);
+      // Silencio errores de TVT para no ensuciar log principal
       throw error;
     }
   }

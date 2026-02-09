@@ -9,30 +9,75 @@ import { shouldShowTTSAndSnackbar } from "@/config/notificationFilters";
 
 /**
  * WebSocket client singleton para conexión con el backend
+ *
+ * IMPORTANTE: Este módulo usa técnicas para evitar problemas con Vite HMR:
+ * - Socket singleton almacenado en window para sobrevivir recargas de módulo
+ * - Limpieza de handlers antes de registrar nuevos
+ * - Set de dedup para evitar TTS duplicado por el mismo incidente
  */
 
 const API_URL =
   (import.meta as any).env?.VITE_API_URL || "http://localhost:3002";
 const SOCKET_URL = API_URL.replace(/\/api\/?$/, "");
 
-// Crear instancia del socket
-export const socket: Socket = io(SOCKET_URL, {
-  autoConnect: true,
-  reconnection: true,
-  reconnectionDelay: 1000,
-  reconnectionDelayMax: 5000,
-  reconnectionAttempts: 5,
-  transports: ["websocket", "polling"],
-});
+// ═══════════════════════════════════════════════════════════════
+// SINGLETON RESISTENTE A HMR: Guardar socket en window para que
+// no se cree uno nuevo cada vez que Vite recarga el módulo
+// ═══════════════════════════════════════════════════════════════
+const SOCKET_KEY = "__waze_panel_socket__";
+const DEDUP_KEY = "__waze_panel_tts_dedup__";
+
+// Reusar socket existente o crear uno nuevo
+if (!(window as any)[SOCKET_KEY]) {
+  (window as any)[SOCKET_KEY] = io(SOCKET_URL, {
+    autoConnect: true,
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    reconnectionAttempts: 5,
+    transports: ["websocket", "polling"],
+  });
+  console.log("🔌 Socket creado (primera vez)");
+}
+
+// Reusar Set de dedup existente o crear uno nuevo
+if (!(window as any)[DEDUP_KEY]) {
+  (window as any)[DEDUP_KEY] = new Set<string>();
+}
+
+// Clave para dedup por contenido (mismo incidente en diferentes polígonos con diferente UUID)
+const CONTENT_DEDUP_KEY = "__waze_panel_tts_content_dedup__";
+if (!(window as any)[CONTENT_DEDUP_KEY]) {
+  (window as any)[CONTENT_DEDUP_KEY] = new Set<string>();
+}
+
+export const socket: Socket = (window as any)[SOCKET_KEY];
+const processedNotificationIds: Set<string> = (window as any)[DEDUP_KEY];
+const processedContentHashes: Set<string> = (window as any)[CONTENT_DEDUP_KEY];
+
+// ═══════════════════════════════════════════════════════════════
+// LIMPIEZA DE HANDLERS PREVIOS (crucial para HMR)
+// Remover TODOS los listeners anteriores antes de registrar nuevos
+// ═══════════════════════════════════════════════════════════════
+socket.removeAllListeners("notification:new");
+socket.removeAllListeners("connect");
+socket.removeAllListeners("disconnect");
+socket.removeAllListeners("connect_error");
+socket.removeAllListeners("reconnect");
+socket.removeAllListeners("reconnect_attempt");
+// Nota: onAny se limpia por separado
+socket.offAny();
 
 // Event handlers para debugging
 socket.on("connect", () => {
   console.log("🟢 WebSocket connected:", socket.id);
 });
 
-// Debug: escuchar todos los eventos
+// Debug: escuchar todos los eventos (excepto los muy frecuentes)
 socket.onAny((event, ...args) => {
-  console.log(`📡 WS event received: ${event}`, args);
+  if (event !== "waze:update" && event !== "risk:update") {
+    console.log(`📡 WS event received: ${event}`, args);
+  }
 });
 
 /**
@@ -191,10 +236,87 @@ const buildTTSMessage = (notification: Notification): string => {
 };
 
 /**
+ * Genera un hash de contenido para detectar notificaciones del mismo incidente físico
+ * que llegan desde diferentes polígonos con diferentes UUIDs.
+ * Usa: tipo + subtipo + calle + coordenadas redondeadas (±200m)
+ */
+const buildContentHash = (notification: Notification): string | null => {
+  const type = notification.type || notification.data?.incidentType || "";
+  const subtype = notification.data?.subtype || "";
+  const street = notification.data?.street || "";
+  const lat = notification.data?.location?.y ?? notification.data?.latitude ?? 0;
+  const lng = notification.data?.location?.x ?? notification.data?.longitude ?? 0;
+
+  if (!type && !street) return null;
+
+  // Redondear coords a ~200m de precisión (0.002 grados ≈ 220m)
+  const roundedLat = Math.round(lat * 500) / 500;
+  const roundedLng = Math.round(lng * 500) / 500;
+
+  return `${type}|${subtype}|${street}|${roundedLat}|${roundedLng}`;
+};
+
+/**
  * Handler GLOBAL para notification:new
  * Procesa TTS directamente aquí porque los hooks tienen problemas con React StrictMode
+ *
+ * Protecciones contra TTS duplicado:
+ * 1. Set de dedup por notification.id (sobrevive HMR)
+ * 2. Set de dedup por alertId/UUID de Waze (mismo incidente, diferente notificación)
+ * 3. Set de dedup por CONTENIDO (mismo tipo+subtipo+calle+coords ≈ mismo incidente físico)
+ * 4. Handler único (los anteriores se limpian arriba con removeAllListeners)
  */
 socket.on("notification:new", async (notification: Notification) => {
+  // ═══ DEDUP GUARD: Evitar procesar la misma notificación múltiples veces ═══
+  const notifId = notification.id;
+  const alertUuid = notification.data?.alertId || notification.data?.uuid;
+
+  if (processedNotificationIds.has(notifId)) {
+    console.log(`⏭️ Notificación ${notifId} ya procesada, ignorando (dedup por ID)`);
+    return;
+  }
+
+  // También dedup por alertId/UUID de Waze (el backend puede enviar IDs distintos para el mismo incidente)
+  const alertKey = alertUuid ? `alert:${alertUuid}` : null;
+  if (alertKey && processedNotificationIds.has(alertKey)) {
+    console.log(`⏭️ Alerta ${alertUuid} ya procesada, ignorando (dedup por UUID Waze)`);
+    useNotificationStore.getState().markTTSPlayed(notifId);
+    return;
+  }
+
+  // DEDUP POR CONTENIDO: El mismo incidente físico puede aparecer en múltiples
+  // feeds de polígonos con UUIDs diferentes. Detectamos esto creando un hash
+  // basado en tipo + subtipo + calle + coordenadas redondeadas.
+  const contentHash = buildContentHash(notification);
+  if (contentHash && processedContentHashes.has(contentHash)) {
+    console.log(`⏭️ Contenido duplicado detectado (${contentHash}), ignorando TTS`);
+    // Aún así agregar al store (para que se muestre la notificación) pero marcar TTS como reproducido
+    const translatedMsg = translateWazeMessage(notification.message);
+    useNotificationStore.getState().addNotification({
+      ...notification,
+      message: translatedMsg,
+      tts_played: true,
+    });
+    processedNotificationIds.add(notifId);
+    if (alertKey) processedNotificationIds.add(alertKey);
+    return;
+  }
+
+  // Registrar como procesada
+  processedNotificationIds.add(notifId);
+  if (alertKey) processedNotificationIds.add(alertKey);
+  if (contentHash) processedContentHashes.add(contentHash);
+
+  // Limpiar entradas antiguas de los Sets para no consumir memoria infinita (máx 500 entradas)
+  if (processedNotificationIds.size > 500) {
+    const entries = Array.from(processedNotificationIds);
+    entries.slice(0, entries.length - 200).forEach((e) => processedNotificationIds.delete(e));
+  }
+  if (processedContentHashes.size > 300) {
+    const entries = Array.from(processedContentHashes);
+    entries.slice(0, entries.length - 100).forEach((e) => processedContentHashes.delete(e));
+  }
+
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log("🔔 NOTIFICACIÓN RECIBIDA (websocket.ts)");
   console.log("   ID:", notification.id);
@@ -202,6 +324,7 @@ socket.on("notification:new", async (notification: Notification) => {
   console.log("   Title:", notification.title);
   console.log("   Subtype:", notification.data?.subtype);
   console.log("   Street:", notification.data?.street);
+  console.log("   AlertUUID:", alertUuid || "N/A");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
   // Traducir mensaje
@@ -235,6 +358,11 @@ socket.on("notification:new", async (notification: Notification) => {
 
   console.log("✅ Pasó filtros - Reproduciendo TTS...");
 
+  // ⚡ Marcar TTS como "en progreso" ANTES de iniciar la reproducción
+  // Esto evita que el retry periódico (useRealtimeNotifications) lo detecte
+  // como pendiente y lo reproduzca una segunda vez
+  useNotificationStore.getState().markTTSPlayed(notification.id);
+
   // Reproducir beep
   playAlertBeep();
 
@@ -247,14 +375,17 @@ socket.on("notification:new", async (notification: Notification) => {
 
   // Ejecutar TTS con mensaje descriptivo
   try {
-    // speakNotification espera (title, message) pero nosotros queremos enviar un mensaje completo
-    // Enviamos el mensaje completo como "title" y vacío como "message" para evitar duplicación
     await speakNotification(ttsMessage, "");
-    useNotificationStore.getState().markTTSPlayed(notification.id);
     console.log("✅ TTS completado");
   } catch (error) {
     console.error("❌ Error en TTS:", error);
-    useNotificationStore.getState().markTTSPlayed(notification.id);
+    // Si falla, desmarcar para que el retry lo intente más adelante
+    const { notifications } = useNotificationStore.getState();
+    const updated = notifications.map((n) =>
+      n.id === notification.id ? { ...n, tts_played: false } : n,
+    );
+    useNotificationStore.getState().setNotifications(updated);
+    console.log("🔓 TTS desmarcado - se reintentará en el próximo ciclo");
   }
 });
 
@@ -322,3 +453,21 @@ export function disconnect(): void {
 }
 
 export default socket;
+
+// ═══════════════════════════════════════════════════════════════
+// VITE HMR CLEANUP: Cuando Vite recarga este módulo, los handlers
+// se limpiarán automáticamente en la próxima ejecución del módulo
+// (ver removeAllListeners arriba). Esto previene acumulación de handlers.
+// ═══════════════════════════════════════════════════════════════
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    console.log("🔄 HMR: Limpiando handlers de websocket.ts");
+    socket.removeAllListeners("notification:new");
+    socket.removeAllListeners("connect");
+    socket.removeAllListeners("disconnect");
+    socket.removeAllListeners("connect_error");
+    socket.removeAllListeners("reconnect");
+    socket.removeAllListeners("reconnect_attempt");
+    socket.offAny();
+  });
+}

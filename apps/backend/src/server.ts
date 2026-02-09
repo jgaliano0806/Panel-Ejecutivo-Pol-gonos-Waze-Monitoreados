@@ -367,6 +367,46 @@ server.get("/api/traffic-metrics/:polygonId", async (request, reply) => {
   }
 });
 
+// --- Endpoints de TVT (Traffic View Technology) Waze ---
+// Referencia oficial: https://support.google.com/waze/partners/answer/13658466
+
+server.get("/api/tvt-metrics", async (_request, reply) => {
+  try {
+    const metrics = await wazePollingService.getAllLatestTvtMetrics();
+    return metrics;
+  } catch (error) {
+    server.log.error({ error }, "Error en /api/tvt-metrics");
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    reply.code(500).send({
+      error: "Failed to get TVT metrics",
+      message:
+        process.env.NODE_ENV === "development" ? errorMessage : undefined,
+    });
+  }
+});
+
+server.get("/api/tvt-metrics/:polygonId", async (request, reply) => {
+  try {
+    const { polygonId } = request.params as { polygonId: string };
+    const metrics = await wazePollingService.getLatestTvtMetrics(polygonId);
+    if (!metrics) {
+      reply.code(404).send({ error: "No TVT metrics for polygon" });
+      return;
+    }
+    return metrics;
+  } catch (error) {
+    server.log.error({ error }, "Error en /api/tvt-metrics/:polygonId");
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    reply.code(500).send({
+      error: "Failed to get TVT metrics for polygon",
+      message:
+        process.env.NODE_ENV === "development" ? errorMessage : undefined,
+    });
+  }
+});
+
 // --- Endpoints de Alertas ---
 
 server.get("/api/alerts", async (request, reply) => {
