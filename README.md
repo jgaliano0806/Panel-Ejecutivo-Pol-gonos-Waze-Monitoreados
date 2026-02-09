@@ -198,12 +198,12 @@ docker-compose --profile prod up -d
 
 ```bash
 # Frontend (.env)
-VITE_API_URL=http://localhost:3001
+VITE_API_URL=http://localhost:3002
 VITE_GOOGLE_MAPS_API_KEY=your_key
 
 # Backend (.env)
 NODE_ENV=production
-PORT=3001
+PORT=3002
 DB_HOST=localhost
 DB_NAME=panel_waze
 DB_USER=postgres

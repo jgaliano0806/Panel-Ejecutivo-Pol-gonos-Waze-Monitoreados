@@ -34,6 +34,10 @@ export class TTSService {
   private _isPlaying = signal(false);
   private currentAudio: HTMLAudioElement | null = null;
 
+  // Protección contra duplicados
+  private recentMessages = new Map<string, number>();
+  private readonly DUPLICATE_THRESHOLD_MS = 10000; // 10 segundos para evitar duplicados por demoras de red
+
   // Computed públicos
   readonly config = computed(() => this._config());
   readonly queueLength = computed(() => this._queue().length);
@@ -239,6 +243,23 @@ export class TTSService {
    */
   async speakNotification(title: string, message: string): Promise<void> {
     const text = this.buildNaturalMessage(title, message);
+
+    // Protección contra duplicados: verificar si este mensaje fue reproducido recientemente
+    const messageHash = this.hashMessage(text);
+    const lastPlayed = this.recentMessages.get(messageHash);
+    const now = Date.now();
+
+    if (lastPlayed && (now - lastPlayed) < this.DUPLICATE_THRESHOLD_MS) {
+      console.log(`⚠️ TTS: Mensaje duplicado ignorado (reproducido hace ${now - lastPlayed}ms): "${text.substring(0, 50)}..."`);
+      return;
+    }
+
+    // Registrar este mensaje
+    this.recentMessages.set(messageHash, now);
+
+    // Limpiar mensajes antiguos del cache
+    this.cleanOldMessages();
+
     console.log(`🔊 TTS speakNotification llamado: "${text}"`);
     console.log(
       `🔊 Cola actual: ${this._queue().length} mensajes, isPlaying: ${this._isPlaying()}`,
@@ -246,6 +267,33 @@ export class TTSService {
 
     this._queue.update((q) => [...q, text]);
     this.processQueue();
+  }
+
+  /**
+   * Generar hash simple para el mensaje
+   */
+  private hashMessage(text: string): string {
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+      const char = text.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash.toString();
+  }
+
+  /**
+   * Limpiar mensajes antiguos del cache
+   */
+  private cleanOldMessages(): void {
+    const now = Date.now();
+    const threshold = now - (this.DUPLICATE_THRESHOLD_MS * 2);
+
+    for (const [hash, timestamp] of this.recentMessages.entries()) {
+      if (timestamp < threshold) {
+        this.recentMessages.delete(hash);
+      }
+    }
   }
 
   /**

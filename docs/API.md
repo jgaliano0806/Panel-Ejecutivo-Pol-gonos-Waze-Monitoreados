@@ -4,8 +4,8 @@ Este documento detalla los endpoints REST y el canal en tiempo real (WebSocket) 
 
 ## Base URL
 
-- **REST**: path base `/api`. Ejemplo local: `http://localhost:3001/api`
-- **WebSocket**: misma base que el backend (ej. `http://localhost:3001`), con Socket.IO.
+- **REST**: path base `/api`. Ejemplo local: `http://localhost:3002/api`
+- **WebSocket**: misma base que el backend (ej. `http://localhost:3002`), con Socket.IO.
 
 ---
 
@@ -113,7 +113,7 @@ Ver [TTS.md](./TTS.md) para flujo, cola y estado en el frontend.
 
 ## 📡 WebSocket (Socket.IO)
 
-Conexión al mismo host del backend (ej. `http://localhost:3001`). Eventos principales:
+Conexión al mismo host del backend (ej. `http://localhost:3002`). Eventos principales:
 
 | Evento                | Dirección          | Descripción                                                                                                    |
 | --------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------- |

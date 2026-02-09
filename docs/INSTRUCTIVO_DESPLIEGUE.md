@@ -138,7 +138,7 @@ Contenido mínimo (ajustar valores reales):
 
 ```env
 NODE_ENV=production
-PORT=3001
+PORT=3002
 
 DB_HOST=localhost
 DB_PORT=5432
@@ -213,7 +213,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable panel-waze-api
 sudo systemctl start panel-waze-api
 sudo systemctl status panel-waze-api
-curl -s http://localhost:3001/health
+curl -s http://localhost:3002/health
 ```
 
 ---
@@ -242,7 +242,7 @@ server {
     }
 
     location /api/ {
-        proxy_pass http://127.0.0.1:3001/api/;
+        proxy_pass http://127.0.0.1:3002/api/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -251,7 +251,7 @@ server {
     }
 
     location /health {
-        proxy_pass http://127.0.0.1:3001/health;
+        proxy_pass http://127.0.0.1:3002/health;
     }
 }
 ```
@@ -355,7 +355,7 @@ set NODE_ENV=production
 node dist\server.js
 ```
 
-El frontend en PC puede usar `VITE_API_URL=http://localhost:3001` (o la IP de la PC si se accede desde otra máquina).
+El frontend en PC puede usar `VITE_API_URL=http://localhost:3002` (o la IP de la PC si se accede desde otra máquina).
 
 ---
 
@@ -377,7 +377,7 @@ El frontend en PC puede usar `VITE_API_URL=http://localhost:3001` (o la IP de la
 | Variable | Descripción | Ejemplo |
 |----------|-------------|---------|
 | `NODE_ENV` | Entorno | `production` |
-| `PORT` | Puerto del servidor API | `3001` |
+| `PORT` | Puerto del servidor API | `3002` |
 | `DB_HOST` | Host PostgreSQL | `localhost` |
 | `DB_PORT` | Puerto PostgreSQL | `5432` |
 | `DB_NAME` | Nombre de la base | `panel_waze` |
@@ -393,14 +393,14 @@ Definir **antes** de `npm run build` en `apps/frontend`:
 
 | Variable | Descripción | Ejemplo |
 |----------|-------------|---------|
-| `VITE_API_URL` | URL base del backend | `/api` (mismo dominio) o `http://localhost:3001` |
+| `VITE_API_URL` | URL base del backend | `/api` (mismo dominio) o `http://localhost:3002` |
 | `VITE_GOOGLE_MAPS_API_KEY` | API Key Google Maps (opcional) | - |
 
 ---
 
 ## 5. Verificación y salud
 
-- **API**: `curl http://localhost:3001/health` (o la URL pública si usas Nginx).
+- **API**: `curl http://localhost:3002/health` (o la URL pública si usas Nginx).
 - **Frontend**: Abrir en navegador la URL del servidor o `http://localhost:5180` si usas `serve`/preview.
 - **Logs (Red Hat)**: `journalctl -u panel-waze-api -f` y `tail -f /var/log/nginx/error.log`.
 
@@ -427,7 +427,7 @@ Definir **antes** de `npm run build` en `apps/frontend`:
 |---------|----------------|--------|
 | Backend no arranca | BD no accesible o `.env` incorrecto | Revisar `DB_*`, probar conexión con `psql`. |
 | Frontend no carga datos | `VITE_API_URL` incorrecta o CORS | Verificar URL de API en build y proxy Nginx. |
-| 502 Bad Gateway | Backend no escucha en 3001 | Comprobar `systemctl status panel-waze-api` y logs. |
+| 502 Bad Gateway | Backend no escucha en 3002 | Comprobar `systemctl status panel-waze-api` y logs. |
 | Polling Waze sin datos | Feeds o red | Revisar conectividad a Waze y logs del backend. |
 | Redis no conecta | Redis no instalado o mal configurado | El backend sigue sin Redis (fallback); opcional corregir `REDIS_*`. |
 

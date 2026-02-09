@@ -16,6 +16,7 @@ import {
   combineLatest,
 } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { realCordobaPolygons } from '../../data/realCordobaPolygons';
 
 // Tipos exportados
 export interface Polygon {
@@ -32,6 +33,8 @@ export interface Polygon {
     criticalAlerts: number;
   };
   lastUpdate?: string;
+  feedUrl?: string;
+  center?: { lat: number; lng: number };
 }
 
 export interface Incident {
@@ -47,9 +50,12 @@ export interface Incident {
   confidence?: number;
   latitude: number;
   longitude: number;
+  lat?: number;
+  lng?: number;
   polygonId?: string;
   pubMillis?: number;
   timestamp: Date;
+  isActive?: boolean;
 }
 
 export interface TrafficJam {
@@ -74,7 +80,15 @@ export interface GlobalKPIs {
   totalDelay: number;
   criticalCount: number;
   roadAccidents?: number;
+  roadAccidentsCritical?: number;
   lastUpdate: string;
+  fluidityPercentage?: number;
+  criticalPolygons?: number;
+  totalPolygons?: number;
+  trends?: {
+    fluidityChange?: number;
+    incidentsChange?: number;
+  };
 }
 
 export interface AlertStats {
@@ -102,16 +116,37 @@ export class ApiService {
 
   /**
    * Polígonos con polling automático
+   * Combina polígonos locales (con geometry) + datos del backend (state, group)
+   * Igual que React: useWazeData.ts líneas 315-344
    */
   readonly polygons$: Observable<Polygon[]> = combineLatest([
     this.polygonsRefresh$,
     timer(0, environment.refreshIntervals.realTimeData),
   ]).pipe(
-    switchMap(() => this.http.get<Polygon[]>(`${this.apiBase}/polygons`)),
+    switchMap(() => this.http.get<any[]>(`${this.apiBase}/polygons/all`)),
+    map((backendPolygons) => {
+      // Crear Map para búsqueda O(1)
+      const backendMap = new Map(backendPolygons.map((p: any) => [p.id, p]));
+
+      // Combinar: local (geometry) + backend (state, group, name)
+      return realCordobaPolygons.map((localPoly: any) => {
+        const backendData = backendMap.get(localPoly.id);
+
+        if (!backendData) return localPoly;
+
+        return {
+          ...localPoly,
+          state: backendData.state || localPoly.state,
+          name: backendData.name || localPoly.name,
+          group: backendData.group || localPoly.group,
+        };
+      });
+    }),
     catchError((err) => {
       console.error('Error fetching polygons:', err);
       this._error.set('Error cargando polígonos');
-      return of([]);
+      // En caso de error, retornar polígonos locales sin datos del backend
+      return of(realCordobaPolygons as Polygon[]);
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
@@ -238,5 +273,277 @@ export class ApiService {
     this.refreshPolygons();
     this.refreshIncidents();
     this.refreshJams();
+  }
+
+  // Alias for backwards compatibility
+  readonly trafficJams$ = this.jams$;
+
+  // ============================================
+  // ADMIN APIs
+  // ============================================
+
+  /**
+   * Obtener catálogo de tipos de incidentes
+   */
+  getCatalogTypes(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiBase}/catalogs/types`).pipe(
+      catchError((err) => {
+        console.error('Error fetching catalog types:', err);
+        return of([]);
+      }),
+    );
+  }
+
+  /**
+   * Obtener catálogo de subtipos
+   */
+  getCatalogSubtypes(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiBase}/catalogs/subtypes`).pipe(
+      catchError((err) => {
+        console.error('Error fetching catalog subtypes:', err);
+        return of([]);
+      }),
+    );
+  }
+
+  /**
+   * Crear polígono
+   */
+  createPolygon(polygon: Partial<Polygon>): Observable<Polygon | null> {
+    return this.http.post<Polygon>(`${this.apiBase}/polygons`, polygon).pipe(
+      catchError((err) => {
+        console.error('Error creating polygon:', err);
+        this._error.set('Error creando polígono');
+        return of(null);
+      }),
+    );
+  }
+
+  /**
+   * Actualizar polígono
+   */
+  updatePolygon(id: string, polygon: Partial<Polygon>): Observable<Polygon | null> {
+    return this.http.put<Polygon>(`${this.apiBase}/polygons/${id}`, polygon).pipe(
+      catchError((err) => {
+        console.error('Error updating polygon:', err);
+        this._error.set('Error actualizando polígono');
+        return of(null);
+      }),
+    );
+  }
+
+  /**
+   * Eliminar polígono
+   */
+  deletePolygon(id: string): Observable<boolean> {
+    return this.http.delete(`${this.apiBase}/polygons/${id}`).pipe(
+      map(() => true),
+      catchError((err) => {
+        console.error('Error deleting polygon:', err);
+        this._error.set('Error eliminando polígono');
+        return of(false);
+      }),
+    );
+  }
+
+  // ============================================
+  // STATISTICS APIs
+  // ============================================
+
+  /**
+   * Obtener estadísticas diarias
+   */
+  getDailyStats(date?: string): Observable<any> {
+    const params = date ? `?date=${date}` : '';
+    return this.http.get<any>(`${this.apiBase}/stats/daily${params}`).pipe(
+      catchError((err) => {
+        console.error('Error fetching daily stats:', err);
+        return of(null);
+      }),
+    );
+  }
+
+  /**
+   * Obtener estadísticas semanales
+   */
+  getWeeklyStats(startDate?: string): Observable<any> {
+    const params = startDate ? `?startDate=${startDate}` : '';
+    return this.http.get<any>(`${this.apiBase}/stats/weekly${params}`).pipe(
+      catchError((err) => {
+        console.error('Error fetching weekly stats:', err);
+        return of(null);
+      }),
+    );
+  }
+
+  /**
+   * Obtener estadísticas mensuales
+   */
+  getMonthlyStats(year?: number, month?: number): Observable<any> {
+    let params = '';
+    if (year && month) {
+      params = `?year=${year}&month=${month}`;
+    }
+    return this.http.get<any>(`${this.apiBase}/stats/monthly${params}`).pipe(
+      catchError((err) => {
+        console.error('Error fetching monthly stats:', err);
+        return of(null);
+      }),
+    );
+  }
+
+  /**
+   * Obtener tendencias históricas
+   */
+  getHistoricalTrends(days: number = 30): Observable<any> {
+    return this.http.get<any>(`${this.apiBase}/historical/trends?days=${days}`).pipe(
+      catchError((err) => {
+        console.error('Error fetching historical trends:', err);
+        return of(null);
+      }),
+    );
+  }
+
+  // ============================================
+  // ACCIDENTS (Siniestros) APIs
+  // ============================================
+
+  /**
+   * Obtener accidentes/siniestros
+   */
+  getAccidents(params?: {
+    dateFrom?: string;
+    dateTo?: string;
+    page?: number;
+    limit?: number;
+  }): Observable<any> {
+    let queryParams = '';
+    if (params) {
+      const paramList = [];
+      if (params.dateFrom) paramList.push(`dateFrom=${params.dateFrom}`);
+      if (params.dateTo) paramList.push(`dateTo=${params.dateTo}`);
+      if (params.page) paramList.push(`page=${params.page}`);
+      if (params.limit) paramList.push(`limit=${params.limit}`);
+      if (paramList.length > 0) queryParams = `?${paramList.join('&')}`;
+    }
+    return this.http.get<any>(`${this.apiBase}/accidents${queryParams}`).pipe(
+      catchError((err) => {
+        console.error('Error fetching accidents:', err);
+        return of({ data: [], total: 0 });
+      }),
+    );
+  }
+
+  /**
+   * Obtener detalle de un accidente
+   */
+  getAccidentDetail(id: string): Observable<any> {
+    return this.http.get<any>(`${this.apiBase}/accidents/${id}`).pipe(
+      catchError((err) => {
+        console.error('Error fetching accident detail:', err);
+        return of(null);
+      }),
+    );
+  }
+
+  // ============================================
+  // RISK APIs
+  // ============================================
+
+  /**
+   * Obtener resumen de riesgos
+   */
+  getRiskSummary(): Observable<any> {
+    return this.http.get<any>(`${this.apiBase}/risk/summary`).pipe(
+      catchError((err) => {
+        console.error('Error fetching risk summary:', err);
+        return of(null);
+      }),
+    );
+  }
+
+  /**
+   * Obtener scores de riesgo
+   */
+  getRiskScores(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiBase}/risk/scores`).pipe(
+      catchError((err) => {
+        console.error('Error fetching risk scores:', err);
+        return of([]);
+      }),
+    );
+  }
+
+  // ============================================
+  // NOTIFICATIONS APIs
+  // ============================================
+
+  /**
+   * Obtener historial de notificaciones
+   */
+  getNotifications(params?: {
+    page?: number;
+    limit?: number;
+    unreadOnly?: boolean;
+  }): Observable<any> {
+    let queryParams = '';
+    if (params) {
+      const paramList = [];
+      if (params.page) paramList.push(`page=${params.page}`);
+      if (params.limit) paramList.push(`limit=${params.limit}`);
+      if (params.unreadOnly) paramList.push(`unreadOnly=${params.unreadOnly}`);
+      if (paramList.length > 0) queryParams = `?${paramList.join('&')}`;
+    }
+    return this.http.get<any>(`${this.apiBase}/notifications${queryParams}`).pipe(
+      catchError((err) => {
+        console.error('Error fetching notifications:', err);
+        return of({ data: [], total: 0 });
+      }),
+    );
+  }
+
+  /**
+   * Marcar notificación como leída
+   */
+  markNotificationAsRead(id: string): Observable<boolean> {
+    return this.http.patch(`${this.apiBase}/notifications/${id}/read`, {}).pipe(
+      map(() => true),
+      catchError((err) => {
+        console.error('Error marking notification as read:', err);
+        return of(false);
+      }),
+    );
+  }
+
+  // ============================================
+  // TVT (Waze Traffic) APIs
+  // ============================================
+
+  /**
+   * Obtener métricas TVT
+   */
+  getTVTMetrics(): Observable<any> {
+    return this.http.get<any>(`${this.apiBase}/tvt/metrics`).pipe(
+      catchError((err) => {
+        console.error('Error fetching TVT metrics:', err);
+        return of(null);
+      }),
+    );
+  }
+
+  // ============================================
+  // WEATHER APIs
+  // ============================================
+
+  /**
+   * Obtener clima para un polígono
+   */
+  getWeather(polygonId: string): Observable<any> {
+    return this.http.get<any>(`${this.apiBase}/weather/${polygonId}`).pipe(
+      catchError((err) => {
+        console.error('Error fetching weather:', err);
+        return of(null);
+      }),
+    );
   }
 }

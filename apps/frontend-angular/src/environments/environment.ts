@@ -11,4 +11,14 @@ export const environment = {
     historicalData: 300000, // 5 minutos
     trends: 120000, // 2 minutos
   },
+  // SSO Configuration (set values in production environment)
+  sso: {
+    microsoft: {
+      clientId: '', // Azure AD Application (client) ID
+      tenantId: '', // Azure AD Directory (tenant) ID
+    },
+    google: {
+      clientId: '', // Google OAuth Client ID
+    },
+  },
 };

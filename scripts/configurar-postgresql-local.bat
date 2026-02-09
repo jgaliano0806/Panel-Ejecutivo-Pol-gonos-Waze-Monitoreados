@@ -70,8 +70,8 @@ if !ERRORLEVEL! EQU 0 (
 :: Verificar si ya esta corriendo
 :: Leer contraseña del .env si existe, sino usar CASISA por defecto
 set DB_PASSWORD=CASISA
-if exist "%ROOT%\backend\.env" (
-    for /f "tokens=2 delims==" %%a in ('findstr /C:"DB_PASSWORD" "%ROOT%\backend\.env" 2^>nul') do (
+if exist "%ROOT%\apps\backend\.env" (
+    for /f "tokens=2 delims==" %%a in ('findstr /C:"DB_PASSWORD" "%ROOT%\apps\backend\.env" 2^>nul') do (
         set DB_PASSWORD=%%a
     )
 )
@@ -97,8 +97,8 @@ echo.
 echo [3/4] Verificando conexion...
 :: Leer contraseña del .env si existe, sino usar CASISA por defecto
 set DB_PASSWORD=CASISA
-if exist "%ROOT%\backend\.env" (
-    for /f "tokens=2 delims==" %%a in ('findstr /C:"DB_PASSWORD" "%ROOT%\backend\.env" 2^>nul') do (
+if exist "%ROOT%\apps\backend\.env" (
+    for /f "tokens=2 delims==" %%a in ('findstr /C:"DB_PASSWORD" "%ROOT%\apps\backend\.env" 2^>nul') do (
         set DB_PASSWORD=%%a
     )
 )
@@ -112,7 +112,7 @@ if %ERRORLEVEL% NEQ 0 (
     echo    - Que la contrasena sea correcta
     echo    - Que el puerto 5432 este disponible
     echo.
-    echo    Si la contrasena es diferente, actualiza backend\.env
+    echo    Si la contrasena es diferente, actualiza apps\backend\.env
     pause
     exit /b 1
 )
@@ -124,7 +124,7 @@ echo.
 :: PASO 4: Configurar base de datos
 :: ============================================
 echo [4/4] Configurando base de datos...
-cd /d "%ROOT%\backend"
+cd /d "%ROOT%\apps\backend"
 
 :: Leer contrasena del .env si existe
 set DB_PASSWORD=CASISA

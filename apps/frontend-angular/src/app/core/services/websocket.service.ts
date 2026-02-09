@@ -4,7 +4,7 @@
  */
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { io, Socket } from 'socket.io-client';
-import { Subject, fromEvent, shareReplay, takeUntil } from 'rxjs';
+import { Subject } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 export interface Notification {
@@ -39,11 +39,10 @@ export class WebSocketService {
   readonly connected = computed(() => this._connected());
   readonly socketId = computed(() => this._socketId());
 
-  // Subjects para eventos
+  // Subjects para eventos - NO usar shareReplay para evitar duplicación de TTS
   private notificationSubject = new Subject<Notification>();
-  readonly notifications$ = this.notificationSubject
-    .asObservable()
-    .pipe(shareReplay({ bufferSize: 1, refCount: true }));
+  private processedNotificationIds = new Set<string>();
+  readonly notifications$ = this.notificationSubject.asObservable();
 
   constructor() {
     this.socket = io(environment.socketUrl, {
@@ -88,8 +87,23 @@ export class WebSocketService {
       console.log(`📡 WS event received: ${event}`, args);
     });
 
-    // Notificaciones
+    // Notificaciones - evitar duplicados
     this.socket.on('notification:new', (notification: Notification) => {
+      // Evitar procesar la misma notificación dos veces
+      if (notification.id && this.processedNotificationIds.has(notification.id)) {
+        console.log('⚠️ Notificación duplicada ignorada:', notification.id);
+        return;
+      }
+      
+      if (notification.id) {
+        this.processedNotificationIds.add(notification.id);
+        // Limpiar IDs antiguos para evitar memory leak
+        if (this.processedNotificationIds.size > 100) {
+          const idsArray = Array.from(this.processedNotificationIds);
+          this.processedNotificationIds = new Set(idsArray.slice(-50));
+        }
+      }
+      
       console.log('🔔 NOTIFICACIÓN RECIBIDA:', notification);
       this.notificationSubject.next(notification);
     });

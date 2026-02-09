@@ -107,13 +107,13 @@ El backend realiza **polling periódico** a Waze y Open-Meteo; la base de datos 
 
 - **Lógicos**: Node 18+, PostgreSQL 16+, Redis 6+ (opcional), Nginx, usuario no root para la aplicación, systemd para el backend.
 - **Físicos**: 4 GB RAM, 4 núcleos, 20–50 GB disco (SSD recomendado para PostgreSQL).
-- **Red**: Puertos 80/443 (Nginx); backend escucha en localhost (ej. 3001) o según configuración.
+- **Red**: Puertos 80/443 (Nginx); backend escucha en localhost (ej. 3002) o según configuración.
 
 ### 5.2. PC productiva (Windows)
 
 - **Lógicos**: Node 18+, PostgreSQL 16+, Memurai o Redis (opcional), script o servicio para arrancar el backend al inicio.
 - **Físicos**: 4–8 GB RAM, 2+ núcleos, 5–10 GB disco.
-- **Red**: Acceso saliente a Waze y Open-Meteo; puerto local para la API (ej. 3001).
+- **Red**: Acceso saliente a Waze y Open-Meteo; puerto local para la API (ej. 3002).
 
 ### 5.3. PC productiva (Linux)
 

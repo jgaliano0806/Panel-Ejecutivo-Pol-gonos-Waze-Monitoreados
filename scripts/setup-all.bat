@@ -61,7 +61,9 @@ if not exist ".env" (
         echo.>> .env
         echo # Configuracion del servidor>> .env
         echo NODE_ENV=development>> .env
-        echo PORT=3001>> .env
+        echo PORT=3002>> .env
+        echo REDIS_HOST=localhost>> .env
+        echo REDIS_PORT=6379>> .env
         echo    OK: Archivo .env creado
     )
     echo    NOTA: Revisa apps\backend\.env si necesitas cambiar contrasena o puerto

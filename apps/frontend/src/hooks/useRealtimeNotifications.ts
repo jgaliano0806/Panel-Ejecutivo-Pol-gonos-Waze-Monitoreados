@@ -4,7 +4,6 @@ import {
   useNotificationStore,
   Notification,
 } from "@/stores/useNotificationStore";
-import { translateWazeMessage } from "@/lib/waze-translator";
 import { speakNotification } from "@/lib/tts-utils";
 import { shouldShowTTSAndSnackbar } from "@/config/notificationFilters";
 
@@ -80,9 +79,6 @@ const executeTTS = async (
  * Hook para gestionar notificaciones en tiempo real con TTS
  */
 export function useRealtimeNotifications() {
-  const addNotification = useNotificationStore(
-    (state) => state.addNotification,
-  );
   const markTTSPlayed = useNotificationStore((state) => state.markTTSPlayed);
   const getPendingTTSNotifications = useNotificationStore(
     (state) => state.getPendingTTSNotifications,
@@ -109,68 +105,15 @@ export function useRealtimeNotifications() {
     };
   }, []);
 
-  // Handler principal para nuevas notificaciones via WebSocket
+  // NOTA: El handler principal para notification:new está en websocket.ts (global)
+  // Este hook solo maneja el retry de TTS pendientes para evitar duplicación de TTS
   useEffect(() => {
     console.log("════════════════════════════════════════════════════════");
-    console.log("🔌 useRealtimeNotifications: REGISTRANDO LISTENER");
+    console.log("🔌 useRealtimeNotifications: Hook inicializado");
     console.log("🔌 Socket conectado:", socket.connected, "ID:", socket.id);
+    console.log("📝 TTS global handler está en websocket.ts");
     console.log("════════════════════════════════════════════════════════");
-
-    const handleNewNotification = async (notification: Notification) => {
-      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-      console.log("🔔 HOOK: NOTIFICACIÓN RECIBIDA");
-      console.log("   ID:", notification.id);
-      console.log("   Type:", notification.type);
-      console.log("   Title:", notification.title);
-      console.log("   Subtype:", notification.data?.subtype);
-      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-
-      // Traducir mensaje
-      const translatedMessage = translateWazeMessage(notification.message);
-      const updatedNotification: Notification = {
-        ...notification,
-        message: translatedMessage,
-        tts_played: false,
-      };
-
-      // Agregar al store (obtener función fresca del store)
-      useNotificationStore.getState().addNotification(updatedNotification);
-      console.log("✅ Agregada al store");
-
-      // Evaluar filtros TTS
-      const incidentType = notification.type || notification.data?.incidentType;
-      const subtype = notification.data?.subtype;
-
-      console.log("🔍 Evaluando filtros TTS:");
-      console.log("   - Tipo:", incidentType);
-      console.log("   - Subtipo:", subtype);
-
-      const shouldNotify = shouldShowTTSAndSnackbar(incidentType, subtype);
-      console.log("   - ¿Debe notificar?:", shouldNotify);
-
-      if (!shouldNotify) {
-        console.log("🔕 Filtrado - NO reproducir TTS");
-        useNotificationStore.getState().markTTSPlayed(notification.id);
-        return;
-      }
-
-      console.log("✅ Pasó filtros - Reproduciendo TTS...");
-
-      // Ejecutar TTS
-      await executeTTS(
-        updatedNotification,
-        useNotificationStore.getState().markTTSPlayed,
-      );
-    };
-
-    socket.on("notification:new", handleNewNotification);
-    console.log("✅ Listener notification:new registrado");
-
-    return () => {
-      console.log("🔌 Removiendo listener notification:new");
-      socket.off("notification:new", handleNewNotification);
-    };
-  }, []); // Sin dependencias - registrar solo una vez
+  }, []);
 
   // Validación periódica: reintentar TTS para notificaciones pendientes con incidentes activos
   const retryPendingTTS = useCallback(async () => {

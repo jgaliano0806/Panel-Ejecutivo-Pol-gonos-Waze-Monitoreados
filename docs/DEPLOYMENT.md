@@ -32,8 +32,8 @@ Para correr el entorno completo de desarrollo en tu máquina local:
    # Inicia Frontend y Backend concurrentemente
    npm run dev:all
    ```
-   - Frontend: http://localhost:5173
-   - Backend: http://localhost:3001
+   - Frontend: http://localhost:5180
+   - Backend: http://localhost:3002
 
 ## 🐳 Despliegue con Docker
 
@@ -90,7 +90,7 @@ Copia `apps/backend/.env.example` a `apps/backend/.env` y ajusta los valores.
 
 | Variable | Descripción | Valor Default/Ejemplo |
 |----------|-------------|------------------------|
-| `PORT` | Puerto del servidor | `3001` |
+| `PORT` | Puerto del servidor | `3002` |
 | `NODE_ENV` | Entorno | `development` / `production` |
 | `DB_HOST` | Host de PostgreSQL | `localhost` |
 | `DB_PORT` | Puerto de PostgreSQL | `5432` |
@@ -109,5 +109,5 @@ Copia `apps/frontend/.env.example` a `apps/frontend/.env` si existe, o crea `.en
 
 | Variable | Descripción | Valor Default/Ejemplo |
 |----------|-------------|------------------------|
-| `VITE_API_URL` | URL base del backend (puede incluir `/api`) | `http://localhost:3001` o `http://localhost:3001/api` |
+| `VITE_API_URL` | URL base del backend (puede incluir `/api`) | `http://localhost:3002` o `http://localhost:3002/api` |
 | `VITE_GOOGLE_MAPS_API_KEY` | API Key de Google Maps (si se usa) | (opcional) |

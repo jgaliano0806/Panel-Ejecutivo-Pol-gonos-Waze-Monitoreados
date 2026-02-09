@@ -45,7 +45,7 @@
 ## Resumen rápido
 
 - **Arquitectura**: Monorepo (apps: frontend React/Vite, backend Fastify), packages (types, config, shared). PostgreSQL, Socket.IO, Edge TTS.
-- **API base**: `/api` (ej. `http://localhost:3001/api`).
-- **Desarrollo**: `npm run dev:all` (frontend en 5180, backend en 3001).
+- **API base**: `/api` (ej. `http://localhost:3002/api`).
+- **Desarrollo**: `npm run dev:all` (frontend en 5180, backend en 3002).
 - **Producción**: Ver [INSTRUCTIVO_DESPLIEGUE.md](./INSTRUCTIVO_DESPLIEGUE.md) (Red Hat o PC productiva) y [REQUISITOS_SISTEMA.md](./REQUISITOS_SISTEMA.md).
 - **Documentación de API**: Ver [API.md](./API.md) para todos los endpoints.
