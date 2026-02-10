@@ -7,6 +7,8 @@ export {
   stopSpeaking,
   getTTSQueueStatus,
   testVoice,
+  isAudioUnlocked,
+  forceUnlockAudio,
   configureElevenLabs,
   isElevenLabsConfigured,
   saveElevenLabsConfig,

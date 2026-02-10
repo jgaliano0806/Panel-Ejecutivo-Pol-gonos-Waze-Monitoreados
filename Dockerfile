@@ -5,16 +5,21 @@
 # Stage 1: Build Frontend
 FROM node:20-alpine AS frontend-builder
 
-WORKDIR /app/frontend
+WORKDIR /app
 
-# Copiar archivos de dependencias
+# Copiar archivos de dependencias raiz
 COPY package*.json ./
-RUN npm ci --legacy-peer-deps
+COPY apps/frontend/package*.json ./apps/frontend/
+COPY apps/backend/package*.json ./apps/backend/
+
+# Instalar dependencias
+RUN npm ci --include=dev
 
 # Copiar código fuente
 COPY . .
 
-# Build de producción
+# Build de producción frontend
+WORKDIR /app/apps/frontend
 ARG VITE_GOOGLE_MAPS_API_KEY
 ARG VITE_API_URL=/api
 ENV VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY
@@ -25,16 +30,21 @@ RUN npm run build
 # Stage 2: Build Backend
 FROM node:20-alpine AS backend-builder
 
-WORKDIR /app/backend
+WORKDIR /app
 
-# Copiar archivos de dependencias del backend
-COPY backend/package*.json ./
+# Copiar archivos de dependencias raiz (para tener contexto de workspaces)
+COPY package*.json ./
+COPY apps/frontend/package*.json ./apps/frontend/
+COPY apps/backend/package*.json ./apps/backend/
+
+# Instalar dependencias
 RUN npm ci
 
-# Copiar código fuente del backend
-COPY backend/ .
+# Copiar código fuente
+COPY . .
 
-# Build TypeScript
+# Build TypeScript backend
+WORKDIR /app/apps/backend
 RUN npm run build
 
 # Stage 3: Production Image
@@ -45,16 +55,16 @@ RUN apk add --no-cache nginx curl
 
 WORKDIR /app
 
-# Copiar backend compilado
-COPY --from=backend-builder /app/backend/dist ./backend/dist
-COPY --from=backend-builder /app/backend/node_modules ./backend/node_modules
-COPY --from=backend-builder /app/backend/package.json ./backend/
+# Copiar backend compilado y dependencias
+COPY --from=backend-builder /app/apps/backend/dist ./apps/backend/dist
+COPY --from=backend-builder /app/apps/backend/node_modules ./apps/backend/node_modules
+COPY --from=backend-builder /app/apps/backend/package.json ./apps/backend/
 
 # Copiar carpeta de datos del backend
-COPY backend/data ./backend/data
+COPY apps/backend/data ./apps/backend/data
 
 # Copiar frontend build
-COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+COPY --from=frontend-builder /app/apps/frontend/dist ./apps/frontend/dist
 
 # Configuración de nginx
 COPY docker/nginx.conf /etc/nginx/nginx.conf
@@ -83,7 +93,3 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 USER nodejs
 
 CMD ["/start.sh"]
-
-
-
-

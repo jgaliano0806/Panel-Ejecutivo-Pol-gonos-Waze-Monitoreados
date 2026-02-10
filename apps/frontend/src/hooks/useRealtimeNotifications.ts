@@ -4,13 +4,16 @@ import {
   useNotificationStore,
   Notification,
 } from "@/stores/useNotificationStore";
-import { speakNotification } from "@/lib/tts-utils";
+import { speakNotification, isAudioUnlocked } from "@/lib/tts-utils";
 import { shouldShowTTSAndSnackbar } from "@/config/notificationFilters";
 
 /**
- * Genera un sonido de alerta usando Web Audio API
+ * Genera un sonido de alerta usando Web Audio API.
+ * Solo funciona despues de interaccion del usuario (autoplay policy).
  */
 const playAlertBeep = (): void => {
+  if (!isAudioUnlocked()) return; // No intentar si audio esta bloqueado
+
   try {
     const audioContext = new (
       window.AudioContext || (window as any).webkitAudioContext
@@ -40,38 +43,42 @@ const playAlertBeep = (): void => {
     const now = audioContext.currentTime;
     playTone(523.25, now, 0.15);
     playTone(659.25, now + 0.15, 0.2);
-    console.log("🔔 Beep reproducido");
   } catch (error) {
-    console.warn("⚠️ Error en beep:", error);
+    // Silencioso - beep no es critico
   }
 };
 
 /**
- * Reproduce TTS de forma síncrona con manejo de errores
+ * Reproduce TTS de forma sincrona con manejo de errores.
+ * speakNotification ya maneja internamente el encolamiento
+ * si el audio esta bloqueado, asi que no marcamos como played
+ * a menos que el audio este desbloqueado.
  */
 const executeTTS = async (
   notification: Notification,
   markTTSPlayed: (id: string) => void,
 ): Promise<void> => {
-  try {
-    console.log("🎤 Ejecutando TTS para:", notification.title);
+  // Si audio no esta desbloqueado, speakNotification solo encola.
+  // No marcar como played para que el retry lo intente despues.
+  if (!isAudioUnlocked()) {
+    await speakNotification(notification.title, notification.message);
+    return;
+  }
 
+  try {
     // Beep primero
     playAlertBeep();
-
-    // Pequeño delay
     await new Promise((resolve) => setTimeout(resolve, 400));
 
     // Ejecutar TTS
     await speakNotification(notification.title, notification.message);
 
-    // Marcar como reproducido
+    // Marcar como reproducido solo si el audio esta desbloqueado
     markTTSPlayed(notification.id);
     console.log("✅ TTS completado para:", notification.id);
   } catch (error) {
     console.error("❌ Error en TTS:", error);
-    // Aún así marcar para no reintentar infinitamente
-    markTTSPlayed(notification.id);
+    // NO marcar como played si fallo - el retry lo reintentara
   }
 };
 
@@ -85,25 +92,9 @@ export function useRealtimeNotifications() {
   );
 
   const retryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const hasUserInteracted = useRef(false);
 
-  // Detectar interacción del usuario para desbloquear autoplay
-  useEffect(() => {
-    const handleInteraction = () => {
-      if (!hasUserInteracted.current) {
-        hasUserInteracted.current = true;
-        console.log("✅ Interacción detectada - Audio desbloqueado");
-      }
-    };
-
-    document.addEventListener("click", handleInteraction, { once: true });
-    document.addEventListener("keydown", handleInteraction, { once: true });
-
-    return () => {
-      document.removeEventListener("click", handleInteraction);
-      document.removeEventListener("keydown", handleInteraction);
-    };
-  }, []);
+  // NOTA: El desbloqueo de audio ahora se maneja globalmente en tts-service.ts
+  // mediante listeners de click/keydown/touchstart en el document.
 
   // NOTA: El handler principal para notification:new está en websocket.ts (global)
   // Este hook solo maneja el retry de TTS pendientes para evitar duplicación de TTS

@@ -4,7 +4,7 @@ import {
   Notification,
 } from "@/stores/useNotificationStore";
 import { translateWazeMessage } from "@/lib/waze-translator";
-import { speakNotification } from "@/lib/tts-utils";
+import { speakNotification, isAudioUnlocked } from "@/lib/tts-utils";
 import { shouldShowTTSAndSnackbar } from "@/config/notificationFilters";
 
 /**
@@ -81,9 +81,12 @@ socket.onAny((event, ...args) => {
 });
 
 /**
- * Genera beep de alerta
+ * Genera beep de alerta.
+ * Solo funciona despues de interaccion del usuario (autoplay policy).
  */
 const playAlertBeep = (): void => {
+  if (!isAudioUnlocked()) return; // No intentar si audio bloqueado
+
   try {
     const audioContext = new (
       window.AudioContext || (window as any).webkitAudioContext
@@ -358,34 +361,38 @@ socket.on("notification:new", async (notification: Notification) => {
 
   console.log("✅ Pasó filtros - Reproduciendo TTS...");
 
-  // ⚡ Marcar TTS como "en progreso" ANTES de iniciar la reproducción
-  // Esto evita que el retry periódico (useRealtimeNotifications) lo detecte
-  // como pendiente y lo reproduzca una segunda vez
-  useNotificationStore.getState().markTTSPlayed(notification.id);
-
-  // Reproducir beep
-  playAlertBeep();
-
-  // Delay para que beep no se solape
-  await new Promise((resolve) => setTimeout(resolve, 400));
-
   // Generar mensaje descriptivo
   const ttsMessage = buildTTSMessage(notification);
   console.log("🎤 Mensaje TTS:", ttsMessage);
 
-  // Ejecutar TTS con mensaje descriptivo
-  try {
+  // Si el audio esta desbloqueado, marcar como "en progreso" y reproducir.
+  // Si NO esta desbloqueado, speakNotification encola internamente;
+  // dejamos tts_played=false para que el retry lo maneje post-desbloqueo.
+  if (isAudioUnlocked()) {
+    // Marcar ANTES para evitar duplicacion con el retry
+    useNotificationStore.getState().markTTSPlayed(notification.id);
+
+    // Beep + delay
+    playAlertBeep();
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    try {
+      await speakNotification(ttsMessage, "");
+      console.log("✅ TTS completado");
+    } catch (error) {
+      console.error("❌ Error en TTS:", error);
+      // Desmarcar para que retry lo reintente
+      const { notifications } = useNotificationStore.getState();
+      const updated = notifications.map((n) =>
+        n.id === notification.id ? { ...n, tts_played: false } : n,
+      );
+      useNotificationStore.getState().setNotifications(updated);
+    }
+  } else {
+    // Audio bloqueado: encolar en TTS service (se reproducira al desbloquear)
+    console.log("🔒 Audio bloqueado - mensaje encolado en TTS service");
     await speakNotification(ttsMessage, "");
-    console.log("✅ TTS completado");
-  } catch (error) {
-    console.error("❌ Error en TTS:", error);
-    // Si falla, desmarcar para que el retry lo intente más adelante
-    const { notifications } = useNotificationStore.getState();
-    const updated = notifications.map((n) =>
-      n.id === notification.id ? { ...n, tts_played: false } : n,
-    );
-    useNotificationStore.getState().setNotifications(updated);
-    console.log("🔓 TTS desmarcado - se reintentará en el próximo ciclo");
+    // NO marcar tts_played - el retry periodic lo manejara post-desbloqueo
   }
 });
 

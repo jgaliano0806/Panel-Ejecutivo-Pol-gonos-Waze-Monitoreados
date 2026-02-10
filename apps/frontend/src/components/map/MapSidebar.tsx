@@ -32,6 +32,8 @@ interface MapSidebarProps {
   selectedGroup?: string | null;
   onPolygonChange?: (polygonId: string | null) => void;
   onGroupChange?: (group: string | null) => void;
+  expanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
 }
 
 export const MapSidebar = ({
@@ -44,8 +46,21 @@ export const MapSidebar = ({
   selectedGroup = null,
   onPolygonChange,
   onGroupChange,
+  expanded,
+  onExpandedChange,
 }: MapSidebarProps) => {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [internalExpanded, setInternalExpanded] = useState(true);
+  const isExpanded = expanded ?? internalExpanded;
+
+  const toggleExpanded = () => {
+    const newValue = !isExpanded;
+    if (onExpandedChange) {
+      onExpandedChange(newValue);
+    } else {
+      setInternalExpanded(newValue);
+    }
+  };
+
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(
     new Set(["layers", "polygon-filters"]),
   );
@@ -115,7 +130,7 @@ export const MapSidebar = ({
           </motion.div>
         )}
         <button
-          onClick={() => setIsExpanded(!isExpanded)}
+          onClick={toggleExpanded}
           className="p-2 hover:bg-white/10 rounded-xl transition-all duration-300 text-gray-400 hover:text-white"
         >
           {isExpanded ? <X size={20} /> : <Menu size={20} />}

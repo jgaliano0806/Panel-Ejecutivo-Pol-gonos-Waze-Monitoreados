@@ -30,6 +30,7 @@ import { WazeOMeter } from "../components/dashboard/WazeOMeter";
 import { MapKPIFooter } from "../components/map/MapKPIFooter";
 import { MapSidebar } from "../components/map/MapSidebar";
 import { useHistoricalData, useTrends } from "../hooks/useWazeData";
+import { initializeAudio } from "../lib/tts-service";
 import { Map } from "../components/map/Map";
 // GlobalNotifications ahora está dentro del componente Map
 
@@ -86,7 +87,8 @@ const LazyWrapper = ({
 const Dashboard: React.FC = () => {
   const location = useLocation();
   const queryClient = useQueryClient();
-  const { setExpanded: setSidebarExpanded } = useSidebarStore();
+  const { setExpanded: setSidebarExpandedStore } = useSidebarStore();
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const hasCollapsedForMap = useRef(false);
   const {
     polygons,
@@ -141,13 +143,13 @@ const Dashboard: React.FC = () => {
 
     // Colapsar sidebar al entrar a la vista de mapa (solo una vez por sesión de navegación)
     if (path === "/mapa" && !hasCollapsedForMap.current) {
-      setSidebarExpanded(false);
+      setIsSidebarExpanded(false);
       hasCollapsedForMap.current = true;
     } else if (path !== "/mapa") {
       // Resetear el flag cuando salimos del mapa
       hasCollapsedForMap.current = false;
     }
-  }, [location.pathname, currentView, setSidebarExpanded]);
+  }, [location.pathname, currentView]);
 
   useEffect(() => {
     const state = location.state as {
@@ -401,7 +403,12 @@ const Dashboard: React.FC = () => {
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`absolute top-4 left-4 z-20 bg-primary-50 dark:bg-veltrix-card border-2 border-primary-300 dark:border-veltrix-border rounded-xl p-4 flex items-center justify-between shadow-lg ${selectedPolygonData ? 'right-[416px]' : 'right-4'}`}
+                className={`absolute top-4 z-20 bg-primary-50 dark:bg-veltrix-card border-2 border-primary-300 dark:border-veltrix-border rounded-xl p-4 flex items-center justify-between shadow-lg transition-all duration-300
+                  ${
+                    isSidebarExpanded
+                      ? "left-[340px] right-[420px]"
+                      : "left-4 right-[420px]"
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-primary-100 dark:bg-veltrix-bg rounded-lg">
@@ -462,6 +469,8 @@ const Dashboard: React.FC = () => {
                     selectedGroup={selectedGroup}
                     onPolygonChange={handlePolygonChange}
                     onGroupChange={handleGroupChange}
+                    expanded={isSidebarExpanded}
+                    onExpandedChange={setIsSidebarExpanded}
                   />
                 </div>
               </div>
@@ -570,7 +579,11 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div
+      className="flex h-screen w-full bg-gray-50 dark:bg-[#121212] overflow-hidden"
+      onClickCapture={() => initializeAudio()}
+      onPointerDownCapture={() => initializeAudio()}
+    >
       {/* Sidebar de Navegación Global - Siempre visible */}
       <AppSidebar />
 

@@ -346,6 +346,10 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
       return;
     }
 
+    console.log(
+      `🎨 Loading icon ${iconId} (Type: ${type}, Subtype: ${subtype})`,
+    );
+
     const img = new Image(64, 64);
     img.width = 64;
     img.height = 64;

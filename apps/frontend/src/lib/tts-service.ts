@@ -1,6 +1,11 @@
 /**
  * Servicio de TTS profesional para sala de control
  * Usa Edge TTS (voces neuronales de Microsoft) via backend - 100% GRATUITO
+ *
+ * AUTOPLAY POLICY: Los navegadores modernos bloquean play() si el usuario
+ * no ha interactuado con la pagina. Este servicio implementa un sistema de
+ * desbloqueo automatico: los mensajes se encolan hasta que el usuario
+ * hace click/tecla, y entonces se reproducen todos los pendientes.
  */
 
 import { API_CONFIG } from "../config/constants";
@@ -33,6 +38,112 @@ let currentConfig: TTSConfig = { ...DEFAULT_CONFIG };
 let audioQueue: string[] = [];
 let isPlaying = false;
 let currentAudio: HTMLAudioElement | null = null;
+let audioInitialized = false;
+
+/**
+ * Inicializar contexto de audio (desbloquear Autoplay)
+ * Debe llamarse desde una interacción de usuario (click/tap)
+ */
+export const initializeAudio = async () => {
+  if (audioInitialized) return;
+
+  try {
+    // Crear y reanudar AudioContext (necesario para navegadores modernos)
+    const AudioContext =
+      window.AudioContext || (window as any).webkitAudioContext;
+    if (AudioContext) {
+      const ctx = new AudioContext();
+      await ctx.resume();
+
+      // Reproducir oscilador silencioso
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      gainNode.gain.value = 0; // Silencio
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      oscillator.start(0);
+      oscillator.stop(0.1);
+
+      console.log("🔊 AudioContext inicializado y desbloqueado");
+    }
+
+    // Método fallback para HTML5 Audio
+    const silentAudio = new Audio(
+      "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA",
+    );
+    await silentAudio.play().catch(() => {}); // Ignorar error si falla
+
+    audioInitialized = true;
+    console.log("🔊 Sistema de audio desbloqueado por interacción de usuario");
+  } catch (e) {
+    console.warn("⚠️ No se pudo inicializar el audio:", e);
+  }
+};
+
+// ============================================================
+// SISTEMA DE DESBLOQUEO DE AUDIO (Autoplay Policy)
+// ============================================================
+let _audioUnlocked = false;
+
+/**
+ * Verifica si el audio esta desbloqueado (hubo interaccion del usuario).
+ */
+export const isAudioUnlocked = (): boolean => _audioUnlocked;
+
+/**
+ * Fuerza el desbloqueo manual (util para botones "Activar audio").
+ */
+export const forceUnlockAudio = (): void => {
+  if (_audioUnlocked) return;
+  _audioUnlocked = true;
+  console.log("🔓 TTS: Audio desbloqueado manualmente");
+  _drainQueueAfterUnlock();
+};
+
+/**
+ * Handler de interaccion del usuario. Se ejecuta UNA vez al primer
+ * click, keydown o touchstart en el documento.
+ */
+const _handleUserInteraction = (): void => {
+  if (_audioUnlocked) return;
+  _audioUnlocked = true;
+
+  // Remover listeners ya que solo necesitamos la primera interaccion
+  document.removeEventListener("click", _handleUserInteraction, true);
+  document.removeEventListener("keydown", _handleUserInteraction, true);
+  document.removeEventListener("touchstart", _handleUserInteraction, true);
+
+  console.log("🔓 TTS: Audio desbloqueado por interaccion del usuario");
+  _drainQueueAfterUnlock();
+};
+
+/**
+ * Despues del desbloqueo, procesar mensajes encolados.
+ */
+const _drainQueueAfterUnlock = (): void => {
+  if (audioQueue.length > 0) {
+    console.log(
+      `🔊 TTS: Procesando ${audioQueue.length} mensaje(s) encolado(s) tras desbloqueo`,
+    );
+    processQueue();
+  }
+};
+
+// Registrar listeners de interaccion al cargar el modulo
+if (typeof window !== "undefined") {
+  document.addEventListener("click", _handleUserInteraction, {
+    capture: true,
+    once: false,
+  });
+  document.addEventListener("keydown", _handleUserInteraction, {
+    capture: true,
+    once: false,
+  });
+  document.addEventListener("touchstart", _handleUserInteraction, {
+    capture: true,
+    once: false,
+  });
+}
 
 /**
  * Configurar la voz y parámetros de TTS
@@ -212,15 +323,19 @@ const playWebSpeechFallback = (text: string): Promise<void> => {
 };
 
 /**
- * Procesar cola de mensajes (evita solapamiento)
+ * Procesar cola de mensajes (evita solapamiento).
+ * Si el audio aun no esta desbloqueado, los mensajes permanecen en cola
+ * y se procesaran automaticamente al primer click/tecla del usuario.
  */
 const processQueue = async () => {
-  if (isPlaying) {
-    console.log("🔊 TTS: Ya reproduciendo, esperando...");
-    return;
-  }
-  if (audioQueue.length === 0) {
-    console.log("🔊 TTS: Cola vacía");
+  if (isPlaying) return;
+  if (audioQueue.length === 0) return;
+
+  // === GUARD: No intentar reproducir si el audio esta bloqueado ===
+  if (!_audioUnlocked) {
+    console.log(
+      `🔒 TTS: Audio bloqueado (${audioQueue.length} mensaje(s) en cola). Esperando interaccion del usuario...`,
+    );
     return;
   }
 
@@ -229,7 +344,6 @@ const processQueue = async () => {
   console.log(`🔊 TTS: Procesando mensaje: "${text.substring(0, 50)}..."`);
 
   try {
-    console.log("🔊 TTS: Intentando backend TTS...");
     await playBackendTTS(text);
     console.log("✅ TTS: Audio reproducido exitosamente");
   } catch (error) {
@@ -243,24 +357,33 @@ const processQueue = async () => {
   }
 
   isPlaying = false;
-  processQueue();
+  // Continuar con el siguiente en cola
+  if (audioQueue.length > 0) {
+    processQueue();
+  }
 };
 
 /**
- * Función principal: Reproducir notificación con voz
+ * Función principal: Reproducir notificación con voz.
+ * Si el audio esta bloqueado, el mensaje se encola y se reproducira
+ * automaticamente cuando el usuario interactue con la pagina.
  */
 export const speakNotification = async (
   title: string,
   message: string,
 ): Promise<void> => {
   const text = buildNaturalMessage(title, message);
-  console.log(`🔊 TTS speakNotification llamado: "${text}"`);
-  console.log(
-    `🔊 Cola actual: ${audioQueue.length} mensajes, isPlaying: ${isPlaying}`,
-  );
 
   // Agregar a la cola
   audioQueue.push(text);
+
+  if (!_audioUnlocked) {
+    console.log(
+      `🔒 TTS: Mensaje encolado (${audioQueue.length} pendientes). Click en la pagina para activar audio.`,
+    );
+    return;
+  }
+
   processQueue();
 };
 
