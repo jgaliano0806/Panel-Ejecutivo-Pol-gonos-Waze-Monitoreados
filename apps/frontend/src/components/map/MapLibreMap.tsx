@@ -34,7 +34,9 @@ import {
   Gauge,
   Timer,
   Route,
+  FileText,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 // Configuración inicial
 const INITIAL_VIEW_STATE = {
@@ -114,6 +116,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   showWazeIncidents = true,
 }) => {
   const mapRef = useRef<MapRef>(null);
+  const navigate = useNavigate();
   const isDark = useThemeStore((state) => state.isDark);
   const [selectedIncident, setSelectedIncident] = useState<any>(null);
   const [selectedJam, setSelectedJam] = useState<any>(null);
@@ -1508,21 +1511,33 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
               </div>
 
               {/* Footer Status */}
-              <div className="px-4 py-3 bg-gray-50 dark:bg-zinc-900 border-t border-gray-100 dark:border-veltrix-border flex items-center justify-between text-xs">
-                <div className="flex items-center gap-4">
+              <div className="px-4 py-3 bg-gray-50 dark:bg-zinc-900 border-t border-gray-100 dark:border-veltrix-border space-y-3">
+                <div className="flex items-center justify-between text-xs">
                   <span className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
                     <span className="w-3.5 h-3.5 flex items-center justify-center">
                       👍
                     </span>
                     {selectedIncident.properties.nThumbsUp} valoraciones
                   </span>
+                  <div className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-veltrix-bg rounded-full shadow-sm border border-gray-100 dark:border-veltrix-border">
+                    <ShieldCheck className="h-3 w-3 text-gray-400" />
+                    <span className="font-medium">
+                      Confianza: {selectedIncident.properties.confidence}/10
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-veltrix-bg rounded-full shadow-sm border border-gray-100 dark:border-veltrix-border">
-                  <ShieldCheck className="h-3 w-3 text-gray-400" />
-                  <span className="font-medium">
-                    Confianza: {selectedIncident.properties.confidence}/10
-                  </span>
-                </div>
+                <button
+                  onClick={() => {
+                    setSelectedIncident(null);
+                    navigate(
+                      `/incidentes?incidentId=${selectedIncident.properties.id}`,
+                    );
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition-colors"
+                >
+                  <FileText className="w-4 h-4" />
+                  Ver detalle completo
+                </button>
               </div>
             </div>
           </Popup>

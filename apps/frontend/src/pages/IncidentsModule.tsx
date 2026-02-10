@@ -1,6 +1,10 @@
-import React, { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { useIncidentsModule, Incident } from "@/hooks/useIncidentsModule";
+import React, { useState, useCallback, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  useIncidentsModule,
+  useIncidentDetail,
+  Incident,
+} from "@/hooks/useIncidentsModule";
 import { IncidentFilters } from "@/components/incidents/IncidentFilters";
 import { IncidentsTable } from "@/components/incidents/IncidentsTable";
 import { IncidentDetailModal } from "@/components/incidents/IncidentDetailModal";
@@ -16,6 +20,9 @@ import {
 
 export const IncidentsModule: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const incidentIdFromUrl = searchParams.get("incidentId");
+
   const {
     incidents,
     pagination,
@@ -31,10 +38,25 @@ export const IncidentsModule: React.FC = () => {
     refresh,
   } = useIncidentsModule();
 
+  const { data: incidentFromUrl } = useIncidentDetail(incidentIdFromUrl);
+
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(
     null,
   );
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
+  // Abrir modal cuando se navega desde el mapa con ?incidentId=uuid
+  useEffect(() => {
+    if (incidentIdFromUrl && incidentFromUrl) {
+      setSelectedIncident(incidentFromUrl);
+      setIsDetailModalOpen(true);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("incidentId");
+        return next;
+      });
+    }
+  }, [incidentIdFromUrl, incidentFromUrl, setSearchParams]);
 
   // Ver detalle
   const handleViewDetail = useCallback((incident: Incident) => {
