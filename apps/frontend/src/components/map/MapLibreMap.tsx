@@ -361,6 +361,14 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     "waze-road_closed-road_closed_event",
   ];
 
+  const INTERACTIVE_LAYER_IDS = [
+    "incidents-icon",
+    "incidents-base",
+    "jams-core",
+    "jam-labels-bg",
+    "polygons-fill",
+  ];
+
   const onMapLoad = (e: any) => {
     const map = e.target;
     COMMON_ICONS.forEach((id) => loadWazeIcon(map, id));
@@ -369,6 +377,70 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
       if (id && id.startsWith("waze-")) loadWazeIcon(map, id);
     });
   };
+
+  // Registrar listeners de clic cuando las capas interactivas existan
+  useEffect(() => {
+    if (!mapLoaded || !showWazeIncidents) return;
+    const ref = mapRef.current;
+    const map = ref?.getMap?.() as maplibregl.Map | undefined;
+    if (!map) return;
+
+    const layers = INTERACTIVE_LAYER_IDS.filter((id) => {
+      try { return !!map.getLayer(id); } catch { return false; }
+    });
+    if (layers.length === 0) return;
+
+    // Deshabilitar drag sobre features: prioriza clic en lugar de arrastrar
+    const onEnter = () => {
+      map.getCanvas().style.cursor = "pointer";
+      map.dragPan.disable();
+    };
+    const onLeave = () => {
+      map.getCanvas().style.cursor = "grab";
+      map.dragPan.enable();
+    };
+    map.on("mouseenter", layers, onEnter);
+    map.on("mouseleave", layers, onLeave);
+
+    const handleLayerClick = (ev: any) => {
+      const features = ev.features;
+      if (!features || features.length === 0) return;
+      const incidentF = features.find(
+        (f: any) =>
+          f.layer?.id === "incidents-icon" || f.layer?.id === "incidents-base"
+      );
+      const jamF = features.find(
+        (f: any) =>
+          f.layer?.id === "jams-core" || f.layer?.id === "jam-labels-bg"
+      );
+      const polyF = features.find((f: any) => f.layer?.id === "polygons-fill");
+      if (incidentF) {
+        const { geometry, properties } = incidentF;
+        const [lng, lat] = geometry?.coordinates ?? [ev.lngLat.lng, ev.lngLat.lat];
+        setSelectedJam(null);
+        setSelectedIncident({ lng, lat, properties });
+        map.flyTo({ center: [lng, lat], zoom: 15, duration: 800 });
+      } else if (jamF) {
+        const { properties } = jamF;
+        const lng = properties.midLng ?? ev.lngLat.lng;
+        const lat = properties.midLat ?? ev.lngLat.lat;
+        setSelectedIncident(null);
+        setSelectedJam({ lng, lat, properties });
+        map.flyTo({ center: [lng, lat], zoom: 15, duration: 800 });
+      } else if (polyF && onPolygonClick) {
+        onPolygonClick(polyF.properties.id);
+        setSelectedIncident(null);
+        setSelectedJam(null);
+      }
+    };
+    map.on("click", layers, handleLayerClick);
+
+    return () => {
+      map.off("mouseenter", layers, onEnter);
+      map.off("mouseleave", layers, onLeave);
+      map.off("click", layers, handleLayerClick);
+    };
+  }, [mapLoaded, showWazeIncidents, onPolygonClick]);
 
   // Animación línea verde fluida: ciclar line-dasharray
   useEffect(() => {
@@ -776,52 +848,6 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   // de MapLibre cuando las geometrías tenían coordenadas nulas o inválidas.
   // La capa jams-animated usa un dasharray estático que es más estable.
 
-  const handleClick = (event: any) => {
-    const features = event.features ?? [];
-    if (features.length === 0) return;
-
-    // Priorizar incidentes y jams sobre polígonos (los polígonos cubren toda el área)
-    const incidentFeature = features.find(
-      (f: any) =>
-        f.layer?.id === "incidents-icon" || f.layer?.id === "incidents-base"
-    );
-    const jamFeature = features.find(
-      (f: any) =>
-        f.layer?.id === "jams-core" || f.layer?.id === "jam-labels-bg"
-    );
-    const polygonFeature = features.find(
-      (f: any) => f.layer?.id === "polygons-fill"
-    );
-
-    // Click en Incidente Waze (prioridad 1)
-    if (incidentFeature) {
-      const { geometry, properties } = incidentFeature;
-      const [lng, lat] = geometry.coordinates;
-      setSelectedJam(null);
-      setSelectedIncident({ lng, lat, properties });
-      mapRef.current?.flyTo({ center: [lng, lat], zoom: 15, duration: 800 });
-      return;
-    }
-
-    // Click en Atasco/Jam (prioridad 2)
-    if (jamFeature) {
-      const { properties } = jamFeature;
-      const lng = properties.midLng || event.lngLat.lng;
-      const lat = properties.midLat || event.lngLat.lat;
-      setSelectedIncident(null);
-      setSelectedJam({ lng, lat, properties });
-      mapRef.current?.flyTo({ center: [lng, lat], zoom: 15, duration: 800 });
-      return;
-    }
-
-    // Click en Polígono (prioridad 3)
-    if (polygonFeature && onPolygonClick) {
-      onPolygonClick(polygonFeature.properties.id);
-      setSelectedIncident(null);
-      setSelectedJam(null);
-    }
-  };
-
   // STYLE DINÁMICO
   const mapStyleUrl = isDark
     ? "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
@@ -838,7 +864,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         style={{ width: "100%", height: "100%", minHeight: "500px" }}
         mapStyle={mapStyleUrl}
         attributionControl={false}
-        onClick={handleClick}
+        clickTolerance={12}
         onLoad={(e: any) => {
           startTransition(() => {
             setMapLoaded(true);
@@ -1274,6 +1300,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             closeButton={false}
             className="jam-popup"
             maxWidth="320px"
+            style={{ zIndex: 99999 }}
           >
             <div
               className={`rounded-xl shadow-2xl overflow-hidden min-w-[280px] ${
@@ -1437,6 +1464,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             closeButton={false}
             className="incident-popup"
             maxWidth="350px"
+            style={{ zIndex: 99999 }}
           >
             <div
               className={`rounded-xl shadow-2xl overflow-hidden min-w-[320px] ${

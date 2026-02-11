@@ -403,12 +403,12 @@ const Dashboard: React.FC = () => {
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`absolute top-4 z-20 bg-primary-50 dark:bg-veltrix-card border-2 border-primary-300 dark:border-veltrix-border rounded-xl p-4 flex items-center justify-between shadow-lg transition-all duration-300
+                className={`absolute top-4 z-20 bg-primary-50 dark:bg-veltrix-card border-2 border-primary-300 dark:border-veltrix-border rounded-xl p-4 flex items-center justify-between shadow-lg transition-all duration-300 pointer-events-none
                   ${
                     isSidebarExpanded
                       ? "left-[340px] right-[420px]"
                       : "left-4 right-[420px]"
-                  }`}
+                  } [&>*]:pointer-events-auto`}
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-primary-100 dark:bg-veltrix-bg rounded-lg">

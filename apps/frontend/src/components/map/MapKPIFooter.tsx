@@ -81,7 +81,7 @@ export const MapKPIFooter: React.FC<MapKPIFooterProps> = ({
       <motion.div
         initial={{ y: 50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 p-3 pointer-events-auto flex items-center justify-center gap-6 md:gap-10 overflow-x-auto"
+        className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 p-3 pointer-events-none flex items-center justify-center gap-6 md:gap-10 overflow-x-auto [&>button]:pointer-events-auto"
       >
         {metrics.map((metric) => {
           const Icon = metric.icon;
