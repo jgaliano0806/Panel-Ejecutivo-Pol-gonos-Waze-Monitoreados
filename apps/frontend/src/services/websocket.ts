@@ -130,46 +130,22 @@ const buildTTSMessage = (notification: Notification): string => {
   const street = notification.data?.street || "";
   const city = notification.data?.city || "";
   const type = notification.type || notification.data?.incidentType || "";
-  const location = notification.data?.location;
 
-  // Verificar si la calle tiene numeración de dirección (número al final o "al X")
-  // No contar números de ruta (RN 36, RP 5, etc.) como numeración de calle
-  const streetWithoutRouteNumbers = street
-    .replace(/\b(RN|RP|AU|Ruta|A)\s*\d+/gi, "") // Remover números de ruta
-    .replace(/\bKM\s*\d+/gi, ""); // Remover kilómetros existentes
-  const hasStreetNumber = /\d+/.test(streetWithoutRouteNumbers);
-
-  // Construir ubicación
+  // Construir ubicación (sin incluir altura/kilómetro del incidente)
   let ubicacion = "";
   if (street) {
-    // Limpiar y formatear nombre de calle
+    // Limpiar y formatear nombre de calle, removiendo KM/altura
     ubicacion = street
       .replace(/\bRN\s*/gi, "Ruta Nacional ")
       .replace(/\bRP\s*/gi, "Ruta Provincial ")
       .replace(/\bAU\s*/gi, "Autopista ")
       .replace(/\bAv\.?\s*/gi, "Avenida ")
-      .replace(/\bKM\s*(\d+)/gi, "kilómetro $1")
-      .replace(/\//g, ", ");
-
-    // Si no tiene numeración y tenemos coordenadas, estimar kilómetro basado en latitud
-    console.log("📍 Debug ubicación:", {
-      street,
-      streetWithoutRouteNumbers,
-      hasStreetNumber,
-      hasLocation: !!location,
-      locationY: location?.y,
-    });
-
-    if (!hasStreetNumber && location && location.y) {
-      const lat = location.y;
-      // Usar decimales de latitud como referencia aproximada de kilómetro
-      // Esto es una aproximación: cada 0.009 grados ≈ 1 km
-      const kmEstimate = Math.abs((lat % 1) * 111).toFixed(0);
-      console.log("📍 Km estimado:", kmEstimate);
-      if (kmEstimate && parseInt(kmEstimate) > 0) {
-        ubicacion += `, aproximadamente kilómetro ${kmEstimate}`;
-      }
-    }
+      .replace(/\bKM\s*\d+/gi, "") // Remover kilómetros
+      .replace(/\baltura\s*\d*/gi, "") // Remover altura
+      .replace(/\//g, ", ")
+      .replace(/\s*,\s*,/g, ",")
+      .replace(/^\s*,\s*|\s*,\s*$/g, "")
+      .trim();
   } else if (city) {
     ubicacion = city;
   }
