@@ -116,6 +116,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   showWazeIncidents = true,
 }) => {
   const mapRef = useRef<MapRef>(null);
+  const incidentMarkersRef = useRef(new window.Map<string, maplibregl.Marker>());
   const navigate = useNavigate();
   const isDark = useThemeStore((state) => state.isDark);
   const [selectedIncident, setSelectedIncident] = useState<any>(null);
@@ -362,8 +363,6 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   ];
 
   const INTERACTIVE_LAYER_IDS = [
-    "incidents-icon",
-    "incidents-base",
     "jams-core",
     "jam-labels-bg",
     "polygons-fill",
@@ -371,6 +370,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
 
   const onMapLoad = (e: any) => {
     const map = e.target;
+    map.dragRotate.disable();
     COMMON_ICONS.forEach((id) => loadWazeIcon(map, id));
     map.on("styleimagemissing", (ev: any) => {
       const id = ev?.id;
@@ -378,67 +378,87 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     });
   };
 
-  // Registrar listeners de clic cuando las capas interactivas existan
+  // Click e interaccion via canvas mousedown/mouseup (no depende de dragPan ni de react-map-gl onClick)
   useEffect(() => {
-    if (!mapLoaded || !showWazeIncidents) return;
-    const ref = mapRef.current;
-    const map = ref?.getMap?.() as maplibregl.Map | undefined;
+    if (!mapLoaded) return;
+    const map = mapRef.current?.getMap?.() as maplibregl.Map | undefined;
     if (!map) return;
+    const canvas = map.getCanvas();
 
-    const layers = INTERACTIVE_LAYER_IDS.filter((id) => {
-      try { return !!map.getLayer(id); } catch { return false; }
-    });
-    if (layers.length === 0) return;
-
-    // Deshabilitar drag sobre features: prioriza clic en lugar de arrastrar
-    const onEnter = () => {
-      map.getCanvas().style.cursor = "pointer";
-      map.dragPan.disable();
+    // Helper: query interactivas con try-catch
+    const safeQuery = (px: [number, number], box = false) => {
+      try {
+        const layers = INTERACTIVE_LAYER_IDS.filter((id) => {
+          try { return !!map.getLayer(id); } catch { return false; }
+        });
+        if (!layers.length) return [];
+        if (box) {
+          const h = 18;
+          return map.queryRenderedFeatures(
+            [[px[0] - h, px[1] - h], [px[0] + h, px[1] + h]] as [[number, number], [number, number]],
+            { layers },
+          );
+        }
+        return map.queryRenderedFeatures(px, { layers });
+      } catch { return []; }
     };
-    const onLeave = () => {
-      map.getCanvas().style.cursor = "grab";
-      map.dragPan.enable();
-    };
-    map.on("mouseenter", layers, onEnter);
-    map.on("mouseleave", layers, onLeave);
 
-    const handleLayerClick = (ev: any) => {
-      const features = ev.features;
-      if (!features || features.length === 0) return;
-      const incidentF = features.find(
-        (f: any) =>
-          f.layer?.id === "incidents-icon" || f.layer?.id === "incidents-base"
-      );
+    // --- Cursor pointer ---
+    const onMouseMove = (ev: maplibregl.MapMouseEvent) => {
+      const hits = safeQuery([ev.point.x, ev.point.y]);
+      canvas.style.cursor = hits.length > 0 ? "pointer" : "";
+    };
+    map.on("mousemove", onMouseMove);
+
+    // --- Click via mousedown/mouseup en canvas (evita que dragPan se lo trague) ---
+    let downPx: { x: number; y: number } | null = null;
+    let downTime = 0;
+    const onDown = (e: MouseEvent) => {
+      if (e.button !== 0) return; // solo boton izquierdo
+      downPx = { x: e.offsetX, y: e.offsetY };
+      downTime = Date.now();
+    };
+    const onUp = (e: MouseEvent) => {
+      if (e.button !== 0 || !downPx) return;
+      const dx = e.offsetX - downPx.x;
+      const dy = e.offsetY - downPx.y;
+      const dt = Date.now() - downTime;
+      downPx = null;
+      // Solo contar como click si movimiento < 24px y tiempo < 500ms
+      if (Math.sqrt(dx * dx + dy * dy) > 24 || dt > 500) return;
+
+      const px: [number, number] = [e.offsetX, e.offsetY];
+      const features = safeQuery(px, true);
+      if (!features.length) return;
+
       const jamF = features.find(
-        (f: any) =>
-          f.layer?.id === "jams-core" || f.layer?.id === "jam-labels-bg"
+        (f: any) => f.layer?.id === "jams-core" || f.layer?.id === "jam-labels-bg",
       );
       const polyF = features.find((f: any) => f.layer?.id === "polygons-fill");
-      if (incidentF) {
-        const { geometry, properties } = incidentF;
-        const [lng, lat] = geometry?.coordinates ?? [ev.lngLat.lng, ev.lngLat.lat];
-        setSelectedJam(null);
-        setSelectedIncident({ lng, lat, properties });
-        map.flyTo({ center: [lng, lat], zoom: 15, duration: 800 });
-      } else if (jamF) {
-        const { properties } = jamF;
-        const lng = properties.midLng ?? ev.lngLat.lng;
-        const lat = properties.midLat ?? ev.lngLat.lat;
+
+      if (jamF) {
+        const p = jamF.properties as any;
+        const lngLat = (p.midLng != null && p.midLat != null)
+          ? { lng: p.midLng, lat: p.midLat }
+          : map.unproject([e.offsetX, e.offsetY]);
         setSelectedIncident(null);
-        setSelectedJam({ lng, lat, properties });
-        map.flyTo({ center: [lng, lat], zoom: 15, duration: 800 });
+        setSelectedJam({ lng: lngLat.lng, lat: lngLat.lat, properties: p });
+        map.flyTo({ center: [lngLat.lng, lngLat.lat], zoom: 15, duration: 800 });
       } else if (polyF && onPolygonClick) {
         onPolygonClick(polyF.properties.id);
         setSelectedIncident(null);
         setSelectedJam(null);
       }
     };
-    map.on("click", layers, handleLayerClick);
+
+    canvas.addEventListener("mousedown", onDown);
+    canvas.addEventListener("mouseup", onUp);
 
     return () => {
-      map.off("mouseenter", layers, onEnter);
-      map.off("mouseleave", layers, onLeave);
-      map.off("click", layers, handleLayerClick);
+      map.off("mousemove", onMouseMove);
+      canvas.removeEventListener("mousedown", onDown);
+      canvas.removeEventListener("mouseup", onUp);
+      canvas.style.cursor = "";
     };
   }, [mapLoaded, showWazeIncidents, onPolygonClick]);
 
@@ -473,6 +493,101 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
       if (intervalId) clearInterval(intervalId);
     };
   }, [mapLoaded, showTraffic, showFlowLayer]);
+
+  // Renderizar incidentes como Markers HTML con reconciliacion (no destruye markers existentes)
+  useEffect(() => {
+    const markersMap = incidentMarkersRef.current;
+
+    if (!mapLoaded || !showWazeIncidents) {
+      markersMap.forEach((m) => m.remove());
+      markersMap.clear();
+      return;
+    }
+    const map = mapRef.current?.getMap?.() as maplibregl.Map | undefined;
+    if (!map) return;
+
+    // IDs actuales
+    const currentIds = new Set(incidents.map((i) => i.id));
+
+    // Quitar markers que ya no existen
+    markersMap.forEach((m, id) => {
+      if (!currentIds.has(id)) {
+        m.remove();
+        markersMap.delete(id);
+      }
+    });
+
+    // Agregar solo markers nuevos
+    incidents.forEach((inc) => {
+      if (markersMap.has(inc.id)) return; // ya existe, no recrear
+
+      const iconUrl = getWazePartnerHubIconUrl(inc.type, inc.subtype);
+      const svgContent = getWazeIconSvg(inc.type, inc.subtype);
+      const encodedSvg = encodeURIComponent(svgContent);
+      const dataUri = `data:image/svg+xml;utf8,${encodedSvg}`;
+      const src = iconUrl || dataUri;
+
+      const el = document.createElement("div");
+      el.style.width = "36px";
+      el.style.height = "36px";
+      el.style.cursor = "pointer";
+      el.innerHTML = `
+        <div style="
+          width:36px;height:36px;
+          border-radius:50%;
+          background:${isDark ? "#fff" : "#222"};
+          border:2px solid ${isDark ? "#222" : "#fff"};
+          display:flex;align-items:center;justify-content:center;
+          box-shadow:0 2px 8px rgba(0,0,0,0.4);
+          transition:transform 0.15s;
+        ">
+          <img src="${src}" alt="${inc.type}"
+            style="width:24px;height:24px;object-fit:contain;pointer-events:none;"
+            onerror="this.onerror=null;this.src='${dataUri}';"
+          />
+        </div>
+      `;
+
+      // Hover effect en el hijo interno
+      const inner = el.firstElementChild as HTMLElement;
+      inner.addEventListener("mouseenter", () => { inner.style.transform = "scale(1.25)"; });
+      inner.addEventListener("mouseleave", () => { inner.style.transform = ""; });
+
+      // Click nativo
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const timeMs = inc.timestamp instanceof Date
+          ? inc.timestamp.getTime()
+          : new Date(inc.timestamp).getTime();
+        setSelectedJam(null);
+        setSelectedIncident({
+          lng: inc.location.lng,
+          lat: inc.location.lat,
+          properties: {
+            id: inc.id,
+            isNew: Date.now() - timeMs < 300000 ? 1 : 0,
+            description: inc.description || "Sin descripción",
+            street: inc.street || `${inc.location.lat.toFixed(5)}, ${inc.location.lng.toFixed(5)}`,
+            type: inc.type,
+            subtype: inc.subtype || "",
+            timestamp: inc.timestamp ? new Date(inc.timestamp).toISOString() : "",
+            reportBy: inc.reportBy,
+            reportRating: inc.reportRating,
+            reliability: inc.reliability,
+            confidence: inc.confidence,
+            magvar: (inc as any).magvar,
+          },
+        });
+        map.flyTo({ center: [inc.location.lng, inc.location.lat], zoom: 15, duration: 800 });
+      });
+
+      const marker = new maplibregl.Marker({ element: el, anchor: "center" })
+        .setLngLat([inc.location.lng, inc.location.lat])
+        .addTo(map);
+
+      markersMap.set(inc.id, marker);
+    });
+  }, [mapLoaded, showWazeIncidents, incidents, isDark]);
 
   // GeoJSON Memos (Polygons, Flow, Jams, Incidents)
   const polygonsGeoJSON = useMemo(
@@ -848,10 +963,24 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   // de MapLibre cuando las geometrías tenían coordenadas nulas o inválidas.
   // La capa jams-animated usa un dasharray estático que es más estable.
 
-  // STYLE DINÁMICO
-  const mapStyleUrl = isDark
-    ? "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
-    : "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
+  // Basemap raster evita "unknown feature value" en tiles vectoriales del basemap Carto
+  const mapStyle = useMemo(
+    (): maplibregl.StyleSpecification => ({
+      version: 8,
+      sources: {
+        basemap: {
+          type: "raster",
+          tiles: isDark
+            ? ["https://a.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png"]
+            : ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+          tileSize: 256,
+          attribution: isDark ? "© CARTO" : "© OpenStreetMap contributors",
+        },
+      },
+      layers: [{ id: "basemap", type: "raster", source: "basemap" }],
+    }),
+    [isDark],
+  );
 
   return (
     <div
@@ -862,22 +991,15 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         ref={mapRef}
         initialViewState={INITIAL_VIEW_STATE}
         style={{ width: "100%", height: "100%", minHeight: "500px" }}
-        mapStyle={mapStyleUrl}
+        mapStyle={mapStyle}
         attributionControl={false}
-        clickTolerance={12}
+        clickTolerance={20}
         onLoad={(e: any) => {
           startTransition(() => {
             setMapLoaded(true);
             onMapLoad(e);
           });
         }}
-        interactiveLayerIds={[
-          "polygons-fill",
-          "incidents-icon",
-          "incidents-base",
-          "jams-core",
-          "jam-labels-bg",
-        ]}
       >
         <NavigationControl position="top-right" showCompass showZoom />
 
@@ -1240,55 +1362,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
           </Source>
         )}
 
-        {/* Incidentes (Puntos) - Solo si el mapa cargó */}
-        {showWazeIncidents && mapLoaded && (
-          <Source
-            id="incidents-source"
-            type="geojson"
-            data={incidentsGeoJSON as any}
-          >
-            <Layer
-              id="incidents-base"
-              type="circle"
-              paint={{
-                "circle-radius": 14,
-                "circle-color": isDark ? "#ffffff" : "#222222",
-                "circle-opacity": 0.9,
-                "circle-stroke-width": 2,
-                "circle-stroke-color": isDark ? "#222222" : "#ffffff",
-              }}
-            />
-            <Layer
-              id="incidents-pulse"
-              type="circle"
-              paint={{
-                "circle-radius": 25,
-                "circle-color": isDark ? "#ffffff" : "#000000",
-                "circle-opacity": [
-                  "interpolate",
-                  ["linear"],
-                  ["get", "isNew"],
-                  0,
-                  0,
-                  1,
-                  0.3,
-                ],
-                "circle-blur": 0.8,
-              }}
-            />
-            <Layer
-              id="incidents-icon"
-              type="symbol"
-              layout={{
-                "icon-image": ["get", "iconId"],
-                "icon-size": 0.75,
-                "icon-allow-overlap": true,
-                "icon-ignore-placement": true,
-              }}
-              paint={{ "icon-opacity": 1 }}
-            />
-          </Source>
-        )}
+        {/* Incidentes se renderizan como Markers HTML (ver useEffect) */}
 
         {/* Popup de Atasco/Tráfico */}
         {selectedJam && (
