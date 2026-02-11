@@ -21,6 +21,7 @@ import {
   useRoadAccidents,
   useRoadAccident,
   useUploadAccidentMedia,
+  useCreateAccident,
 } from "../hooks/useRoadAccidents";
 import { MiniMapLibre } from "../components/map/MiniMapLibre";
 import { VirtualizedList } from "../components/ui/VirtualizedList";
@@ -42,6 +43,14 @@ export const RoadAccidentsPage: React.FC = () => {
   );
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploadFiles, setUploadFiles] = useState<FileList | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [newAccident, setNewAccident] = useState({
+    location_lat: "",
+    location_lng: "",
+    street: "",
+    polygon_id: "",
+    accident_at: new Date().toISOString().slice(0, 16),
+  });
   const [isBackfilling, setIsBackfilling] = useState(false);
   const [backfillProgress, setBackfillProgress] = useState(0);
   const [backfillStats, setBackfillStats] = useState<{
@@ -51,9 +60,14 @@ export const RoadAccidentsPage: React.FC = () => {
     failed: number;
   } | null>(null);
 
+  // Fechas: "to" debe ser fin de día (23:59:59) para incluir accidentes de esa noche
   const { data: accidents, isLoading: listLoading } = useRoadAccidents({
-    from: dateRange.from ? new Date(dateRange.from).toISOString() : undefined,
-    to: dateRange.to ? new Date(dateRange.to).toISOString() : undefined,
+    from: dateRange.from
+      ? new Date(`${dateRange.from}T00:00:00.000`).toISOString()
+      : undefined,
+    to: dateRange.to
+      ? new Date(`${dateRange.to}T23:59:59.999`).toISOString()
+      : undefined,
     limit: PAGE_SIZE,
     offset: page * PAGE_SIZE,
   });
@@ -79,6 +93,7 @@ export const RoadAccidentsPage: React.FC = () => {
     useRoadAccident(selectedAccidentId);
 
   const uploadMediaMutation = useUploadAccidentMedia();
+  const createAccidentMutation = useCreateAccident();
 
   const handleBackfillWeather = async () => {
     if (isBackfilling) return;
@@ -96,6 +111,7 @@ export const RoadAccidentsPage: React.FC = () => {
 
     try {
       const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
+      const baseUrl = API_URL.endsWith("/api") ? API_URL : `${API_URL}/api`;
 
       // Simular progreso mientras se procesa
       const progressInterval = setInterval(() => {
@@ -105,7 +121,7 @@ export const RoadAccidentsPage: React.FC = () => {
         });
       }, 500);
 
-      const response = await fetch(`${API_URL}/accidents/backfill-weather`, {
+      const response = await fetch(`${baseUrl}/accidents/backfill-weather`, {
         method: "POST",
       });
 
@@ -148,6 +164,43 @@ export const RoadAccidentsPage: React.FC = () => {
       setIsBackfilling(false);
       setBackfillProgress(0);
       setBackfillStats(null);
+    }
+  };
+
+  const handleCreateAccident = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const lat = parseFloat(newAccident.location_lat);
+    const lng = parseFloat(newAccident.location_lng);
+    if (isNaN(lat) || isNaN(lng)) {
+      alert("Ingrese coordenadas válidas (latitud y longitud)");
+      return;
+    }
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      alert("Coordenadas fuera de rango válido");
+      return;
+    }
+    try {
+      await createAccidentMutation.mutateAsync({
+        location_lat: lat,
+        location_lng: lng,
+        street: newAccident.street || undefined,
+        polygon_id: newAccident.polygon_id || undefined,
+        accident_at: newAccident.accident_at
+          ? new Date(newAccident.accident_at).toISOString()
+          : undefined,
+        type: "ACCIDENT",
+        severity: 3,
+      });
+      setIsCreateOpen(false);
+      setNewAccident({
+        location_lat: "",
+        location_lng: "",
+        street: "",
+        polygon_id: "",
+        accident_at: new Date().toISOString().slice(0, 16),
+      });
+    } catch (err: any) {
+      alert(err?.message || "Error al crear el siniestro");
     }
   };
 
@@ -207,6 +260,7 @@ export const RoadAccidentsPage: React.FC = () => {
                 <Cloud className="w-5 h-5" />
               </button>
               <button
+                onClick={() => setIsCreateOpen(true)}
                 className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
                 title="Agregar nuevo siniestro"
               >
@@ -641,6 +695,113 @@ export const RoadAccidentsPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Modal: Crear siniestro */}
+      {isCreateOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[10000] p-4">
+          <div className="bg-white dark:bg-veltrix-card rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-gray-100 dark:border-veltrix-border flex justify-between items-center bg-gray-50 dark:bg-veltrix-bg">
+              <h3 className="text-xl font-bold text-gray-800 dark:text-white">
+                Agregar nuevo siniestro
+              </h3>
+              <button
+                onClick={() => setIsCreateOpen(false)}
+                className="p-1 hover:bg-gray-200 dark:hover:bg-veltrix-card rounded-full transition-colors"
+                title="Cerrar"
+              >
+                <X className="w-6 h-6 text-gray-500 dark:text-gray-400" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateAccident} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-veltrix-muted mb-1">
+                  Latitud *
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  required
+                  value={newAccident.location_lat}
+                  onChange={(e) =>
+                    setNewAccident((p) => ({ ...p, location_lat: e.target.value }))
+                  }
+                  className="w-full p-2 border rounded dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white"
+                  placeholder="-31.42"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-veltrix-muted mb-1">
+                  Longitud *
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  required
+                  value={newAccident.location_lng}
+                  onChange={(e) =>
+                    setNewAccident((p) => ({ ...p, location_lng: e.target.value }))
+                  }
+                  className="w-full p-2 border rounded dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white"
+                  placeholder="-64.19"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-veltrix-muted mb-1">
+                  Calle (opcional)
+                </label>
+                <input
+                  type="text"
+                  value={newAccident.street}
+                  onChange={(e) =>
+                    setNewAccident((p) => ({ ...p, street: e.target.value }))
+                  }
+                  className="w-full p-2 border rounded dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white"
+                  placeholder="Ej: Av. Colón"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-veltrix-muted mb-1">
+                  Polígono (opcional)
+                </label>
+                <select
+                  value={newAccident.polygon_id}
+                  onChange={(e) =>
+                    setNewAccident((p) => ({ ...p, polygon_id: e.target.value }))
+                  }
+                  className="w-full p-2 border rounded dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white"
+                >
+                  <option value="">Ninguno</option>
+                  {realCordobaPolygons.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-veltrix-muted mb-1">
+                  Fecha y hora
+                </label>
+                <input
+                  type="datetime-local"
+                  value={newAccident.accident_at}
+                  onChange={(e) =>
+                    setNewAccident((p) => ({ ...p, accident_at: e.target.value }))
+                  }
+                  className="w-full p-2 border rounded dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={createAccidentMutation.isPending}
+                className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {createAccidentMutation.isPending ? "Creando…" : "Crear siniestro"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Modal: Upload */}
       {isUploadOpen && (

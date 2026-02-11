@@ -9,7 +9,7 @@ import { PolygonState } from '../../types';
 export const realCordobaPolygons: Polygon[] = [
     {
         id: 'P001',
-        name: 'A-019 -8',
+        name: 'A-019-8',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -204,7 +204,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P002',
-        name: 'A-019 -2',
+        name: 'A-019-2',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -407,7 +407,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P003',
-        name: 'RP E53 - 2',
+        name: 'RP E53-2',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -618,7 +618,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P004',
-        name: 'RP E55 - 2',
+        name: 'RP E55-2',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -793,7 +793,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P005',
-        name: 'RP E55 - 1',
+        name: 'RP E55-1',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -1151,7 +1151,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P007',
-        name: 'RP C45 - 2',
+        name: 'RP C45-2',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -1186,7 +1186,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P008',
-        name: 'RP C45 - 1',
+        name: 'RP C45-1',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -1237,7 +1237,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P009',
-        name: 'R36 T9 - 1',
+        name: 'R36 T9-1',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -1651,7 +1651,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P011',
-        name: 'R36 T3 - 1',
+        name: 'R36 T3-1',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -2204,7 +2204,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P014',
-        name: 'R.Alt38 - 3-1',
+        name: 'R.Alt38-3-1',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -2403,7 +2403,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P015',
-        name: 'R.Alt. 38 - 1',
+        name: 'R.Alt. 38-1',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -2594,7 +2594,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P016',
-        name: 'RP 5 - 2',
+        name: 'RP 5-2',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -2713,7 +2713,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P017',
-        name: 'RP 5 - 1',
+        name: 'RP 5-1',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -2848,7 +2848,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P018',
-        name: 'Vte. Anisacate RP 5 - 2',
+        name: 'Vte. Anisacate RP 5-2',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -3039,7 +3039,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P019',
-        name: 'Vte Anisacate RP 5 - 1',
+        name: 'Vte Anisacate RP 5-1',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -3210,7 +3210,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P020',
-        name: 'RP E55 - 5',
+        name: 'RP E55-5',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -3317,7 +3317,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P021',
-        name: 'RP E55 - 4',
+        name: 'RP E55-4',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -3440,7 +3440,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P022',
-        name: 'RP E55 - 3',
+        name: 'RP E55-3',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -4112,7 +4112,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P026',
-        name: 'R36 - Vte Espinillo',
+        name: 'R36-Vte Espinillo',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -4314,7 +4314,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P028',
-        name: 'RN 9 S - 2',
+        name: 'RN 9 S-2',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -4437,7 +4437,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P029',
-        name: 'RN 9 S - 1',
+        name: 'RN 9 S-1',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -5790,7 +5790,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P040',
-        name: 'R36 V. Elena - 2',
+        name: 'R36 V. Elena-2',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -6154,7 +6154,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P044',
-        name: 'R19 - Vte. Montecristo',
+        name: 'R19-Vte. Montecristo',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -6273,7 +6273,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P045',
-        name: 'R19 - Vte.Piquillin',
+        name: 'R19-Vte.Piquillin',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -6340,7 +6340,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P046',
-        name: 'R19 - Vte km 619',
+        name: 'R19-Vte km 619',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -6590,7 +6590,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P048',
-        name: 'R9N - Vte. Gral Paz',
+        name: 'R9N-Vte. Gral Paz',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -6657,7 +6657,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P049',
-        name: 'R.Alt. 38 - 2',
+        name: 'R.Alt. 38-2',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -6844,7 +6844,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P050',
-        name: 'RP E53 - 1',
+        name: 'RP E53-1',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -7027,7 +7027,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P051',
-        name: 'RN 9 N - 4',
+        name: 'RN 9 N-4',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -7122,7 +7122,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P052',
-        name: 'RN 9 N - 3',
+        name: 'RN 9 N-3',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -7329,7 +7329,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P053',
-        name: 'RN 9 N - 2',
+        name: 'RN 9 N-2',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -7392,7 +7392,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P054',
-        name: 'Avda P. Luchesse - 1',
+        name: 'Avda P. Luchesse-1',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -7742,7 +7742,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P056',
-        name: 'A - 019 - 7',
+        name: 'A-019-7',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -7953,7 +7953,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P057',
-        name: 'A-019 - 6',
+        name: 'A-019-6',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -8156,7 +8156,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P058',
-        name: 'A-019 - 5',
+        name: 'A-019-5',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -8426,7 +8426,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P060',
-        name: 'A-019 - 3',
+        name: 'A-019-3',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -8601,7 +8601,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P061',
-        name: 'Avda P. Luchesse - 2',
+        name: 'Avda P. Luchesse-2',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -8959,7 +8959,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P063',
-        name: 'A-019 - 4',
+        name: 'A-019-4',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -9150,7 +9150,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P064',
-        name: 'A-019 - 1',
+        name: 'A-019-1',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {
@@ -9408,7 +9408,7 @@ export const realCordobaPolygons: Polygon[] = [
     },
     {
         id: 'P066',
-        name: 'RN 9 N - 1',
+        name: 'RN 9 N-1',
         group: 'Sin Grupo', // Se actualizará desde el backend
         state: PolygonState.LOW,
         geometry: {

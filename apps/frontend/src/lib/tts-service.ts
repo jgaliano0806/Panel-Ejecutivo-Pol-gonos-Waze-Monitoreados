@@ -287,7 +287,8 @@ const playBackendTTS = async (text: string): Promise<void> => {
 };
 
 /**
- * Fallback a Web Speech API si el backend no está disponible
+ * Fallback a Web Speech API si el backend no está disponible.
+ * Solo usa voces es-AR (argentino). Nunca es-ES ni otras variantes.
  */
 const playWebSpeechFallback = (text: string): Promise<void> => {
   return new Promise((resolve, reject) => {
@@ -297,30 +298,51 @@ const playWebSpeechFallback = (text: string): Promise<void> => {
     }
 
     const utterance = new SpeechSynthesisUtterance(text);
-    const voices = window.speechSynthesis.getVoices();
+    let voices = window.speechSynthesis.getVoices();
 
-    // Buscar mejor voz disponible
-    const targetVoice =
-      voices.find((v) => v.lang === "es-AR") ||
-      voices.find((v) => v.lang === "es-MX") ||
-      voices.find((v) => v.lang.startsWith("es"));
-
-    if (targetVoice) {
-      utterance.voice = targetVoice;
-      utterance.lang = targetVoice.lang;
-    } else {
-      utterance.lang = "es-AR";
+    // En Chrome, getVoices() puede devolver [] hasta voiceschanged
+    if (voices.length === 0) {
+      const handler = () => {
+        window.speechSynthesis.onvoiceschanged = null;
+        _pickAndSpeak(window.speechSynthesis.getVoices(), utterance, resolve, reject);
+      };
+      window.speechSynthesis.onvoiceschanged = handler;
+      return;
     }
 
-    utterance.pitch = 0.95;
-    utterance.rate = 0.88;
-
-    utterance.onend = () => resolve();
-    utterance.onerror = (e) => reject(e);
-
-    window.speechSynthesis.speak(utterance);
+    _pickAndSpeak(voices, utterance, resolve, reject);
   });
 };
+
+function _pickAndSpeak(
+  voices: SpeechSynthesisVoice[],
+  utterance: SpeechSynthesisUtterance,
+  resolve: () => void,
+  reject: (e: any) => void,
+) {
+  const arVoices = voices.filter((v) => v.lang === "es-AR" || v.lang.startsWith("es-AR-"));
+
+  const targetVoice = arVoices[0];
+
+  if (!targetVoice) {
+    reject(
+      new Error(
+        "No hay voces es-AR (argentino) disponibles. Solo se usa español argentino.",
+      ),
+    );
+    return;
+  }
+
+  utterance.voice = targetVoice;
+  utterance.lang = "es-AR";
+  utterance.pitch = 0.95;
+  utterance.rate = 0.88;
+
+  utterance.onend = () => resolve();
+  utterance.onerror = (e) => reject(e);
+
+  window.speechSynthesis.speak(utterance);
+}
 
 /**
  * Procesar cola de mensajes (evita solapamiento).
@@ -467,12 +489,25 @@ export const getAvailableVoices = async (): Promise<
   }
 };
 
+// Voces válidas (solo argentinas y mexicanas - nunca es-ES)
+const VALID_VOICE_IDS = new Set(Object.values(EDGE_TTS_VOICES));
+
 // Cargar configuración de localStorage al iniciar
 if (typeof window !== "undefined") {
   const savedConfig = localStorage.getItem("tts_config");
   if (savedConfig) {
     try {
-      currentConfig = { ...DEFAULT_CONFIG, ...JSON.parse(savedConfig) };
+      const parsed = JSON.parse(savedConfig);
+      currentConfig = { ...DEFAULT_CONFIG, ...parsed };
+      // Forzar voz argentina si la guardada es es-ES o inválida
+      const voiceId = currentConfig.voice as (typeof EDGE_TTS_VOICES)[keyof typeof EDGE_TTS_VOICES];
+      if (
+        !VALID_VOICE_IDS.has(voiceId) ||
+        currentConfig.voice.includes("es-ES")
+      ) {
+        currentConfig.voice = EDGE_TTS_VOICES.ELENA_AR;
+        localStorage.setItem("tts_config", JSON.stringify(currentConfig));
+      }
     } catch (e) {
       console.error("Error cargando config TTS:", e);
     }

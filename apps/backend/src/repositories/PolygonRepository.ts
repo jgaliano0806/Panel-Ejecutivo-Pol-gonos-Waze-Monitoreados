@@ -11,7 +11,7 @@ export class PolygonRepository extends BaseRepository<RealPolygonConfig & { crea
     super(db);
   }
 
-  mapRowToEntity(row: any): RealPolygonConfig {
+  mapRowToEntity(row: any): RealPolygonConfig & { is_active?: boolean } {
     return {
       id: row.id,
       name: row.name,
@@ -19,7 +19,8 @@ export class PolygonRepository extends BaseRepository<RealPolygonConfig & { crea
       feedUrl: row.feed_url,
       tvtFeedUrl: row.tvt_feed_url,
       coordinates: row.coordinates,
-      geometry: row.geometry
+      geometry: row.geometry,
+      is_active: row.is_active ?? true,
     };
   }
 

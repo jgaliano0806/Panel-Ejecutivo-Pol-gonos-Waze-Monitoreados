@@ -163,11 +163,23 @@ export default async function polygonsRoutes(fastify: FastifyInstance) {
           is_active,
         } = request.body;
 
-        // Construir query dinámico o update full
+        const coordsJson =
+          coordinates != null
+            ? typeof coordinates === "string"
+              ? coordinates
+              : JSON.stringify(coordinates)
+            : null;
+        const geomJson =
+          geometry != null
+            ? typeof geometry === "string"
+              ? geometry
+              : JSON.stringify(geometry)
+            : null;
+
         const result = await dbService.query(
           `UPDATE config_polygons
          SET name = $2, "group" = $3, feed_url = $4, tvt_feed_url = $5,
-             coordinates = $6, geometry = $7, is_active = $8, updated_at = NOW()
+             coordinates = $6::jsonb, geometry = $7::jsonb, is_active = COALESCE($8, is_active, true), updated_at = NOW()
          WHERE id = $1
          RETURNING *`,
           [
@@ -176,8 +188,8 @@ export default async function polygonsRoutes(fastify: FastifyInstance) {
             group,
             feed_url,
             tvt_feed_url,
-            coordinates,
-            geometry,
+            coordsJson,
+            geomJson,
             is_active,
           ],
         );
@@ -204,8 +216,11 @@ export default async function polygonsRoutes(fastify: FastifyInstance) {
   fastify.delete<{ Params: { id: string } }>("/:id", async (request, reply) => {
     try {
       const { id } = request.params;
-      // Check dependencies?
-      // For simplicity, just try delete.
+      if (id === "UNKNOWN") {
+        return reply.code(403).send({
+          error: "No se puede eliminar el polígono de sistema UNKNOWN",
+        });
+      }
       const result = await dbService.query(
         "DELETE FROM config_polygons WHERE id = $1 RETURNING id",
         [id],

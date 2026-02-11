@@ -1,7 +1,6 @@
 import { eventBus, SystemEvents, WazePollCompletePayload } from "../events";
 import { roadAccidentService } from "../services/roadAccidentService";
 import { weatherService } from "../services/weatherService";
-import { IncidentType } from "../types";
 
 export class AccidentCaptureListener {
   constructor() {
@@ -20,140 +19,75 @@ export class AccidentCaptureListener {
     payload: WazePollCompletePayload
   ): Promise<void> {
     try {
-      const { alerts } = payload;
+      const { alerts, polygonId } = payload;
 
-      // Filtrar accidentes por tipo (case-insensitive)
-      const accidents = alerts.filter((a) => {
-        const typeLower = a.type?.toLowerCase();
-        return (
-          typeLower === "accident" ||
-          typeLower === IncidentType.ACCIDENT.toLowerCase()
-        );
-      });
+      const accidents = alerts.filter((a) => a.type?.toUpperCase() === "ACCIDENT");
+      if (accidents.length === 0) return;
 
-      // También buscar por subtipo que pueda indicar accidente
-      const accidentBySubtype = alerts.filter((a) => {
-        if (a.type?.toLowerCase() === "accident") return false; // Ya está en accidents
-        return (
-          a.subtype &&
-          (a.subtype.toUpperCase().includes("ACCIDENT") ||
-            a.subtype.toUpperCase().includes("SINIESTRO") ||
-            a.subtype.toUpperCase().includes("CRASH") ||
-            a.subtype.toUpperCase().includes("COLLISION"))
-        );
-      });
-
-      if (accidents.length === 0 && accidentBySubtype.length === 0) {
-        return;
-      }
-
-      const allAccidents = [...accidents, ...accidentBySubtype];
-      console.log(
-        `🔍 Detectados ${allAccidents.length} accidente(s) en el feed. Verificando...`
-      );
-
-      // Obtener siniestros ya registrados para no duplicar
-      let existingAccidents: any[] = [];
       let existingIds = new Set<string>();
-
       try {
-        existingAccidents = await roadAccidentService.getAccidents({
+        const existing = await roadAccidentService.getAccidents({
           limit: 1000,
         });
         existingIds = new Set(
-          existingAccidents
+          existing
             .map((a) => a.incident_id)
-            .filter((id) => id !== null && id !== undefined)
+            .filter((id): id is string => id != null)
         );
       } catch (dbError) {
         console.error("⚠️ Error al obtener accidentes existentes:", dbError);
-        // Continuar sin verificación
       }
 
-      for (const accident of allAccidents) {
-        // Verificar si ya existe
-        if (existingIds.size > 0 && existingIds.has(accident.id)) {
-          continue;
-        }
+      for (const accident of accidents) {
+        const alertId = accident.uuid || (accident as any).id;
+        if (!alertId) continue;
+        if (existingIds.has(alertId)) continue;
+
+        const lat = accident.location?.y ?? (accident.location as any)?.lat;
+        const lng = accident.location?.x ?? (accident.location as any)?.lng;
+        if (lat == null || lng == null) continue;
 
         try {
-          // Validar coordenadas
-          if (
-            !accident.location ||
-            accident.location.lat === undefined ||
-            accident.location.lng === undefined
-          ) {
-            continue;
-          }
-
-          // Obtener clima
-          let weatherData = null;
-
-          // Primero intentar desde el caché del polígono
-          if (accident.polygonId) {
-            try {
-              weatherData = await weatherService.getLatestWeather(
-                accident.polygonId
-              );
-            } catch (e) {
-              console.warn(
-                `⚠️ No se pudo obtener clima desde polígono ${accident.polygonId}`
-              );
+          let weatherData: Record<string, unknown> = {};
+          try {
+            const w = await weatherService.fetchWeatherForPolygon(
+              `accident_${alertId}`,
+              lat,
+              lng
+            );
+            if (w) {
+              weatherData = {
+                temperature_celsius: w.temperature_celsius,
+                precipitation_mm: w.precipitation_mm,
+                weather_code: w.weather_code,
+                wind_speed_kmh: w.wind_speed_kmh,
+                visibility_meters: w.visibility_meters,
+                humidity_percent: (w as any).humidity_percent,
+                weather_description: w.weather_description,
+                is_freezing_risk: w.is_freezing_risk,
+              };
             }
+          } catch (e) {
+            console.warn(`⚠️ Clima no disponible para accidente ${alertId}`);
           }
-
-          // Si no hay datos del polígono, obtener directamente de Open-Meteo
-          if (!weatherData || Object.keys(weatherData).length === 0) {
-            try {
-              console.log(
-                `🌤️ Obteniendo clima en tiempo real para accidente en (${accident.location.lat}, ${accident.location.lng})...`
-              );
-              // Usar un ID temporal para el fetch directo
-              const tempPolygonId = `accident_${accident.id}`;
-              weatherData = await weatherService.fetchWeatherForPolygon(
-                tempPolygonId,
-                accident.location.lat,
-                accident.location.lng
-              );
-
-              // Eliminar el polygon_id temporal para evitar confusión
-              if (weatherData) {
-                delete (weatherData as any).polygon_id;
-              }
-
-              console.log(`✅ Clima obtenido para accidente:`, {
-                temp: weatherData?.temperature_celsius,
-                desc: weatherData?.weather_description,
-              });
-            } catch (weatherError) {
-              console.error(
-                `❌ Error obteniendo clima para accidente:`,
-                weatherError instanceof Error
-                  ? weatherError.message
-                  : weatherError
-              );
-            }
-          }
-
-          const normalizedType =
-            accident.type?.toLowerCase() === "accident"
-              ? "accident"
-              : "ACCIDENT";
 
           await roadAccidentService.createAccident({
-            incident_id: accident.id,
+            incident_id: alertId,
             waze_data: (accident as any).raw || accident,
-            weather_data: weatherData || {},
-            type: normalizedType,
+            weather_data: weatherData,
+            type: "ACCIDENT",
             subtype: accident.subtype,
-            severity: accident.severity,
+            severity: accident.reliability
+              ? Math.min(5, Math.max(1, Math.round(accident.reliability / 2)))
+              : 3,
             street: accident.street,
-            location_lat: accident.location.lat,
-            location_lng: accident.location.lng,
-            accident_at: accident.timestamp,
+            location_lat: lat,
+            location_lng: lng,
+            accident_at: new Date(accident.pubMillis ?? Date.now()),
+            polygon_id: polygonId,
           });
 
-          console.log(`✅ Siniestro auto-capturado: ${accident.id}`);
+          console.log(`✅ Siniestro auto-capturado: ${alertId}`);
         } catch (createError) {
           // Ignore duplicates silently
           if (createError instanceof Error) {

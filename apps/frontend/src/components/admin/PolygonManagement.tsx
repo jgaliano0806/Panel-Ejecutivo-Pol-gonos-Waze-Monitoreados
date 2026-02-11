@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { realCordobaPolygons } from "../../data/mock/realCordobaPolygons";
 import { VirtualizedList } from "../ui/VirtualizedList";
 import { TruncatedText } from "../common/TruncatedText";
+import { PolygonMapEditorInline } from "./PolygonMapEditorInline";
 
 interface PolygonData {
   id: string;
@@ -10,6 +12,7 @@ interface PolygonData {
   feedUrl: string;
   tvtFeedUrl?: string;
   group?: string;
+  is_active?: boolean;
   coordinates?: {
     lat: number;
     lon: number;
@@ -23,8 +26,359 @@ interface PolygonData {
 // API base URL (VITE_API_URL ya incluye /api)
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:3002/api";
 
+function calculateCenterFromGeometry(geometry: any): { lat: number; lon: number } | null {
+  if (!geometry?.coordinates?.[0]) return null;
+  const coords = geometry.coordinates[0];
+  let latSum = 0, lonSum = 0, count = 0;
+  coords.forEach((coord: number[]) => {
+    lonSum += coord[0];
+    latSum += coord[1];
+    count++;
+  });
+  return count ? { lat: latSum / count, lon: lonSum / count } : null;
+}
+
+interface PolygonGroup {
+  id: number;
+  name: string;
+  sort_order: number;
+  is_active?: boolean;
+}
+
+interface PolygonFormProps {
+  polygon: PolygonData | null;
+  formData: PolygonData;
+  onSave: (polygon: PolygonData) => void;
+  onCancel: () => void;
+  errors: Record<string, string>;
+  touched: Record<string, boolean>;
+  onFieldChange: (field: string, value: any) => void;
+  onGeometryFromMap?: (geometry: GeoJSON.Polygon, coordinates: { lat: number; lon: number }) => void;
+  onGeometryValidationError?: (message: string) => void;
+  onGeometryAutoAdjusted?: (message: string) => void;
+  onValidateForm: () => boolean;
+  polygons: PolygonData[];
+  otherPolygonsForMap: Array<{ id: string; geometry: GeoJSON.Polygon }>;
+  groups: PolygonGroup[];
+  darkMode?: boolean;
+}
+
+const PolygonFormModal: React.FC<PolygonFormProps> = ({
+  polygon,
+  formData,
+  onSave,
+  onCancel,
+  errors,
+  touched,
+  onFieldChange,
+  onGeometryFromMap,
+  onGeometryValidationError,
+  onGeometryAutoAdjusted,
+  onValidateForm,
+  polygons,
+  otherPolygonsForMap,
+  groups,
+  darkMode = false,
+}) => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const allTouched: Record<string, boolean> = {};
+    Object.keys(formData).forEach((key) => { allTouched[key] = true; });
+    if (onValidateForm()) onSave(formData);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onClick={onCancel}
+    >
+      <div
+        className="bg-white dark:bg-veltrix-card rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
+          <h2 className="text-xl font-bold">
+            {polygon ? "Editar Polígono" : "Nuevo Polígono"}
+          </h2>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                ID <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.id}
+                onChange={(e) => onFieldChange("id", e.target.value)}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
+                  errors.id && touched.id ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                }`}
+                placeholder="P001, P002, etc."
+                required
+              />
+              {errors.id && touched.id && (
+                <p className="text-red-500 text-xs mt-1">{errors.id}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Nombre <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => onFieldChange("name", e.target.value)}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
+                  errors.name && touched.name ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                }`}
+                placeholder="Ej: A-019 -8, RP E53 -2"
+                required
+              />
+              {errors.name && touched.name && (
+                <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+              )}
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Grupo</label>
+              <select
+                value={formData.group || ""}
+                onChange={(e) => onFieldChange("group", e.target.value || undefined)}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
+                  errors.group && touched.group ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                }`}
+              >
+                <option value="">Sin grupo</option>
+                {formData.group && !groups.some((g) => g.name === formData.group) && (
+                  <option value={formData.group}>{formData.group}</option>
+                )}
+                {groups.map((g) => (
+                  <option key={g.id} value={g.name}>{g.name}</option>
+                ))}
+              </select>
+              {errors.group && touched.group && (
+                <p className="text-red-500 text-xs mt-1">{errors.group}</p>
+              )}
+            </div>
+
+            <div className="md:col-span-2 flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="polygon-active"
+                checked={formData.is_active ?? true}
+                onChange={(e) => onFieldChange("is_active", e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <label htmlFor="polygon-active" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                Activo
+              </label>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Feed URL (Incidentes) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="url"
+                value={formData.feedUrl}
+                onChange={(e) => onFieldChange("feedUrl", e.target.value)}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
+                  errors.feedUrl && touched.feedUrl ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                }`}
+                placeholder="https://..."
+                required
+              />
+              {errors.feedUrl && touched.feedUrl && (
+                <p className="text-red-500 text-xs mt-1">{errors.feedUrl}</p>
+              )}
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                TVT Feed URL (Opcional)
+              </label>
+              <input
+                type="url"
+                value={formData.tvtFeedUrl || ""}
+                onChange={(e) => onFieldChange("tvtFeedUrl", e.target.value || undefined)}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
+                  errors.tvtFeedUrl && touched.tvtFeedUrl ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                }`}
+                placeholder="https://..."
+              />
+              {errors.tvtFeedUrl && touched.tvtFeedUrl && (
+                <p className="text-red-500 text-xs mt-1">{errors.tvtFeedUrl}</p>
+              )}
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Geometría GeoJSON (Opcional)
+              </label>
+              <textarea
+                value={
+                  formData.geometry
+                    ? JSON.stringify(formData.geometry, null, 2)
+                    : ""
+                }
+                onChange={(e) => onFieldChange("geometry", e.target.value)}
+                placeholder='{"type": "Polygon", "coordinates": [[[lng1, lat1], [lng2, lat2], ...]]}'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-xs dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
+                  errors.geometry && touched.geometry ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                }`}
+                rows={6}
+              />
+              <div className="mt-1">
+                {errors.geometry && touched.geometry ? (
+                  <p className="text-red-500 text-xs">{errors.geometry}</p>
+                ) : (
+                  <p className="text-xs text-gray-500">
+                    Al ingresar geometría GeoJSON válida, las coordenadas del centro se calculan automáticamente
+                  </p>
+                )}
+              </div>
+              {onGeometryFromMap && (() => {
+                const geom =
+                  typeof formData.geometry === "string"
+                    ? (() => {
+                        try {
+                          return formData.geometry
+                            ? (JSON.parse(formData.geometry) as GeoJSON.Polygon)
+                            : null;
+                        } catch { return null; }
+                      })()
+                    : (formData.geometry as GeoJSON.Polygon | undefined) ?? null;
+                const hasValidGeom = geom?.coordinates?.[0] && geom.coordinates[0].length >= 3;
+                return hasValidGeom ? (
+                  <div className="mt-3">
+                    <PolygonMapEditorInline
+                      geometry={geom!}
+                      otherPolygons={otherPolygonsForMap}
+                      excludeId={formData.id}
+                      darkMode={darkMode}
+                      height="280px"
+                      onGeometryChange={(g) => {
+                        const center = calculateCenterFromGeometry(g);
+                        onGeometryFromMap(g, center || { lat: 0, lon: 0 });
+                      }}
+                      onValidationError={onGeometryValidationError}
+                      onGeometryAutoAdjusted={onGeometryAutoAdjusted}
+                    />
+                  </div>
+                ) : null;
+              })()}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Latitud Centro {formData.geometry ? "(Calculada)" : ""}
+              </label>
+              <input
+                type="number"
+                step="0.0001"
+                value={formData.coordinates?.lat?.toFixed(4) || ""}
+                onChange={(e) =>
+                  onFieldChange("coordinates", {
+                    lat: parseFloat(e.target.value) || 0,
+                    lon: formData.coordinates?.lon || 0,
+                  })
+                }
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
+                  formData.geometry
+                    ? "bg-gray-50 dark:bg-veltrix-bg/50 cursor-not-allowed"
+                    : errors.coordinates && touched.coordinates
+                      ? "border-red-500"
+                      : "border-gray-300 dark:border-gray-600"
+                }`}
+                readOnly={!!formData.geometry}
+                min="-90"
+                max="90"
+              />
+              {errors.coordinates && touched.coordinates && !formData.geometry && (
+                <p className="text-red-500 text-xs mt-1">{errors.coordinates}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Longitud Centro {formData.geometry ? "(Calculada)" : ""}
+              </label>
+              <input
+                type="number"
+                step="0.0001"
+                value={formData.coordinates?.lon?.toFixed(4) || ""}
+                onChange={(e) =>
+                  onFieldChange("coordinates", {
+                    lat: formData.coordinates?.lat || 0,
+                    lon: parseFloat(e.target.value) || 0,
+                  })
+                }
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
+                  formData.geometry
+                    ? "bg-gray-50 dark:bg-veltrix-bg/50 cursor-not-allowed"
+                    : errors.coordinates && touched.coordinates
+                      ? "border-red-500"
+                      : "border-gray-300 dark:border-gray-600"
+                }`}
+                readOnly={!!formData.geometry}
+                min="-180"
+                max="180"
+              />
+              {errors.coordinates && touched.coordinates && !formData.geometry && (
+                <p className="text-red-500 text-xs mt-1">{errors.coordinates}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4 border-t">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-veltrix-bg rounded-lg transition-colors"
+            >
+              Cancelar
+            </button>
+            <div className="relative inline-block">
+              <button
+                type="submit"
+                disabled={Object.keys(errors).some((k) => errors[k] !== "")}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              >
+                {polygon ? "Actualizar" : "Crear"}
+              </button>
+              {Object.keys(errors).some((k) => errors[k] !== "") && (
+                <div
+                  className="absolute inset-0 cursor-not-allowed rounded-lg"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const msg = Object.entries(errors)
+                      .filter(([, v]) => v)
+                      .map(([, v]) => v)
+                      .join("\n");
+                    alert(`Corrija los siguientes errores:\n\n${msg}`);
+                  }}
+                  title="Haga clic para ver los errores"
+                />
+              )}
+            </div>
+          </div>
+        </form>
+      </div>
+    </motion.div>
+  );
+};
+
 const PolygonManagement: React.FC = () => {
+  const queryClient = useQueryClient();
   const [polygons, setPolygons] = useState<PolygonData[]>([]);
+  const [groups, setGroups] = useState<PolygonGroup[]>([]);
+  const [showGroupsModal, setShowGroupsModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editingPolygon, setEditingPolygon] = useState<PolygonData | null>(
     null,
@@ -34,6 +388,57 @@ const PolygonManagement: React.FC = () => {
   const [selectedGeoJson, setSelectedGeoJson] = useState<any>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [sortBy, setSortBy] = useState<"name" | "group">("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const visiblePolygons = useMemo(
+    () => polygons.filter((p) => p.id !== "UNKNOWN"),
+    [polygons]
+  );
+
+  const otherPolygonsForMap = useMemo(() => {
+    return visiblePolygons
+      .map((p) => {
+        const geom =
+          p.geometry?.coordinates
+            ? p.geometry
+            : (realCordobaPolygons.find((m: any) => m.id === p.id) as any)?.geometry;
+        return geom ? { id: p.id, geometry: geom as GeoJSON.Polygon } : null;
+      })
+      .filter((p): p is { id: string; geometry: GeoJSON.Polygon } => p !== null);
+  }, [visiblePolygons]);
+
+  const sortedPolygons = useMemo(() => {
+    const arr = [...visiblePolygons];
+    arr.sort((a, b) => {
+      const av = (sortBy === "name" ? a.name : a.group || "").toLowerCase();
+      const bv = (sortBy === "name" ? b.name : b.group || "").toLowerCase();
+      const cmp = av.localeCompare(bv);
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [visiblePolygons, sortBy, sortDir]);
+
+  const toggleSort = (col: "name" | "group") => {
+    if (sortBy === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortBy(col);
+      setSortDir("asc");
+    }
+  };
+
+  const fetchGroups = async () => {
+    try {
+      const res = await fetch(`${API_URL}/polygon-groups`);
+      if (res.ok) setGroups(await res.json());
+    } catch (e) {
+      console.error("Error cargando grupos:", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchGroups();
+  }, []);
 
   // Función para obtener geometría completa desde mock data
   const getPolygonGeometry = (polygonId: string) => {
@@ -98,25 +503,24 @@ const PolygonManagement: React.FC = () => {
         // Grupo es opcional, sin validaciones específicas
         return "";
 
-      case "geometry":
-        if (value && value.trim() !== "") {
+      case "geometry": {
+        let geom = value;
+        if (typeof value === "string") {
+          if (!value.trim()) return "";
           try {
-            const geometry = JSON.parse(value);
-            if (geometry.type !== "Polygon")
-              return "Debe ser un Polygon GeoJSON";
-            if (
-              !geometry.coordinates ||
-              !Array.isArray(geometry.coordinates[0])
-            )
-              return "Coordenadas inválidas";
-            if (geometry.coordinates[0].length < 3)
-              return "Debe tener al menos 3 vértices";
-            return "";
+            geom = JSON.parse(value);
           } catch {
             return "JSON inválido";
           }
         }
+        if (geom?.type === "Polygon" && geom?.coordinates?.[0]) {
+          if (geom.coordinates[0].length < 3)
+            return "Debe tener al menos 3 vértices";
+          return "";
+        }
+        if (geom) return "Debe ser un Polygon GeoJSON válido";
         return "";
+      }
 
       case "coordinates":
         if (!formData.geometry) {
@@ -160,27 +564,12 @@ const PolygonManagement: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Función para calcular el centro de un polígono GeoJSON
-  const calculateCenterFromGeometry = (geometry: any) => {
-    if (!geometry || !geometry.coordinates || !geometry.coordinates[0])
-      return null;
-
-    const coords = geometry.coordinates[0];
-    let latSum = 0;
-    let lonSum = 0;
-    let count = 0;
-
-    coords.forEach((coord: number[]) => {
-      lonSum += coord[0]; // longitude first in GeoJSON
-      latSum += coord[1]; // latitude second
-      count++;
-    });
-
-    return {
-      lat: latSum / count,
-      lon: lonSum / count,
-    };
-  };
+  // Validar al abrir el formulario para mostrar errores iniciales
+  useEffect(() => {
+    if (showForm && editingPolygon) {
+      validateForm();
+    }
+  }, [showForm, editingPolygon?.id]);
 
   // Función para validar y parsear GeoJSON
   const parseGeoJsonGeometry = (geoJsonText: string) => {
@@ -204,12 +593,25 @@ const PolygonManagement: React.FC = () => {
     fetchPolygons();
   }, []);
 
+  const normalizePolygon = (p: any): PolygonData => ({
+    id: p.id,
+    name: p.name,
+    group: p.group,
+    feedUrl: p.feed_url ?? p.feedUrl ?? "",
+    tvtFeedUrl: p.tvt_feed_url ?? p.tvtFeedUrl ?? "",
+    is_active: p.is_active ?? true,
+    coordinates: p.coordinates,
+    geometry: p.geometry,
+  });
+
   const fetchPolygons = async () => {
     try {
-      const response = await fetch(`${API_URL}/polygons`);
+      const response = await fetch(
+        `${API_URL}/polygons/all?_t=${Date.now()}`
+      );
       if (response.ok) {
         const data = await response.json();
-        setPolygons(data);
+        setPolygons(Array.isArray(data) ? data.map(normalizePolygon) : []);
       }
     } catch (error) {
       console.error("Error al cargar polígonos:", error);
@@ -235,9 +637,8 @@ const PolygonManagement: React.FC = () => {
 
     setEditingPolygon(polygonToEdit);
     setShowForm(true);
-    // Limpiar errores al abrir el formulario
-    setErrors({});
     setTouched({});
+    setErrors({});
   };
 
   const handleNew = () => {
@@ -252,14 +653,16 @@ const PolygonManagement: React.FC = () => {
       return;
 
     try {
-      const response = await fetch(`/api/polygons/${polygonId}`, {
+      const response = await fetch(`${API_URL}/polygons/${polygonId}`, {
         method: "DELETE",
       });
 
       if (response.ok) {
+        await queryClient.invalidateQueries({ queryKey: ["polygons"] });
         setPolygons(polygons.filter((p) => p.id !== polygonId));
       } else {
-        alert("Error al eliminar el polígono");
+        const err = await response.json().catch(() => ({}));
+        alert(err.error || "Error al eliminar el polígono");
       }
     } catch (error) {
       console.error("Error al eliminar polígono:", error);
@@ -273,18 +676,30 @@ const PolygonManagement: React.FC = () => {
         !polygonData.id ||
         polygons.find((p) => p.id === polygonData.id) === undefined;
       const method = isNew ? "POST" : "PUT";
-      const url = isNew ? "/api/polygons" : `/api/polygons/${polygonData.id}`;
+      const url = isNew ? `${API_URL}/polygons` : `${API_URL}/polygons/${polygonData.id}`;
+
+      const payload = {
+        id: polygonData.id,
+        name: polygonData.name,
+        group: polygonData.group,
+        feed_url: polygonData.feedUrl,
+        tvt_feed_url: polygonData.tvtFeedUrl,
+        coordinates: polygonData.coordinates,
+        geometry: polygonData.geometry,
+        is_active: polygonData.is_active ?? true,
+      };
 
       const response = await fetch(url, {
         method,
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(polygonData),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
-        await fetchPolygons(); // Recargar lista
+        await queryClient.invalidateQueries({ queryKey: ["polygons"] });
+        await fetchPolygons();
         setShowForm(false);
         setEditingPolygon(null);
       } else {
@@ -296,298 +711,22 @@ const PolygonManagement: React.FC = () => {
     }
   };
 
-  const PolygonForm: React.FC<{
-    polygon: PolygonData | null;
-    formData: PolygonData;
-    onSave: (polygon: PolygonData) => void;
-    onCancel: () => void;
-    errors: Record<string, string>;
-    touched: Record<string, boolean>;
-    onFieldChange: (field: string, value: any) => void;
-    onValidateForm: () => boolean;
-    polygons: PolygonData[];
-  }> = ({
-    polygon,
-    formData,
-    onSave,
-    onCancel,
-    errors,
-    touched,
-    onFieldChange,
-    onValidateForm,
-    polygons,
-  }) => {
-    const handleSubmit = (e: React.FormEvent) => {
-      e.preventDefault();
-
-      // Marcar todos los campos como tocados para mostrar errores
-      const allTouched: Record<string, boolean> = {};
-      Object.keys(formData).forEach((key) => {
-        allTouched[key] = true;
-      });
-      // Aquí deberíamos actualizar touched, pero como está en el padre, por ahora solo validamos
-      if (onValidateForm()) {
-        onSave(formData);
-      }
-    };
-
-    return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-        onClick={onCancel}
-      >
-        <div
-          className="bg-white dark:bg-veltrix-card rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
-            <h2 className="text-xl font-bold">
-              {polygon ? "Editar Polígono" : "Nuevo Polígono"}
-            </h2>
-          </div>
-
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  ID <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.id}
-                  onChange={(e) => onFieldChange("id", e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
-                    errors.id && touched.id
-                      ? "border-red-500"
-                      : "border-gray-300 dark:border-gray-600"
-                  }`}
-                  placeholder="P001, P002, etc."
-                  required
-                />
-                {errors.id && touched.id && (
-                  <p className="text-red-500 text-xs mt-1">{errors.id}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Nombre <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => onFieldChange("name", e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
-                    errors.name && touched.name
-                      ? "border-red-500"
-                      : "border-gray-300 dark:border-gray-600"
-                  }`}
-                  placeholder="Ej: A-019 -8, RP E53 -2"
-                  required
-                />
-                {errors.name && touched.name && (
-                  <p className="text-red-500 text-xs mt-1">{errors.name}</p>
-                )}
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Grupo
-                </label>
-                <input
-                  type="text"
-                  value={formData.group || ""}
-                  onChange={(e) => onFieldChange("group", e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
-                    errors.group && touched.group
-                      ? "border-red-500"
-                      : "border-gray-300 dark:border-gray-600"
-                  }`}
-                  placeholder="Ej: Autovía A-019, Ruta Nacional 36..."
-                />
-                {errors.group && touched.group && (
-                  <p className="text-red-500 text-xs mt-1">{errors.group}</p>
-                )}
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Feed URL (Incidentes) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="url"
-                  value={formData.feedUrl}
-                  onChange={(e) => onFieldChange("feedUrl", e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
-                    errors.feedUrl && touched.feedUrl
-                      ? "border-red-500"
-                      : "border-gray-300 dark:border-gray-600"
-                  }`}
-                  placeholder="https://..."
-                  required
-                />
-                {errors.feedUrl && touched.feedUrl && (
-                  <p className="text-red-500 text-xs mt-1">{errors.feedUrl}</p>
-                )}
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  TVT Feed URL (Opcional)
-                </label>
-                <input
-                  type="url"
-                  value={formData.tvtFeedUrl || ""}
-                  onChange={(e) =>
-                    onFieldChange("tvtFeedUrl", e.target.value || undefined)
-                  }
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
-                    errors.tvtFeedUrl && touched.tvtFeedUrl
-                      ? "border-red-500"
-                      : "border-gray-300 dark:border-gray-600"
-                  }`}
-                  placeholder="https://..."
-                />
-                {errors.tvtFeedUrl && touched.tvtFeedUrl && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {errors.tvtFeedUrl}
-                  </p>
-                )}
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Geometría GeoJSON (Opcional)
-                </label>
-                <textarea
-                  value={
-                    formData.geometry
-                      ? JSON.stringify(formData.geometry, null, 2)
-                      : ""
-                  }
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    onFieldChange("geometry", value);
-                  }}
-                  placeholder='{"type": "Polygon", "coordinates": [[[lng1, lat1], [lng2, lat2], ...]]}'
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-xs dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
-                    errors.geometry && touched.geometry
-                      ? "border-red-500"
-                      : "border-gray-300 dark:border-gray-600"
-                  }`}
-                  rows={6}
-                />
-                <div className="mt-1">
-                  {errors.geometry && touched.geometry ? (
-                    <p className="text-red-500 text-xs">{errors.geometry}</p>
-                  ) : (
-                    <p className="text-xs text-gray-500">
-                      Al ingresar geometría GeoJSON válida, las coordenadas del
-                      centro se calculan automáticamente
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Latitud Centro {formData.geometry ? "(Calculada)" : ""}
-                </label>
-                <input
-                  type="number"
-                  step="0.0001"
-                  value={formData.coordinates?.lat?.toFixed(4) || ""}
-                  onChange={(e) =>
-                    onFieldChange("coordinates", {
-                      lat: parseFloat(e.target.value) || 0,
-                      lon: formData.coordinates?.lon || 0,
-                    })
-                  }
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
-                    formData.geometry
-                      ? "bg-gray-50 dark:bg-veltrix-bg/50 cursor-not-allowed"
-                      : errors.coordinates && touched.coordinates
-                        ? "border-red-500"
-                        : "border-gray-300 dark:border-gray-600"
-                  }`}
-                  readOnly={!!formData.geometry}
-                  min="-90"
-                  max="90"
-                />
-                {errors.coordinates &&
-                  touched.coordinates &&
-                  !formData.geometry && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.coordinates}
-                    </p>
-                  )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Longitud Centro {formData.geometry ? "(Calculada)" : ""}
-                </label>
-                <input
-                  type="number"
-                  step="0.0001"
-                  value={formData.coordinates?.lon?.toFixed(4) || ""}
-                  onChange={(e) =>
-                    onFieldChange("coordinates", {
-                      lat: formData.coordinates?.lat || 0,
-                      lon: parseFloat(e.target.value) || 0,
-                    })
-                  }
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
-                    formData.geometry
-                      ? "bg-gray-50 dark:bg-veltrix-bg/50 cursor-not-allowed"
-                      : errors.coordinates && touched.coordinates
-                        ? "border-red-500"
-                        : "border-gray-300 dark:border-gray-600"
-                  }`}
-                  readOnly={!!formData.geometry}
-                  min="-180"
-                  max="180"
-                />
-                {errors.coordinates &&
-                  touched.coordinates &&
-                  !formData.geometry && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.coordinates}
-                    </p>
-                  )}
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-3 pt-4 border-t">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-veltrix-bg rounded-lg transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={Object.keys(errors).some((key) => errors[key] !== "")}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-              >
-                {polygon ? "Actualizar" : "Crear"}
-              </button>
-            </div>
-          </form>
-        </div>
-      </motion.div>
-    );
-  };
+  const handleGeometryFromMap = useCallback(
+    (geometry: GeoJSON.Polygon, coordinates: { lat: number; lon: number }) => {
+      setEditingPolygon((prev) =>
+        prev ? { ...prev, geometry, coordinates } : prev
+      );
+      setErrors((prev) => ({ ...prev, geometry: "" }));
+    },
+    []
+  );
 
   if (loading) {
     return (
       <div className="card">
         <div className="flex items-center justify-center py-8">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary-600 border-t-transparent"></div>
-          <span className="ml-3 text-gray-600">Cargando polígonos...</span>
+          <span className="ml-3 text-gray-600 dark:text-veltrix-muted">Cargando polígonos...</span>
         </div>
       </div>
     );
@@ -604,10 +743,11 @@ const PolygonManagement: React.FC = () => {
             Administra los feeds de Waze asociados a cada polígono
           </p>
         </div>
-        <button
-          onClick={handleNew}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-        >
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleNew}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
           <svg
             className="w-4 h-4"
             fill="none"
@@ -623,14 +763,47 @@ const PolygonManagement: React.FC = () => {
           </svg>
           Nuevo Polígono
         </button>
+        </div>
       </div>
 
+      <>
       <div className="border border-gray-100 dark:border-veltrix-border rounded-xl overflow-hidden shadow-sm bg-white dark:bg-veltrix-card">
         {/* Header - Grid Layout */}
-        <div className="grid grid-cols-[80px_minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] bg-gray-50 dark:bg-veltrix-bg border-b divide-x divide-gray-200 dark:divide-veltrix-border dark:border-veltrix-border text-sm font-semibold text-gray-900 dark:text-white">
-          <div className="px-4 py-3">ID</div>
-          <div className="px-4 py-3">Nombre</div>
-          <div className="px-4 py-3">Grupo</div>
+        <div className="grid grid-cols-[minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] bg-gray-50 dark:bg-veltrix-bg border-b divide-x divide-gray-200 dark:divide-veltrix-border dark:border-veltrix-border text-sm font-semibold text-gray-900 dark:text-white">
+          <button
+            onClick={() => toggleSort("name")}
+            className="px-4 py-3 text-left flex items-center gap-1 hover:bg-gray-100 dark:hover:bg-veltrix-bg/50 transition-colors"
+          >
+            Nombre
+            {sortBy === "name" && (
+              <span className="text-blue-600 dark:text-blue-400">
+                {sortDir === "asc" ? "↑" : "↓"}
+              </span>
+            )}
+          </button>
+          <div className="px-4 py-3 flex items-center justify-between gap-1">
+            <button
+              onClick={() => toggleSort("group")}
+              className="flex-1 text-left flex items-center gap-1 hover:bg-gray-100 dark:hover:bg-veltrix-bg/50 transition-colors -m-1 p-1 rounded"
+            >
+              Grupo
+              {sortBy === "group" && (
+                <span className="text-blue-600 dark:text-blue-400">
+                  {sortDir === "asc" ? "↑" : "↓"}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setShowGroupsModal(true)}
+              className="p-1 rounded hover:bg-gray-200 dark:hover:bg-veltrix-bg/50"
+              title="Gestionar catálogo de grupos"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
+          </div>
           <div className="px-4 py-3">Feed URL</div>
           <div className="px-4 py-3">Centro</div>
           <div className="px-4 py-3">Geometría</div>
@@ -640,13 +813,10 @@ const PolygonManagement: React.FC = () => {
         {/* Virtualized Body */}
         <div className="h-[600px]">
           <VirtualizedList
-            items={polygons}
-            estimateSize={80} // Altura estimada de fila
+            items={sortedPolygons}
+            estimateSize={80}
             renderItem={(polygon: PolygonData) => (
-              <div className="grid grid-cols-[80px_minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] divide-x divide-gray-100 dark:divide-veltrix-border border-b border-gray-100 dark:border-veltrix-border hover:bg-gray-50 dark:hover:bg-veltrix-bg/30 transition-colors items-center text-sm bg-white dark:bg-veltrix-card text-gray-900 dark:text-white">
-                <div className="px-4 py-3 font-mono text-xs text-gray-900 dark:text-white">
-                  {polygon.id}
-                </div>
+              <div className="grid grid-cols-[minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] divide-x divide-gray-100 dark:divide-veltrix-border border-b border-gray-100 dark:border-veltrix-border hover:bg-gray-50 dark:hover:bg-veltrix-bg/30 transition-colors items-center text-sm bg-white dark:bg-veltrix-card text-gray-900 dark:text-white">
                 <div className="px-4 py-3 font-medium text-gray-900 dark:text-white truncate">
                   {polygon.name}
                 </div>
@@ -666,7 +836,7 @@ const PolygonManagement: React.FC = () => {
                         text={polygon.tvtFeedUrl}
                         maxLength={40}
                         showCopyButton={true}
-                        className="text-xs text-blue-600"
+                        className="text-xs text-blue-600 dark:text-blue-400"
                       />
                     </div>
                   )}
@@ -688,7 +858,7 @@ const PolygonManagement: React.FC = () => {
                       const coordsCount = geometry.coordinates[0]?.length || 0;
                       return (
                         <div className="space-y-1">
-                          <div className="text-green-600 font-medium">
+                          <div className="text-green-600 dark:text-veltrix-success font-medium">
                             ✅ GeoJSON
                           </div>
                           <div className="text-gray-600 dark:text-veltrix-muted">
@@ -702,7 +872,7 @@ const PolygonManagement: React.FC = () => {
                               });
                               setShowGeoJsonModal(true);
                             }}
-                            className="text-blue-600 hover:text-blue-800 text-[10px] underline"
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-[10px] underline"
                             title="Ver geometría GeoJSON completa"
                           >
                             Ver
@@ -712,7 +882,7 @@ const PolygonManagement: React.FC = () => {
                     } else {
                       return (
                         <div className="space-y-1">
-                          <div className="text-orange-600 font-medium">
+                          <div className="text-orange-600 dark:text-veltrix-warning font-medium">
                             ⚠️ No Geo
                           </div>
                           <div className="text-gray-400 dark:text-veltrix-muted text-[10px]">
@@ -771,10 +941,10 @@ const PolygonManagement: React.FC = () => {
         </div>
       </div>
 
-      {polygons.length === 0 && (
-        <div className="text-center py-8 text-gray-500">
+      {visiblePolygons.length === 0 && (
+        <div className="text-center py-8 text-gray-500 dark:text-veltrix-muted">
           <svg
-            className="w-12 h-12 mx-auto mb-4 text-gray-300"
+            className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-veltrix-border"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -786,7 +956,7 @@ const PolygonManagement: React.FC = () => {
               d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
             />
           </svg>
-          <p className="text-sm">No hay polígonos configurados</p>
+          <p className="text-sm text-gray-600 dark:text-veltrix-muted">No hay polígonos configurados</p>
           <button
             onClick={handleNew}
             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -795,9 +965,10 @@ const PolygonManagement: React.FC = () => {
           </button>
         </div>
       )}
+      </>
 
       {showForm && (
-        <PolygonForm
+        <PolygonFormModal
           polygon={editingPolygon}
           formData={
             editingPolygon || {
@@ -806,6 +977,7 @@ const PolygonManagement: React.FC = () => {
               feedUrl: "",
               tvtFeedUrl: "",
               group: "",
+              is_active: true,
               coordinates: { lat: 0, lon: 0 },
             }
           }
@@ -817,26 +989,66 @@ const PolygonManagement: React.FC = () => {
           errors={errors}
           touched={touched}
           onFieldChange={(field, value) => {
+            let parsedValue = value;
+            if (field === "geometry" && typeof value === "string" && value.trim()) {
+              try {
+                const parsed = JSON.parse(value);
+                if (parsed?.type === "Polygon" && parsed?.coordinates?.[0]?.length >= 3) {
+                  parsedValue = parsed;
+                  const center = calculateCenterFromGeometry(parsed);
+                  setEditingPolygon((prev) => ({
+                    ...(prev || {
+                      id: "",
+                      name: "",
+                      feedUrl: "",
+                      tvtFeedUrl: "",
+                      group: "",
+                      is_active: true,
+                      coordinates: { lat: 0, lon: 0 },
+                    }),
+                    geometry: parsed,
+                    coordinates: center || { lat: 0, lon: 0 },
+                  }));
+                  setErrors((prev) => ({ ...prev, geometry: "" }));
+                  setTouched((prev) => ({ ...prev, geometry: true }));
+                  return;
+                }
+              } catch {
+                /* mantener value como string */
+              }
+            }
             const newFormData = editingPolygon
-              ? { ...editingPolygon, [field]: value }
+              ? { ...editingPolygon, [field]: parsedValue }
               : {
                   id: "",
                   name: "",
                   feedUrl: "",
                   tvtFeedUrl: "",
                   group: "",
+                  is_active: true,
                   coordinates: { lat: 0, lon: 0 },
-                  [field]: value,
+                  [field]: parsedValue,
                 };
             if (editingPolygon) {
               setEditingPolygon(newFormData);
             }
-            const error = validateField(field, value);
+            const error = validateField(field, parsedValue);
             setErrors((prev) => ({ ...prev, [field]: error }));
             setTouched((prev) => ({ ...prev, [field]: true }));
           }}
           onValidateForm={validateForm}
           polygons={polygons}
+          otherPolygonsForMap={otherPolygonsForMap}
+          groups={groups}
+          onGeometryFromMap={handleGeometryFromMap}
+          onGeometryValidationError={(msg) =>
+            setErrors((prev) => ({ ...prev, geometry: msg }))
+          }
+          onGeometryAutoAdjusted={(msg) => {
+            setErrors((prev) => ({ ...prev, geometry: "" }));
+            alert(msg);
+          }}
+          darkMode={document.documentElement.classList.contains("dark")}
         />
       )}
 
@@ -845,7 +1057,7 @@ const PolygonManagement: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
           onClick={() => setShowGeoJsonModal(false)}
         >
           <div
@@ -903,8 +1115,209 @@ const PolygonManagement: React.FC = () => {
           </div>
         </motion.div>
       )}
+
+      {/* Modal Gestionar catálogo de grupos */}
+      {showGroupsModal && (
+        <GroupsCatalogModal
+          groups={groups}
+          onClose={() => setShowGroupsModal(false)}
+          onRefresh={() => {
+            fetchGroups();
+            fetchPolygons();
+          }}
+          apiUrl={API_URL}
+        />
+      )}
     </div>
   );
 };
+
+function GroupsCatalogModal({
+  groups,
+  onClose,
+  onRefresh,
+  apiUrl,
+}: {
+  groups: PolygonGroup[];
+  onClose: () => void;
+  onRefresh: () => void;
+  apiUrl: string;
+}) {
+  const [newName, setNewName] = useState("");
+  const [newActive, setNewActive] = useState(true);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editActive, setEditActive] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const handleCreate = async () => {
+    if (!newName.trim() || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${apiUrl}/polygon-groups`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName.trim(), is_active: newActive }),
+      });
+      if (res.ok) {
+        setNewName("");
+        setNewActive(true);
+        onRefresh();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || "Error al crear");
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdate = async (id: number) => {
+    if (!editName.trim() || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${apiUrl}/polygon-groups/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editName.trim(), is_active: editActive }),
+      });
+      if (res.ok) {
+        setEditingId(null);
+        onRefresh();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || "Error al actualizar");
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: number, name: string) => {
+    if (!confirm(`¿Eliminar el grupo "${name}"? Los polígonos quedarán sin grupo.`)) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${apiUrl}/polygon-groups/${id}`, { method: "DELETE" });
+      if (res.ok) onRefresh();
+      else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || "Error al eliminar");
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white dark:bg-veltrix-card rounded-xl shadow-2xl w-full max-w-md border border-gray-100 dark:border-veltrix-border"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-4 border-b border-gray-100 dark:border-veltrix-border flex justify-between items-center">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white">Catálogo de grupos</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-200 dark:hover:bg-veltrix-bg rounded">✕</button>
+        </div>
+        <div className="p-4 space-y-4">
+          <div className="flex gap-2 items-center">
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+              placeholder="Nuevo grupo"
+              className="flex-1 px-3 py-2 border rounded-lg dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white"
+            />
+            <label className="flex items-center gap-1.5 shrink-0 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={newActive}
+                onChange={(e) => setNewActive(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-blue-600"
+              />
+              <span className="text-sm text-gray-700 dark:text-gray-300">Activo</span>
+            </label>
+            <button
+              onClick={handleCreate}
+              disabled={!newName.trim() || saving}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              Agregar
+            </button>
+          </div>
+          <ul className="space-y-2 max-h-64 overflow-y-auto">
+            {groups.map((g) => (
+              <li
+                key={g.id}
+                className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 dark:bg-veltrix-bg"
+              >
+                {editingId === g.id ? (
+                  <>
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="flex-1 px-2 py-1 border rounded dark:bg-veltrix-card dark:border-veltrix-border dark:text-white min-w-0"
+                      autoFocus
+                    />
+                    <label className="flex items-center gap-1 shrink-0 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editActive}
+                        onChange={(e) => setEditActive(e.target.checked)}
+                        className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600"
+                      />
+                      <span className="text-xs text-gray-600 dark:text-gray-400">Activo</span>
+                    </label>
+                    <button
+                      onClick={() => handleUpdate(g.id)}
+                      disabled={saving}
+                      className="px-2 py-1 text-sm bg-green-600 text-white rounded"
+                    >
+                      Guardar
+                    </button>
+                    <button onClick={() => setEditingId(null)} className="px-2 py-1 text-sm text-gray-600">Cancelar</button>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex-1 truncate">{g.name}</span>
+                    <button
+                      onClick={() => {
+                        setEditingId(g.id);
+                        setEditName(g.name);
+                        setEditActive(g.is_active ?? true);
+                      }}
+                      className="p-1 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded"
+                      title="Editar"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDelete(g.id, g.name)}
+                      disabled={saving}
+                      className="p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
+                      title="Eliminar"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 export default PolygonManagement;

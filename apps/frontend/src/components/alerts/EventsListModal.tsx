@@ -493,7 +493,6 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                             type="plus"
                                             uiIcon
                                             size="lg"
-                                            iconCache={iconCacheService}
                                           />
                                           <span>Registrar en Siniestros</span>
                                         </>

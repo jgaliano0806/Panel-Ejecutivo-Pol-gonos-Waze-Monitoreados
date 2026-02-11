@@ -37,15 +37,16 @@ interface BackendPolygonStatus {
   id: string;
   name: string;
   group: string;
-  state: "low" | "medium" | "high";
-  metrics: {
+  state?: "low" | "medium" | "high";
+  metrics?: {
     alertCount: number;
     jamCount: number;
     totalDelay: number;
     avgSpeed: number | null;
     criticalAlerts: number;
   };
-  lastUpdate: string;
+  lastUpdate?: string;
+  geometry?: import("../types").GeoJSONPolygon;
 }
 
 export const usePolygonsStatus = () => {
@@ -363,9 +364,10 @@ export const useWazeData = () => {
 
       return {
         ...localPoly,
-        state: backendData.state,
-        name: backendData.name,
-        group: backendData.group,
+        geometry: backendData.geometry ?? localPoly.geometry,
+        state: backendData.state ?? localPoly.state,
+        name: backendData.name ?? localPoly.name,
+        group: backendData.group ?? localPoly.group,
         trafficMetrics: metricsData
           ? {
               ...metricsData,

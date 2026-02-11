@@ -11,6 +11,7 @@ import { iconUploadRoutes } from "./iconUploadRoute";
 import { iconProxyRoutes } from "./iconProxy.routes";
 import { notificationRoutes } from "./notificationRoutes";
 import polygonsRoutes from "./polygons.routes";
+import polygonGroupsRoutes from "./polygonGroups.routes";
 import incidentsRoutes from "./incidents.routes";
 import jamsRoutes from "./jams.routes";
 import ttsRoutes from "./tts.routes";
@@ -35,6 +36,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
   // Gestión de Polígonos
   await app.register(polygonsRoutes, { prefix: "/api/polygons" });
+  await app.register(polygonGroupsRoutes, { prefix: "/api/polygon-groups" });
 
   // Gestión de Incidentes (Histórico y Live)
   await app.register(incidentsRoutes, { prefix: "/api/incidents" });

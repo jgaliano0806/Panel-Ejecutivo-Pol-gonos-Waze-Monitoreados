@@ -91,7 +91,7 @@ const POLYGON_COORDINATES: Record<string, { lat: number; lon: number }> = {
 export const REAL_POLYGONS: RealPolygonConfig[] = [
   {
     id: "P001",
-    name: "A-019 -8",
+    name: "A-019-8",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/9d7b4de5-3e05-4416-b6f0-7608008c797c?format=1",
     tvtFeedUrl:
@@ -101,7 +101,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P002",
-    name: "A-019 -2",
+    name: "A-019-2",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/264880ba-9904-4a52-ad4d-68a4950418be?format=1",
     tvtFeedUrl:
@@ -111,7 +111,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P003",
-    name: "RP E53 - 2",
+    name: "RP E53-2",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/3910cd09-6cd1-48c8-be1b-efb72c1dcbf1?format=1",
     tvtFeedUrl:
@@ -121,7 +121,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P004",
-    name: "RP E55 - 2",
+    name: "RP E55-2",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/a2186079-912b-4dff-9d0c-fcdb79d90f21?format=1",
     tvtFeedUrl:
@@ -131,7 +131,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P005",
-    name: "RP E55 - 1",
+    name: "RP E55-1",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/440305f8-a795-4146-ae7f-66ad38ba0e73?format=1",
     tvtFeedUrl:
@@ -151,7 +151,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P007",
-    name: "RP C45 - 2",
+    name: "RP C45-2",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/3f96457d-6841-41a7-a00a-0a3b27775010?format=1",
     tvtFeedUrl:
@@ -161,7 +161,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P008",
-    name: "RP C45 - 1",
+    name: "RP C45-1",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/861be2f3-41ad-4ca8-93f0-57de70990073?format=1",
     tvtFeedUrl:
@@ -191,7 +191,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P011",
-    name: "R36 T3 - 1",
+    name: "R36 T3-1",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/188a0785-86fa-4695-a2de-ff1dd40a2b83?format=1",
     tvtFeedUrl:
@@ -221,7 +221,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P014",
-    name: "R.Alt38 - 3-1",
+    name: "R.Alt38-3-1",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/0425e4d1-2087-4bfa-a9c6-18fcecfb7db8?format=1",
     tvtFeedUrl:
@@ -231,7 +231,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P015",
-    name: "R.Alt. 38 - 1",
+    name: "R.Alt. 38-1",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/2129eb11-6f34-4168-80f0-23c1efcac23f?format=1",
     tvtFeedUrl:
@@ -241,7 +241,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P016",
-    name: "RP 5 - 2",
+    name: "RP 5-2",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/fccbce04-edb2-42f9-ac3b-46efdb965a4d?format=1",
     tvtFeedUrl:
@@ -251,7 +251,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P017",
-    name: "RP 5 - 1",
+    name: "RP 5-1",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/47d52b80-4dba-4ffc-9585-5a74b024b70c?format=1",
     tvtFeedUrl:
@@ -261,7 +261,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P018",
-    name: "Vte. Anisacate RP 5 - 2",
+    name: "Vte. Anisacate RP 5-2",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/53328ae5-963c-47c1-ad05-da921194e1ec?format=1",
     tvtFeedUrl:
@@ -271,7 +271,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P019",
-    name: "Vte Anisacate RP 5 - 1",
+    name: "Vte Anisacate RP 5-1",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/185d8b9f-4a3e-45a1-aa72-77296e76cafa?format=1",
     tvtFeedUrl:
@@ -281,7 +281,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P020",
-    name: "RP E55 - 5",
+    name: "RP E55-5",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/2613eaa6-c645-4217-aa8e-5e0cc7f5492d?format=1",
     tvtFeedUrl:
@@ -291,7 +291,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P021",
-    name: "RP E55 - 4",
+    name: "RP E55-4",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/04b6b854-9db8-46c7-a2fa-ff6a2118029b?format=1",
     tvtFeedUrl:
@@ -301,7 +301,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P022",
-    name: "RP E55 - 3",
+    name: "RP E55-3",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/a8f10f48-7978-43de-9abb-af2d9e88af33?format=1",
     tvtFeedUrl:
@@ -341,7 +341,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P026",
-    name: "R36 - Vte Espinillo",
+    name: "R36-Vte Espinillo",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/1e9dba29-a272-4da9-9c85-bcd2581d5253?format=1",
     tvtFeedUrl:
@@ -361,7 +361,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P028",
-    name: "RN 9 S - 2",
+    name: "RN 9 S-2",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/0d6860d2-d350-473f-9d91-dcaea18c0ea0?format=1",
     tvtFeedUrl:
@@ -371,7 +371,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P029",
-    name: "RN 9 S - 1",
+    name: "RN 9 S-1",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/d86b0477-9a87-42d2-97ad-421c2bf66162?format=1",
     tvtFeedUrl:
@@ -481,7 +481,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P040",
-    name: "R36 V. Elena - 2",
+    name: "R36 V. Elena-2",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/a829f07b-3b14-4705-9d6c-9e0362dd3a88?format=1",
     tvtFeedUrl:
@@ -521,7 +521,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P044",
-    name: "R19 - Vte. Montecristo",
+    name: "R19-Vte. Montecristo",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/245eba56-71a0-467e-ae13-477a70d1d333?format=1",
     tvtFeedUrl:
@@ -531,7 +531,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P045",
-    name: "R19 - Vte.Piquillin",
+    name: "R19-Vte.Piquillin",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/7706a2f7-ad68-4bfa-a37a-f2424e23df22?format=1",
     tvtFeedUrl:
@@ -541,7 +541,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P046",
-    name: "R19 - Vte km 619",
+    name: "R19-Vte km 619",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/a09838dd-ed61-4e44-9c89-e0e57333305e?format=1",
     tvtFeedUrl:
@@ -561,17 +561,17 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P048",
-    name: "R9N - Vte. Gral Paz",
+    name: "R9N-Vte. Gral Paz",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/523fa74d-d973-483f-9c1c-b7e21a784541?format=1",
     tvtFeedUrl:
       "https://www.waze.com/row-partnerhub-api/feeds-tvt/?id=1758893512877",
-    group: "Ruta Nacional 9",
+    group: "Ruta 9 Norte",
     coordinates: POLYGON_COORDINATES.P048,
   },
   {
     id: "P049",
-    name: "R.Alt. 38 - 2",
+    name: "R.Alt. 38-2",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/9fc20f46-2ac7-4340-8e11-2fc81677a90d?format=1",
     tvtFeedUrl:
@@ -581,7 +581,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P050",
-    name: "RP E53 - 1",
+    name: "RP E53-1",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/9a444633-d6cf-4fa3-b2ad-938a853d3a24?format=1",
     tvtFeedUrl:
@@ -591,37 +591,37 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P051",
-    name: "RN 9 N - 4",
+    name: "RN 9 N-4",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/633f2dca-59a9-4ed7-bc85-b581f5179c07?format=1",
     tvtFeedUrl:
       "https://www.waze.com/row-partnerhub-api/feeds-tvt/?id=1758805422034",
-    group: "Ruta Nacional 9",
+    group: "Ruta 9 Norte",
     coordinates: POLYGON_COORDINATES.P051,
   },
   {
     id: "P052",
-    name: "RN 9 N - 3",
+    name: "RN 9 N-3",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/ca78d420-32dc-475c-984b-075640a3361a?format=1",
     tvtFeedUrl:
       "https://www.waze.com/row-partnerhub-api/feeds-tvt/?id=1758805393057",
-    group: "Ruta Nacional 9",
+    group: "Ruta 9 Norte",
     coordinates: POLYGON_COORDINATES.P052,
   },
   {
     id: "P053",
-    name: "RN 9 N - 2",
+    name: "RN 9 N-2",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/4780e2fd-ad35-445b-a173-db9ad40d6433?format=1",
     tvtFeedUrl:
       "https://www.waze.com/row-partnerhub-api/feeds-tvt/?id=1758805252277",
-    group: "Ruta Nacional 9",
+    group: "Ruta 9 Norte",
     coordinates: POLYGON_COORDINATES.P053,
   },
   {
     id: "P054",
-    name: "Avda P. Luchesse - 1",
+    name: "Avda P. Luchesse-1",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/ad961d01-7f62-4011-b5cd-a2413091fdf8?format=1",
     tvtFeedUrl:
@@ -641,7 +641,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P056",
-    name: "A - 019 - 7",
+    name: "A-019-7",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/dd560bec-baf6-4537-84f4-705f98bd0dd1?format=1",
     tvtFeedUrl:
@@ -651,7 +651,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P057",
-    name: "A-019 - 6",
+    name: "A-019-6",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/0536f9af-0565-48d8-b900-1e0c73db3fb7?format=1",
     tvtFeedUrl:
@@ -661,7 +661,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P058",
-    name: "A-019 - 5",
+    name: "A-019-5",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/77364171-bc10-47b1-b342-5136a41d350f?format=1",
     tvtFeedUrl:
@@ -681,7 +681,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P060",
-    name: "A-019 - 3",
+    name: "A-019-3",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/cdb04abf-4d77-497e-a8d9-47d93139bccc?format=1",
     tvtFeedUrl:
@@ -691,7 +691,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P061",
-    name: "Avda P. Luchesse - 2",
+    name: "Avda P. Luchesse-2",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/0b0e277b-d331-48d2-8e8b-9b3aa7055e15?format=1",
     tvtFeedUrl:
@@ -711,7 +711,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P063",
-    name: "A-019 - 4",
+    name: "A-019-4",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/25a180e1-e887-4ef9-8d54-10426605cd40?format=1",
     tvtFeedUrl:
@@ -721,7 +721,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P064",
-    name: "A-019 - 1",
+    name: "A-019-1",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/b7c4540b-50ad-48b3-addd-5cd2941215a9?format=1",
     tvtFeedUrl:
@@ -741,12 +741,12 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
   },
   {
     id: "P066",
-    name: "RN 9 N - 1",
+    name: "RN 9 N-1",
     feedUrl:
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/837c7f61-84a9-4fde-8fbc-4db2418f5ffb?format=1",
     tvtFeedUrl:
       "https://www.waze.com/row-partnerhub-api/feeds-tvt/?id=1758737056928",
-    group: "Ruta Nacional 9",
+    group: "Ruta 9 Norte",
     coordinates: POLYGON_COORDINATES.P066,
   },
 ];

@@ -12,12 +12,15 @@
     --popover-foreground: 222.2 84% 4.9%;
 
     /* Brand Colors - Caminos de las Sierras */
-    --brand-primary: 142 65% 30%; /* #15803d */
-    --brand-warning: 48 96% 53%; /* #facc15 */
+    --brand-primary: 142 65% 30%;
+    /* #15803d */
+    --brand-warning: 48 96% 53%;
+    /* #facc15 */
 
     /* Semantic Status Colors */
     --status-fluid: 142 76% 36%;
-    --status-warning: 48 96% 53%; /* Same as brand for consistency */
+    --status-warning: 48 96% 53%;
+    /* Same as brand for consistency */
     --status-critical: 0 84.2% 60.2%;
 
     /* Mapping to Tailwind/Shadcn Standard vars */
@@ -67,19 +70,22 @@
 /* Responsive Scaling for Big Screens (TVs & 4K) */
 @media (min-width: 1921px) {
   html {
-    font-size: 18px; /* Scale up ~12.5% for 2K/QHD */
+    font-size: 18px;
+    /* Scale up ~12.5% for 2K/QHD */
   }
 }
 
 @media (min-width: 2561px) {
   html {
-    font-size: 22px; /* Scale up ~37.5% for ultrawide/mid-4K */
+    font-size: 22px;
+    /* Scale up ~37.5% for ultrawide/mid-4K */
   }
 }
 
 @media (min-width: 3800px) {
   html {
-    font-size: 26px; /* Scale up ~62.5% for full 4K on large panels */
+    font-size: 26px;
+    /* Scale up ~62.5% for full 4K on large panels */
   }
 }
 
@@ -90,20 +96,20 @@
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-100;
+  @apply bg-gray-100 dark:bg-veltrix-bg;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-400 rounded-full;
+  @apply bg-gray-400 dark:bg-veltrix-border rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-500;
+  @apply bg-gray-500 dark:bg-veltrix-muted;
 }
 
 /* Custom utility classes */
 .card {
-  @apply bg-white rounded-2xl shadow-lg border-2 border-gray-100 p-6 hover:shadow-xl transition-all duration-300;
+  @apply bg-white dark:bg-veltrix-card rounded-2xl shadow-lg border-2 border-gray-100 dark:border-veltrix-border/50 p-6 hover:shadow-xl transition-all duration-300;
 }
 
 .badge {
@@ -124,10 +130,10 @@
 
 /* Ocultar mensajes de desarrollo de Google Maps */
 .gm-style-cc,
-.gm-style-cc > div,
-.gm-style-cc > div > div,
-.gm-style > div:first-child > div:last-child > div:first-child,
-.gm-style > div:first-child > div:last-child > div:first-child > div {
+.gm-style-cc>div,
+.gm-style-cc>div>div,
+.gm-style>div:first-child>div:last-child>div:first-child,
+.gm-style>div:first-child>div:last-child>div:first-child>div {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
@@ -178,6 +184,7 @@ div[style*="¿Eres el propietario de este sitio web?"] {
 
 /* Animaciones personalizadas adicionales */
 @keyframes float {
+
   0%,
   100% {
     transform: translateY(0px);
@@ -189,6 +196,7 @@ div[style*="¿Eres el propietario de este sitio web?"] {
 }
 
 @keyframes glow {
+
   0%,
   100% {
     box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
@@ -231,12 +239,10 @@ div[style*="¿Eres el propietario de este sitio web?"] {
 
 .animate-shimmer {
   animation: shimmer 2s linear infinite;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.2) 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
+  background: linear-gradient(90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.2) 50%,
+      rgba(255, 255, 255, 0) 100%);
   background-size: 1000px 100%;
 }
 
@@ -327,11 +333,13 @@ div[style*="¿Eres el propietario de este sitio web?"] {
 
 /* Animación para marcadores críticos */
 @keyframes pulse-marker {
+
   0%,
   100% {
     transform: scale(1);
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
   }
+
   50% {
     transform: scale(1.1);
     box-shadow: 0 5px 15px rgba(220, 38, 38, 0.6);

@@ -554,18 +554,8 @@ export class WazePollingService {
         }
       }
 
-      // Auto-crear siniestros en road_accidents para accidentes (type='ACCIDENT')
-      // Filtro estricto: Solo Accidentes Mayores, Menores o Genéricos (sin subtipo raro)
-      const allowedSubtypes = [
-        "ACCIDENT_MAJOR",
-        "ACCIDENT_MINOR",
-        "NO_SUBTYPE",
-      ];
-      const accidents = alerts.filter(
-        (a) =>
-          a.type === "ACCIDENT" &&
-          (!a.subtype || allowedSubtypes.includes(a.subtype)),
-      );
+      // Auto-crear siniestros en road_accidents para TODOS los accidentes
+      const accidents = alerts.filter((a) => a.type === "ACCIDENT");
       if (accidents.length > 0) {
         // ... (mantener lógica road_accidents) ...
         for (const accident of accidents) {
@@ -578,21 +568,36 @@ export class WazePollingService {
           );
           if (existing.rows.length === 0) {
             const { roadAccidentService } = require("./roadAccidentService");
-            const { openMeteoService } = require("./openMeteoService");
-            // Fetch clima
-            let weatherData = {};
+            const { weatherService } = require("./weatherService");
+            let weatherData: Record<string, unknown> = {};
             try {
-              weatherData = await openMeteoService.fetchWeatherForLocation({
-                lat: accident.location.y,
-                lng: accident.location.x,
-              });
-            } catch (e) {}
+              const w = await weatherService.fetchWeatherForPolygon(
+                `accident_${accident.uuid}`,
+                accident.location.y,
+                accident.location.x,
+              );
+              if (w) {
+                weatherData = {
+                  temperature_celsius: w.temperature_celsius,
+                  precipitation_mm: w.precipitation_mm,
+                  weather_code: w.weather_code,
+                  wind_speed_kmh: w.wind_speed_kmh,
+                  visibility_meters: w.visibility_meters,
+                  humidity_percent: w.humidity_percent,
+                  weather_description: w.weather_description,
+                  is_freezing_risk: w.is_freezing_risk,
+                };
+              }
+            } catch (e) {
+              logger.warn(`Clima no disponible para accidente ${accident.uuid}`);
+            }
 
             await roadAccidentService.createAccident({
               incident_id: accident.uuid,
-              type: accident.type,
+              type: "ACCIDENT",
+              subtype: accident.subtype || undefined,
               severity: accident.reliability
-                ? Math.round(accident.reliability / 2)
+                ? Math.min(5, Math.max(1, Math.round(accident.reliability / 2)))
                 : 3,
               waze_data: accident,
               weather_data: weatherData,
@@ -601,6 +606,7 @@ export class WazePollingService {
               accident_at: new Date(accident.pubMillis),
               location_lat: accident.location.y,
               location_lng: accident.location.x,
+              street: accident.street,
               description: accident.reportDescription || accident.subtype,
             });
           } else {

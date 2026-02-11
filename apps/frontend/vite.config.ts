@@ -38,6 +38,7 @@ export default defineConfig(({ mode }) => {
 
     // Configuración de build para producción
     build: {
+      target: "es2022",
       outDir: "dist",
       sourcemap: mode === "development",
       minify: "esbuild",
@@ -83,7 +84,7 @@ export default defineConfig(({ mode }) => {
       // Optimizaciones adicionales
       cssCodeSplit: true,
       reportCompressedSize: true,
-      target: "esnext",
+      target: "es2022",
       // Optimización de assets
       assetsInlineLimit: 4096, // Inline assets menores a 4KB
     },
@@ -115,7 +116,11 @@ export default defineConfig(({ mode }) => {
         "recharts",
         "@turf/turf",
         "fast-deep-equal",
+        "maplibre-gl",
       ],
+      esbuildOptions: {
+        target: "es2022",
+      },
     },
 
     // Preview server (para probar build de producción)

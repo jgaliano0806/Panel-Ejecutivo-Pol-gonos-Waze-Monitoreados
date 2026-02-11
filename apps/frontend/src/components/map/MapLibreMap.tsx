@@ -322,111 +322,85 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     return () => clearTimeout(timer);
   }, [selectedIncidentId, forcedIncident, incidents, mapLoaded]);
 
-  // Carga de iconos usando SVG inline
   const loadWazeIcon = (map: maplibregl.Map, iconId: string) => {
     if (map.hasImage(iconId)) return;
-
-    // Expected format: waze-TYPE-SUBTYPE
-    // Example: waze-hazard-hazard_on_road_construction
     const cleanId = iconId.replace(/^waze-/, "");
     const firstDashIndex = cleanId.indexOf("-");
-
-    let type, subtype;
-
-    if (firstDashIndex === -1) {
-      type = cleanId;
-      subtype = undefined;
-    } else {
-      type = cleanId.substring(0, firstDashIndex);
-      subtype = cleanId.substring(firstDashIndex + 1);
-    }
-
-    // Obtener SVG del repositorio inline
+    const type =
+      firstDashIndex === -1 ? cleanId : cleanId.substring(0, firstDashIndex);
+    const subtype =
+      firstDashIndex === -1
+        ? undefined
+        : cleanId.substring(firstDashIndex + 1);
     const svgString = getWazeIconSvg(type, subtype);
-
-    if (!svgString) {
-      console.warn(`❌ No SVG found for ${iconId}`);
-      return;
-    }
-
-    console.log(
-      `🎨 Loading icon ${iconId} (Type: ${type}, Subtype: ${subtype})`,
-    );
-
+    if (!svgString) return;
     const img = new Image(64, 64);
-    img.width = 64;
-    img.height = 64;
-
     img.onload = () => {
-      try {
-        if (!map.hasImage(iconId)) {
-          map.addImage(iconId, img, { sdf: false });
-          // Forzar repintado para que aparezca el icono inmediatamente
-          map.triggerRepaint();
-        }
-      } catch (e) {
-        console.error(`❌ Failed to add image ${iconId} to map`, e);
+      if (!map.hasImage(iconId)) {
+        map.addImage(iconId, img, { sdf: false });
+        map.triggerRepaint();
       }
     };
-
-    img.onerror = (err) => {
-      console.error(`❌ Failed to load SVG image for ${iconId}`, err);
-    };
-
-    const dataUri =
+    img.src =
       "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgString);
-    img.src = dataUri;
   };
+
+  const COMMON_ICONS = [
+    "waze-accident",
+    "waze-jam",
+    "waze-hazard",
+    "waze-construction",
+    "waze-roadclosed",
+    "waze-road_closed",
+    "waze-police",
+    "waze-weatherhazard",
+    "waze-pothole",
+    "waze-hazard-hazard_on_road_construction",
+    "waze-hazard-hazard_on_shoulder_car_stopped",
+    "waze-hazard-hazard_on_road_pot_hole",
+    "waze-road_closed-road_closed_event",
+  ];
 
   const onMapLoad = (e: any) => {
     const map = e.target;
-    console.log(`🎨 Map style loaded, preloading common icons...`);
-
-    const commonIcons = [
-      { id: "waze-accident", type: "accident" },
-      { id: "waze-jam", type: "jam" },
-      { id: "waze-hazard", type: "hazard" },
-      { id: "waze-construction", type: "construction" },
-      { id: "waze-roadclosed", type: "roadclosed" },
-      { id: "waze-road_closed", type: "road_closed" }, // Alias snake_case
-      { id: "waze-police", type: "police" },
-      { id: "waze-weatherhazard", type: "weatherhazard" },
-      { id: "waze-pothole", type: "pothole" },
-      // Subtipos frecuentes que causan warnings
-      {
-        id: "waze-hazard-hazard_on_road_construction",
-        type: "hazard",
-        subtype: "hazard_on_road_construction",
-      },
-      {
-        id: "waze-hazard-hazard_on_shoulder_car_stopped",
-        type: "hazard",
-        subtype: "hazard_on_shoulder_car_stopped",
-      },
-      {
-        id: "waze-hazard-hazard_on_road_pot_hole",
-        type: "hazard",
-        subtype: "hazard_on_road_pot_hole",
-      },
-      {
-        id: "waze-road_closed-road_closed_event",
-        type: "road_closed",
-        subtype: "road_closed_event",
-      },
-    ];
-
-    commonIcons.forEach((icon) => {
-      loadWazeIcon(map, icon.id);
-    });
-
-    // Listener para iconos faltantes (carga dinámica)
-    map.on("styleimagemissing", (e: any) => {
-      const id = e.id;
-      if (id && id.startsWith("waze-")) {
-        loadWazeIcon(map, id);
-      }
+    COMMON_ICONS.forEach((id) => loadWazeIcon(map, id));
+    map.on("styleimagemissing", (ev: any) => {
+      const id = ev?.id;
+      if (id && id.startsWith("waze-")) loadWazeIcon(map, id);
     });
   };
+
+  // Animación línea verde fluida: ciclar line-dasharray
+  useEffect(() => {
+    if (!mapLoaded || !showTraffic || !showFlowLayer) return;
+    const ref = mapRef.current;
+    const map = ref?.getMap?.() as maplibregl.Map | undefined;
+    if (!map) return;
+
+    const dashSteps = [
+      [2, 4],
+      [3, 3],
+      [4, 2],
+      [5, 1],
+      [6, 0],
+      [0, 6],
+      [1, 5],
+    ];
+    let step = 0;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    const timeoutId = setTimeout(() => {
+      intervalId = setInterval(() => {
+        if (!map.getLayer("flow-fluid-line")) return;
+        const [dash, gap] = dashSteps[step % dashSteps.length];
+        map.setPaintProperty("flow-fluid-line", "line-dasharray", [dash, gap]);
+        step++;
+      }, 80);
+    }, 200);
+    return () => {
+      clearTimeout(timeoutId);
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [mapLoaded, showTraffic, showFlowLayer]);
 
   // GeoJSON Memos (Polygons, Flow, Jams, Incidents)
   const polygonsGeoJSON = useMemo(
@@ -490,6 +464,47 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             color: getFlowColor(jam.speed || 0),
             // Para flechas de dirección
             bearing: calculateBearing(jam.line),
+          },
+        })),
+    };
+  }, [trafficFlow, jams]);
+
+  // Segmentos fluidos (speed >= 50): sin congestión = tráfico fluido → línea verde animada
+  const flowFluidGeoJSON = useMemo(() => {
+    const flowLines =
+      trafficFlow.length > 0
+        ? trafficFlow
+        : jams.filter((j) => (j.speed || 0) > 20);
+    const fluid = flowLines.filter((j) => (j.speed || 0) >= 50);
+    return {
+      type: "FeatureCollection",
+      features: fluid
+        .filter((j) => {
+          if (!j.line || j.line.length < 2) return false;
+          return j.line.every(
+            (p: { x: number; y: number }) =>
+              p &&
+              typeof p.x === "number" &&
+              typeof p.y === "number" &&
+              !isNaN(p.x) &&
+              !isNaN(p.y) &&
+              isFinite(p.x) &&
+              isFinite(p.y),
+          );
+        })
+        .map((jam) => ({
+          type: "Feature",
+          geometry: {
+            type: "LineString",
+            coordinates: jam.line!.map((p: { x: number; y: number }) => [
+              p.x,
+              p.y,
+            ]),
+          },
+          properties: {
+            id: jam.id,
+            speed: jam.speed || 0,
+            street: jam.street || "Vía sin nombre",
           },
         })),
     };
@@ -762,55 +777,48 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   // La capa jams-animated usa un dasharray estático que es más estable.
 
   const handleClick = (event: any) => {
-    const feature = event.features?.[0];
-    if (!feature) return;
+    const features = event.features ?? [];
+    if (features.length === 0) return;
 
-    // Click en Polígono
-    if (feature.layer.id === "polygons-fill" && onPolygonClick) {
-      onPolygonClick(feature.properties.id);
-      setSelectedIncident(null);
-      setSelectedJam(null);
-      return;
-    }
+    // Priorizar incidentes y jams sobre polígonos (los polígonos cubren toda el área)
+    const incidentFeature = features.find(
+      (f: any) =>
+        f.layer?.id === "incidents-icon" || f.layer?.id === "incidents-base"
+    );
+    const jamFeature = features.find(
+      (f: any) =>
+        f.layer?.id === "jams-core" || f.layer?.id === "jam-labels-bg"
+    );
+    const polygonFeature = features.find(
+      (f: any) => f.layer?.id === "polygons-fill"
+    );
 
-    // Click en Incidente Waze
-    if (
-      feature.layer.id === "incidents-icon" ||
-      feature.layer.id === "incidents-base"
-    ) {
-      const { geometry, properties } = feature;
+    // Click en Incidente Waze (prioridad 1)
+    if (incidentFeature) {
+      const { geometry, properties } = incidentFeature;
       const [lng, lat] = geometry.coordinates;
-
       setSelectedJam(null);
-      setSelectedIncident({
-        lng,
-        lat,
-        properties,
-      });
-
+      setSelectedIncident({ lng, lat, properties });
       mapRef.current?.flyTo({ center: [lng, lat], zoom: 15, duration: 800 });
       return;
     }
 
-    // Click en Atasco/Jam
-    if (
-      feature.layer.id === "jams-core" ||
-      feature.layer.id === "jam-labels-bg"
-    ) {
-      const { properties } = feature;
-      // Usar punto medio guardado en properties o calcular desde event
+    // Click en Atasco/Jam (prioridad 2)
+    if (jamFeature) {
+      const { properties } = jamFeature;
       const lng = properties.midLng || event.lngLat.lng;
       const lat = properties.midLat || event.lngLat.lat;
-
       setSelectedIncident(null);
-      setSelectedJam({
-        lng,
-        lat,
-        properties,
-      });
-
+      setSelectedJam({ lng, lat, properties });
       mapRef.current?.flyTo({ center: [lng, lat], zoom: 15, duration: 800 });
       return;
+    }
+
+    // Click en Polígono (prioridad 3)
+    if (polygonFeature && onPolygonClick) {
+      onPolygonClick(polygonFeature.properties.id);
+      setSelectedIncident(null);
+      setSelectedJam(null);
     }
   };
 
@@ -831,7 +839,6 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         mapStyle={mapStyleUrl}
         attributionControl={false}
         onClick={handleClick}
-        onStyleLoad={onMapLoad}
         onLoad={(e: any) => {
           startTransition(() => {
             setMapLoaded(true);
@@ -933,6 +940,36 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                   8,
                 ],
                 "line-opacity": 0.9,
+              }}
+              layout={{
+                "line-cap": "round",
+                "line-join": "round",
+              }}
+            />
+          </Source>
+        )}
+
+        {/* Tráfico fluido (speed >= 50): línea verde animada = sin congestión */}
+        {showTraffic && showFlowLayer && mapLoaded && (
+          <Source id="flow-fluid" type="geojson" data={flowFluidGeoJSON as any}>
+            <Layer
+              id="flow-fluid-line"
+              type="line"
+              paint={{
+                "line-color": "#00c853",
+                "line-width": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  10,
+                  4,
+                  14,
+                  6,
+                  18,
+                  10,
+                ],
+                "line-opacity": 0.95,
+                "line-dasharray": [2, 4],
               }}
               layout={{
                 "line-cap": "round",

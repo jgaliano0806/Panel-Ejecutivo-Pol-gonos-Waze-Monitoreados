@@ -220,6 +220,72 @@ export async function runMigrations(): Promise<void> {
       }
     }
 
+    // Migración 024: Normalizar espacios en nombres de polígonos
+    const migration024Path = path.join(
+      migrationsDir,
+      "024_normalize_polygon_names.sql",
+    );
+    if (fs.existsSync(migration024Path)) {
+      try {
+        const sql = fs.readFileSync(migration024Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 024 ejecutada: Espacios en nombres de polígonos normalizados",
+        );
+      } catch (migError: any) {
+        console.warn("⚠️ Migración 024:", migError.message);
+      }
+    }
+
+    // Migración 025: Catálogo de grupos de polígonos
+    const migration025Path = path.join(
+      migrationsDir,
+      "025_polygon_groups_catalog.sql",
+    );
+    if (fs.existsSync(migration025Path)) {
+      try {
+        const sql = fs.readFileSync(migration025Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 025 ejecutada: Catálogo polygon_groups creado y poblado",
+        );
+      } catch (migError: any) {
+        console.warn("⚠️ Migración 025:", migError.message);
+      }
+    }
+
+    // Migración 026: Restaurar polígonos ocultos y grupo Ruta 9 Norte
+    const migration026Path = path.join(
+      migrationsDir,
+      "026_restore_polygons_and_ruta9_norte.sql",
+    );
+    if (fs.existsSync(migration026Path)) {
+      try {
+        const sql = fs.readFileSync(migration026Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 026 ejecutada: Polígonos restaurados y Ruta 9 Norte",
+        );
+      } catch (migError: any) {
+        console.warn("⚠️ Migración 026:", migError.message);
+      }
+    }
+
+    // Migración 027: is_active en polygon_groups
+    const migration027Path = path.join(
+      migrationsDir,
+      "027_polygon_groups_is_active.sql",
+    );
+    if (fs.existsSync(migration027Path)) {
+      try {
+        const sql = fs.readFileSync(migration027Path, "utf-8");
+        await dbService.query(sql);
+        console.log("✅ Migración 027 ejecutada: is_active en polygon_groups");
+      } catch (migError: any) {
+        console.warn("⚠️ Migración 027:", migError.message);
+      }
+    }
+
     console.log("✅ Migraciones completadas exitosamente");
   } catch (error: any) {
     // Si el error es por tabla/columna ya existente, es OK

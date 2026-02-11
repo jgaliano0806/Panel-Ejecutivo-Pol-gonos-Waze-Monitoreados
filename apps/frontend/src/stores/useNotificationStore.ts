@@ -4,7 +4,10 @@ import { persist } from "zustand/middleware";
 export interface NotificationData {
   polygonId?: string;
   alertId?: string;
+  uuid?: string;
   location?: { x: number; y: number };
+  latitude?: number;
+  longitude?: number;
   incidentType?: string;
   subtype?: string;
   street?: string;
