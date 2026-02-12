@@ -514,8 +514,8 @@ const Dashboard: React.FC = () => {
 
               {/* Sidebar de Detalle de Polígono (Panel Derecho) */}
               {selectedPolygonData && (
-                <div className="absolute right-0 top-0 h-full w-[400px] border-l border-gray-200 dark:border-veltrix-border bg-white dark:bg-veltrix-card z-[1001] shadow-2xl">
-                  <div className="h-full overflow-y-auto custom-scrollbar">
+                <div className="absolute right-0 top-0 h-full w-[400px] border-l border-gray-200 dark:border-veltrix-border bg-white dark:bg-veltrix-card z-[1001] shadow-2xl overscroll-contain">
+                  <div className="h-full overflow-y-auto overscroll-contain custom-scrollbar">
                     <PolygonDetail
                       polygon={selectedPolygonData}
                       incidents={filteredIncidents}

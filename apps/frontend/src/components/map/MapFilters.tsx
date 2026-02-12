@@ -31,7 +31,7 @@ const MapFilters: React.FC<MapFiltersProps> = ({
 
       <div className="space-y-3">
         {/* Filtro de Polígonos */}
-        <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border-2 border-blue-500 hover:shadow-lg transition-all">
+        <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border-2 border-blue-500 hover:shadow-lg transition-shadow duration-300">
           <div className="flex items-center gap-3">
             <span className="text-2xl">🗺️</span>
             <div>
@@ -41,11 +41,11 @@ const MapFilters: React.FC<MapFiltersProps> = ({
           </div>
           <button
             onClick={() => handleToggle("showPolygons")}
-            className={`relative w-14 h-7 rounded-full transition-colors duration-300 ${
+            aria-pressed={filters.showPolygons}
+            aria-label="Mostrar u ocultar polígonos"
+            className={`relative w-14 h-7 rounded-full transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
               filters.showPolygons ? "bg-green-500" : "bg-gray-300"
             }`}
-            aria-label="Toggle polygons"
-            title="Mostrar/Ocultar Polígonos"
           >
             <div
               className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 ${
@@ -56,7 +56,7 @@ const MapFilters: React.FC<MapFiltersProps> = ({
         </div>
 
         {/* Filtro de Incidentes */}
-        <div className="flex items-center justify-between p-3 bg-gradient-to-r from-red-50 to-red-100 rounded-lg border-2 border-red-500 hover:shadow-lg transition-all">
+        <div className="flex items-center justify-between p-3 bg-gradient-to-r from-red-50 to-red-100 rounded-lg border-2 border-red-500 hover:shadow-lg transition-shadow duration-300">
           <div className="flex items-center gap-3">
             <span className="text-2xl">⚠️</span>
             <div>
@@ -66,11 +66,11 @@ const MapFilters: React.FC<MapFiltersProps> = ({
           </div>
           <button
             onClick={() => handleToggle("showIncidents")}
-            className={`relative w-14 h-7 rounded-full transition-colors duration-300 ${
+            aria-pressed={filters.showIncidents}
+            aria-label="Mostrar u ocultar incidentes"
+            className={`relative w-14 h-7 rounded-full transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
               filters.showIncidents ? "bg-green-500" : "bg-gray-300"
             }`}
-            aria-label="Toggle incidents"
-            title="Mostrar/Ocultar Incidentes"
           >
             <div
               className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 ${
@@ -81,7 +81,7 @@ const MapFilters: React.FC<MapFiltersProps> = ({
         </div>
 
         {/* Filtro de Tráfico */}
-        <div className="flex items-center justify-between p-3 bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg border-2 border-orange-500 hover:shadow-lg transition-all">
+        <div className="flex items-center justify-between p-3 bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg border-2 border-orange-500 hover:shadow-lg transition-shadow duration-300">
           <div className="flex items-center gap-3">
             <span className="text-2xl">🚦</span>
             <div>
@@ -91,11 +91,11 @@ const MapFilters: React.FC<MapFiltersProps> = ({
           </div>
           <button
             onClick={() => handleToggle("showJams")}
-            className={`relative w-14 h-7 rounded-full transition-colors duration-300 ${
+            aria-pressed={filters.showJams}
+            aria-label="Mostrar u ocultar tráfico"
+            className={`relative w-14 h-7 rounded-full transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
               filters.showJams ? "bg-green-500" : "bg-gray-300"
             }`}
-            aria-label="Toggle traffic jams"
-            title="Mostrar/Ocultar Tráfico"
           >
             <div
               className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 ${

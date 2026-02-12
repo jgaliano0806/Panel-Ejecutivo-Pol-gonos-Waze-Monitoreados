@@ -531,31 +531,34 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
       el.style.width = "36px";
       el.style.height = "36px";
       el.style.cursor = "pointer";
+      el.setAttribute("role", "button");
+      el.setAttribute("tabindex", "0");
+      el.setAttribute("aria-label", `Incidente: ${inc.type}${inc.subtype ? `, ${inc.subtype}` : ""}`);
+      el.style.touchAction = "manipulation";
       el.innerHTML = `
         <div style="
           width:36px;height:36px;
           border-radius:50%;
-          background:${isDark ? "#fff" : "#222"};
-          border:2px solid ${isDark ? "#222" : "#fff"};
+          background:#1e293b;
           display:flex;align-items:center;justify-content:center;
-          box-shadow:0 2px 8px rgba(0,0,0,0.4);
-          transition:transform 0.15s;
+          box-shadow:0 2px 6px rgba(0,0,0,0.4);
+          transition:transform 0.15s ease;
         ">
-          <img src="${src}" alt="${inc.type}"
-            style="width:24px;height:24px;object-fit:contain;pointer-events:none;"
+          <img src="${src}" alt="" role="presentation"
+            style="width:30px;height:30px;object-fit:contain;pointer-events:none;"
             onerror="this.onerror=null;this.src='${dataUri}';"
           />
         </div>
       `;
 
-      // Hover effect en el hijo interno
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const inner = el.firstElementChild as HTMLElement;
-      inner.addEventListener("mouseenter", () => { inner.style.transform = "scale(1.25)"; });
-      inner.addEventListener("mouseleave", () => { inner.style.transform = ""; });
+      if (!reducedMotion) {
+        inner.addEventListener("mouseenter", () => { inner.style.transform = "scale(1.25)"; });
+        inner.addEventListener("mouseleave", () => { inner.style.transform = ""; });
+      }
 
-      // Click nativo
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
+      const handleActivate = () => {
         const timeMs = inc.timestamp instanceof Date
           ? inc.timestamp.getTime()
           : new Date(inc.timestamp).getTime();
@@ -579,6 +582,18 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
           },
         });
         map.flyTo({ center: [inc.location.lng, inc.location.lat], zoom: 15, duration: 800 });
+      };
+
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        handleActivate();
+      });
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          e.stopPropagation();
+          handleActivate();
+        }
       });
 
       const marker = new maplibregl.Marker({ element: el, anchor: "center" })
@@ -986,6 +1001,8 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     <div
       className={`h-full w-full min-h-[500px] ${isDark ? "bg-[#222736]" : "bg-gray-100"} relative`}
       style={{ minHeight: "500px" }}
+      role="region"
+      aria-label="Mapa de incidentes y tráfico"
     >
       <Map
         ref={mapRef}
@@ -1441,7 +1458,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                 {/* Barra de nivel de congestión */}
                 <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                   <div
-                    className="h-full rounded-full transition-all duration-500"
+                    className="h-full rounded-full transition-[width] duration-500"
                     style={{
                       width: `${Math.min(100, (selectedJam.properties.level || 1) * 20)}%`,
                       backgroundColor: selectedJam.properties.color,
@@ -1661,7 +1678,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                   <div className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-veltrix-bg rounded-full shadow-sm border border-gray-100 dark:border-veltrix-border">
                     <ShieldCheck className="h-3 w-3 text-gray-400" />
                     <span className="font-medium">
-                      Confianza: {selectedIncident.properties.confidence}/10
+                      Confianza: {selectedIncident.properties.confidence != null ? `${selectedIncident.properties.confidence.toFixed(1)}/5` : "N/A"}
                     </span>
                   </div>
                 </div>

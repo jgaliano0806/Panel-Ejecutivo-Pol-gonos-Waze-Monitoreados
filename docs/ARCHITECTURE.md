@@ -6,24 +6,27 @@ El **Panel Ejecutivo Waze** es un sistema de monitoreo en tiempo real del tráfi
 
 ## Arquitectura General
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    PANEL EJECUTIVO WAZE                         │
-│                       MONOREPO ARCHITECTURE                     │
-└─────────────────────────────────────────────────────────────────┘
-                                    │
-                    ┌───────────────┼───────────────┐
-                    │               │               │
-            ┌───────▼───────┐ ┌─────▼─────┐ ┌──────▼──────┐
-            │   FRONTEND    │ │  BACKEND  │ │  PACKAGES   │
-            │   (React)     │ │  (Fastify)│ │  (Shared)   │
-            └───────────────┘ └───────────┘ └─────────────┘
-                    │               │               │
-            ┌───────▼───────────────▼───────────────▼───────┐
-            │                                               │
-            │               EXTERNAL SERVICES               │
-            │                                               │
-            └───────────────────────────────────────────────┘
+```mermaid
+C4Context
+    title Arquitectura del Sistema Panel Ejecutivo Waze
+
+    Person(user, "Usuario", "Operador de Sala de Control")
+    System_Boundary(system, "Panel Ejecutivo Waze") {
+        Container(frontend, "Frontend App", "React, Vite, TypeScript", "Interfaz de usuario para monitoreo y gestión")
+        Container(backend, "Backend API", "Node.js, Fastify, TypeScript", "API REST, WebSocket, Lógica de Negocio")
+        ContainerDb(database, "Base de Datos", "PostgreSQL", "Almacenamiento de datos relacionales y geoespaciales")
+        ContainerDb(redis, "Cache", "Redis", "Cache de datos y rate limiting")
+    }
+
+    System_Ext(waze, "Waze CCP", "Fuente de datos de tráfico")
+    System_Ext(meteo, "Open-Meteo", "Datos meteorológicos")
+
+    Rel(user, frontend, "Usa", "HTTPS")
+    Rel(frontend, backend, "API Calls / WebSocket", "JSON/WSS")
+    Rel(backend, database, "Lee/Escribe", "SQL")
+    Rel(backend, redis, "Cachea", "TCP")
+    Rel(backend, waze, "Consume feeds", "HTTPS")
+    Rel(backend, meteo, "Consulta clima", "HTTPS")
 ```
 
 ## Arquitectura Detallada
@@ -113,7 +116,7 @@ panel-waze-monorepo/
 │               INFRASTRUCTURE LAYER              │
 ├─────────────────────────────────────────────────┤
 │  🌐 HTTP Client (Fetch)                        │
-│  🗺️  Maps (Leaflet)                            │
+│  🗺️  Maps (MapLibre GL JS + react-map-gl)      │
 │  📊 Charts (Recharts)                          │
 │  🎭 Animations (Framer Motion)                 │
 └─────────────────────────────────────────────────┘
@@ -211,62 +214,62 @@ panel-waze-monorepo/
 
 ## 4. Data Flow Architecture
 
-### Request Flow (Frontend → Backend → Database)
+### Diagrama de Secuencia: Flujo de Solicitud (Frontend → Backend → Base de Datos)
 
-```
-1. User Action          ┌─────────────┐
-   (Click, Form)    ──► │  Component  │
-                        └─────────────┘
-                              │
-                              ▼
-2. API Call            ┌─────────────┐
-   (useQuery/useMutation) ─► │   Hook     │
-                        └─────────────┘
-                              │
-                              ▼
-3. HTTP Request         ┌─────────────┐
-   (fetch/axios)    ──► │ API Client  │
-                        └─────────────┘
-                              │
-                              ▼
-4. Route Handler        ┌─────────────┐
-   (Fastify Route)  ──► │ Controller  │
-                        └─────────────┘
-                              │
-                              ▼
-5. Business Logic       ┌─────────────┐
-   (Domain Service) ──► │   Service   │
-                        └─────────────┘
-                              │
-                              ▼
-6. Data Access          ┌─────────────┐
-   (Repository)     ──► │ Repository  │
-                        └─────────────┘
-                              │
-                              ▼
-7. Database Query       ┌─────────────┐
-   (SQL)            ──► │ PostgreSQL  │
-                        └─────────────┘
+```mermaid
+sequenceDiagram
+    participant U as Usuario
+    participant C as Componente
+    participant H as Hook (Query/Mutation)
+    participant A as Cliente API
+    participant CTL as Controlador
+    participant S as Servicio
+    participant R as Repositorio
+    participant DB as PostgreSQL
+
+    U->>C: Acción (Click/Formulario)
+    C->>H: Llamar Hook
+    H->>A: Solicitar Datos
+    A->>CTL: Solicitud HTTP (GET/POST)
+    CTL->>S: Invocar Lógica de Negocio
+    S->>R: Solicitar Acceso a Datos
+    R->>DB: Ejecutar Consulta SQL
+    DB-->>R: Devolver Resultado
+    R-->>S: Devolver Entidad
+    S-->>CTL: Devolver DTO
+    CTL-->>A: Respuesta JSON
+    A-->>H: Actualizar Estado
+    H-->>C: Re-renderizar
+    C-->>U: Actualizar UI
 ```
 
-### Real-time Data Flow (WebSocket/Server-Sent Events)
+### Flujo de Datos en Tiempo Real (WebSocket/Server-Sent Events)
 
-```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│   Waze API  │───►│   Service   │───►│ WebSocket   │
-│             │    │             │    │             │
-│ • Incidents │    │ • Process   │    │ • Broadcast │
-│ • Jams      │    │ • Filter    │    │ • Real-time │
-│ • Updates   │    │ • Enrich    │    │ • Push      │
-└─────────────┘    └─────────────┘    └─────────────┘
-                        │
-                        ▼
-               ┌─────────────┐
-               │  Frontend   │
-               │ • React     │
-               │ • Real-time │
-               │ • Updates   │
-               └─────────────┘
+```mermaid
+sequenceDiagram
+    participant W as API Waze
+    participant S as Servicio Backend
+    participant WS as Servidor WebSocket
+    participant F as App Frontend
+    participant TTS as Motor TTS
+
+    loop Polling (30s)
+        S->>W: Obtener Feed
+        W-->>S: Datos JSON
+    end
+
+    S->>S: Procesar y Filtrar
+    S->>WS: Emitir 'notification:new'
+    WS->>F: Transmitir Evento
+
+    rect rgb(240, 248, 255)
+        note right of F: Procesamiento en Cliente
+        F->>F: Actualizar Store
+        F->>F: Verificar Filtros
+        alt Pasa Filtro
+            F->>TTS: Reproducir Notificación
+        end
+    end
 ```
 
 ### Flujo TTS y notificaciones en tiempo real
@@ -278,6 +281,85 @@ Las notificaciones nuevas llegan por Socket.IO (`notification:new`). El **único
 3. **TTS** (`lib/tts-service.ts`): encola el mensaje; la cola se procesa en orden llamando a `POST /api/tts/speak` (Edge TTS) o fallback Web Speech API. El estado de la cola (pendientes, si está reproduciendo) se consulta con `getTTSQueueStatus()`.
 
 El hook `useRealtimeNotifications` no escucha `notification:new`; solo desbloquea audio con la primera interacción del usuario y reintenta TTS pendientes periódicamente. Ver [TTS.md](./TTS.md).
+
+### Diagrama Entidad-Relación
+
+```mermaid
+erDiagram
+    USERS ||--o{ USER_ROLES : tiene
+    ROLES ||--o{ USER_ROLES : asignado_a
+
+    POLYGONS ||--o{ WAZE_ALERTS : contiene
+    POLYGONS ||--o{ WAZE_JAMS : contiene
+    POLYGONS ||--o{ POLYGON_WEATHER_DATA : tiene_clima
+
+    INCIDENT_TYPES ||--o{ INCIDENT_SUBTYPES : tiene
+    INCIDENT_TYPES ||--o{ WAZE_ALERTS : categoriza
+    INCIDENT_SUBTYPES ||--o{ WAZE_ALERTS : subcategoriza
+
+    WAZE_ALERTS {
+        uuid id PK
+        string title
+        point location
+        string type
+        string subtype
+        timestamp created_at
+    }
+
+    WAZE_JAMS {
+        uuid id PK
+        line_string geometry
+        int level
+        float speed
+        float length
+    }
+
+    POLYGONS {
+        uuid id PK
+        string name
+        boolean enabled
+        json geometry
+    }
+```
+
+## Arquitectura del Mapa
+
+### Motor de renderizado
+
+El mapa principal usa **MapLibre GL JS** a través de **react-map-gl/maplibre**, con un mapa base **raster** (OpenStreetMap claro / CARTO Dark) para evitar errores de parseo de tiles vectoriales (`unknown feature value`).
+
+### Capas del mapa
+
+| Capa | Tipo | Fuente |
+|------|------|--------|
+| Mapa base | Raster tile | OSM / CARTO rastertiles |
+| Polígonos | GeoJSON fill + line | `<Source>` / `<Layer>` (react-map-gl) |
+| Flujo de tráfico | GeoJSON line (animado) | `<Source>` / `<Layer>` |
+| Atascos (jams) | GeoJSON line (multi-capa: brillo, núcleo, animado) | `<Source>` / `<Layer>` |
+| Etiquetas de velocidad | GeoJSON symbol | `<Source>` / `<Layer>` |
+| Cierres de camino | GeoJSON line (punteada) | `<Source>` / `<Layer>` |
+| **Incidentes** | **Marcadores HTML (DOM)** | `maplibregl.Marker` con click nativo |
+
+### Incidentes como Marcadores HTML
+
+Los incidentes se renderizan como `maplibregl.Marker` con elementos DOM en lugar de capas de símbolos (`type: "symbol"`), por las siguientes razones:
+
+- **Click fiable**: El click se maneja con `addEventListener("click")` nativo, independiente de `dragPan` y `queryRenderedFeatures`.
+- **Reconciliación por ID**: Al actualizar datos (WebSocket), solo se agregan marcadores nuevos y se eliminan los que desaparecieron, sin destruir los existentes.
+- **Z-index natural**: Los marcadores DOM siempre están por encima de las capas del mapa.
+- **Accesibilidad**: Soporte de `role="button"`, `tabindex`, `aria-label` y navegación por teclado (Enter/Espacio).
+- **prefers-reduced-motion**: Hover animado se desactiva si el usuario prefiere movimiento reducido.
+
+### Interacción con capas vectoriales (jams, polígonos)
+
+Para jams y polígonos se usa `queryRenderedFeatures` vía `mousedown`/`mouseup` en el canvas, con:
+- **Try-catch** para capturar errores de tiles.
+- **Filtro dinámico de capas** (solo consulta capas que existen en el momento).
+- **Box query** de 36x36px para ampliar el área de detección en clicks.
+
+### Minimapa
+
+`MiniMapLibre` usa `maplibregl.Map` nativo (sin react-map-gl) con markers HTML y el basemap vectorial de CARTO (apto para modales y contextos mas pequenos).
 
 ## 5. Component Architecture
 

@@ -128,7 +128,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                   className="flex items-center gap-1 px-2 py-1 bg-white/90 dark:bg-gray-800/90 rounded text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 shadow-sm"
                 >
                   <ExternalLink className="w-3 h-3" />
-                  Google Maps
+                  Ver en Google Maps
                 </a>
                 <a
                   href={wazeUrl}
@@ -137,7 +137,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                   className="flex items-center gap-1 px-2 py-1 bg-white/90 dark:bg-gray-800/90 rounded text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 shadow-sm"
                 >
                   <ExternalLink className="w-3 h-3" />
-                  Waze
+                  Ver en Waze
                 </a>
               </div>
             </div>
@@ -222,12 +222,12 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
               <div className="grid grid-cols-3 gap-4">
                 <div
                   className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg"
-                  title="Experiencia del usuario que reportó el incidente. Mayor valor = usuario más experimentado en Waze"
+                  title="Experiencia del usuario que reportó el incidente (escala 1-10 del feed Waze)"
                 >
                   <div className="flex items-center justify-center gap-1 text-green-600 dark:text-green-400 mb-1">
                     <CheckCircle className="w-4 h-4" />
                     <span className="text-lg font-bold">
-                      {incident.reliability?.toFixed(1) || "N/A"}
+                      {incident.reliability != null ? incident.reliability.toFixed(1) : "N/A"}
                     </span>
                     <span className="text-xs opacity-70">/10</span>
                   </div>
@@ -238,14 +238,14 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
 
                 <div
                   className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg"
-                  title="Nivel de confirmación por la comunidad Waze. Mayor valor = más usuarios confirman que existe"
+                  title="Nivel de confirmación por la comunidad Waze (escala 1-5 del feed oficial)"
                 >
                   <div className="flex items-center justify-center gap-1 text-blue-600 dark:text-blue-400 mb-1">
                     <Star className="w-4 h-4" />
                     <span className="text-lg font-bold">
-                      {incident.confidence?.toFixed(1) || "N/A"}
+                      {incident.confidence != null ? incident.confidence.toFixed(1) : "N/A"}
                     </span>
-                    <span className="text-xs opacity-70">/10</span>
+                    <span className="text-xs opacity-70">/5</span>
                   </div>
                   <p className="text-xs text-gray-600 dark:text-gray-400">
                     Verificado por comunidad

@@ -2,6 +2,26 @@
 
 > Panel de monitoreo en tiempo real del tráfico vehicular en Córdoba, Argentina. Integra datos de Waze, notificaciones en vivo, TTS (voz) y mapas para sala de control.
 
+**Proyecto interno de CASISA - Caminos de las Sierras.**
+
+## 🚀 Inicio Rápido
+
+1.  **Instalar dependencias**:
+    ```bash
+    npm install
+    ```
+2.  **Configurar Base de Datos**:
+    ```bash
+    npm run db:migrate
+    npm run db:seed
+    ```
+3.  **Iniciar Desarrollo**:
+    ```bash
+    npm run dev:all
+    ```
+    - Frontend: http://localhost:5180
+    - Backend: http://localhost:3002
+
 ## 🏗️ Arquitectura
 
 Este proyecto utiliza una **arquitectura de monorepo** con workspaces npm para una mejor organización y mantenibilidad del código.
@@ -103,10 +123,7 @@ Utilidades, helpers y lógica reutilizable compartida.
 ### Esquema Principal
 
 - **Usuarios y Roles**: Sistema de autenticación y permisos
-- **Catálogos**: Tipos y subtipos de incidentes
-- **Polígonos**: Configuración de áreas de monitoreo
-- **Usuarios y Roles**: Sistema de autenticación y permisos
-- **Catálogos**: Tipos y subtipos de incidentes (Sincronizables con Waze)
+- **Catálogos**: Tipos y subtipos de incidentes (sincronizables con Waze)
 - **Polígonos**: Configuración de áreas de monitoreo
 - **Incidentes**:
   - `waze_alerts`: Accidentes, peligros y otros reportes (Puntos)
@@ -249,13 +266,24 @@ REDIS_PORT=6379
 | [Deployment](./docs/DEPLOYMENT.md)                            | Despliegue local, Docker, variables de entorno                            |
 | [Contribución](./docs/CONTRIBUTING.md)                        | Cómo contribuir, convenciones, PRs                                        |
 
+## 🌿 Ramas (Branches)
+
+| Rama | Propósito |
+|--------|-----------|
+| `main` | Producción estable |
+| `preprod` | Pre-producción / staging |
+| `feature/*` | Nuevas funcionalidades (desde `preprod`) |
+| `fix/*` | Correcciones (desde `preprod`) |
+
 ## 🤝 Contribución
 
-1. Fork el proyecto
+1. Checkout `preprod` y actualiza (`git pull origin preprod`)
 2. Crea una branch (`git checkout -b feature/nueva-funcionalidad`)
 3. Commit tus cambios (`git commit -m 'feat: nueva funcionalidad'`)
 4. Push a la branch (`git push origin feature/nueva-funcionalidad`)
-5. Abre un Pull Request
+5. Abre un Pull Request hacia `preprod`
+
+Ver [CONTRIBUTING.md](./docs/CONTRIBUTING.md) para mas detalles.
 
 ## 📄 Licencia
 
@@ -264,3 +292,5 @@ Este proyecto es propiedad de **CASISA - Caminos de las Sierras**.
 ---
 
 **Desarrollado por el equipo de GED**
+
+_Última actualización: Febrero 2026_

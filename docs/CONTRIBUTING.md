@@ -10,11 +10,36 @@ Este proyecto utiliza una estructura de monorepo gestionada por NPM Workspaces.
 - `apps/backend`: API server Fastify/Node.
 - `packages/*`: Librerías compartidas (types, config, database, shared).
 
+## 🌿 Estrategia de Ramas
+
+| Rama | Propósito | Base |
+|--------|-----------|------|
+| `main` | Producción estable | — |
+| `preprod` | Pre-producción / staging | `main` |
+| `feature/*` | Nuevas funcionalidades | `preprod` |
+| `fix/*` | Correcciones de bugs | `preprod` |
+| `hotfix/*` | Correcciones urgentes en producción | `main` |
+
+**Flujo típico**:
+
+```
+main ─────────────────────────────────────►
+  └── preprod ────────────────────────────►
+        ├── feature/nueva-funcionalidad ──►  (merge a preprod)
+        └── fix/correccion-bug ───────────►  (merge a preprod)
+```
+
+1. Las features y fixes se crean desde `preprod`.
+2. Al completarse, se hace merge a `preprod` para pruebas de integración.
+3. Cuando `preprod` está validado, se hace merge a `main` para producción.
+
 ## 💻 Flujo de Desarrollo
 
 1.  **Fork & Clone**: Haz un fork del repositorio y clónalo localmente.
-2.  **Branch**: Crea una rama para tu feature o fix.
+2.  **Rama**: Crea una rama desde `preprod` para tu feature o fix.
     ```bash
+    git checkout preprod
+    git pull origin preprod
     git checkout -b feature/mi-nueva-feature
     # o
     git checkout -b fix/mi-bug-fix

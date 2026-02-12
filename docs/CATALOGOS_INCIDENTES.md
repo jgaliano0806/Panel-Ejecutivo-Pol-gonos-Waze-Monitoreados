@@ -54,5 +54,6 @@ npx ts-node apps/backend/src/scripts/fixSchema.ts
 
 El frontend utiliza una librería de iconos SVG para representar cada tipo.
 
-- **Mapas**: Los marcadores (`MiniMapLibre`) utilizan la propiedad `type` para renderizar el icono correspondiente.
+- **Mapa principal** (`MapLibreMap`): Incidentes renderizados como `maplibregl.Marker` (HTML DOM) con iconos SVG. Click nativo, accesibilidad (ARIA) y hover animado.
+- **Minimapa** (`MiniMapLibre`): Mismo patron de markers HTML con la propiedad `type` para el icono.
 - **Listas**: Se utilizan iconos de Lucide React como fallback visual.

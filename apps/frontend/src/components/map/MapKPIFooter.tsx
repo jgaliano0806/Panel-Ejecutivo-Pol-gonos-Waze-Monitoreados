@@ -100,7 +100,7 @@ export const MapKPIFooter: React.FC<MapKPIFooterProps> = ({
           return (
             <button
               key={metric.id}
-              className="flex items-center gap-3 min-w-max cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 py-1 rounded-lg transition-colors border-none bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+              className="flex items-center gap-3 min-w-max cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 py-1 rounded-lg transition-colors border-none bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-opacity-50 touch-manipulation"
               onClick={() => {
                 if (metric.id === "events") navigate("/alertas");
                 if (metric.id === "incidents") navigate("/siniestros");
@@ -116,7 +116,7 @@ export const MapKPIFooter: React.FC<MapKPIFooterProps> = ({
                 <span className="text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400 tracking-wider">
                   {metric.label}
                 </span>
-                <span className="text-xl font-black font-mono leading-none text-gray-800 dark:text-gray-100">
+                <span className="text-xl font-black font-mono tabular-nums leading-none text-gray-800 dark:text-gray-100">
                   {metric.value}
                 </span>
               </div>

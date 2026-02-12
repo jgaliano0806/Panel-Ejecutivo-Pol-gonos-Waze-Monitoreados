@@ -131,9 +131,10 @@ export const MapSidebar = ({
         )}
         <button
           onClick={toggleExpanded}
-          className="p-2 hover:bg-white/10 rounded-xl transition-all duration-300 text-gray-400 hover:text-white"
+          aria-label={isExpanded ? "Contraer controles del mapa" : "Expandir controles del mapa"}
+          className="p-2 hover:bg-white/10 rounded-xl transition-colors duration-300 text-gray-400 hover:text-white touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1E1E2E]"
         >
-          {isExpanded ? <X size={20} /> : <Menu size={20} />}
+          {isExpanded ? <X size={20} aria-hidden /> : <Menu size={20} aria-hidden />}
         </button>
       </div>
 
@@ -157,9 +158,11 @@ export const MapSidebar = ({
                     item.action?.();
                   }
                 }}
+                aria-expanded={item.children ? expandedMenus.has(item.id) : undefined}
                 className={`
                   w-full flex items-center gap-3 px-3 py-3 rounded-xl
-                  transition-all duration-300 relative overflow-hidden group
+                  transition-colors duration-300 relative overflow-hidden group
+                  touch-manipulation focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400
                   ${
                     expandedMenus.has(item.id)
                       ? "bg-white/5 text-white"
@@ -206,9 +209,11 @@ export const MapSidebar = ({
                       <button
                         key={child.id}
                         onClick={child.action}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors text-sm text-gray-400 hover:text-white group"
+                        aria-label={child.id === "waze" ? `Incidentes Waze, ${showWazeIncidents ? "activado" : "desactivado"}` : child.label}
+                        aria-pressed={child.id === "waze" ? showWazeIncidents : undefined}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors text-sm text-gray-400 hover:text-white group touch-manipulation focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400"
                       >
-                        <span className="group-hover:text-blue-400 transition-colors">
+                        <span className="group-hover:text-blue-400 transition-colors" aria-hidden>
                           {child.icon}
                         </span>
                         <span>{child.label}</span>
@@ -216,6 +221,7 @@ export const MapSidebar = ({
                         {child.id === "waze" && (
                           <div
                             className={`ml-auto w-8 h-4 rounded-full flex items-center padding-0.5 transition-colors ${showWazeIncidents ? "bg-blue-500 justify-end" : "bg-gray-700 justify-start"}`}
+                            aria-hidden
                           >
                             <motion.div
                               layout
@@ -236,9 +242,12 @@ export const MapSidebar = ({
             <div className="mt-4 pt-4 border-t border-white/10">
               <button
                 onClick={() => toggleMenu("polygon-filters")}
+                aria-label="Filtros de polígonos"
+                aria-expanded={expandedMenus.has("polygon-filters")}
                 className={`
                   w-full flex items-center gap-3 px-3 py-3 rounded-xl
-                  transition-all duration-300 relative overflow-hidden group
+                  transition-colors duration-300 relative overflow-hidden group
+                  touch-manipulation focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400
                   ${
                     expandedMenus.has("polygon-filters")
                       ? "bg-white/5 text-white"
@@ -293,7 +302,7 @@ export const MapSidebar = ({
                             onGroupChange?.(value);
                             onPolygonChange?.(null);
                           }}
-                          className="w-full px-3 py-2 bg-[#12121a] border border-white/10 text-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
+                          className="w-full px-3 py-2 bg-[#12121a] border border-white/10 text-gray-200 rounded-lg text-xs focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 transition-colors"
                         >
                           <option value="">Todos</option>
                           {polygonGroups.map((group) => (
@@ -316,7 +325,7 @@ export const MapSidebar = ({
                             const value = e.target.value || null;
                             onPolygonChange?.(value);
                           }}
-                          className="w-full px-3 py-2 bg-[#12121a] border border-white/10 text-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
+                          className="w-full px-3 py-2 bg-[#12121a] border border-white/10 text-gray-200 rounded-lg text-xs focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 transition-colors"
                         >
                           <option value="">Todos</option>
                           {filteredPolygons.map((polygon) => (
@@ -357,27 +366,31 @@ export const MapSidebar = ({
           {menuItems.map((item) => (
             <button
               key={item.id}
-              onClick={item.action}
+              onClick={() => item.children?.[0]?.action?.() ?? item.action?.()}
+              aria-label={item.id === "layers" ? `Capas del mapa, Incidentes Waze ${showWazeIncidents ? "activado" : "desactivado"}` : item.label}
               className={`
-                p-3 rounded-xl transition-all duration-300 group relative
+                p-3 rounded-xl transition-colors duration-300 group relative
+                touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400
                 ${expandedMenus.has(item.id) ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "text-gray-400 hover:bg-white/10 hover:text-white"}
               `}
-              title={item.label}
             >
               {item.icon}
-              {/* Dot indicator for active subitems */}
               {item.id === "layers" && showWazeIncidents && (
-                <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-green-400 rounded-full border border-[#1E1E2E]"></span>
+                <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-green-400 rounded-full border border-[#1E1E2E]" aria-hidden />
               )}
             </button>
           ))}
           <button
-            onClick={() => toggleMenu("polygon-filters")}
+            onClick={() => {
+              if (!isExpanded) (onExpandedChange ?? setInternalExpanded)(true);
+              toggleMenu("polygon-filters");
+            }}
+            aria-label="Filtros de polígonos"
             className={`
-                p-3 rounded-xl transition-all duration-300 group relative
+                p-3 rounded-xl transition-colors duration-300 group relative
+                touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400
                 ${expandedMenus.has("polygon-filters") ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "text-gray-400 hover:bg-white/10 hover:text-white"}
               `}
-            title="Filtros"
           >
             <Filter size={20} />
             {(selectedPolygon || selectedGroup) && (
