@@ -16,9 +16,20 @@ import { shouldShowTTSAndSnackbar } from "@/config/notificationFilters";
  * - Set de dedup para evitar TTS duplicado por el mismo incidente
  */
 
+// Si VITE_API_URL no está definido, usar el mismo origen (pasa por proxy de Vite en dev)
+// así funciona tanto en localhost como al acceder por IP de red
+const envApiUrl = (import.meta as any).env?.VITE_API_URL;
 const API_URL =
-  (import.meta as any).env?.VITE_API_URL || "http://localhost:3002";
-const SOCKET_URL = API_URL.replace(/\/api\/?$/, "");
+  envApiUrl ||
+  (typeof window !== "undefined"
+    ? window.location.origin + "/api"
+    : "http://localhost:3002");
+const SOCKET_URL =
+  !envApiUrl || envApiUrl.startsWith("/")
+    ? typeof window !== "undefined"
+      ? window.location.origin
+      : "http://localhost:5180"
+    : envApiUrl.replace(/\/api\/?$/, "");
 
 // ═══════════════════════════════════════════════════════════════
 // SINGLETON RESISTENTE A HMR: Guardar socket en window para que
@@ -28,16 +39,29 @@ const SOCKET_KEY = "__waze_panel_socket__";
 const DEDUP_KEY = "__waze_panel_tts_dedup__";
 
 // Reusar socket existente o crear uno nuevo
-if (!(window as any)[SOCKET_KEY]) {
+// Si la URL del socket cambió (por HMR o cambio de config), recrear
+const existingSocket: Socket | undefined = (window as any)[SOCKET_KEY];
+if (!existingSocket || (existingSocket as any).io?.uri !== SOCKET_URL) {
+  if (existingSocket) {
+    existingSocket.disconnect();
+    console.log("🔌 Socket anterior desconectado (URL cambió)");
+  }
+  console.log(`🔌 Socket: conectando a ${SOCKET_URL}`);
   (window as any)[SOCKET_KEY] = io(SOCKET_URL, {
     autoConnect: true,
     reconnection: true,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
-    reconnectionAttempts: 5,
-    transports: ["websocket", "polling"],
+    reconnectionAttempts: Infinity,
+    // WebSocket primero: evita el conflicto donde Fastify intercepta las peticiones
+    // HTTP de polling (/socket.io?transport=polling) antes de que engine.io pueda
+    // manejarlas. El upgrade a WebSocket usa el evento 'upgrade' del servidor HTTP,
+    // que Fastify no toca.
+    transports: ["websocket"],
+    timeout: 20000,
+    path: "/socket.io/",
   });
-  console.log("🔌 Socket creado (primera vez)");
+  console.log("🔌 Socket creado");
 }
 
 // Reusar Set de dedup existente o crear uno nuevo
@@ -222,15 +246,16 @@ const buildTTSMessage = (notification: Notification): string => {
 const buildContentHash = (notification: Notification): string | null => {
   const type = notification.type || notification.data?.incidentType || "";
   const subtype = notification.data?.subtype || "";
-  const street = notification.data?.street || "";
+  const street = (notification.data?.street || "").toLowerCase().trim();
   const lat = notification.data?.location?.y ?? notification.data?.latitude ?? 0;
   const lng = notification.data?.location?.x ?? notification.data?.longitude ?? 0;
 
   if (!type && !street) return null;
 
-  // Redondear coords a ~200m de precisión (0.002 grados ≈ 220m)
-  const roundedLat = Math.round(lat * 500) / 500;
-  const roundedLng = Math.round(lng * 500) / 500;
+  // Redondear coords a ~500m de precisión (0.005 grados ≈ 550m)
+  // Un mismo accidente puede reportarse desde polígonos vecinos con coords ligeramente distintas
+  const roundedLat = Math.round(lat * 200) / 200;
+  const roundedLng = Math.round(lng * 200) / 200;
 
   return `${type}|${subtype}|${street}|${roundedLat}|${roundedLng}`;
 };

@@ -206,6 +206,52 @@ export default async function incidentsRoutes(fastify: FastifyInstance) {
   });
 
   /**
+   * GET /api/incidents/all
+   * Todos los incidentes activos para el mapa (debe ir ANTES de /:uuid para no capturar "all")
+   */
+  fastify.get("/all", async (request, reply) => {
+    try {
+      const query = `
+        SELECT
+          uuid as id,
+          type,
+          subtype,
+          street,
+          latitude,
+          longitude,
+          pub_millis,
+          report_description as description,
+          report_by as "reportBy",
+          confidence,
+          reliability,
+          n_thumbs_up as "nThumbsUp",
+          polygon_id as "polygonId"
+        FROM waze_alerts
+        WHERE is_active = true
+        LIMIT 2000
+      `;
+
+      const result = await dbService.query(query);
+
+      return result.rows.map((row: any) => ({
+        ...row,
+        location: {
+          lat: Number(row.latitude),
+          lng: Number(row.longitude),
+        },
+        timestamp: new Date(Number(row.pub_millis)),
+      }));
+    } catch (error: unknown) {
+      fastify.log.error(error);
+      const msg = error instanceof Error ? error.message : String(error);
+      return reply.code(500).send({
+        error: "Database error retrieving incidents",
+        details: msg,
+      });
+    }
+  });
+
+  /**
    * GET /api/incidents/:uuid
    * Detalle completo de un incidente
    */
@@ -335,46 +381,6 @@ export default async function incidentsRoutes(fastify: FastifyInstance) {
       return reply
         .code(500)
         .send({ error: "Database error retrieving incidents history" });
-    }
-  });
-
-  fastify.get("/all", async (request, reply) => {
-    try {
-      const query = `
-        SELECT
-          uuid as id,
-          type,
-          subtype,
-          street,
-          latitude,
-          longitude,
-          pub_millis,
-          report_description as description,
-          report_by as "reportBy",
-          confidence,
-          reliability,
-          n_thumbs_up as "nThumbsUp",
-          polygon_id as "polygonId"
-        FROM waze_alerts
-        WHERE is_active = true
-        LIMIT 2000
-      `;
-
-      const result = await dbService.query(query);
-
-      return result.rows.map((row: any) => ({
-        ...row,
-        location: {
-          lat: Number(row.latitude),
-          lng: Number(row.longitude),
-        },
-        timestamp: new Date(Number(row.pub_millis)),
-      }));
-    } catch (error) {
-      fastify.log.error(error);
-      return reply
-        .code(500)
-        .send({ error: "Database error retrieving incidents" });
     }
   });
 }

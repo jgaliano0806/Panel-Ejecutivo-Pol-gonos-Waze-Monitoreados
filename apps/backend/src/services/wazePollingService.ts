@@ -510,11 +510,11 @@ export class WazePollingService {
             const existingByContent = await dbService.query(
               `SELECT 1 FROM notifications
                WHERE type = $1
-                 AND data->>'subtype' = $2
-                 AND data->>'street' = $3
+                 AND COALESCE(data->>'subtype', '') = $2
+                 AND COALESCE(data->>'street', '') = $3
                  AND created_at > NOW() - INTERVAL '10 minutes'
-                 AND ABS(CAST(data->>'latitude' AS FLOAT) - $4) < 0.002
-                 AND ABS(CAST(data->>'longitude' AS FLOAT) - $5) < 0.002
+                 AND ABS(COALESCE(CAST(data->>'latitude' AS FLOAT), 0) - $4) < 0.003
+                 AND ABS(COALESCE(CAST(data->>'longitude' AS FLOAT), 0) - $5) < 0.003
                LIMIT 1`,
               [
                 alert.type === "ACCIDENT" ? "ACCIDENT" : "HAZARD",

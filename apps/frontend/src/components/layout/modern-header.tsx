@@ -1,12 +1,13 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Clock, Wifi, RefreshCw, Moon, Sun, Bell } from "lucide-react";
+import { Clock, Wifi, RefreshCw, Moon, Sun, Bell, Volume2, VolumeX } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { formatRelativeTime } from "../../lib/utils";
 import { COMPANY_INFO, UI_TEXTS } from "../../config/constants";
 import { useThemeStore } from "../../stores/useThemeStore";
 import { useNotificationStore } from "@/stores/useNotificationStore";
 import { useNavigate } from "react-router-dom";
+import { initializeAudio, isTTSMuted, toggleTTSMuted } from "@/lib/tts-utils";
 
 interface ModernHeaderProps {
   lastUpdate?: Date;
@@ -19,7 +20,22 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
 }) => {
   const [currentTime, setCurrentTime] = React.useState(new Date());
   const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const [ttsMuted, setTtsMuted] = React.useState(() => isTTSMuted());
   const { isDark, toggleTheme } = useThemeStore();
+
+  // Sincronizar estado si cambia desde otro componente
+  React.useEffect(() => {
+    const onMuteChange = (e: Event) => setTtsMuted((e as CustomEvent<boolean>).detail);
+    window.addEventListener("tts-mute-change", onMuteChange);
+    return () => window.removeEventListener("tts-mute-change", onMuteChange);
+  }, []);
+
+  const handleTTSToggle = async () => {
+    // Asegurar que el audio del navegador esté desbloqueado al primer uso
+    await initializeAudio();
+    const nowMuted = toggleTTSMuted();
+    setTtsMuted(nowMuted);
+  };
   const unreadCount = useNotificationStore((state) => state.unreadCount);
   const navigate = useNavigate();
 
@@ -118,6 +134,25 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
                 <Moon className="w-5 h-5" />
               ) : (
                 <Sun className="w-5 h-5" />
+              )}
+            </motion.button>
+
+            {/* Botón TTS — toggle mute/unmute */}
+            <motion.button
+              onClick={handleTTSToggle}
+              className={`p-3 rounded-xl border-2 transition-all duration-300 shadow-lg ${
+                ttsMuted
+                  ? "bg-white dark:bg-veltrix-bg border-red-200 dark:border-red-800/50 text-red-400 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-400"
+                  : "bg-white dark:bg-veltrix-bg border-green-300 dark:border-green-700 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 hover:border-green-400"
+              }`}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              title={ttsMuted ? "Sonido desactivado — clic para activar" : "Sonido activado — clic para silenciar"}
+            >
+              {ttsMuted ? (
+                <VolumeX className="w-5 h-5" />
+              ) : (
+                <Volume2 className="w-5 h-5" />
               )}
             </motion.button>
 

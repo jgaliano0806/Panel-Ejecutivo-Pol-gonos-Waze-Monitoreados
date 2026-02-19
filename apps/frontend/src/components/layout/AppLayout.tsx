@@ -7,6 +7,7 @@ import { WeatherAlertsPanel } from "../weather/WeatherAlertsPanel";
 import { useSyncMapNotifications } from "@/hooks/useSyncMapNotifications";
 import { useNotificationStore } from "@/stores/useNotificationStore";
 import { useRealtimeNotifications } from "@/hooks/useRealtimeNotifications";
+import { initializeAudio } from "@/lib/tts-service";
 import { useEffect } from "react";
 
 interface AppLayoutProps {
@@ -34,7 +35,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   }, [fetchHistory]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-gray-50 via-blue-50/30 via-green-50/20 to-yellow-50/30 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <div
+      className="flex h-screen overflow-hidden bg-gradient-to-br from-gray-50 via-blue-50/30 via-green-50/20 to-yellow-50/30 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900"
+      onClickCapture={() => initializeAudio()}
+      onPointerDownCapture={() => initializeAudio()}
+    >
       {/* Decorative Background Pattern */}
       <div className="fixed inset-0 opacity-[0.03] pointer-events-none z-0">
         <div

@@ -29,8 +29,9 @@
     "docker:compose:dev": "docker-compose --profile dev up",
     "docker:compose:prod": "docker-compose --profile prod up -d",
     "db:migrate": "npm run migrate --workspace=apps/backend",
-    "db:seed": "npm run seed --workspace=apps/backend"
-  },
+"db:seed": "npm run seed --workspace=apps/backend",
+    "docs:pdf": "node scripts/generate-pdf.js"
+},
   "devDependencies": {
     "@eslint/js": "^9.0.0",
     "@playwright/test": "^1.57.0",

@@ -15,15 +15,17 @@ class WebSocketService {
    * Inicializa Socket.io con el servidor HTTP de Fastify
    */
   public initialize(httpServer: HttpServer): void {
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-
     this.io = new Server(httpServer, {
       cors: {
-        origin: [frontendUrl, "http://localhost:5173", "http://localhost:3000"],
+        origin: (_origin, callback) => {
+          callback(null, true);
+        },
         methods: ["GET", "POST"],
         credentials: true,
       },
       transports: ["websocket", "polling"],
+      pingTimeout: 60000,
+      pingInterval: 25000,
     });
 
     this.setupEventHandlers();

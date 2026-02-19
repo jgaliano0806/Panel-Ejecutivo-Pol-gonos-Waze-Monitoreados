@@ -45,7 +45,10 @@ let audioInitialized = false;
  * Debe llamarse desde una interacción de usuario (click/tap)
  */
 export const initializeAudio = async () => {
-  if (audioInitialized) return;
+  if (audioInitialized) {
+    forceUnlockAudio(); // Asegurar desbloqueo si ya inicializado
+    return;
+  }
 
   try {
     // Crear y reanudar AudioContext (necesario para navegadores modernos)
@@ -74,10 +77,48 @@ export const initializeAudio = async () => {
     await silentAudio.play().catch(() => {}); // Ignorar error si falla
 
     audioInitialized = true;
+    forceUnlockAudio(); // Desbloquear TTS para que processQueue pueda reproducir
     console.log("🔊 Sistema de audio desbloqueado por interacción de usuario");
   } catch (e) {
     console.warn("⚠️ No se pudo inicializar el audio:", e);
   }
+};
+
+// ============================================================
+// SISTEMA DE MUTE (toggle manual del operador)
+// ============================================================
+const TTS_MUTE_KEY = "tts_muted";
+let _muted: boolean =
+  typeof window !== "undefined"
+    ? localStorage.getItem(TTS_MUTE_KEY) === "true"
+    : false;
+
+export const isTTSMuted = (): boolean => _muted;
+
+export const setTTSMuted = (value: boolean): void => {
+  _muted = value;
+  if (typeof window !== "undefined") {
+    localStorage.setItem(TTS_MUTE_KEY, String(value));
+    window.dispatchEvent(new CustomEvent("tts-mute-change", { detail: value }));
+  }
+  if (value) {
+    // Silenciar inmediatamente lo que esté sonando
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
+    }
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    audioQueue = [];
+    isPlaying = false;
+    console.log("🔇 TTS: Silenciado por el operador");
+  } else {
+    console.log("🔊 TTS: Sonido reactivado por el operador");
+  }
+};
+
+export const toggleTTSMuted = (): boolean => {
+  setTTSMuted(!_muted);
+  return _muted;
 };
 
 // ============================================================
@@ -98,6 +139,9 @@ export const forceUnlockAudio = (): void => {
   _audioUnlocked = true;
   console.log("🔓 TTS: Audio desbloqueado manualmente");
   _drainQueueAfterUnlock();
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("tts-unlocked"));
+  }
 };
 
 /**
@@ -115,6 +159,9 @@ const _handleUserInteraction = (): void => {
 
   console.log("🔓 TTS: Audio desbloqueado por interaccion del usuario");
   _drainQueueAfterUnlock();
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("tts-unlocked"));
+  }
 };
 
 /**
@@ -219,18 +266,12 @@ const buildNaturalMessage = (title: string, message: string): string => {
  * Reproducir audio desde el backend TTS
  */
 const playBackendTTS = async (text: string): Promise<void> => {
-  // Construir URL absoluta del backend TTS
-  // VITE_API_URL ya incluye /api, así que lo removemos y lo agregamos de nuevo
-  let apiBase = API_CONFIG.baseUrl;
-  if (apiBase.startsWith("/")) {
-    // Si es relativo, usar URL absoluta del backend
-    apiBase = "http://127.0.0.1:3002";
-  } else {
-    // Remover /api del final si existe
-    apiBase = apiBase.replace(/\/api\/?$/, "");
-  }
-
-  const ttsUrl = `${apiBase}/api/tts/speak`;
+  // URL del TTS: si baseUrl es relativo (/api), usar tal cual para que pase por el proxy de Vite
+  // y funcione tanto en localhost como al acceder por IP de red
+  const apiBase = API_CONFIG.baseUrl;
+  const ttsUrl = apiBase.startsWith("/")
+    ? `${apiBase.replace(/\/?$/, "")}/tts/speak`
+    : `${apiBase.replace(/\/api\/?$/, "")}/api/tts/speak`;
   console.log(`🔊 TTS: Llamando a ${ttsUrl}`);
 
   const response = await fetch(ttsUrl, {
@@ -321,20 +362,20 @@ function _pickAndSpeak(
   reject: (e: any) => void,
 ) {
   const arVoices = voices.filter((v) => v.lang === "es-AR" || v.lang.startsWith("es-AR-"));
-
-  const targetVoice = arVoices[0];
+  const esVoices = voices.filter((v) => v.lang.startsWith("es-"));
+  const targetVoice = arVoices[0] || esVoices[0];
 
   if (!targetVoice) {
     reject(
       new Error(
-        "No hay voces es-AR (argentino) disponibles. Solo se usa español argentino.",
+        "No hay voces en español disponibles en este navegador. Use el backend TTS (Edge TTS).",
       ),
     );
     return;
   }
 
   utterance.voice = targetVoice;
-  utterance.lang = "es-AR";
+  utterance.lang = targetVoice.lang.startsWith("es-AR") ? "es-AR" : targetVoice.lang;
   utterance.pitch = 0.95;
   utterance.rate = 0.88;
 
@@ -394,6 +435,11 @@ export const speakNotification = async (
   title: string,
   message: string,
 ): Promise<void> => {
+  if (_muted) {
+    console.log("🔇 TTS: Silenciado — mensaje descartado");
+    return;
+  }
+
   const text = buildNaturalMessage(title, message);
 
   // Agregar a la cola
@@ -459,13 +505,11 @@ export const getAvailableVoices = async (): Promise<
   Array<{ id: string; name: string; gender: string; description: string }>
 > => {
   try {
-    let apiBase = API_CONFIG.baseUrl;
-    if (apiBase.startsWith("/")) {
-      apiBase = "http://127.0.0.1:3002";
-    } else {
-      apiBase = apiBase.replace(/\/api\/?$/, "");
-    }
-    const response = await fetch(`${apiBase}/api/tts/voices`);
+    const apiBase = API_CONFIG.baseUrl;
+    const voicesUrl = apiBase.startsWith("/")
+      ? `${apiBase.replace(/\/?$/, "")}/tts/voices`
+      : `${apiBase.replace(/\/api\/?$/, "")}/api/tts/voices`;
+    const response = await fetch(voicesUrl);
     if (!response.ok) throw new Error("Error obteniendo voces");
     const data = await response.json();
     return data.voices;

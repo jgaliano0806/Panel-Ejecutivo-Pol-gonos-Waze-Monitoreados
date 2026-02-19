@@ -17,19 +17,22 @@ export default async function jamsRoutes(fastify: FastifyInstance) {
             delay_seconds as delay,
             street,
             polyline as line,
-            pub_millis,
-            blocking_alert_uuid as "blockingAlertUuid"
+            pub_millis
         FROM waze_jams
         WHERE is_active = true
-        ORDER BY level DESC, delay_seconds DESC
+        ORDER BY level DESC, delay_seconds DESC NULLS LAST
         LIMIT 1000
       `;
 
       const result = await dbService.query(query);
       return result.rows;
-    } catch (error) {
+    } catch (error: unknown) {
       fastify.log.error(error);
-      return reply.code(500).send({ error: "Database error retrieving jams" });
+      const msg = error instanceof Error ? error.message : String(error);
+      return reply.code(500).send({
+        error: "Database error retrieving jams",
+        details: msg,
+      });
     }
   });
 

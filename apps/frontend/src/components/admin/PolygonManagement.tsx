@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
+import { FileText, FileSpreadsheet } from "lucide-react";
 import { realCordobaPolygons } from "../../data/mock/realCordobaPolygons";
 import { VirtualizedList } from "../ui/VirtualizedList";
 import { TruncatedText } from "../common/TruncatedText";
@@ -222,9 +223,11 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
               </label>
               <textarea
                 value={
-                  formData.geometry
-                    ? JSON.stringify(formData.geometry, null, 2)
-                    : ""
+                  typeof formData.geometry === "string"
+                    ? formData.geometry
+                    : formData.geometry
+                      ? JSON.stringify(formData.geometry, null, 2)
+                      : ""
                 }
                 onChange={(e) => onFieldChange("geometry", e.target.value)}
                 placeholder='{"type": "Polygon", "coordinates": [[[lng1, lat1], [lng2, lat2], ...]]}'
@@ -390,6 +393,8 @@ const PolygonManagement: React.FC = () => {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [sortBy, setSortBy] = useState<"name" | "group">("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const selectAllRef = useRef<HTMLInputElement | null>(null);
 
   const visiblePolygons = useMemo(
     () => polygons.filter((p) => p.id !== "UNKNOWN"),
@@ -427,6 +432,101 @@ const PolygonManagement: React.FC = () => {
     }
   };
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === sortedPolygons.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedPolygons.map((p) => p.id)));
+    }
+  };
+
+  const getToExport = useCallback(() => {
+    return selectedIds.size > 0
+      ? sortedPolygons.filter((p) => selectedIds.has(p.id))
+      : sortedPolygons;
+  }, [sortedPolygons, selectedIds]);
+
+  const escapeCsv = (v: string) => {
+    if (v.includes(",") || v.includes('"') || v.includes("\n"))
+      return `"${v.replace(/"/g, '""')}"`;
+    return v;
+  };
+
+  const exportCSV = useCallback(() => {
+    const toExport = getToExport();
+    const headers = ["id", "name", "group", "feedUrl", "tvtFeedUrl", "lat", "lon", "geometry"];
+    const rows = toExport.map((p) => {
+      const geom = p.geometry ?? getPolygonGeometry(p.id);
+      const geoStr = geom ? JSON.stringify(geom) : "";
+      const lat = p.coordinates?.lat ?? "";
+      const lon = p.coordinates?.lon ?? "";
+      return [
+        escapeCsv(p.id),
+        escapeCsv(p.name),
+        escapeCsv(p.group ?? ""),
+        escapeCsv(p.feedUrl ?? ""),
+        escapeCsv(p.tvtFeedUrl ?? ""),
+        lat,
+        lon,
+        escapeCsv(geoStr),
+      ].join(",");
+    });
+    const csv = [headers.join(","), ...rows].join("\r\n");
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `poligonos-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setSelectedIds(new Set());
+  }, [getToExport]);
+
+  const exportExcel = useCallback(() => {
+    const toExport = getToExport();
+    const cols = ["id", "name", "group", "feedUrl", "tvtFeedUrl", "lat", "lon", "geometry"];
+    const tr = (row: string[]) =>
+      "<tr>" + row.map((c) => `<td>${String(c).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td>`).join("") + "</tr>";
+    const headerRow = tr(cols);
+    const dataRows = toExport.map((p) => {
+      const geom = p.geometry ?? getPolygonGeometry(p.id);
+      const geoStr = geom ? JSON.stringify(geom) : "";
+      return tr([
+        p.id,
+        p.name,
+        p.group ?? "",
+        p.feedUrl ?? "",
+        p.tvtFeedUrl ?? "",
+        String(p.coordinates?.lat ?? ""),
+        String(p.coordinates?.lon ?? ""),
+        geoStr,
+      ]);
+    });
+    const html =
+      '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"/></head><body><table><thead>' +
+      headerRow +
+      "</thead><tbody>" +
+      dataRows.join("") +
+      "</tbody></table></body></html>";
+    const blob = new Blob(["\ufeff" + html], {
+      type: "application/vnd.ms-excel;charset=utf-8",
+    });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `poligonos-${new Date().toISOString().slice(0, 10)}.xls`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setSelectedIds(new Set());
+  }, [getToExport]);
+
   const fetchGroups = async () => {
     try {
       const res = await fetch(`${API_URL}/polygon-groups`);
@@ -439,6 +539,14 @@ const PolygonManagement: React.FC = () => {
   useEffect(() => {
     fetchGroups();
   }, []);
+
+  useEffect(() => {
+    const el = selectAllRef.current;
+    if (el) {
+      const n = sortedPolygons.length;
+      el.indeterminate = n > 0 && selectedIds.size > 0 && selectedIds.size < n;
+    }
+  }, [selectedIds.size, sortedPolygons.length]);
 
   // Función para obtener geometría completa desde mock data
   const getPolygonGeometry = (polygonId: string) => {
@@ -745,31 +853,45 @@ const PolygonManagement: React.FC = () => {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={exportCSV}
+            className="p-2 rounded-lg border border-gray-300 dark:border-veltrix-border text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-veltrix-bg/50 transition-colors"
+            title={selectedIds.size > 0 ? "Exportar seleccionados como CSV" : "Exportar todos como CSV"}
+          >
+            <FileText className="w-5 h-5" />
+          </button>
+          <button
+            onClick={exportExcel}
+            className="p-2 rounded-lg border border-gray-300 dark:border-veltrix-border text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-veltrix-bg/50 transition-colors"
+            title={selectedIds.size > 0 ? "Exportar seleccionados como Excel" : "Exportar todos como Excel"}
+          >
+            <FileSpreadsheet className="w-5 h-5" />
+          </button>
+          <button
             onClick={handleNew}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
           >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          Nuevo Polígono
-        </button>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Nuevo Polígono
+          </button>
         </div>
       </div>
 
       <>
       <div className="border border-gray-100 dark:border-veltrix-border rounded-xl overflow-hidden shadow-sm bg-white dark:bg-veltrix-card">
         {/* Header - Grid Layout */}
-        <div className="grid grid-cols-[minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] bg-gray-50 dark:bg-veltrix-bg border-b divide-x divide-gray-200 dark:divide-veltrix-border dark:border-veltrix-border text-sm font-semibold text-gray-900 dark:text-white">
+        <div className="grid grid-cols-[48px_minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] bg-gray-50 dark:bg-veltrix-bg border-b divide-x divide-gray-200 dark:divide-veltrix-border dark:border-veltrix-border text-sm font-semibold text-gray-900 dark:text-white">
+          <div className="px-2 py-3 flex items-center justify-center">
+            <input
+              ref={selectAllRef}
+              type="checkbox"
+              checked={sortedPolygons.length > 0 && selectedIds.size === sortedPolygons.length}
+              onChange={toggleSelectAll}
+              className="rounded border-gray-300 dark:border-veltrix-border"
+              title={selectedIds.size === sortedPolygons.length ? "Desmarcar todos" : "Marcar todos"}
+            />
+          </div>
           <button
             onClick={() => toggleSort("name")}
             className="px-4 py-3 text-left flex items-center gap-1 hover:bg-gray-100 dark:hover:bg-veltrix-bg/50 transition-colors"
@@ -816,7 +938,16 @@ const PolygonManagement: React.FC = () => {
             items={sortedPolygons}
             estimateSize={80}
             renderItem={(polygon: PolygonData) => (
-              <div className="grid grid-cols-[minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] divide-x divide-gray-100 dark:divide-veltrix-border border-b border-gray-100 dark:border-veltrix-border hover:bg-gray-50 dark:hover:bg-veltrix-bg/30 transition-colors items-center text-sm bg-white dark:bg-veltrix-card text-gray-900 dark:text-white">
+              <div className="grid grid-cols-[48px_minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] divide-x divide-gray-100 dark:divide-veltrix-border border-b border-gray-100 dark:border-veltrix-border hover:bg-gray-50 dark:hover:bg-veltrix-bg/30 transition-colors items-center text-sm bg-white dark:bg-veltrix-card text-gray-900 dark:text-white">
+                <div className="px-2 py-3 flex items-center justify-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(polygon.id)}
+                    onChange={() => toggleSelect(polygon.id)}
+                    className="rounded border-gray-300 dark:border-veltrix-border"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
                 <div className="px-4 py-3 font-medium text-gray-900 dark:text-white truncate">
                   {polygon.name}
                 </div>

@@ -287,7 +287,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             : new Date().toISOString(),
           reportBy: incidentDetails.reportBy || "Wazer",
           nThumbsUp: incidentDetails.nThumbsUp || 0,
-          confidence: incidentDetails.confidence || 0,
+          confidence: typeof incidentDetails.confidence === "number" ? incidentDetails.confidence : Number(incidentDetails.confidence) || 0,
           magvar: incidentDetails.magvar || 0,
           iconId: `waze-${(incidentDetails.type || "hazard").toLowerCase()}`,
         };
@@ -577,7 +577,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             reportBy: inc.reportBy,
             reportRating: inc.reportRating,
             reliability: inc.reliability,
-            confidence: inc.confidence,
+            confidence: typeof inc.confidence === "number" ? inc.confidence : Number(inc.confidence) || 0,
             magvar: (inc as any).magvar,
           },
         });
@@ -851,7 +851,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
               : "",
             reportBy: inc.reportBy,
             nThumbsUp: inc.nThumbsUp || 0,
-            confidence: inc.confidence || 0,
+            confidence: typeof inc.confidence === "number" ? inc.confidence : Number(inc.confidence) || 0,
             magvar: inc.magvar,
           },
         };
@@ -1673,12 +1673,17 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                     <span className="w-3.5 h-3.5 flex items-center justify-center">
                       👍
                     </span>
-                    {selectedIncident.properties.nThumbsUp} valoraciones
+                    {Number(selectedIncident?.properties?.nThumbsUp) || 0} valoraciones
                   </span>
                   <div className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-veltrix-bg rounded-full shadow-sm border border-gray-100 dark:border-veltrix-border">
                     <ShieldCheck className="h-3 w-3 text-gray-400" />
                     <span className="font-medium">
-                      Confianza: {selectedIncident.properties.confidence != null ? `${selectedIncident.properties.confidence.toFixed(1)}/5` : "N/A"}
+                      Confianza: {(() => {
+                      const c = selectedIncident?.properties?.confidence;
+                      if (c == null) return "N/A";
+                      const n = typeof c === "number" ? c : parseFloat(String(c));
+                      return !Number.isNaN(n) ? `${n.toFixed(1)}/5` : "N/A";
+                    })()}
                     </span>
                   </div>
                 </div>

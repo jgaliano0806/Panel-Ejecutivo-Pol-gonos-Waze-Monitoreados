@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
 
     // Configuración del servidor de desarrollo
     server: {
-      host: "127.0.0.1",
+      host: true, // Escuchar en 0.0.0.0 para mostrar IP de red en consola
       port: 5180,
       strictPort: false, // Allow fallback if 5180 is taken
       // Habilita el fallback de historial para SPA routing
@@ -32,6 +32,11 @@ export default defineConfig(({ mode }) => {
         "/api": {
           target: "http://127.0.0.1:3002",
           changeOrigin: true,
+        },
+        "/socket.io": {
+          target: "http://127.0.0.1:3002",
+          changeOrigin: true,
+          ws: true,
         },
       },
     },

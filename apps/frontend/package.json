@@ -6,7 +6,7 @@
   "description": "Frontend React application for Waze monitoring dashboard",
   "main": "index.html",
   "scripts": {
-    "dev": "vite --port 5180",
+    "dev": "vite --host --port 5180",
     "build": "tsc -b && vite build",
     "build:analyze": "tsc -b && vite build --mode analyze",
     "preview": "vite preview",

@@ -2314,16 +2314,16 @@ const start = async () => {
       );
     }
 
-    // const port = process.env.PORT ? parseInt(process.env.PORT) : 3002;
-    const port = 3002; // Force 3002 to avoid EADDRINUSE on 3001
-    await server.listen({ port, host: "0.0.0.0" });
-
-    // Inicializar WebSocket después de que el servidor esté escuchando
+    // Inicializar Socket.IO ANTES de listen para que el evento 'upgrade' del
+    // servidor HTTP esté registrado desde el primer momento. Si se inicializa
+    // después de listen, existe una ventana donde clientes pueden conectar pero
+    // Socket.IO aún no está adjunto al servidor HTTP.
     try {
+      await server.ready(); // Asegurar que Fastify esté listo antes de adjuntar Socket.IO
       websocketService.initialize(server.server);
       // wazePollingService.setSocketIO(websocketService.getIO()); // REMOVED: Using SocketSubscriber
       // Initialize Socket Subscriber
-      new SocketSubscriber(websocketService.getIO()); // Initialize here if not earlier
+      new SocketSubscriber(websocketService.getIO());
 
       // Initialize event listeners
       const {
@@ -2339,12 +2339,14 @@ const start = async () => {
       // RiskScoringListener ya se auto-inicializa al importarse (singleton)
       console.log("✓ RiskScoringListener initialized");
       console.log("✓ Event listeners initialized");
-
-      // openMeteoService.setSocketIO(websocketService.getIO()); // Keep if openMeteoService still needs it or refactor later
       console.log("✓ WebSocket service initialized");
     } catch (wsError) {
       console.error("⚠️ Error al iniciar WebSocket (continuando):", wsError);
     }
+
+    // const port = process.env.PORT ? parseInt(process.env.PORT) : 3002;
+    const port = 3002; // Force 3002 to avoid EADDRINUSE on 3001
+    await server.listen({ port, host: "0.0.0.0" });
 
     console.log("Backend server running on http://localhost:" + port);
     console.log("Health check: http://localhost:" + port + "/health");

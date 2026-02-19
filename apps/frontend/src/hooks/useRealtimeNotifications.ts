@@ -117,18 +117,21 @@ export function useRealtimeNotifications() {
     );
 
     try {
-      // Obtener incidentes activos del backend
-      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
-      const response = await fetch(`${API_URL}/incidents/all`);
+      const API_URL =
+        import.meta.env.VITE_API_URL || "http://localhost:3002/api";
+      const base = API_URL.replace(/\/api\/?$/, "");
+      const url = `${base}/api/incidents?isActive=true&limit=500`;
+      const response = await fetch(url);
 
       if (!response.ok) {
         console.warn("⚠️ No se pudieron obtener incidentes activos");
         return;
       }
 
-      const activeIncidents = await response.json();
+      const data = await response.json();
+      const incidents = Array.isArray(data) ? data : data?.incidents ?? [];
       const activeIds = new Set(
-        (activeIncidents || []).map((i: any) => i.id || i.uuid),
+        incidents.map((i: any) => i.id || i.uuid),
       );
 
       console.log(`📊 ${activeIds.size} incidentes activos en el mapa`);
