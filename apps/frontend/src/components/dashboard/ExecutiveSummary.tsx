@@ -52,7 +52,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
     {
       label: "Fluidez del Sistema",
       value: `${kpis.fluidityPercentage}%`,
-      subtext: `${totalPolygons - criticalPolygons}/${totalPolygons} polígonos fluidos`,
+      subtext: "Basado en cobertura de la red",
       icon: "🎯",
       color:
         kpis.fluidityPercentage >= 70

@@ -103,9 +103,7 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(
         id: "fluidity",
         label: "FLUIDEZ DEL SISTEMA",
         value: `${kpis.fluidityPercentage}%`,
-        subtext: `${
-          totalPolygons - criticalPolygons
-        }/${totalPolygons} polígonos fluidos`,
+        subtext: "Tramos libres de congestión",
         icon: Target,
         status: "primary",
         trend: kpis.trends?.fluidityChange || 0,

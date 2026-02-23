@@ -110,9 +110,6 @@ export const WazeOMeter: React.FC<WazeOMeterProps> = ({
             {levels[meterData.dominantLevel]?.emoji || "🟢"}
           </div>
           <div className="text-lg font-black">{meterData.status}</div>
-          <div className="text-xs font-medium mt-0.5 opacity-90">
-            {meterData.totalKm} km totales monitoreados
-          </div>
         </div>
       </div>
 
@@ -166,9 +163,6 @@ export const WazeOMeter: React.FC<WazeOMeterProps> = ({
                   {level.label}
                 </span>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-gray-900 dark:text-white text-[11px]">
-                    {km} km
-                  </span>
                   <span className="text-[10px] text-gray-500 dark:text-veltrix-muted font-mono bg-gray-100 dark:bg-veltrix-bg px-1 py-0.5 rounded">
                     {percentage.toFixed(1)}%
                   </span>

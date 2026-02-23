@@ -252,10 +252,20 @@ export class ApiService {
     // Calcular métricas
     const totalPolygons = polygons.length;
     const criticalPolygons = polygons.filter((p) => p.state === "high").length;
-    // Fluidez: solo polígonos con estado "low" se consideran fluidos
-    const fluidPolygons = polygons.filter((p) => p.state === "low").length;
-    const fluidityPercentage =
-      totalPolygons > 0 ? Math.round((fluidPolygons / totalPolygons) * 100) : 0;
+
+    // --- CÁLCULO DE FLUIDEZ UNIFICADO (BASADO EN KILÓMETROS) ---
+    // Usamos 350 km como base de la red, igual que en el frontend
+    const TOTAL_NETWORK_KM = 350;
+    const totalJamLengthMeters = jams.reduce(
+      (sum, jam) => sum + (Number(jam.length) || 0),
+      0,
+    );
+    const totalJamKm = totalJamLengthMeters / 1000;
+
+    // La fluidez es el % de la red que está libre de congestión
+    const fluidityPercentage = Math.round(
+      Math.max(0, ((TOTAL_NETWORK_KM - totalJamKm) / TOTAL_NETWORK_KM) * 100),
+    );
 
     const activeConstructions = alerts.filter(
       (a) => a.type === "CONSTRUCTION" || a.type === "ROAD_CLOSED",
