@@ -12,7 +12,7 @@ import type {
 } from "../types";
 import { realCordobaPolygons } from "../data/mock/realCordobaPolygons";
 import { REFRESH_INTERVALS, API_CONFIG } from "../config/constants";
-import { useGlobalRealtime } from "./useWazeRealtime";
+
 
 /**
  * Hook para consumir la API del Backend
@@ -341,9 +341,6 @@ export const useWazeData = () => {
   const trafficMetricsQuery = useTrafficMetrics();
   const alertsQuery = useAlerts();
   const alertStatsQuery = useAlertStats();
-
-  // Activar actualizaciones en tiempo real via WebSocket
-  useGlobalRealtime();
 
   // Memoizar polígonos combinados (geometría local + estado backend + métricas de tráfico)
   const polygons = useMemo(() => {

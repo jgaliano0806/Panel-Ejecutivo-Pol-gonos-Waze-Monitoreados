@@ -7,8 +7,9 @@ import { WeatherAlertsPanel } from "../weather/WeatherAlertsPanel";
 import { useSyncMapNotifications } from "@/hooks/useSyncMapNotifications";
 import { useNotificationStore } from "@/stores/useNotificationStore";
 import { useRealtimeNotifications } from "@/hooks/useRealtimeNotifications";
+import { useGlobalRealtime } from "@/hooks/useWazeRealtime";
 import { initializeAudio } from "@/lib/tts-service";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -23,15 +24,21 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onRefresh,
   criticalAlertsCount = 0,
 }) => {
-  useSyncMapNotifications(); // Sync active map alerts to store
-
-  // Listen for socket notifications (Audio + EventBus)
+  useSyncMapNotifications();
   useRealtimeNotifications();
 
-  // Hydrate history on mount
+  // Invalidar caches de React Query en TODAS las páginas cuando el backend
+  // emite waze:data_updated (antes solo funcionaba en Dashboard)
+  useGlobalRealtime();
+
+  // Hydrate history ONCE per browser session (not on every route change)
   const fetchHistory = useNotificationStore((state) => state.fetchHistory);
+  const historyFetched = useRef(false);
   useEffect(() => {
-    fetchHistory();
+    if (!historyFetched.current) {
+      historyFetched.current = true;
+      fetchHistory();
+    }
   }, [fetchHistory]);
 
   return (

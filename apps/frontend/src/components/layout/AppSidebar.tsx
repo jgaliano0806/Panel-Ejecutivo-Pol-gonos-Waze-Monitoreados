@@ -15,10 +15,12 @@ import {
   X,
   Bell,
   FileSearch,
+  LogOut,
 } from "lucide-react";
 
 import { useNotificationStore } from "@/stores/useNotificationStore";
 import { useSidebarStore } from "@/stores/useSidebarStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 interface NavItem {
   id: string;
@@ -32,6 +34,7 @@ export const AppSidebar: React.FC = () => {
   const location = useLocation();
   const { isExpanded, setExpanded } = useSidebarStore();
   const unreadCount = useNotificationStore((state) => state.unreadCount);
+  const { user, logout } = useAuthStore();
 
   // Determinar item activo basado en la ruta actual
   const getActiveItem = () => {
@@ -118,6 +121,16 @@ export const AppSidebar: React.FC = () => {
     navigate(item.path);
   };
 
+  const clearNotifications = useNotificationStore(
+    (state) => state.clearNotifications,
+  );
+
+  const handleLogout = async () => {
+    clearNotifications();
+    await logout();
+    navigate("/login");
+  };
+
   return (
     <motion.div
       initial={false}
@@ -192,14 +205,46 @@ export const AppSidebar: React.FC = () => {
         ))}
       </nav>
 
-      {/* Footer */}
-      {isExpanded && (
-        <div className="p-4 border-t border-gray-800 dark:border-veltrix-border">
-          <div className="text-xs text-gray-500 text-center">
-            v1.0.0 • Panel Waze
+      {/* Footer — Sesión activa */}
+      <div className="p-3 border-t border-gray-800 dark:border-veltrix-border">
+        {user && isExpanded ? (
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
+              {user.firstName[0]}
+              {user.lastName[0]}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-white truncate">
+                {user.firstName} {user.lastName}
+              </div>
+              <div className="text-xs text-gray-400 truncate">
+                {user.roles.map((r) => r.name).join(", ") || "Sin rol"}
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-900/20 transition-colors"
+              title="Cerrar sesión"
+            >
+              <LogOut size={16} />
+            </button>
           </div>
-        </div>
-      )}
+        ) : user ? (
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-900/20 transition-colors"
+            title="Cerrar sesión"
+          >
+            <LogOut size={18} />
+          </button>
+        ) : (
+          isExpanded && (
+            <div className="text-xs text-gray-500 text-center">
+              v1.0.0 • Panel Waze
+            </div>
+          )
+        )}
+      </div>
     </motion.div>
   );
 };

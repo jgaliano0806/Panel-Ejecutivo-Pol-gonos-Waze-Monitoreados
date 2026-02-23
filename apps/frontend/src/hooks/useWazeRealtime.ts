@@ -65,10 +65,11 @@ export function useGlobalRealtime() {
       const detail = (e as CustomEvent).detail;
       const ts = detail?.timestamp ?? new Date().toISOString();
 
-      // Invalidar todas las query keys relacionadas con datos Waze en paralelo
       queryClient.invalidateQueries({ queryKey: ["polygons"] });
       queryClient.invalidateQueries({ queryKey: ["kpis"] });
       queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      queryClient.invalidateQueries({ queryKey: ["incidents-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["incidents-types"] });
       queryClient.invalidateQueries({ queryKey: ["jams"] });
       queryClient.invalidateQueries({ queryKey: ["alerts"] });
       queryClient.invalidateQueries({ queryKey: ["alert-stats"] });

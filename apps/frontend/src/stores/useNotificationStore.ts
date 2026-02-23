@@ -23,9 +23,66 @@ export interface Notification {
   data?: NotificationData;
   is_read: boolean;
   created_at: string;
-  /** Indica si el TTS fue reproducido exitosamente para esta notificación */
   tts_played?: boolean;
 }
+
+// ────────────────────────────────────────────────────
+// Helpers para clearedAt por usuario (fuera del store
+// de Zustand para no compartir entre usuarios).
+// Key: `notification_cleared_at:<email>`
+// ────────────────────────────────────────────────────
+const CLEARED_AT_PREFIX = "notification_cleared_at:";
+
+function getCurrentUserEmail(): string | null {
+  try {
+    const raw = localStorage.getItem("panel_waze_auth_token");
+    if (!raw) return null;
+    const payload = JSON.parse(atob(raw.split(".")[1]));
+    return payload?.email ?? payload?.sub ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function getClearedAt(): number {
+  const email = getCurrentUserEmail();
+  if (!email) return 0;
+  const val = localStorage.getItem(`${CLEARED_AT_PREFIX}${email}`);
+  return val ? parseInt(val, 10) : 0;
+}
+
+function setClearedAt(ts: number): void {
+  const email = getCurrentUserEmail();
+  if (!email) return;
+  localStorage.setItem(`${CLEARED_AT_PREFIX}${email}`, String(ts));
+}
+
+// ────────────────────────────────────────────────────
+// Set persistido de IDs cuyo TTS ya fue reproducido
+// en esta sesión de navegador (sobrevive recargas).
+// ────────────────────────────────────────────────────
+const TTS_PLAYED_KEY = "notification_tts_played_ids";
+
+function getTTSPlayedIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(TTS_PLAYED_KEY);
+    if (!raw) return new Set();
+    return new Set(JSON.parse(raw) as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
+function persistTTSPlayedId(id: string): void {
+  const ids = getTTSPlayedIds();
+  ids.add(id);
+  // Limitar a 1000 entradas para no consumir localStorage infinitamente
+  const arr = Array.from(ids);
+  if (arr.length > 1000) arr.splice(0, arr.length - 500);
+  localStorage.setItem(TTS_PLAYED_KEY, JSON.stringify(arr));
+}
+
+// ────────────────────────────────────────────────────
 
 interface NotificationState {
   notifications: Notification[];
@@ -38,9 +95,7 @@ interface NotificationState {
   markAllAsRead: () => void;
   clearNotifications: () => void;
   removeDuplicates: () => void;
-  /** Marca una notificación como TTS reproducido */
   markTTSPlayed: (id: string) => void;
-  /** Obtiene notificaciones pendientes de TTS (no leídas y sin TTS reproducido) */
   getPendingTTSNotifications: () => Notification[];
 }
 
@@ -53,24 +108,31 @@ export const useNotificationStore = create<NotificationState>()(
       addNotification: (notification) => {
         const { notifications } = get();
 
-        // Evitar duplicados por ID de notificación
-        if (notifications.some((n) => n.id === notification.id)) return;
-
-        // Evitar duplicados por alertId (mismo evento de Waze en diferentes polígonos)
-        // Solo verificamos si tiene alertId y ya existe una notificación con ese alertId
-        if (notification.data?.alertId) {
-          const existingAlert = notifications.find(
-            (n) => n.data?.alertId === notification.data?.alertId,
-          );
-          if (existingAlert) {
-            console.log(
-              `⏭️ Notificación duplicada ignorada (alertId: ${notification.data.alertId})`,
-            );
-            return;
-          }
+        // No agregar si fue creada antes del clearedAt de este usuario
+        const clearedAt = getClearedAt();
+        if (
+          clearedAt &&
+          new Date(notification.created_at).getTime() <= clearedAt
+        ) {
+          return;
         }
 
-        const newNotifications = [notification, ...notifications];
+        if (notifications.some((n) => n.id === notification.id)) return;
+
+        if (notification.data?.alertId) {
+          const exists = notifications.find(
+            (n) => n.data?.alertId === notification.data?.alertId,
+          );
+          if (exists) return;
+        }
+
+        // Respetar tts_played persistido
+        const ttsPlayed = getTTSPlayedIds();
+        const enriched = ttsPlayed.has(notification.id)
+          ? { ...notification, tts_played: true }
+          : notification;
+
+        const newNotifications = [enriched, ...notifications];
         set({
           notifications: newNotifications,
           unreadCount: newNotifications.filter((n) => !n.is_read).length,
@@ -79,6 +141,9 @@ export const useNotificationStore = create<NotificationState>()(
 
       syncNotifications: (newItems: Notification[]) => {
         const { notifications } = get();
+        const clearedAt = getClearedAt();
+        const ttsPlayed = getTTSPlayedIds();
+
         const existingIds = new Set(notifications.map((n) => n.id));
         const existingAlertIds = new Set(
           notifications
@@ -86,8 +151,14 @@ export const useNotificationStore = create<NotificationState>()(
             .map((n) => n.data!.alertId),
         );
 
-        // Filtrar: no duplicar por id ni por alertId
         const toAdd = newItems.filter((n) => {
+          // Filtrar por clearedAt del usuario actual
+          if (
+            clearedAt &&
+            new Date(n.created_at).getTime() <= clearedAt
+          ) {
+            return false;
+          }
           if (existingIds.has(n.id)) return false;
           if (n.data?.alertId && existingAlertIds.has(n.data.alertId))
             return false;
@@ -96,21 +167,25 @@ export const useNotificationStore = create<NotificationState>()(
 
         if (toAdd.length === 0) return;
 
-        const newNotifications = [...toAdd, ...notifications].sort(
+        // Marcar tts_played para las que ya se reprodujeron en esta sesión
+        const enriched = toAdd.map((n) =>
+          ttsPlayed.has(n.id) ? { ...n, tts_played: true } : n,
+        );
+
+        const merged = [...enriched, ...notifications].sort(
           (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+            new Date(b.created_at).getTime() -
+            new Date(a.created_at).getTime(),
         );
 
         set({
-          notifications: newNotifications,
-          unreadCount: newNotifications.filter((n) => !n.is_read).length,
+          notifications: merged,
+          unreadCount: merged.filter((n) => !n.is_read).length,
         });
       },
 
       fetchHistory: async () => {
         try {
-          // Igual que en otros módulos: VITE_API_URL debe incluir /api.
-          // Fallback coherente con backend Fastify: http://localhost:3002/api
           const API_URL = import.meta.env.VITE_API_URL || "/api";
           const response = await fetch(`${API_URL}/notifications?limit=50`);
           if (response.ok) {
@@ -138,47 +213,54 @@ export const useNotificationStore = create<NotificationState>()(
           notifications: updated,
           unreadCount: updated.filter((n) => !n.is_read).length,
         });
+
+        // Marcar en backend (fire-and-forget)
+        const API_URL = import.meta.env.VITE_API_URL || "/api";
+        fetch(`${API_URL}/notifications/${id}/read`, {
+          method: "PATCH",
+        }).catch(() => {});
       },
 
       markAllAsRead: () => {
         const { notifications } = get();
         const updated = notifications.map((n) => ({ ...n, is_read: true }));
-        set({
-          notifications: updated,
-          unreadCount: 0,
-        });
+        set({ notifications: updated, unreadCount: 0 });
+
+        // Marcar en backend (fire-and-forget)
+        const API_URL = import.meta.env.VITE_API_URL || "/api";
+        fetch(`${API_URL}/notifications/read-all`, {
+          method: "POST",
+        }).catch(() => {});
       },
 
       clearNotifications: () => {
+        // Guardar timestamp de "clear" POR USUARIO en localStorage.
+        // fetchHistory y addNotification filtrarán notificaciones
+        // anteriores a este timestamp para ESTE usuario únicamente.
+        // Otros usuarios en la misma máquina o en otras máquinas
+        // no se ven afectados.
+        setClearedAt(Date.now());
         set({ notifications: [], unreadCount: 0 });
       },
 
       removeDuplicates: () => {
         const { notifications } = get();
         const seenAlertIds = new Set<string>();
-        const uniqueNotifications: Notification[] = [];
+        const unique: Notification[] = [];
 
-        // Mantener solo la primera notificación de cada alertId
-        for (const notification of notifications) {
-          const alertId = notification.data?.alertId;
-
+        for (const n of notifications) {
+          const alertId = n.data?.alertId;
           if (alertId) {
-            if (seenAlertIds.has(alertId)) {
-              console.log(`🗑️ Removiendo duplicado: ${alertId}`);
-              continue;
-            }
+            if (seenAlertIds.has(alertId)) continue;
             seenAlertIds.add(alertId);
           }
-
-          uniqueNotifications.push(notification);
+          unique.push(n);
         }
 
-        const removedCount = notifications.length - uniqueNotifications.length;
-        if (removedCount > 0) {
-          console.log(`✅ Removidos ${removedCount} duplicados`);
+        if (unique.length < notifications.length) {
           set({
-            notifications: uniqueNotifications,
-            unreadCount: uniqueNotifications.filter((n) => !n.is_read).length,
+            notifications: unique,
+            unreadCount: unique.filter((n) => !n.is_read).length,
           });
         }
       },
@@ -189,21 +271,18 @@ export const useNotificationStore = create<NotificationState>()(
           n.id === id ? { ...n, tts_played: true } : n,
         );
         set({ notifications: updated });
-        console.log(`🔊 TTS marcado como reproducido para notificación: ${id}`);
+
+        // Persistir para que no se re-reproduzca tras navegar
+        persistTTSPlayedId(id);
       },
 
       getPendingTTSNotifications: () => {
         const { notifications } = get();
-        // Notificaciones de los últimos 10 minutos que no tienen TTS reproducido
         const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
         return notifications.filter((n) => {
-          // Solo ACCIDENT y HAZARD
           if (n.type !== "ACCIDENT" && n.type !== "HAZARD") return false;
-          // Ya reproducido → skip
           if (n.tts_played) return false;
-          // Ya leídas (sincronizadas desde blocking analysis) → no necesitan TTS
           if (n.is_read) return false;
-          // Creada en los últimos 10 minutos
           const createdAt = new Date(n.created_at).getTime();
           if (createdAt < tenMinutesAgo) return false;
           return true;

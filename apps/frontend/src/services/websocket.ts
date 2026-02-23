@@ -136,22 +136,15 @@ socket.on("waze:data_updated", (summary: any) => {
 
 // ═══════════════════════════════════════════════════════════════
 // EVENTO GLOBAL: play_audio_alert
-// Alertas críticas nuevas: reproducir sonido de alerta (beep)
-// y, opcionalmente, un archivo /alert.mp3 si existe.
+// El backend emite esto cuando detecta alertas críticas nuevas,
+// pero NO aplica los filtros de notificationFilters del frontend.
+// El sonido de alerta ya se reproduce individualmente en el handler
+// de notification:new (beep + TTS) para las que pasan los filtros.
+// Por tanto, este evento se loguea pero NO reproduce sonido extra
+// para evitar alertas falsas por tipos filtrados (ej: CONSTRUCTION).
 // ═══════════════════════════════════════════════════════════════
 socket.on("play_audio_alert", (data: { count: number; timestamp: string }) => {
-  logger.info("🔊 play_audio_alert recibido", data);
-  if (!isAudioUnlocked()) {
-    logger.debug("Audio bloqueado — alert sound skipped");
-    return;
-  }
-
-  // Intentar reproducir /alert.mp3 primero; si no existe, usar beep sintético
-  const audio = new Audio("/alert.mp3");
-  audio.volume = 0.7;
-  audio.play().catch(() => {
-    playAlertBeep();
-  });
+  logger.debug("play_audio_alert recibido (sonido delegado a notification:new)", data);
 });
 
 /**

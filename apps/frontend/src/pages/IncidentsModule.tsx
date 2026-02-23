@@ -10,7 +10,6 @@ import { IncidentsTable } from "@/components/incidents/IncidentsTable";
 import { IncidentDetailModal } from "@/components/incidents/IncidentDetailModal";
 import { exportIncidentToPDF } from "@/lib/pdf-export";
 import {
-  RefreshCw,
   Download,
   AlertTriangle,
   CheckCircle,
@@ -35,7 +34,6 @@ export const IncidentsModule: React.FC = () => {
     updateFilters,
     clearFilters,
     setPage,
-    refresh,
   } = useIncidentsModule();
 
   const { data: incidentFromUrl } = useIncidentDetail(incidentIdFromUrl);
@@ -106,16 +104,6 @@ export const IncidentsModule: React.FC = () => {
 
         <div className="flex items-center gap-3">
           <button
-            onClick={refresh}
-            disabled={isLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw
-              className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
-            />
-            Actualizar
-          </button>
-          <button
             onClick={() =>
               alert("Exportar todos los incidentes filtrados a CSV/Excel")
             }
@@ -141,6 +129,9 @@ export const IncidentsModule: React.FC = () => {
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Total de incidentes
+                  {stats.summary.oldest
+                    ? ` desde el ${new Date(stats.summary.oldest).toLocaleDateString("es-AR")}`
+                    : ""}
                 </p>
               </div>
             </div>
