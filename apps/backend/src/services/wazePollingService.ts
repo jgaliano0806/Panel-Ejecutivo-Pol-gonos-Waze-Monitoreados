@@ -293,6 +293,28 @@ export class WazePollingService {
     const totalAlerts = results.reduce((sum, r) => sum + r.alerts, 0);
     const totalJams = results.reduce((sum, r) => sum + r.jams, 0);
 
+    // Contar alertas críticas nuevas del ciclo para decidir si emitir alerta de audio
+    let criticalCount = 0;
+    try {
+      const res = await dbService.query(
+        `SELECT COUNT(*) as cnt FROM notifications
+         WHERE created_at > NOW() - INTERVAL '35 seconds'
+           AND type IN ('ACCIDENT','HAZARD')`,
+      );
+      criticalCount = parseInt(res.rows[0]?.cnt || "0", 10);
+    } catch { /* ignore */ }
+
+    // Broadcast global: todos los clientes invalidan caches simultáneamente
+    eventBus.emit(SystemEvents.WAZE_POLL_CYCLE_DONE, {
+      totalPolygons: REAL_POLYGONS.length,
+      successCount,
+      totalAlerts,
+      totalJams,
+      criticalAlerts: criticalCount,
+      durationMs: duration,
+      timestamp: new Date(),
+    });
+
     logger.info(
       `✅ Poll completed in ${duration}ms. Success: ${successCount}/${REAL_POLYGONS.length}, Alerts: ${totalAlerts}, Jams: ${totalJams}`,
     );

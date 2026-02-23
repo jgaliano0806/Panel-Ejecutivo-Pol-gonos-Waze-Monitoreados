@@ -3,9 +3,11 @@ import {
   useNotificationStore,
   Notification,
 } from "@/stores/useNotificationStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { translateWazeMessage } from "@/lib/waze-translator";
 import { speakNotification, isAudioUnlocked } from "@/lib/tts-utils";
 import { shouldShowTTSAndSnackbar } from "@/config/notificationFilters";
+import { logger } from "@/lib/logger";
 
 /**
  * WebSocket client singleton para conexión con el backend
@@ -19,11 +21,6 @@ import { shouldShowTTSAndSnackbar } from "@/config/notificationFilters";
 // Si VITE_API_URL no está definido, usar el mismo origen (pasa por proxy de Vite en dev)
 // así funciona tanto en localhost como al acceder por IP de red
 const envApiUrl = (import.meta as any).env?.VITE_API_URL;
-const API_URL =
-  envApiUrl ||
-  (typeof window !== "undefined"
-    ? window.location.origin + "/api"
-    : "http://localhost:3002");
 const SOCKET_URL =
   !envApiUrl || envApiUrl.startsWith("/")
     ? typeof window !== "undefined"
@@ -44,9 +41,9 @@ const existingSocket: Socket | undefined = (window as any)[SOCKET_KEY];
 if (!existingSocket || (existingSocket as any).io?.uri !== SOCKET_URL) {
   if (existingSocket) {
     existingSocket.disconnect();
-    console.log("🔌 Socket anterior desconectado (URL cambió)");
+    logger.debug("Socket anterior desconectado (URL cambió)");
   }
-  console.log(`🔌 Socket: conectando a ${SOCKET_URL}`);
+  logger.info("Socket conectando", { url: SOCKET_URL });
   (window as any)[SOCKET_KEY] = io(SOCKET_URL, {
     autoConnect: true,
     reconnection: true,
@@ -57,11 +54,12 @@ if (!existingSocket || (existingSocket as any).io?.uri !== SOCKET_URL) {
     // HTTP de polling (/socket.io?transport=polling) antes de que engine.io pueda
     // manejarlas. El upgrade a WebSocket usa el evento 'upgrade' del servidor HTTP,
     // que Fastify no toca.
-    transports: ["websocket"],
+    // websocket primero; polling como fallback si ws falla (proxy/firewall)
+    transports: ["websocket", "polling"],
     timeout: 20000,
     path: "/socket.io/",
   });
-  console.log("🔌 Socket creado");
+  logger.debug("Socket creado");
 }
 
 // Reusar Set de dedup existente o crear uno nuevo
@@ -69,39 +67,91 @@ if (!(window as any)[DEDUP_KEY]) {
   (window as any)[DEDUP_KEY] = new Set<string>();
 }
 
-// Clave para dedup por contenido (mismo incidente en diferentes polígonos con diferente UUID)
-const CONTENT_DEDUP_KEY = "__waze_panel_tts_content_dedup__";
+// Clave para dedup por contenido CON TTL (mismo incidente en diferentes polígonos con diferente UUID)
+// Usa Map<hash, timestamp> para poder expirar entradas después de 10 minutos
+const CONTENT_DEDUP_KEY = "__waze_panel_tts_content_dedup_map__";
 if (!(window as any)[CONTENT_DEDUP_KEY]) {
-  (window as any)[CONTENT_DEDUP_KEY] = new Set<string>();
+  (window as any)[CONTENT_DEDUP_KEY] = new Map<string, number>();
 }
 
 export const socket: Socket = (window as any)[SOCKET_KEY];
 const processedNotificationIds: Set<string> = (window as any)[DEDUP_KEY];
-const processedContentHashes: Set<string> = (window as any)[CONTENT_DEDUP_KEY];
+const processedContentHashes: Map<string, number> = (window as any)[
+  CONTENT_DEDUP_KEY
+];
+
+// TTL para dedup de contenido: 10 minutos
+const CONTENT_DEDUP_TTL_MS = 10 * 60 * 1000;
+
+/**
+ * Limpia entradas expiradas del Map de dedup de contenido.
+ */
+const cleanExpiredContentHashes = (): void => {
+  const now = Date.now();
+  for (const [hash, timestamp] of processedContentHashes) {
+    if (now - timestamp > CONTENT_DEDUP_TTL_MS) {
+      processedContentHashes.delete(hash);
+    }
+  }
+};
 
 // ═══════════════════════════════════════════════════════════════
 // LIMPIEZA DE HANDLERS PREVIOS (crucial para HMR)
 // Remover TODOS los listeners anteriores antes de registrar nuevos
 // ═══════════════════════════════════════════════════════════════
 socket.removeAllListeners("notification:new");
+socket.removeAllListeners("waze:data_updated");
+socket.removeAllListeners("play_audio_alert");
 socket.removeAllListeners("connect");
 socket.removeAllListeners("disconnect");
 socket.removeAllListeners("connect_error");
 socket.removeAllListeners("reconnect");
 socket.removeAllListeners("reconnect_attempt");
-// Nota: onAny se limpia por separado
 socket.offAny();
 
 // Event handlers para debugging
 socket.on("connect", () => {
-  console.log("🟢 WebSocket connected:", socket.id);
+  logger.info("WebSocket connected", { socketId: socket.id });
 });
 
 // Debug: escuchar todos los eventos (excepto los muy frecuentes)
 socket.onAny((event, ...args) => {
   if (event !== "waze:update" && event !== "risk:update") {
-    console.log(`📡 WS event received: ${event}`, args);
+    logger.debug("WS event received", { event, args });
   }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// EVENTO GLOBAL: waze:data_updated
+// El backend emite esto al terminar CADA ciclo de ingesta.
+// Dispara un CustomEvent en window que el hook useWazeRealtime
+// usa para invalidar TODAS las queries de React Query.
+// ═══════════════════════════════════════════════════════════════
+socket.on("waze:data_updated", (summary: any) => {
+  logger.info("📡 waze:data_updated recibido", summary);
+  window.dispatchEvent(
+    new CustomEvent("waze:data_updated", { detail: summary }),
+  );
+});
+
+// ═══════════════════════════════════════════════════════════════
+// EVENTO GLOBAL: play_audio_alert
+// Alertas críticas nuevas: reproducir sonido de alerta (beep)
+// y, opcionalmente, un archivo /alert.mp3 si existe.
+// ═══════════════════════════════════════════════════════════════
+socket.on("play_audio_alert", (data: { count: number; timestamp: string }) => {
+  logger.info("🔊 play_audio_alert recibido", data);
+  if (!isAudioUnlocked()) {
+    logger.debug("Audio bloqueado — alert sound skipped");
+    return;
+  }
+
+  // Intentar reproducir /alert.mp3 primero; si no existe, usar beep sintético
+  const audio = new Audio("/alert.mp3");
+  audio.volume = 0.7;
+  audio.play().catch(() => {
+    playAlertBeep();
+  });
 });
 
 /**
@@ -140,9 +190,9 @@ const playAlertBeep = (): void => {
     const now = audioContext.currentTime;
     playTone(523.25, now, 0.15);
     playTone(659.25, now + 0.15, 0.2);
-    console.log("🔔 Beep reproducido");
+    logger.debug("Beep reproducido");
   } catch (error) {
-    console.warn("⚠️ Error en beep:", error);
+    logger.warn("Error en beep", { error });
   }
 };
 
@@ -247,8 +297,10 @@ const buildContentHash = (notification: Notification): string | null => {
   const type = notification.type || notification.data?.incidentType || "";
   const subtype = notification.data?.subtype || "";
   const street = (notification.data?.street || "").toLowerCase().trim();
-  const lat = notification.data?.location?.y ?? notification.data?.latitude ?? 0;
-  const lng = notification.data?.location?.x ?? notification.data?.longitude ?? 0;
+  const lat =
+    notification.data?.location?.y ?? notification.data?.latitude ?? 0;
+  const lng =
+    notification.data?.location?.x ?? notification.data?.longitude ?? 0;
 
   if (!type && !street) return null;
 
@@ -271,30 +323,42 @@ const buildContentHash = (notification: Notification): string | null => {
  * 4. Handler único (los anteriores se limpian arriba con removeAllListeners)
  */
 socket.on("notification:new", async (notification: Notification) => {
+  // ═══ AUTH GUARD: Solo procesar notificaciones si el usuario está logueado ═══
+  const authState = useAuthStore.getState();
+  if (!authState.isAuthenticated) {
+    logger.debug("Notificación ignorada — usuario no autenticado");
+    return;
+  }
+
   // ═══ DEDUP GUARD: Evitar procesar la misma notificación múltiples veces ═══
   const notifId = notification.id;
   const alertUuid = notification.data?.alertId || notification.data?.uuid;
 
   if (processedNotificationIds.has(notifId)) {
-    console.log(`⏭️ Notificación ${notifId} ya procesada, ignorando (dedup por ID)`);
+    logger.debug("Notificación ya procesada (dedup por ID)", { notifId });
     return;
   }
 
   // También dedup por alertId/UUID de Waze (el backend puede enviar IDs distintos para el mismo incidente)
   const alertKey = alertUuid ? `alert:${alertUuid}` : null;
   if (alertKey && processedNotificationIds.has(alertKey)) {
-    console.log(`⏭️ Alerta ${alertUuid} ya procesada, ignorando (dedup por UUID Waze)`);
+    logger.debug("Alerta ya procesada (dedup por UUID Waze)", { alertUuid });
     useNotificationStore.getState().markTTSPlayed(notifId);
     return;
   }
 
-  // DEDUP POR CONTENIDO: El mismo incidente físico puede aparecer en múltiples
+  // DEDUP POR CONTENIDO con TTL: El mismo incidente físico puede aparecer en múltiples
   // feeds de polígonos con UUIDs diferentes. Detectamos esto creando un hash
   // basado en tipo + subtipo + calle + coordenadas redondeadas.
+  // Las entradas expiran después de 10 minutos para permitir incidentes nuevos similares.
+  cleanExpiredContentHashes();
   const contentHash = buildContentHash(notification);
   if (contentHash && processedContentHashes.has(contentHash)) {
-    console.log(`⏭️ Contenido duplicado detectado (${contentHash}), ignorando TTS`);
-    // Aún así agregar al store (para que se muestre la notificación) pero marcar TTS como reproducido
+    const age = Date.now() - (processedContentHashes.get(contentHash) || 0);
+    logger.debug("Contenido duplicado detectado", {
+      contentHash,
+      ageSeconds: Math.round(age / 1000),
+    });
     const translatedMsg = translateWazeMessage(notification.message);
     useNotificationStore.getState().addNotification({
       ...notification,
@@ -309,27 +373,29 @@ socket.on("notification:new", async (notification: Notification) => {
   // Registrar como procesada
   processedNotificationIds.add(notifId);
   if (alertKey) processedNotificationIds.add(alertKey);
-  if (contentHash) processedContentHashes.add(contentHash);
+  if (contentHash) processedContentHashes.set(contentHash, Date.now());
 
-  // Limpiar entradas antiguas de los Sets para no consumir memoria infinita (máx 500 entradas)
+  // Limpiar entradas antiguas del Set de IDs para no consumir memoria infinita (máx 500 entradas)
   if (processedNotificationIds.size > 500) {
     const entries = Array.from(processedNotificationIds);
-    entries.slice(0, entries.length - 200).forEach((e) => processedNotificationIds.delete(e));
-  }
-  if (processedContentHashes.size > 300) {
-    const entries = Array.from(processedContentHashes);
-    entries.slice(0, entries.length - 100).forEach((e) => processedContentHashes.delete(e));
+    entries
+      .slice(0, entries.length - 200)
+      .forEach((e) => processedNotificationIds.delete(e));
   }
 
-  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-  console.log("🔔 NOTIFICACIÓN RECIBIDA (websocket.ts)");
-  console.log("   ID:", notification.id);
-  console.log("   Type:", notification.type);
-  console.log("   Title:", notification.title);
-  console.log("   Subtype:", notification.data?.subtype);
-  console.log("   Street:", notification.data?.street);
-  console.log("   AlertUUID:", alertUuid || "N/A");
-  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  // Evento amplio: un solo log con todo el contexto de la notificación
+  const incidentType = notification.type || notification.data?.incidentType;
+  const subtype = notification.data?.subtype;
+  const shouldNotify = shouldShowTTSAndSnackbar(incidentType, subtype);
+
+  logger.info("Notificación recibida", {
+    id: notification.id,
+    type: incidentType,
+    subtype,
+    street: notification.data?.street,
+    alertUuid: alertUuid || "N/A",
+    shouldNotify,
+  });
 
   // Traducir mensaje
   const translatedMessage = translateWazeMessage(notification.message);
@@ -341,48 +407,27 @@ socket.on("notification:new", async (notification: Notification) => {
 
   // Agregar al store
   useNotificationStore.getState().addNotification(updatedNotification);
-  console.log("✅ Agregada al store");
-
-  // Evaluar filtros TTS
-  const incidentType = notification.type || notification.data?.incidentType;
-  const subtype = notification.data?.subtype;
-
-  console.log("🔍 Evaluando filtros TTS:");
-  console.log("   - Tipo:", incidentType);
-  console.log("   - Subtipo:", subtype);
-
-  const shouldNotify = shouldShowTTSAndSnackbar(incidentType, subtype);
-  console.log("   - ¿Debe notificar?:", shouldNotify);
 
   if (!shouldNotify) {
-    console.log("🔕 Filtrado - NO reproducir TTS");
     useNotificationStore.getState().markTTSPlayed(notification.id);
     return;
   }
 
-  console.log("✅ Pasó filtros - Reproduciendo TTS...");
-
   // Generar mensaje descriptivo
   const ttsMessage = buildTTSMessage(notification);
-  console.log("🎤 Mensaje TTS:", ttsMessage);
+  logger.debug("TTS mensaje generado", {
+    message: ttsMessage.substring(0, 80),
+  });
 
-  // Si el audio esta desbloqueado, marcar como "en progreso" y reproducir.
-  // Si NO esta desbloqueado, speakNotification encola internamente;
-  // dejamos tts_played=false para que el retry lo maneje post-desbloqueo.
   if (isAudioUnlocked()) {
-    // Marcar ANTES para evitar duplicacion con el retry
     useNotificationStore.getState().markTTSPlayed(notification.id);
-
-    // Beep + delay
     playAlertBeep();
     await new Promise((resolve) => setTimeout(resolve, 400));
 
     try {
       await speakNotification(ttsMessage, "");
-      console.log("✅ TTS completado");
     } catch (error) {
-      console.error("❌ Error en TTS:", error);
-      // Desmarcar para que retry lo reintente
+      logger.error("Error en TTS", { error, notifId: notification.id });
       const { notifications } = useNotificationStore.getState();
       const updated = notifications.map((n) =>
         n.id === notification.id ? { ...n, tts_played: false } : n,
@@ -390,27 +435,34 @@ socket.on("notification:new", async (notification: Notification) => {
       useNotificationStore.getState().setNotifications(updated);
     }
   } else {
-    // Audio bloqueado: encolar en TTS service (se reproducira al desbloquear)
-    console.log("🔒 Audio bloqueado - mensaje encolado en TTS service");
+    logger.debug("Audio bloqueado — mensaje encolado en TTS service");
     await speakNotification(ttsMessage, "");
-    // NO marcar tts_played - el retry periodic lo manejara post-desbloqueo
+    useNotificationStore.getState().markTTSPlayed(notification.id);
   }
 });
 
 socket.on("disconnect", (reason) => {
-  console.log("🔴 WebSocket disconnected:", reason);
+  logger.warn("WebSocket disconnected", { reason });
 });
 
+// Evitar spam de logs cuando el backend no está disponible
+let lastConnectErrorLog = 0;
+const CONNECT_ERROR_LOG_INTERVAL_MS = 15000; // Log como mucho cada 15 s
+
 socket.on("connect_error", (error) => {
-  console.error("❌ WebSocket connection error:", error.message);
+  const now = Date.now();
+  if (now - lastConnectErrorLog >= CONNECT_ERROR_LOG_INTERVAL_MS) {
+    lastConnectErrorLog = now;
+    logger.warn("WebSocket connect error", { message: error.message });
+  }
 });
 
 socket.on("reconnect", (attemptNumber) => {
-  console.log("🔄 WebSocket reconnected after", attemptNumber, "attempts");
+  logger.info("WebSocket reconectado", { attemptNumber });
 });
 
-socket.on("reconnect_attempt", (attemptNumber) => {
-  console.log("🔄 WebSocket reconnection attempt:", attemptNumber);
+socket.on("reconnect_attempt", () => {
+  // No loguear cada intento para evitar spam
 });
 
 /**
@@ -418,7 +470,7 @@ socket.on("reconnect_attempt", (attemptNumber) => {
  */
 export function subscribeToPolygon(polygonId: string): void {
   socket.emit("subscribe:polygon", polygonId);
-  console.log(`📍 Subscribed to polygon: ${polygonId}`);
+  logger.debug("Subscribed to polygon", { polygonId });
 }
 
 /**
@@ -426,7 +478,7 @@ export function subscribeToPolygon(polygonId: string): void {
  */
 export function unsubscribeFromPolygon(polygonId: string): void {
   socket.emit("unsubscribe:polygon", polygonId);
-  console.log(`📍 Unsubscribed from polygon: ${polygonId}`);
+  logger.debug("Unsubscribed from polygon", { polygonId });
 }
 
 /**
@@ -434,7 +486,7 @@ export function unsubscribeFromPolygon(polygonId: string): void {
  */
 export function subscribeToGlobal(): void {
   socket.emit("subscribe:global");
-  console.log("🌍 Subscribed to global updates");
+  logger.debug("Subscribed to global updates");
 }
 
 /**
@@ -469,8 +521,10 @@ export default socket;
 // ═══════════════════════════════════════════════════════════════
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
-    console.log("🔄 HMR: Limpiando handlers de websocket.ts");
+    logger.debug("HMR: Limpiando handlers de websocket.ts");
     socket.removeAllListeners("notification:new");
+    socket.removeAllListeners("waze:data_updated");
+    socket.removeAllListeners("play_audio_alert");
     socket.removeAllListeners("connect");
     socket.removeAllListeners("disconnect");
     socket.removeAllListeners("connect_error");

@@ -2,13 +2,14 @@ import {
   eventBus,
   SystemEvents,
   WazePollCompletePayload,
+  WazePollCycleDonePayload,
   RiskCalculatedPayload,
 } from "../events";
-import { Server } from "socket.io"; // Or import from types if separate
+import { Server } from "socket.io";
 import { logger } from "../utils/logger";
 
 export class SocketSubscriber {
-  private io: any; // Type as Server if available
+  private io: Server;
 
   constructor(io: any) {
     this.io = io;
@@ -22,6 +23,10 @@ export class SocketSubscriber {
       this.handleWazePollComplete.bind(this),
     );
     eventBus.on(
+      SystemEvents.WAZE_POLL_CYCLE_DONE,
+      this.handlePollCycleDone.bind(this),
+    );
+    eventBus.on(
       SystemEvents.RISK_SCORE_CALCULATED,
       this.handleRiskScoreCalculated.bind(this),
     );
@@ -30,9 +35,7 @@ export class SocketSubscriber {
 
   private handleNewNotification(notification: any): void {
     try {
-      // Emitir a todos los clientes conectados
       this.io.emit("notification:new", notification);
-      // logger.info(`🔔 Re-broadcasted notification ${notification.id}`);
     } catch (error) {
       logger.error(
         `Error in SocketSubscriber handling NewNotification: ${error}`,
@@ -40,23 +43,18 @@ export class SocketSubscriber {
     }
   }
 
+  /**
+   * Evento por polígono: enviado al room específico
+   */
   private handleWazePollComplete(payload: WazePollCompletePayload): void {
     try {
       const { polygonId, alerts, jams, timestamp } = payload;
-
-      // Construct payload expected by frontend
-      const updatePayload = {
+      this.io.to(`polygon:${polygonId}`).emit("waze:update", {
         polygonId,
         alerts,
         jams,
         timestamp: timestamp.toISOString(),
-      };
-
-      // Emit to specific room
-      this.io.to(`polygon:${polygonId}`).emit("waze:update", updatePayload);
-
-      // debug log (optional)
-      // console.log(`📡 Broadcasted update for ${polygonId}`);
+      });
     } catch (error) {
       logger.error(
         `Error in SocketSubscriber handling WazePollComplete: ${error}`,
@@ -64,10 +62,46 @@ export class SocketSubscriber {
     }
   }
 
+  /**
+   * Ciclo de polling completo: BROADCAST GLOBAL a TODOS los clientes.
+   * - waze:data_updated  → frontend invalida todas las caches de React Query
+   * - play_audio_alert   → si hubo alertas críticas nuevas, frontend reproduce beep
+   */
+  private handlePollCycleDone(payload: WazePollCycleDonePayload): void {
+    try {
+      const summary = {
+        totalPolygons: payload.totalPolygons,
+        successCount: payload.successCount,
+        totalAlerts: payload.totalAlerts,
+        totalJams: payload.totalJams,
+        criticalAlerts: payload.criticalAlerts,
+        durationMs: payload.durationMs,
+        timestamp: payload.timestamp.toISOString(),
+      };
+
+      // Broadcast global: todos los paneles invalidan datos simultáneamente
+      this.io.emit("waze:data_updated", summary);
+
+      // Si hay alertas críticas nuevas, emitir señal de audio
+      if (payload.criticalAlerts > 0) {
+        this.io.emit("play_audio_alert", {
+          count: payload.criticalAlerts,
+          timestamp: payload.timestamp.toISOString(),
+        });
+        logger.info(
+          `🔊 play_audio_alert emitted (${payload.criticalAlerts} critical alerts)`,
+        );
+      }
+    } catch (error) {
+      logger.error(
+        `Error in SocketSubscriber handling PollCycleDone: ${error}`,
+      );
+    }
+  }
+
   private handleRiskScoreCalculated(payload: RiskCalculatedPayload): void {
     try {
       const { polygonId, score, level, factors } = payload;
-
       this.io.to(`polygon:${polygonId}`).emit("risk:update", {
         polygonId,
         score,

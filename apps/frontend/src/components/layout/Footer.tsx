@@ -1,14 +1,8 @@
 import React from "react";
 import { motion } from "framer-motion";
-import {
-  COMPANY_INFO,
-  UI_TEXTS,
-  REFRESH_INTERVALS,
-} from "../../config/constants";
+import { COMPANY_INFO } from "../../config/constants";
 
 const Footer: React.FC = () => {
-  const refreshSeconds = REFRESH_INTERVALS.realTimeData / 1000;
-
   return (
     <footer className="relative bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 border-t border-gray-700">
       <div className="relative max-w-[1900px] mx-auto px-8 py-3">
@@ -51,7 +45,7 @@ const Footer: React.FC = () => {
             <span className="text-gray-400">Waze for Cities</span>
             <span className="text-gray-500">•</span>
             <span className="text-green-400 font-medium">
-              Actualización cada {refreshSeconds}s
+              Tiempo real vía WebSocket
             </span>
           </div>
         </div>

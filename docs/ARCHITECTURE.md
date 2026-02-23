@@ -243,34 +243,80 @@ sequenceDiagram
     C-->>U: Actualizar UI
 ```
 
-### Flujo de Datos en Tiempo Real (WebSocket/Server-Sent Events)
+### Arquitectura WebSocket — Fuente Única de Verdad
+
+El sistema usa **WebSockets (Socket.IO)** como canal primario de actualización. El backend es la **única fuente de verdad**: al completar cada ciclo de ingesta de Waze, emite un broadcast global a todos los paneles conectados simultáneamente, eliminando el antiguo sistema de polling desde el frontend.
+
+#### Eventos WebSocket
+
+| Evento | Dirección | Destinatario | Descripción |
+|--------|-----------|-------------|-------------|
+| `waze:data_updated` | Server → All clients | Broadcast global | Emitido al finalizar cada ciclo de ingesta. Todos los clientes invalidan sus caches de React Query simultáneamente. |
+| `play_audio_alert` | Server → All clients | Broadcast global | Emitido cuando hay alertas críticas nuevas (severity >= 3). Los clientes reproducen un sonido de alerta. |
+| `waze:update` | Server → Room | Room `polygon:{id}` | Datos actualizados de un polígono específico. |
+| `notification:new` | Server → All clients | Broadcast global | Notificación individual (accidente, peligro, etc.) para TTS y snackbar. |
+| `risk:update` | Server → Room | Room `polygon:{id}` | Score de riesgo recalculado para un polígono. |
+
+#### Diagrama de Flujo
 
 ```mermaid
 sequenceDiagram
     participant W as API Waze
-    participant S as Servicio Backend
-    participant WS as Servidor WebSocket
-    participant F as App Frontend
-    participant TTS as Motor TTS
+    participant S as Backend (Polling)
+    participant EB as EventBus
+    participant SS as SocketSubscriber
+    participant WS as Socket.IO Server
+    participant F1 as Panel 1
+    participant F2 as Panel 2
+    participant Fn as Panel N
 
-    loop Polling (30s)
-        S->>W: Obtener Feed
-        W-->>S: Datos JSON
+    loop Cada 30s
+        S->>W: GET Feed de cada polígono
+        W-->>S: Datos JSON (alertas, jams, TVT)
     end
 
-    S->>S: Procesar y Filtrar
-    S->>WS: Emitir 'notification:new'
-    WS->>F: Transmitir Evento
+    S->>S: Procesar, persistir en PostgreSQL
+    S->>EB: emit WAZE_POLL_COMPLETE (por polígono)
+    S->>EB: emit WAZE_POLL_CYCLE_DONE (global)
+    EB->>SS: handlePollCycleDone
 
     rect rgb(240, 248, 255)
-        note right of F: Procesamiento en Cliente
-        F->>F: Actualizar Store
-        F->>F: Verificar Filtros
-        alt Pasa Filtro
-            F->>TTS: Reproducir Notificación
-        end
+        note over WS, Fn: Broadcast simultáneo
+        SS->>WS: io.emit("waze:data_updated", summary)
+        WS-->>F1: waze:data_updated
+        WS-->>F2: waze:data_updated
+        WS-->>Fn: waze:data_updated
+    end
+
+    alt Alertas críticas nuevas
+        SS->>WS: io.emit("play_audio_alert", {count})
+        WS-->>F1: Beep + /alert.mp3
+        WS-->>F2: Beep + /alert.mp3
+        WS-->>Fn: Beep + /alert.mp3
+    end
+
+    rect rgb(255, 248, 240)
+        note over F1: React Query invalidation
+        F1->>F1: invalidateQueries(["polygons","kpis","incidents","jams","alerts",...])
+        F1->>F1: Refetch automático → UI actualizada
     end
 ```
+
+#### Flujo en el Frontend
+
+1. `websocket.ts` (singleton) escucha `waze:data_updated` y despacha un `CustomEvent` en `window`.
+2. El hook `useGlobalRealtime()` (usado dentro de `useWazeData`) escucha ese evento y llama a `queryClient.invalidateQueries()` para todas las query keys relevantes.
+3. React Query ejecuta refetch automático de las queries activas, actualizando la UI.
+4. **No hay `refetchInterval`** para datos en tiempo real; los datos históricos/tendencias usan polling cada 5 minutos como excepción.
+
+#### Browser Autoplay Policy
+
+Los navegadores modernos bloquean la reproducción automática de audio hasta que el usuario interactúa con la página. El sistema maneja esto de la siguiente forma:
+
+1. El operador debe hacer clic en el botón de audio (icono de altavoz) en el header del panel.
+2. Este clic ejecuta `initializeAudio()`, que crea y resume un `AudioContext` y reproduce un silencio de 1ms para desbloquear la política de autoplay.
+3. A partir de ese momento, tanto el TTS como los beeps de alerta (`play_audio_alert`) funcionan sin restricción.
+4. El botón funciona como toggle mute/unmute, con estado persistido en `localStorage`.
 
 ### Flujo TTS y notificaciones en tiempo real
 

@@ -145,7 +145,7 @@ El sistema consume el **Waze Traffic Feed** (Partners).
 
 ### Notificaciones y TTS
 
-- **WebSocket**: Las nuevas alertas se envían por Socket.IO desde el backend al frontend.
+- **Sincronización en tiempo real vía WebSockets**: Todos los centros de monitoreo reciben actualizaciones en el mismo instante. El servidor emite broadcast global (`waze:data_updated`, `play_audio_alert`) al completar cada ciclo de ingesta, eliminando la necesidad de polling.
 - **TTS (Text-to-Speech)**: Lectura en voz alta con **Edge TTS** (Microsoft), voces neuronales gratuitas. Configuración en `/admin` → Voz (TTS).
 - **Cola local**: El frontend mantiene una cola de mensajes por reproducir; ver `getTTSQueueStatus()` en `lib/tts-service.ts` para consultar pendientes.
 

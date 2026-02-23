@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Clock, Wifi, RefreshCw, Moon, Sun, Bell, Volume2, VolumeX } from "lucide-react";
+import { Clock, Wifi, WifiOff, RefreshCw, Moon, Sun, Bell, Volume2, VolumeX } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { formatRelativeTime } from "../../lib/utils";
 import { COMPANY_INFO, UI_TEXTS } from "../../config/constants";
@@ -8,6 +8,7 @@ import { useThemeStore } from "../../stores/useThemeStore";
 import { useNotificationStore } from "@/stores/useNotificationStore";
 import { useNavigate } from "react-router-dom";
 import { initializeAudio, isTTSMuted, toggleTTSMuted } from "@/lib/tts-utils";
+import { useWebSocketStatus } from "@/hooks/useWazeRealtime";
 
 interface ModernHeaderProps {
   lastUpdate?: Date;
@@ -22,6 +23,7 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [ttsMuted, setTtsMuted] = React.useState(() => isTTSMuted());
   const { isDark, toggleTheme } = useThemeStore();
+  const { isConnected: wsConnected } = useWebSocketStatus();
 
   // Sincronizar estado si cambia desde otro componente
   React.useEffect(() => {
@@ -239,28 +241,35 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
               </motion.button>
             )}
 
-            {/* Badge de Estado */}
+            {/* Badge de Estado WebSocket */}
             <motion.div
               animate={{
-                scale: [1, 1.05, 1],
+                scale: wsConnected ? [1, 1.05, 1] : 1,
               }}
-              transition={{ duration: 2, repeat: Infinity }}
+              transition={{ duration: 2, repeat: wsConnected ? Infinity : 0 }}
               whileHover={{ scale: 1.1 }}
+              title={wsConnected ? "WebSocket conectado — datos en tiempo real" : "WebSocket desconectado — reconectando..."}
             >
               <Badge
-                variant="success"
+                variant={wsConnected ? "success" : "danger"}
                 size="lg"
-                className="shadow-xl shadow-green-500/30 border-2 border-green-400 dark:border-green-600"
+                className={wsConnected
+                  ? "shadow-xl shadow-green-500/30 border-2 border-green-400 dark:border-green-600"
+                  : "shadow-xl shadow-red-500/30 border-2 border-red-400 dark:border-red-600"
+                }
               >
-                <motion.span
-                  className="w-2.5 h-2.5 bg-white rounded-full mr-2 shadow-lg"
-                  animate={{
-                    scale: [1, 1.3, 1],
-                    opacity: [1, 0.6, 1],
-                  }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                />
-                <span className="font-black text-sm">EN VIVO</span>
+                {wsConnected ? (
+                  <motion.span
+                    className="w-2.5 h-2.5 bg-white rounded-full mr-2 shadow-lg"
+                    animate={{ scale: [1, 1.3, 1], opacity: [1, 0.6, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  />
+                ) : (
+                  <WifiOff className="w-3.5 h-3.5 mr-1.5" />
+                )}
+                <span className="font-black text-sm">
+                  {wsConnected ? "EN VIVO" : "RECONECTANDO"}
+                </span>
               </Badge>
             </motion.div>
           </motion.div>

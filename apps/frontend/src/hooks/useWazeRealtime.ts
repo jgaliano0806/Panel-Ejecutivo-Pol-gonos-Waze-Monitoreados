@@ -1,107 +1,110 @@
-import { useEffect, useCallback } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { socket, subscribeToPolygon, unsubscribeFromPolygon } from '@/services/websocket';
+import { useEffect, useCallback, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  socket,
+  subscribeToPolygon,
+  unsubscribeFromPolygon,
+} from "@/services/websocket";
 
 /**
- * Hook para recibir actualizaciones de Waze en tiempo real via WebSocket
- * Actualiza automáticamente el cache de TanStack Query
+ * Hook para recibir actualizaciones de un polígono específico vía WebSocket.
+ * Actualiza el cache de TanStack Query directamente con los datos recibidos.
  */
 export function useWazeRealtime(polygonId: string | null) {
-    const queryClient = useQueryClient();
+  const queryClient = useQueryClient();
 
-    const handleWazeUpdate = useCallback((data: any) => {
-        if (!data || data.polygonId !== polygonId) return;
+  const handleWazeUpdate = useCallback(
+    (data: any) => {
+      if (!data || data.polygonId !== polygonId) return;
+      queryClient.setQueryData(["waze", "alerts", polygonId], data.alerts);
+      queryClient.setQueryData(["waze", "jams", polygonId], data.jams);
+      queryClient.invalidateQueries({ queryKey: ["incidents", polygonId] });
+    },
+    [polygonId, queryClient],
+  );
 
-        console.log('📥 Received waze:update for', polygonId, data);
+  const handleRiskUpdate = useCallback(
+    (data: any) => {
+      if (!data || data.polygonId !== polygonId) return;
+      queryClient.setQueryData(["risk", polygonId], data.score);
+    },
+    [polygonId, queryClient],
+  );
 
-        // Actualizar cache de alerts
-        queryClient.setQueryData(['waze', 'alerts', polygonId], data.alerts);
+  useEffect(() => {
+    if (!polygonId) return;
 
-        // Actualizar cache de jams
-        queryClient.setQueryData(['waze', 'jams', polygonId], data.jams);
+    subscribeToPolygon(polygonId);
+    socket.on("waze:update", handleWazeUpdate);
+    socket.on("risk:update", handleRiskUpdate);
 
-        // Invalidar queries relacionadas para refetch
-        queryClient.invalidateQueries({ queryKey: ['incidents', polygonId] });
-    }, [polygonId, queryClient]);
-
-    const handleWeatherUpdate = useCallback((data: any) => {
-        if (!data || data.polygonId !== polygonId) return;
-
-        console.log('🌤️ Received weather:update for', polygonId, data);
-
-        // Actualizar cache de clima
-        queryClient.setQueryData(['weather', polygonId], data.weather);
-
-        // Invalidar si es condición peligrosa para alertar
-        if (data.isDangerous) {
-            queryClient.invalidateQueries({ queryKey: ['alerts'] });
-        }
-    }, [polygonId, queryClient]);
-
-    const handleRiskUpdate = useCallback((data: any) => {
-        if (!data || data.polygonId !== polygonId) return;
-
-        console.log('⚠️ Received risk:update for', polygonId, data);
-
-        // Actualizar cache de riesgo
-        queryClient.setQueryData(['risk', polygonId], data.score);
-    }, [polygonId, queryClient]);
-
-    useEffect(() => {
-        if (!polygonId) return;
-
-        // Suscribirse al polígono
-        subscribeToPolygon(polygonId);
-
-        // Registrar event handlers
-        socket.on('waze:update', handleWazeUpdate);
-        socket.on('weather:update', handleWeatherUpdate);
-        socket.on('risk:update', handleRiskUpdate);
-
-        // Cleanup al desmontar o cambiar de polígono
-        return () => {
-            socket.off('waze:update', handleWazeUpdate);
-            socket.off('weather:update', handleWeatherUpdate);
-            socket.off('risk:update', handleRiskUpdate);
-            unsubscribeFromPolygon(polygonId);
-        };
-    }, [polygonId, handleWazeUpdate, handleWeatherUpdate, handleRiskUpdate]);
+    return () => {
+      socket.off("waze:update", handleWazeUpdate);
+      socket.off("risk:update", handleRiskUpdate);
+      unsubscribeFromPolygon(polygonId);
+    };
+  }, [polygonId, handleWazeUpdate, handleRiskUpdate]);
 }
 
 /**
- * Hook para recibir actualizaciones globales (todos los polígonos)
+ * Hook GLOBAL que invalida TODAS las queries de datos Waze cuando el backend
+ * termina un ciclo de ingesta y emite `waze:data_updated`.
+ *
+ * Reemplaza el antiguo sistema de polling (`refetchInterval`) con un mecanismo
+ * push-based: el servidor es la fuente única de verdad y notifica a todos los
+ * paneles en el mismo instante.
+ *
+ * Internamente escucha un CustomEvent en window (despachado desde websocket.ts)
+ * para evitar importar socket directamente en un hook de React.
  */
 export function useGlobalRealtime() {
-    const queryClient = useQueryClient();
+  const queryClient = useQueryClient();
 
-    useEffect(() => {
-        const handleGlobalUpdate = (data: any) => {
-            console.log('🌍 Received global update:', data);
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      const ts = detail?.timestamp ?? new Date().toISOString();
 
-            // Invalidar todas las queries de waze para refetch
-            queryClient.invalidateQueries({ queryKey: ['waze'] });
-            queryClient.invalidateQueries({ queryKey: ['incidents'] });
-        };
+      // Invalidar todas las query keys relacionadas con datos Waze en paralelo
+      queryClient.invalidateQueries({ queryKey: ["polygons"] });
+      queryClient.invalidateQueries({ queryKey: ["kpis"] });
+      queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      queryClient.invalidateQueries({ queryKey: ["jams"] });
+      queryClient.invalidateQueries({ queryKey: ["alerts"] });
+      queryClient.invalidateQueries({ queryKey: ["alert-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["traffic-metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["tvt-metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["waze"] });
+      queryClient.invalidateQueries({ queryKey: ["risk"] });
 
-        socket.emit('subscribe:global');
-        socket.on('global:update', handleGlobalUpdate);
+      console.log(`📡 Caches invalidadas vía WebSocket (${ts})`);
+    };
 
-        return () => {
-            socket.off('global:update', handleGlobalUpdate);
-        };
-    }, [queryClient]);
+    window.addEventListener("waze:data_updated", handler);
+    return () => window.removeEventListener("waze:data_updated", handler);
+  }, [queryClient]);
 }
 
 /**
- * Hook para estado de conexión WebSocket
+ * Hook para exponer el estado de conexión del WebSocket a la UI
  */
 export function useWebSocketStatus() {
-    const isConnected = socket.connected;
+  const [connected, setConnected] = useState(socket.connected);
 
-    return {
-        isConnected,
-        socketId: socket.id,
+  useEffect(() => {
+    const onConnect = () => setConnected(true);
+    const onDisconnect = () => setConnected(false);
+
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+
+    return () => {
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
     };
+  }, []);
+
+  return { isConnected: connected, socketId: socket.id };
 }
 
 export default useWazeRealtime;

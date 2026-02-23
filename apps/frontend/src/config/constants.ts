@@ -37,20 +37,18 @@ export const NETWORK_CONFIG = {
 // ============================================
 // INTERVALOS DE ACTUALIZACIÓN (en ms)
 // ============================================
+// Con WebSockets, las actualizaciones llegan push-based en tiempo real.
+// Los refetchInterval sirven SOLO como fallback si el WebSocket se desconecta.
 export const REFRESH_INTERVALS = {
-  // Datos en tiempo real (polígonos, incidentes, jams, alertas)
-  // Waze actualiza cada 2 min, por lo que 60s es suficiente para tener latencia aceptable
-  realTimeData: 60000, // 60 segundos
-  // KPIs globales
-  globalKpis: 60000, // 60 segundos
-  // Métricas de tráfico
-  trafficMetrics: 60000, // 60 segundos
-  // Datos históricos
-  historicalData: 300000, // 5 minutos
-  // Tendencias
-  trends: 300000, // 5 minutos
-  // Estadísticas de alertas
-  alertStats: 60000, // 60 segundos
+  // Fallback largo: los datos se actualizan vía WS; esto es red de seguridad
+  realTimeData: false as const,    // sin polling (WS only)
+  globalKpis: false as const,      // sin polling (WS only)
+  trafficMetrics: false as const,  // sin polling (WS only)
+  alertStats: false as const,      // sin polling (WS only)
+  // Datos históricos: menos urgentes, OK con polling moderado
+  historicalData: 300_000,         // 5 minutos
+  // Tendencias: baja frecuencia
+  trends: 300_000,                 // 5 minutos
 };
 
 // ============================================
