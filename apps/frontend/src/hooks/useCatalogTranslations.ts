@@ -8,7 +8,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 // VITE_API_URL ya incluye /api (ej: http://127.0.0.1:3002/api)
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:3002/api";
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 export interface CatalogType {
   id: number;

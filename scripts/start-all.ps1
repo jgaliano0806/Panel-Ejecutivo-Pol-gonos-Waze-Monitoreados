@@ -12,9 +12,19 @@ Write-Host ""
 $ROOT = Split-Path $PSScriptRoot -Parent
 
 # ============================================
+# Detectar IP de red local
+# ============================================
+$LOCAL_IP = "localhost"
+$ips = Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias "Wi-Fi","Ethernet","Ethernet*","Wi-Fi*" -ErrorAction SilentlyContinue |
+       Where-Object { $_.IPAddress -like "192.168.*" -or $_.IPAddress -like "10.*" }
+if ($ips) {
+    $LOCAL_IP = ($ips | Select-Object -First 1).IPAddress
+}
+
+# ============================================
 # PASO 0: Limpiar servicios existentes
 # ============================================
-Write-Host "[0/4] Limpiando servicios existentes..." -ForegroundColor Yellow
+Write-Host "[0/5] Limpiando servicios existentes..." -ForegroundColor Yellow
 Write-Host ""
 
 # Detener procesos en puerto 3002 (Backend)
@@ -45,7 +55,7 @@ Write-Host ""
 # ============================================
 # PASO 1: PostgreSQL
 # ============================================
-Write-Host "[1/4] Verificando PostgreSQL..." -ForegroundColor Yellow
+Write-Host "[1/5] Verificando PostgreSQL..." -ForegroundColor Yellow
 $POSTGRES_OK = $false
 
 # Verificar si PostgreSQL está corriendo en puerto 5432
@@ -61,13 +71,13 @@ else {
 Write-Host ""
 
 # ============================================
-# PASO 2: Configurar Backend
+# PASO 2: Configurar Backend .env
 # ============================================
-Write-Host "[2/4] Configurando Backend..." -ForegroundColor Yellow
+Write-Host "[2/5] Configurando Backend..." -ForegroundColor Yellow
 $envPath = Join-Path $ROOT "apps\backend\.env"
 
 if (-not (Test-Path $envPath)) {
-    Write-Host "   Archivo .env no encontrado, creando..."
+    Write-Host "   Archivo .env del backend no encontrado, creando..."
     @"
 # Configuracion de PostgreSQL
 DB_HOST=localhost
@@ -79,18 +89,45 @@ DB_PASSWORD=CASISA
 # Configuracion del servidor
 NODE_ENV=development
 PORT=3002
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# Configuracion de Clima
+WEATHER_PROVIDER=openmeteo
 "@ | Out-File -FilePath $envPath -Encoding utf8
-    Write-Host "   OK: Archivo .env creado" -ForegroundColor Green
+    Write-Host "   OK: Archivo .env del backend creado" -ForegroundColor Green
 }
 else {
-    Write-Host "   OK: Archivo .env ya existe" -ForegroundColor Green
+    Write-Host "   OK: Archivo .env del backend ya existe" -ForegroundColor Green
 }
 Write-Host ""
 
 # ============================================
-# PASO 3: Iniciar Backend
+# PASO 3: Configurar Frontend .env
 # ============================================
-Write-Host "[3/4] Iniciando Backend..." -ForegroundColor Yellow
+Write-Host "[3/5] Configurando Frontend..." -ForegroundColor Yellow
+$frontendEnvPath = Join-Path $ROOT "apps\frontend\.env"
+
+if (-not (Test-Path $frontendEnvPath)) {
+    Write-Host "   Archivo .env del frontend no encontrado, creando..."
+    @"
+# Backend API URL — usa ruta relativa para que funcione
+# tanto desde localhost como desde otros dispositivos en la red.
+# Vite proxea /api -> http://127.0.0.1:3002/api
+# Vite proxea /socket.io -> http://127.0.0.1:3002/socket.io
+VITE_API_URL=/api
+"@ | Out-File -FilePath $frontendEnvPath -Encoding utf8
+    Write-Host "   OK: Archivo .env del frontend creado" -ForegroundColor Green
+}
+else {
+    Write-Host "   OK: Archivo .env del frontend ya existe" -ForegroundColor Green
+}
+Write-Host ""
+
+# ============================================
+# PASO 4: Iniciar Backend
+# ============================================
+Write-Host "[4/5] Iniciando Backend..." -ForegroundColor Yellow
 $backendPath = Join-Path $ROOT "apps\backend"
 
 # Verificar que el puerto esté libre
@@ -108,9 +145,9 @@ Start-Sleep -Seconds 5
 Write-Host ""
 
 # ============================================
-# PASO 4: Iniciar Frontend
+# PASO 5: Iniciar Frontend
 # ============================================
-Write-Host "[4/4] Iniciando Frontend..." -ForegroundColor Yellow
+Write-Host "[5/5] Iniciando Frontend..." -ForegroundColor Yellow
 
 # Verificar que el puerto esté libre
 Start-Sleep -Milliseconds 500
@@ -132,10 +169,11 @@ Write-Host "===============================================" -ForegroundColor Cy
 Write-Host "  SERVICIOS INICIADOS" -ForegroundColor Cyan
 Write-Host "===============================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  Frontend:  http://localhost:5180" -ForegroundColor White
-Write-Host "  Backend:   http://localhost:3002" -ForegroundColor White
-Write-Host "  Health:    http://localhost:3002/health" -ForegroundColor White
-Write-Host "  API:       http://localhost:3002/api" -ForegroundColor White
+Write-Host "  Frontend (local):  http://localhost:5180" -ForegroundColor White
+Write-Host "  Frontend (red):    http://${LOCAL_IP}:5180" -ForegroundColor Green
+Write-Host "  Backend:           http://localhost:3002" -ForegroundColor White
+Write-Host "  Health:            http://localhost:3002/health" -ForegroundColor White
+Write-Host "  API:               http://localhost:3002/api" -ForegroundColor White
 Write-Host ""
 
 if ($POSTGRES_OK) {
@@ -147,7 +185,12 @@ else {
 
 Write-Host ""
 Write-Host "===============================================" -ForegroundColor Cyan
-Write-Host "  INFORMACION" -ForegroundColor Cyan
+Write-Host "  ACCESO DESDE RED LOCAL" -ForegroundColor Cyan
+Write-Host "===============================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  Celular/Videowall: http://${LOCAL_IP}:5180" -ForegroundColor Green
+Write-Host "  (El proxy de Vite redirige /api al backend)" -ForegroundColor DarkGray
+Write-Host ""
 Write-Host "===============================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  - Para detener: cierra las ventanas de Backend y Frontend"

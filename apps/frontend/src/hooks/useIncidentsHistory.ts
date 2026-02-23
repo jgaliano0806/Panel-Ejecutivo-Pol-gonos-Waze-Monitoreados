@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
+const RAW_API_URL = import.meta.env.VITE_API_URL || "/api";
+const API_URL = RAW_API_URL.endsWith("/api")
+  ? RAW_API_URL
+  : `${RAW_API_URL}/api`;
 
 interface IncidentHistoryRecord {
   incident_id: string;
@@ -57,9 +60,7 @@ export const useIncidentsHistory = (filters: {
       if (filters.to) params.append("to", filters.to);
       if (filters.limit) params.append("limit", filters.limit.toString());
 
-      const response = await fetch(
-        `${API_URL}/api/historical/incidents?${params}`,
-      );
+      const response = await fetch(`${API_URL}/historical/incidents?${params}`);
       if (!response.ok) throw new Error("Failed to fetch incidents history");
       return response.json() as Promise<IncidentHistoryRecord[]>;
     },
@@ -87,7 +88,7 @@ export const useIncidentsHotspots = (params?: {
       if (params?.limit) searchParams.append("limit", params.limit.toString());
 
       const response = await fetch(
-        `${API_URL}/api/historical/incidents/hotspots?${searchParams}`,
+        `${API_URL}/historical/incidents/hotspots?${searchParams}`,
       );
       if (!response.ok) throw new Error("Failed to fetch hotspots");
       return response.json() as Promise<HotspotResult[]>;

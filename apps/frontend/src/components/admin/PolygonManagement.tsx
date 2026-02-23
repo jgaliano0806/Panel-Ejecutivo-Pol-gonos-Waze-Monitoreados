@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { FileText, FileSpreadsheet } from "lucide-react";
@@ -25,12 +31,16 @@ interface PolygonData {
 }
 
 // API base URL (VITE_API_URL ya incluye /api)
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:3002/api";
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 
-function calculateCenterFromGeometry(geometry: any): { lat: number; lon: number } | null {
+function calculateCenterFromGeometry(
+  geometry: any,
+): { lat: number; lon: number } | null {
   if (!geometry?.coordinates?.[0]) return null;
   const coords = geometry.coordinates[0];
-  let latSum = 0, lonSum = 0, count = 0;
+  let latSum = 0,
+    lonSum = 0,
+    count = 0;
   coords.forEach((coord: number[]) => {
     lonSum += coord[0];
     latSum += coord[1];
@@ -54,7 +64,10 @@ interface PolygonFormProps {
   errors: Record<string, string>;
   touched: Record<string, boolean>;
   onFieldChange: (field: string, value: any) => void;
-  onGeometryFromMap?: (geometry: GeoJSON.Polygon, coordinates: { lat: number; lon: number }) => void;
+  onGeometryFromMap?: (
+    geometry: GeoJSON.Polygon,
+    coordinates: { lat: number; lon: number },
+  ) => void;
   onGeometryValidationError?: (message: string) => void;
   onGeometryAutoAdjusted?: (message: string) => void;
   onValidateForm: () => boolean;
@@ -84,7 +97,9 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const allTouched: Record<string, boolean> = {};
-    Object.keys(formData).forEach((key) => { allTouched[key] = true; });
+    Object.keys(formData).forEach((key) => {
+      allTouched[key] = true;
+    });
     if (onValidateForm()) onSave(formData);
   };
 
@@ -116,7 +131,9 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
                 value={formData.id}
                 onChange={(e) => onFieldChange("id", e.target.value)}
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
-                  errors.id && touched.id ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                  errors.id && touched.id
+                    ? "border-red-500"
+                    : "border-gray-300 dark:border-gray-600"
                 }`}
                 placeholder="P001, P002, etc."
                 required
@@ -135,7 +152,9 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
                 value={formData.name}
                 onChange={(e) => onFieldChange("name", e.target.value)}
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
-                  errors.name && touched.name ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                  errors.name && touched.name
+                    ? "border-red-500"
+                    : "border-gray-300 dark:border-gray-600"
                 }`}
                 placeholder="Ej: A-019 -8, RP E53 -2"
                 required
@@ -146,20 +165,29 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Grupo</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Grupo
+              </label>
               <select
                 value={formData.group || ""}
-                onChange={(e) => onFieldChange("group", e.target.value || undefined)}
+                onChange={(e) =>
+                  onFieldChange("group", e.target.value || undefined)
+                }
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
-                  errors.group && touched.group ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                  errors.group && touched.group
+                    ? "border-red-500"
+                    : "border-gray-300 dark:border-gray-600"
                 }`}
               >
                 <option value="">Sin grupo</option>
-                {formData.group && !groups.some((g) => g.name === formData.group) && (
-                  <option value={formData.group}>{formData.group}</option>
-                )}
+                {formData.group &&
+                  !groups.some((g) => g.name === formData.group) && (
+                    <option value={formData.group}>{formData.group}</option>
+                  )}
                 {groups.map((g) => (
-                  <option key={g.id} value={g.name}>{g.name}</option>
+                  <option key={g.id} value={g.name}>
+                    {g.name}
+                  </option>
                 ))}
               </select>
               {errors.group && touched.group && (
@@ -175,7 +203,10 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
                 onChange={(e) => onFieldChange("is_active", e.target.checked)}
                 className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
-              <label htmlFor="polygon-active" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+              <label
+                htmlFor="polygon-active"
+                className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer"
+              >
                 Activo
               </label>
             </div>
@@ -189,7 +220,9 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
                 value={formData.feedUrl}
                 onChange={(e) => onFieldChange("feedUrl", e.target.value)}
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
-                  errors.feedUrl && touched.feedUrl ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                  errors.feedUrl && touched.feedUrl
+                    ? "border-red-500"
+                    : "border-gray-300 dark:border-gray-600"
                 }`}
                 placeholder="https://..."
                 required
@@ -206,9 +239,13 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
               <input
                 type="url"
                 value={formData.tvtFeedUrl || ""}
-                onChange={(e) => onFieldChange("tvtFeedUrl", e.target.value || undefined)}
+                onChange={(e) =>
+                  onFieldChange("tvtFeedUrl", e.target.value || undefined)
+                }
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
-                  errors.tvtFeedUrl && touched.tvtFeedUrl ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                  errors.tvtFeedUrl && touched.tvtFeedUrl
+                    ? "border-red-500"
+                    : "border-gray-300 dark:border-gray-600"
                 }`}
                 placeholder="https://..."
               />
@@ -232,7 +269,9 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
                 onChange={(e) => onFieldChange("geometry", e.target.value)}
                 placeholder='{"type": "Polygon", "coordinates": [[[lng1, lat1], [lng2, lat2], ...]]}'
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-xs dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white ${
-                  errors.geometry && touched.geometry ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                  errors.geometry && touched.geometry
+                    ? "border-red-500"
+                    : "border-gray-300 dark:border-gray-600"
                 }`}
                 rows={6}
               />
@@ -241,40 +280,48 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
                   <p className="text-red-500 text-xs">{errors.geometry}</p>
                 ) : (
                   <p className="text-xs text-gray-500">
-                    Al ingresar geometría GeoJSON válida, las coordenadas del centro se calculan automáticamente
+                    Al ingresar geometría GeoJSON válida, las coordenadas del
+                    centro se calculan automáticamente
                   </p>
                 )}
               </div>
-              {onGeometryFromMap && (() => {
-                const geom =
-                  typeof formData.geometry === "string"
-                    ? (() => {
-                        try {
-                          return formData.geometry
-                            ? (JSON.parse(formData.geometry) as GeoJSON.Polygon)
-                            : null;
-                        } catch { return null; }
-                      })()
-                    : (formData.geometry as GeoJSON.Polygon | undefined) ?? null;
-                const hasValidGeom = geom?.coordinates?.[0] && geom.coordinates[0].length >= 3;
-                return hasValidGeom ? (
-                  <div className="mt-3">
-                    <PolygonMapEditorInline
-                      geometry={geom!}
-                      otherPolygons={otherPolygonsForMap}
-                      excludeId={formData.id}
-                      darkMode={darkMode}
-                      height="280px"
-                      onGeometryChange={(g) => {
-                        const center = calculateCenterFromGeometry(g);
-                        onGeometryFromMap(g, center || { lat: 0, lon: 0 });
-                      }}
-                      onValidationError={onGeometryValidationError}
-                      onGeometryAutoAdjusted={onGeometryAutoAdjusted}
-                    />
-                  </div>
-                ) : null;
-              })()}
+              {onGeometryFromMap &&
+                (() => {
+                  const geom =
+                    typeof formData.geometry === "string"
+                      ? (() => {
+                          try {
+                            return formData.geometry
+                              ? (JSON.parse(
+                                  formData.geometry,
+                                ) as GeoJSON.Polygon)
+                              : null;
+                          } catch {
+                            return null;
+                          }
+                        })()
+                      : ((formData.geometry as GeoJSON.Polygon | undefined) ??
+                        null);
+                  const hasValidGeom =
+                    geom?.coordinates?.[0] && geom.coordinates[0].length >= 3;
+                  return hasValidGeom ? (
+                    <div className="mt-3">
+                      <PolygonMapEditorInline
+                        geometry={geom!}
+                        otherPolygons={otherPolygonsForMap}
+                        excludeId={formData.id}
+                        darkMode={darkMode}
+                        height="280px"
+                        onGeometryChange={(g) => {
+                          const center = calculateCenterFromGeometry(g);
+                          onGeometryFromMap(g, center || { lat: 0, lon: 0 });
+                        }}
+                        onValidationError={onGeometryValidationError}
+                        onGeometryAutoAdjusted={onGeometryAutoAdjusted}
+                      />
+                    </div>
+                  ) : null;
+                })()}
             </div>
 
             <div>
@@ -302,9 +349,13 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
                 min="-90"
                 max="90"
               />
-              {errors.coordinates && touched.coordinates && !formData.geometry && (
-                <p className="text-red-500 text-xs mt-1">{errors.coordinates}</p>
-              )}
+              {errors.coordinates &&
+                touched.coordinates &&
+                !formData.geometry && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.coordinates}
+                  </p>
+                )}
             </div>
 
             <div>
@@ -332,9 +383,13 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
                 min="-180"
                 max="180"
               />
-              {errors.coordinates && touched.coordinates && !formData.geometry && (
-                <p className="text-red-500 text-xs mt-1">{errors.coordinates}</p>
-              )}
+              {errors.coordinates &&
+                touched.coordinates &&
+                !formData.geometry && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.coordinates}
+                  </p>
+                )}
             </div>
           </div>
 
@@ -398,19 +453,21 @@ const PolygonManagement: React.FC = () => {
 
   const visiblePolygons = useMemo(
     () => polygons.filter((p) => p.id !== "UNKNOWN"),
-    [polygons]
+    [polygons],
   );
 
   const otherPolygonsForMap = useMemo(() => {
     return visiblePolygons
       .map((p) => {
-        const geom =
-          p.geometry?.coordinates
-            ? p.geometry
-            : (realCordobaPolygons.find((m: any) => m.id === p.id) as any)?.geometry;
+        const geom = p.geometry?.coordinates
+          ? p.geometry
+          : (realCordobaPolygons.find((m: any) => m.id === p.id) as any)
+              ?.geometry;
         return geom ? { id: p.id, geometry: geom as GeoJSON.Polygon } : null;
       })
-      .filter((p): p is { id: string; geometry: GeoJSON.Polygon } => p !== null);
+      .filter(
+        (p): p is { id: string; geometry: GeoJSON.Polygon } => p !== null,
+      );
   }, [visiblePolygons]);
 
   const sortedPolygons = useMemo(() => {
@@ -463,7 +520,16 @@ const PolygonManagement: React.FC = () => {
 
   const exportCSV = useCallback(() => {
     const toExport = getToExport();
-    const headers = ["id", "name", "group", "feedUrl", "tvtFeedUrl", "lat", "lon", "geometry"];
+    const headers = [
+      "id",
+      "name",
+      "group",
+      "feedUrl",
+      "tvtFeedUrl",
+      "lat",
+      "lon",
+      "geometry",
+    ];
     const rows = toExport.map((p) => {
       const geom = p.geometry ?? getPolygonGeometry(p.id);
       const geoStr = geom ? JSON.stringify(geom) : "";
@@ -492,9 +558,25 @@ const PolygonManagement: React.FC = () => {
 
   const exportExcel = useCallback(() => {
     const toExport = getToExport();
-    const cols = ["id", "name", "group", "feedUrl", "tvtFeedUrl", "lat", "lon", "geometry"];
+    const cols = [
+      "id",
+      "name",
+      "group",
+      "feedUrl",
+      "tvtFeedUrl",
+      "lat",
+      "lon",
+      "geometry",
+    ];
     const tr = (row: string[]) =>
-      "<tr>" + row.map((c) => `<td>${String(c).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td>`).join("") + "</tr>";
+      "<tr>" +
+      row
+        .map(
+          (c) =>
+            `<td>${String(c).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td>`,
+        )
+        .join("") +
+      "</tr>";
     const headerRow = tr(cols);
     const dataRows = toExport.map((p) => {
       const geom = p.geometry ?? getPolygonGeometry(p.id);
@@ -714,9 +796,7 @@ const PolygonManagement: React.FC = () => {
 
   const fetchPolygons = async () => {
     try {
-      const response = await fetch(
-        `${API_URL}/polygons/all?_t=${Date.now()}`
-      );
+      const response = await fetch(`${API_URL}/polygons/all?_t=${Date.now()}`);
       if (response.ok) {
         const data = await response.json();
         setPolygons(Array.isArray(data) ? data.map(normalizePolygon) : []);
@@ -784,7 +864,9 @@ const PolygonManagement: React.FC = () => {
         !polygonData.id ||
         polygons.find((p) => p.id === polygonData.id) === undefined;
       const method = isNew ? "POST" : "PUT";
-      const url = isNew ? `${API_URL}/polygons` : `${API_URL}/polygons/${polygonData.id}`;
+      const url = isNew
+        ? `${API_URL}/polygons`
+        : `${API_URL}/polygons/${polygonData.id}`;
 
       const payload = {
         id: polygonData.id,
@@ -822,11 +904,11 @@ const PolygonManagement: React.FC = () => {
   const handleGeometryFromMap = useCallback(
     (geometry: GeoJSON.Polygon, coordinates: { lat: number; lon: number }) => {
       setEditingPolygon((prev) =>
-        prev ? { ...prev, geometry, coordinates } : prev
+        prev ? { ...prev, geometry, coordinates } : prev,
       );
       setErrors((prev) => ({ ...prev, geometry: "" }));
     },
-    []
+    [],
   );
 
   if (loading) {
@@ -834,7 +916,9 @@ const PolygonManagement: React.FC = () => {
       <div className="card">
         <div className="flex items-center justify-center py-8">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary-600 border-t-transparent"></div>
-          <span className="ml-3 text-gray-600 dark:text-veltrix-muted">Cargando polígonos...</span>
+          <span className="ml-3 text-gray-600 dark:text-veltrix-muted">
+            Cargando polígonos...
+          </span>
         </div>
       </div>
     );
@@ -855,14 +939,22 @@ const PolygonManagement: React.FC = () => {
           <button
             onClick={exportCSV}
             className="p-2 rounded-lg border border-gray-300 dark:border-veltrix-border text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-veltrix-bg/50 transition-colors"
-            title={selectedIds.size > 0 ? "Exportar seleccionados como CSV" : "Exportar todos como CSV"}
+            title={
+              selectedIds.size > 0
+                ? "Exportar seleccionados como CSV"
+                : "Exportar todos como CSV"
+            }
           >
             <FileText className="w-5 h-5" />
           </button>
           <button
             onClick={exportExcel}
             className="p-2 rounded-lg border border-gray-300 dark:border-veltrix-border text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-veltrix-bg/50 transition-colors"
-            title={selectedIds.size > 0 ? "Exportar seleccionados como Excel" : "Exportar todos como Excel"}
+            title={
+              selectedIds.size > 0
+                ? "Exportar seleccionados como Excel"
+                : "Exportar todos como Excel"
+            }
           >
             <FileSpreadsheet className="w-5 h-5" />
           </button>
@@ -870,8 +962,18 @@ const PolygonManagement: React.FC = () => {
             onClick={handleNew}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
             </svg>
             Nuevo Polígono
           </button>
@@ -879,223 +981,248 @@ const PolygonManagement: React.FC = () => {
       </div>
 
       <>
-      <div className="border border-gray-100 dark:border-veltrix-border rounded-xl overflow-hidden shadow-sm bg-white dark:bg-veltrix-card">
-        {/* Header - Grid Layout */}
-        <div className="grid grid-cols-[48px_minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] bg-gray-50 dark:bg-veltrix-bg border-b divide-x divide-gray-200 dark:divide-veltrix-border dark:border-veltrix-border text-sm font-semibold text-gray-900 dark:text-white">
-          <div className="px-2 py-3 flex items-center justify-center">
-            <input
-              ref={selectAllRef}
-              type="checkbox"
-              checked={sortedPolygons.length > 0 && selectedIds.size === sortedPolygons.length}
-              onChange={toggleSelectAll}
-              className="rounded border-gray-300 dark:border-veltrix-border"
-              title={selectedIds.size === sortedPolygons.length ? "Desmarcar todos" : "Marcar todos"}
-            />
-          </div>
-          <button
-            onClick={() => toggleSort("name")}
-            className="px-4 py-3 text-left flex items-center gap-1 hover:bg-gray-100 dark:hover:bg-veltrix-bg/50 transition-colors"
-          >
-            Nombre
-            {sortBy === "name" && (
-              <span className="text-blue-600 dark:text-blue-400">
-                {sortDir === "asc" ? "↑" : "↓"}
-              </span>
-            )}
-          </button>
-          <div className="px-4 py-3 flex items-center justify-between gap-1">
+        <div className="border border-gray-100 dark:border-veltrix-border rounded-xl overflow-hidden shadow-sm bg-white dark:bg-veltrix-card">
+          {/* Header - Grid Layout */}
+          <div className="grid grid-cols-[48px_minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] bg-gray-50 dark:bg-veltrix-bg border-b divide-x divide-gray-200 dark:divide-veltrix-border dark:border-veltrix-border text-sm font-semibold text-gray-900 dark:text-white">
+            <div className="px-2 py-3 flex items-center justify-center">
+              <input
+                ref={selectAllRef}
+                type="checkbox"
+                checked={
+                  sortedPolygons.length > 0 &&
+                  selectedIds.size === sortedPolygons.length
+                }
+                onChange={toggleSelectAll}
+                className="rounded border-gray-300 dark:border-veltrix-border"
+                title={
+                  selectedIds.size === sortedPolygons.length
+                    ? "Desmarcar todos"
+                    : "Marcar todos"
+                }
+              />
+            </div>
             <button
-              onClick={() => toggleSort("group")}
-              className="flex-1 text-left flex items-center gap-1 hover:bg-gray-100 dark:hover:bg-veltrix-bg/50 transition-colors -m-1 p-1 rounded"
+              onClick={() => toggleSort("name")}
+              className="px-4 py-3 text-left flex items-center gap-1 hover:bg-gray-100 dark:hover:bg-veltrix-bg/50 transition-colors"
             >
-              Grupo
-              {sortBy === "group" && (
+              Nombre
+              {sortBy === "name" && (
                 <span className="text-blue-600 dark:text-blue-400">
                   {sortDir === "asc" ? "↑" : "↓"}
                 </span>
               )}
             </button>
-            <button
-              onClick={() => setShowGroupsModal(true)}
-              className="p-1 rounded hover:bg-gray-200 dark:hover:bg-veltrix-bg/50"
-              title="Gestionar catálogo de grupos"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </button>
+            <div className="px-4 py-3 flex items-center justify-between gap-1">
+              <button
+                onClick={() => toggleSort("group")}
+                className="flex-1 text-left flex items-center gap-1 hover:bg-gray-100 dark:hover:bg-veltrix-bg/50 transition-colors -m-1 p-1 rounded"
+              >
+                Grupo
+                {sortBy === "group" && (
+                  <span className="text-blue-600 dark:text-blue-400">
+                    {sortDir === "asc" ? "↑" : "↓"}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setShowGroupsModal(true)}
+                className="p-1 rounded hover:bg-gray-200 dark:hover:bg-veltrix-bg/50"
+                title="Gestionar catálogo de grupos"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div className="px-4 py-3">Feed URL</div>
+            <div className="px-4 py-3">Centro</div>
+            <div className="px-4 py-3">Geometría</div>
+            <div className="px-4 py-3 text-center">Acciones</div>
           </div>
-          <div className="px-4 py-3">Feed URL</div>
-          <div className="px-4 py-3">Centro</div>
-          <div className="px-4 py-3">Geometría</div>
-          <div className="px-4 py-3 text-center">Acciones</div>
-        </div>
 
-        {/* Virtualized Body */}
-        <div className="h-[600px]">
-          <VirtualizedList
-            items={sortedPolygons}
-            estimateSize={80}
-            renderItem={(polygon: PolygonData) => (
-              <div className="grid grid-cols-[48px_minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] divide-x divide-gray-100 dark:divide-veltrix-border border-b border-gray-100 dark:border-veltrix-border hover:bg-gray-50 dark:hover:bg-veltrix-bg/30 transition-colors items-center text-sm bg-white dark:bg-veltrix-card text-gray-900 dark:text-white">
-                <div className="px-2 py-3 flex items-center justify-center">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(polygon.id)}
-                    onChange={() => toggleSelect(polygon.id)}
-                    className="rounded border-gray-300 dark:border-veltrix-border"
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </div>
-                <div className="px-4 py-3 font-medium text-gray-900 dark:text-white truncate">
-                  {polygon.name}
-                </div>
-                <div className="px-4 py-3 text-gray-600 dark:text-veltrix-muted truncate">
-                  {polygon.group || "-"}
-                </div>
-                <div className="px-4 py-3 text-gray-900 dark:text-white">
-                  <TruncatedText
-                    text={polygon.feedUrl}
-                    maxLength={40}
-                    showCopyButton={true}
-                    className="text-xs"
-                  />
-                  {polygon.tvtFeedUrl && (
-                    <div className="mt-1">
-                      <TruncatedText
-                        text={polygon.tvtFeedUrl}
-                        maxLength={40}
-                        showCopyButton={true}
-                        className="text-xs text-blue-600 dark:text-blue-400"
-                      />
-                    </div>
-                  )}
-                </div>
-                <div className="px-4 py-3 text-xs text-gray-500 dark:text-veltrix-muted">
-                  {polygon.coordinates ? (
-                    <div>
-                      <div>{polygon.coordinates.lat.toFixed(4)}</div>
-                      <div>{polygon.coordinates.lon.toFixed(4)}</div>
-                    </div>
-                  ) : (
-                    "-"
-                  )}
-                </div>
-                <div className="px-4 py-3 text-xs text-gray-500 dark:text-veltrix-muted">
-                  {(() => {
-                    const geometry = getPolygonGeometry(polygon.id);
-                    if (geometry) {
-                      const coordsCount = geometry.coordinates[0]?.length || 0;
-                      return (
-                        <div className="space-y-1">
-                          <div className="text-green-600 dark:text-veltrix-success font-medium">
-                            ✅ GeoJSON
-                          </div>
-                          <div className="text-gray-600 dark:text-veltrix-muted">
-                            {coordsCount} ptos
-                          </div>
-                          <button
-                            onClick={() => {
-                              setSelectedGeoJson({
-                                polygon: polygon,
-                                geometry: geometry,
-                              });
-                              setShowGeoJsonModal(true);
-                            }}
-                            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-[10px] underline"
-                            title="Ver geometría GeoJSON completa"
-                          >
-                            Ver
-                          </button>
-                        </div>
-                      );
-                    } else {
-                      return (
-                        <div className="space-y-1">
-                          <div className="text-orange-600 dark:text-veltrix-warning font-medium">
-                            ⚠️ No Geo
-                          </div>
-                          <div className="text-gray-400 dark:text-veltrix-muted text-[10px]">
-                            Centro only
-                          </div>
-                        </div>
-                      );
-                    }
-                  })()}
-                </div>
-                <div className="px-4 py-3 flex justify-center">
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => handleEdit(polygon)}
-                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 p-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                      title="Editar"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+          {/* Virtualized Body */}
+          <div className="h-[600px]">
+            <VirtualizedList
+              items={sortedPolygons}
+              estimateSize={80}
+              renderItem={(polygon: PolygonData) => (
+                <div className="grid grid-cols-[48px_minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] divide-x divide-gray-100 dark:divide-veltrix-border border-b border-gray-100 dark:border-veltrix-border hover:bg-gray-50 dark:hover:bg-veltrix-bg/30 transition-colors items-center text-sm bg-white dark:bg-veltrix-card text-gray-900 dark:text-white">
+                  <div className="px-2 py-3 flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(polygon.id)}
+                      onChange={() => toggleSelect(polygon.id)}
+                      className="rounded border-gray-300 dark:border-veltrix-border"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                  <div className="px-4 py-3 font-medium text-gray-900 dark:text-white truncate">
+                    {polygon.name}
+                  </div>
+                  <div className="px-4 py-3 text-gray-600 dark:text-veltrix-muted truncate">
+                    {polygon.group || "-"}
+                  </div>
+                  <div className="px-4 py-3 text-gray-900 dark:text-white">
+                    <TruncatedText
+                      text={polygon.feedUrl}
+                      maxLength={40}
+                      showCopyButton={true}
+                      className="text-xs"
+                    />
+                    {polygon.tvtFeedUrl && (
+                      <div className="mt-1">
+                        <TruncatedText
+                          text={polygon.tvtFeedUrl}
+                          maxLength={40}
+                          showCopyButton={true}
+                          className="text-xs text-blue-600 dark:text-blue-400"
                         />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleDelete(polygon.id)}
-                      className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                      title="Eliminar"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                      </div>
+                    )}
+                  </div>
+                  <div className="px-4 py-3 text-xs text-gray-500 dark:text-veltrix-muted">
+                    {polygon.coordinates ? (
+                      <div>
+                        <div>{polygon.coordinates.lat.toFixed(4)}</div>
+                        <div>{polygon.coordinates.lon.toFixed(4)}</div>
+                      </div>
+                    ) : (
+                      "-"
+                    )}
+                  </div>
+                  <div className="px-4 py-3 text-xs text-gray-500 dark:text-veltrix-muted">
+                    {(() => {
+                      const geometry = getPolygonGeometry(polygon.id);
+                      if (geometry) {
+                        const coordsCount =
+                          geometry.coordinates[0]?.length || 0;
+                        return (
+                          <div className="space-y-1">
+                            <div className="text-green-600 dark:text-veltrix-success font-medium">
+                              ✅ GeoJSON
+                            </div>
+                            <div className="text-gray-600 dark:text-veltrix-muted">
+                              {coordsCount} ptos
+                            </div>
+                            <button
+                              onClick={() => {
+                                setSelectedGeoJson({
+                                  polygon: polygon,
+                                  geometry: geometry,
+                                });
+                                setShowGeoJsonModal(true);
+                              }}
+                              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-[10px] underline"
+                              title="Ver geometría GeoJSON completa"
+                            >
+                              Ver
+                            </button>
+                          </div>
+                        );
+                      } else {
+                        return (
+                          <div className="space-y-1">
+                            <div className="text-orange-600 dark:text-veltrix-warning font-medium">
+                              ⚠️ No Geo
+                            </div>
+                            <div className="text-gray-400 dark:text-veltrix-muted text-[10px]">
+                              Centro only
+                            </div>
+                          </div>
+                        );
+                      }
+                    })()}
+                  </div>
+                  <div className="px-4 py-3 flex justify-center">
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handleEdit(polygon)}
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 p-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                        title="Editar"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
-                    </button>
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(polygon.id)}
+                        className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                        title="Eliminar"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          />
-        </div>
-      </div>
-
-      {visiblePolygons.length === 0 && (
-        <div className="text-center py-8 text-gray-500 dark:text-veltrix-muted">
-          <svg
-            className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-veltrix-border"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+              )}
             />
-          </svg>
-          <p className="text-sm text-gray-600 dark:text-veltrix-muted">No hay polígonos configurados</p>
-          <button
-            onClick={handleNew}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Crear primer polígono
-          </button>
+          </div>
         </div>
-      )}
+
+        {visiblePolygons.length === 0 && (
+          <div className="text-center py-8 text-gray-500 dark:text-veltrix-muted">
+            <svg
+              className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-veltrix-border"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+              />
+            </svg>
+            <p className="text-sm text-gray-600 dark:text-veltrix-muted">
+              No hay polígonos configurados
+            </p>
+            <button
+              onClick={handleNew}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Crear primer polígono
+            </button>
+          </div>
+        )}
       </>
 
       {showForm && (
@@ -1121,10 +1248,17 @@ const PolygonManagement: React.FC = () => {
           touched={touched}
           onFieldChange={(field, value) => {
             let parsedValue = value;
-            if (field === "geometry" && typeof value === "string" && value.trim()) {
+            if (
+              field === "geometry" &&
+              typeof value === "string" &&
+              value.trim()
+            ) {
               try {
                 const parsed = JSON.parse(value);
-                if (parsed?.type === "Polygon" && parsed?.coordinates?.[0]?.length >= 3) {
+                if (
+                  parsed?.type === "Polygon" &&
+                  parsed?.coordinates?.[0]?.length >= 3
+                ) {
                   parsedValue = parsed;
                   const center = calculateCenterFromGeometry(parsed);
                   setEditingPolygon((prev) => ({
@@ -1325,10 +1459,17 @@ function GroupsCatalogModal({
   };
 
   const handleDelete = async (id: number, name: string) => {
-    if (!confirm(`¿Eliminar el grupo "${name}"? Los polígonos quedarán sin grupo.`)) return;
+    if (
+      !confirm(
+        `¿Eliminar el grupo "${name}"? Los polígonos quedarán sin grupo.`,
+      )
+    )
+      return;
     setSaving(true);
     try {
-      const res = await fetch(`${apiUrl}/polygon-groups/${id}`, { method: "DELETE" });
+      const res = await fetch(`${apiUrl}/polygon-groups/${id}`, {
+        method: "DELETE",
+      });
       if (res.ok) onRefresh();
       else {
         const err = await res.json().catch(() => ({}));
@@ -1351,8 +1492,15 @@ function GroupsCatalogModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-4 border-b border-gray-100 dark:border-veltrix-border flex justify-between items-center">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white">Catálogo de grupos</h3>
-          <button onClick={onClose} className="p-1 hover:bg-gray-200 dark:hover:bg-veltrix-bg rounded">✕</button>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+            Catálogo de grupos
+          </h3>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-gray-200 dark:hover:bg-veltrix-bg rounded"
+          >
+            ✕
+          </button>
         </div>
         <div className="p-4 space-y-4">
           <div className="flex gap-2 items-center">
@@ -1371,7 +1519,9 @@ function GroupsCatalogModal({
                 onChange={(e) => setNewActive(e.target.checked)}
                 className="w-4 h-4 rounded border-gray-300 text-blue-600"
               />
-              <span className="text-sm text-gray-700 dark:text-gray-300">Activo</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                Activo
+              </span>
             </label>
             <button
               onClick={handleCreate}
@@ -1403,7 +1553,9 @@ function GroupsCatalogModal({
                         onChange={(e) => setEditActive(e.target.checked)}
                         className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600"
                       />
-                      <span className="text-xs text-gray-600 dark:text-gray-400">Activo</span>
+                      <span className="text-xs text-gray-600 dark:text-gray-400">
+                        Activo
+                      </span>
                     </label>
                     <button
                       onClick={() => handleUpdate(g.id)}
@@ -1412,7 +1564,12 @@ function GroupsCatalogModal({
                     >
                       Guardar
                     </button>
-                    <button onClick={() => setEditingId(null)} className="px-2 py-1 text-sm text-gray-600">Cancelar</button>
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="px-2 py-1 text-sm text-gray-600"
+                    >
+                      Cancelar
+                    </button>
                   </>
                 ) : (
                   <>
@@ -1426,8 +1583,18 @@ function GroupsCatalogModal({
                       className="p-1 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded"
                       title="Editar"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
                       </svg>
                     </button>
                     <button
@@ -1436,8 +1603,18 @@ function GroupsCatalogModal({
                       className="p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
                       title="Eliminar"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
                       </svg>
                     </button>
                   </>

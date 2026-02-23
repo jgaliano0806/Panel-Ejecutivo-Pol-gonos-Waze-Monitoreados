@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 // VITE_API_URL debe incluir el prefijo /api. Si no está definido,
 // usamos como fallback http://localhost:3002/api para que coincida
 // con los prefijos de Fastify (/api/incidents, /api/notifications, etc).
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002/api";
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 /**
  * Tipos para el módulo de incidentes

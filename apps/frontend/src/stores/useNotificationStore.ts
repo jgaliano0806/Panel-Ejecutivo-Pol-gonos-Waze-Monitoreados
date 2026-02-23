@@ -111,8 +111,7 @@ export const useNotificationStore = create<NotificationState>()(
         try {
           // Igual que en otros módulos: VITE_API_URL debe incluir /api.
           // Fallback coherente con backend Fastify: http://localhost:3002/api
-          const API_URL =
-            import.meta.env.VITE_API_URL || "http://localhost:3002/api";
+          const API_URL = import.meta.env.VITE_API_URL || "/api";
           const response = await fetch(`${API_URL}/notifications?limit=50`);
           if (response.ok) {
             const data = await response.json();

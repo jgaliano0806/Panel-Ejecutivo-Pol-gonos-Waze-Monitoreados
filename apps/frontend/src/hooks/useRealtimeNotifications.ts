@@ -6,6 +6,7 @@ import {
 } from "@/stores/useNotificationStore";
 import { speakNotification, isAudioUnlocked } from "@/lib/tts-utils";
 import { shouldShowTTSAndSnackbar } from "@/config/notificationFilters";
+import { logger } from "@/lib/logger";
 
 /**
  * Genera un sonido de alerta usando Web Audio API.
@@ -75,10 +76,8 @@ const executeTTS = async (
 
     // Marcar como reproducido solo si el audio esta desbloqueado
     markTTSPlayed(notification.id);
-    console.log("✅ TTS completado para:", notification.id);
   } catch (error) {
-    console.error("❌ Error en TTS:", error);
-    // NO marcar como played si fallo - el retry lo reintentara
+    logger.error("Error en TTS retry", { error, notifId: notification.id });
   }
 };
 
@@ -99,11 +98,10 @@ export function useRealtimeNotifications() {
   // NOTA: El handler principal para notification:new está en websocket.ts (global)
   // Este hook solo maneja el retry de TTS pendientes para evitar duplicación de TTS
   useEffect(() => {
-    console.log("════════════════════════════════════════════════════════");
-    console.log("🔌 useRealtimeNotifications: Hook inicializado");
-    console.log("🔌 Socket conectado:", socket.connected, "ID:", socket.id);
-    console.log("📝 TTS global handler está en websocket.ts");
-    console.log("════════════════════════════════════════════════════════");
+    logger.debug("useRealtimeNotifications hook inicializado", {
+      connected: socket.connected,
+      socketId: socket.id,
+    });
   }, []);
 
   // Validación periódica: reintentar TTS para notificaciones pendientes con incidentes activos
@@ -112,79 +110,70 @@ export function useRealtimeNotifications() {
 
     if (pending.length === 0) return;
 
-    console.log(
-      `🔄 Revisando ${pending.length} notificaciones pendientes de TTS...`,
-    );
+    logger.debug("Revisando TTS pendientes", { count: pending.length });
 
     try {
-      const API_URL =
-        import.meta.env.VITE_API_URL || "http://localhost:3002/api";
+      const API_URL = import.meta.env.VITE_API_URL || "/api";
       const base = API_URL.replace(/\/api\/?$/, "");
       const url = `${base}/api/incidents?isActive=true&limit=500`;
       const response = await fetch(url);
 
       if (!response.ok) {
-        console.warn("⚠️ No se pudieron obtener incidentes activos");
+        logger.warn("No se pudieron obtener incidentes activos");
         return;
       }
 
       const data = await response.json();
-      const incidents = Array.isArray(data) ? data : data?.incidents ?? [];
-      const activeIds = new Set(
-        incidents.map((i: any) => i.id || i.uuid),
-      );
+      const incidents = Array.isArray(data) ? data : (data?.incidents ?? []);
+      const activeIds = new Set(incidents.map((i: any) => i.id || i.uuid));
 
-      console.log(`📊 ${activeIds.size} incidentes activos en el mapa`);
-
-      // Procesar UNA notificación pendiente por ciclo
+      // Procesar TODAS las notificaciones pendientes (con delay entre cada una)
+      let processedCount = 0;
       for (const notification of pending) {
         const alertId = notification.data?.alertId;
         const incidentType =
           notification.type || notification.data?.incidentType;
         const subtype = notification.data?.subtype;
 
-        console.log(`🔍 Evaluando notificación pendiente:`, {
-          id: notification.id,
-          alertId,
-          type: incidentType,
-          subtype,
-        });
-
         // Verificar si debe mostrar TTS según filtros
         if (!shouldShowTTSAndSnackbar(incidentType, subtype)) {
-          console.log(`🔕 Filtrado por reglas TTS`);
           markTTSPlayed(notification.id);
           continue;
         }
 
         // Si tiene alertId, verificar si sigue activo
         if (alertId && !activeIds.has(alertId)) {
-          console.log(`⏭️ Incidente ${alertId} ya no activo, omitiendo TTS`);
           markTTSPlayed(notification.id);
           continue;
         }
 
-        // Intentar reproducir TTS
-        console.log(`🎤 Intentando TTS para: ${notification.title}`);
-        await executeTTS(notification, markTTSPlayed);
+        // Delay entre notificaciones para no saturar (excepto la primera)
+        if (processedCount > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
 
-        // Solo uno por ciclo para no saturar
-        break;
+        // Intentar reproducir TTS
+        await executeTTS(notification, markTTSPlayed);
+        processedCount++;
+      }
+
+      if (processedCount > 0) {
+        logger.info("Retry TTS completado", { processed: processedCount });
       }
     } catch (error) {
-      console.error("❌ Error en validación de TTS pendientes:", error);
+      logger.error("Error en validación de TTS pendientes", { error });
     }
   }, [getPendingTTSNotifications, markTTSPlayed]);
 
-  // Configurar intervalo de reintento cada 30 segundos
+  // Configurar intervalo de reintento cada 15 segundos
   useEffect(() => {
-    console.log("🔄 Configurando validación periódica de TTS (30s)");
+    logger.debug("Configurando validación periódica de TTS (15s)");
 
-    // Primera validación después de 10 segundos
-    const timeout = setTimeout(retryPendingTTS, 10000);
+    // Primera validación después de 5 segundos
+    const timeout = setTimeout(retryPendingTTS, 5000);
 
-    // Luego cada 30 segundos
-    retryIntervalRef.current = setInterval(retryPendingTTS, 30000);
+    // Luego cada 15 segundos
+    retryIntervalRef.current = setInterval(retryPendingTTS, 15000);
 
     return () => {
       clearTimeout(timeout);

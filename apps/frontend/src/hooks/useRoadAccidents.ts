@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 export interface RoadAccident {
   id: string;

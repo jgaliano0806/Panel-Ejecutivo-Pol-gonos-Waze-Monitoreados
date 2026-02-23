@@ -110,7 +110,7 @@ export const RoadAccidentsPage: React.FC = () => {
     setBackfillStats(null);
 
     try {
-      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
+      const API_URL = import.meta.env.VITE_API_URL || "/api";
       const baseUrl = API_URL.endsWith("/api") ? API_URL : `${API_URL}/api`;
 
       // Simular progreso mientras se procesa
@@ -238,7 +238,7 @@ export const RoadAccidentsPage: React.FC = () => {
     return "Ubicación s/d";
   };
 
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
+  const MEDIA_BASE_URL = "";
 
   return (
     <div className="flex h-[calc(100vh-200px)] bg-gray-50 dark:bg-veltrix-bg transition-colors">
@@ -649,13 +649,13 @@ export const RoadAccidentsPage: React.FC = () => {
                       >
                         {item.file_type === "image" ? (
                           <img
-                            src={`${API_URL}${item.file_path}`}
+                            src={`${MEDIA_BASE_URL}${item.file_path}`}
                             alt={item.original_name}
                             className="w-full h-full object-cover transition-transform group-hover:scale-105"
                           />
                         ) : (
                           <video
-                            src={`${API_URL}${item.file_path}`}
+                            src={`${MEDIA_BASE_URL}${item.file_path}`}
                             className="w-full h-full object-cover"
                             controls
                           />
@@ -723,7 +723,10 @@ export const RoadAccidentsPage: React.FC = () => {
                   required
                   value={newAccident.location_lat}
                   onChange={(e) =>
-                    setNewAccident((p) => ({ ...p, location_lat: e.target.value }))
+                    setNewAccident((p) => ({
+                      ...p,
+                      location_lat: e.target.value,
+                    }))
                   }
                   className="w-full p-2 border rounded dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white"
                   placeholder="-31.42"
@@ -739,7 +742,10 @@ export const RoadAccidentsPage: React.FC = () => {
                   required
                   value={newAccident.location_lng}
                   onChange={(e) =>
-                    setNewAccident((p) => ({ ...p, location_lng: e.target.value }))
+                    setNewAccident((p) => ({
+                      ...p,
+                      location_lng: e.target.value,
+                    }))
                   }
                   className="w-full p-2 border rounded dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white"
                   placeholder="-64.19"
@@ -766,7 +772,10 @@ export const RoadAccidentsPage: React.FC = () => {
                 <select
                   value={newAccident.polygon_id}
                   onChange={(e) =>
-                    setNewAccident((p) => ({ ...p, polygon_id: e.target.value }))
+                    setNewAccident((p) => ({
+                      ...p,
+                      polygon_id: e.target.value,
+                    }))
                   }
                   className="w-full p-2 border rounded dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white"
                 >
@@ -786,7 +795,10 @@ export const RoadAccidentsPage: React.FC = () => {
                   type="datetime-local"
                   value={newAccident.accident_at}
                   onChange={(e) =>
-                    setNewAccident((p) => ({ ...p, accident_at: e.target.value }))
+                    setNewAccident((p) => ({
+                      ...p,
+                      accident_at: e.target.value,
+                    }))
                   }
                   className="w-full p-2 border rounded dark:bg-veltrix-bg dark:border-veltrix-border dark:text-white"
                 />
@@ -796,7 +808,9 @@ export const RoadAccidentsPage: React.FC = () => {
                 disabled={createAccidentMutation.isPending}
                 className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                {createAccidentMutation.isPending ? "Creando…" : "Crear siniestro"}
+                {createAccidentMutation.isPending
+                  ? "Creando…"
+                  : "Crear siniestro"}
               </button>
             </form>
           </div>

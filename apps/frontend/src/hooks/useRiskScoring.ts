@@ -4,7 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 export interface RiskScore {
   polygon_id: string;
@@ -246,9 +246,7 @@ export const useClassifyIncident = () => {
       if (reliability !== undefined)
         params.append("reliability", String(reliability));
 
-      const response = await fetch(
-        `${baseUrl}/risk/triage/classify?${params}`,
-      );
+      const response = await fetch(`${baseUrl}/risk/triage/classify?${params}`);
       if (!response.ok) throw new Error("Error clasificando incidente");
       return response.json() as Promise<IncidentClassification>;
     },

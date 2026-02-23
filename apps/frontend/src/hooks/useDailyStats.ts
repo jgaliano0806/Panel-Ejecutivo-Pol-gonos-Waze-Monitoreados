@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
+const RAW_API_URL = import.meta.env.VITE_API_URL || "/api";
+const API_URL = RAW_API_URL.endsWith("/api")
+  ? RAW_API_URL
+  : `${RAW_API_URL}/api`;
 
 interface DailyStats {
   date: string;
@@ -44,7 +47,7 @@ export const useDailyStats = (from?: string, to?: string) => {
       if (from) params.append("from", from);
       if (to) params.append("to", to);
 
-      const response = await fetch(`${API_URL}/api/stats/daily?${params}`);
+      const response = await fetch(`${API_URL}/stats/daily?${params}`);
       if (!response.ok) throw new Error("Failed to fetch daily stats");
       return response.json() as Promise<DailyStats[]>;
     },
@@ -59,7 +62,7 @@ export const useWeeklyStats = (from?: string, to?: string) => {
       if (from) params.append("from", from);
       if (to) params.append("to", to);
 
-      const response = await fetch(`${API_URL}/api/stats/weekly?${params}`);
+      const response = await fetch(`${API_URL}/stats/weekly?${params}`);
       if (!response.ok) throw new Error("Failed to fetch weekly stats");
       return response.json() as Promise<AggregatedStats[]>;
     },
@@ -74,7 +77,7 @@ export const useMonthlyStats = (from?: string, to?: string) => {
       if (from) params.append("from", from);
       if (to) params.append("to", to);
 
-      const response = await fetch(`${API_URL}/api/stats/monthly?${params}`);
+      const response = await fetch(`${API_URL}/stats/monthly?${params}`);
       if (!response.ok) throw new Error("Failed to fetch monthly stats");
       return response.json() as Promise<AggregatedStats[]>;
     },

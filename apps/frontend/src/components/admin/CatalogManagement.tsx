@@ -145,7 +145,7 @@ const CatalogManagement: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
 
   // API base URL (VITE_API_URL ya incluye /api)
-  const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:3002/api";
+  const API_URL = import.meta.env.VITE_API_URL || "/api";
 
   // Cargar datos iniciales
   useEffect(() => {

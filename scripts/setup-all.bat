@@ -13,9 +13,9 @@ echo.
 for %%I in ("%~dp0.") do set "ROOT=%%~fI"
 
 :: ============================================
-:: PASO 1: Instalar dependencias del monorepo (todos los workspaces)
+:: PASO 1: Instalar dependencias del monorepo
 :: ============================================
-echo [1/6] Instalando dependencias del monorepo...
+echo [1/7] Instalando dependencias del monorepo...
 cd /d "%ROOT%"
 if exist "package.json" (
     call npm install
@@ -32,7 +32,7 @@ echo.
 :: ============================================
 :: PASO 2: Verificar workspace backend
 :: ============================================
-echo [2/6] Verificando backend...
+echo [2/7] Verificando backend...
 if not exist "%ROOT%\apps\backend\package.json" (
     echo    ADVERTENCIA: apps\backend\package.json no encontrado
 ) else (
@@ -43,7 +43,7 @@ echo.
 :: ============================================
 :: PASO 3: Configurar archivo .env del backend
 :: ============================================
-echo [3/6] Configurando archivo .env del backend...
+echo [3/7] Configurando archivo .env del backend...
 cd /d "%ROOT%\apps\backend"
 if not exist ".env" (
     if exist ".env.example" (
@@ -64,6 +64,9 @@ if not exist ".env" (
         echo PORT=3002>> .env
         echo REDIS_HOST=localhost>> .env
         echo REDIS_PORT=6379>> .env
+        echo.>> .env
+        echo # Configuracion de Clima>> .env
+        echo WEATHER_PROVIDER=openmeteo>> .env
         echo    OK: Archivo .env creado
     )
     echo    NOTA: Revisa apps\backend\.env si necesitas cambiar contrasena o puerto
@@ -73,9 +76,27 @@ if not exist ".env" (
 echo.
 
 :: ============================================
-:: PASO 4: Verificar e iniciar PostgreSQL
+:: PASO 4: Configurar archivo .env del frontend
 :: ============================================
-echo [4/6] Verificando PostgreSQL...
+echo [4/7] Configurando archivo .env del frontend...
+cd /d "%ROOT%\apps\frontend"
+if not exist ".env" (
+    echo    Creando archivo .env del frontend...
+    echo # Backend API URL - usa ruta relativa para red local> .env
+    echo # Vite proxea /api hacia http://127.0.0.1:3002/api>> .env
+    echo # Vite proxea /socket.io hacia http://127.0.0.1:3002/socket.io>> .env
+    echo VITE_API_URL=/api>> .env
+    echo    OK: Archivo .env del frontend creado
+    echo    NOTA: VITE_API_URL usa ruta relativa /api para acceso desde red local
+) else (
+    echo    OK: Archivo .env del frontend ya existe
+)
+echo.
+
+:: ============================================
+:: PASO 5: Verificar e iniciar PostgreSQL
+:: ============================================
+echo [5/7] Verificando PostgreSQL...
 set POSTGRES_READY=0
 
 :: Verificar Docker primero
@@ -114,7 +135,6 @@ if !POSTGRES_READY! EQU 0 (
     if !ERRORLEVEL! EQU 0 (
         echo    PostgreSQL local detectado
         echo    Verificando conexion...
-        :: Leer contraseña del .env si existe, sino usar CASISA por defecto
         set DB_PASSWORD=CASISA
         if exist "%ROOT%\apps\backend\.env" (
             for /f "tokens=2 delims==" %%a in ('findstr /C:"DB_PASSWORD" "%ROOT%\apps\backend\.env" 2^>nul') do (
@@ -156,14 +176,13 @@ if !POSTGRES_READY! EQU 0 (
 echo.
 
 :: ============================================
-:: PASO 5: Configurar base de datos
+:: PASO 6: Configurar base de datos
 :: ============================================
 if !POSTGRES_READY! EQU 1 (
-    echo [5/6] Configurando base de datos...
+    echo [6/7] Configurando base de datos...
 
     where psql >nul 2>&1
     if !ERRORLEVEL! EQU 0 (
-        :: Leer contraseña del .env si existe, sino usar CASISA por defecto
         set DB_PASSWORD=CASISA
         if exist "%ROOT%\apps\backend\.env" (
             for /f "tokens=2 delims==" %%a in ('findstr /C:"DB_PASSWORD" "%ROOT%\apps\backend\.env" 2^>nul') do (
@@ -209,14 +228,14 @@ if !POSTGRES_READY! EQU 1 (
         echo    ADVERTENCIA: psql no disponible, saltando configuracion de BD
     )
 ) else (
-    echo [5/6] Saltando configuracion de base de datos - PostgreSQL no disponible
+    echo [6/7] Saltando configuracion de base de datos - PostgreSQL no disponible
 )
 echo.
 
 :: ============================================
-:: PASO 6: Verificar conexion
+:: PASO 7: Verificar conexion
 :: ============================================
-echo [6/6] Verificando conexion a PostgreSQL...
+echo [7/7] Verificando conexion a PostgreSQL...
 cd /d "%ROOT%\apps\backend"
 if exist "scripts\test-db-connection.ts" (
     echo    Ejecutando test de conexion...
@@ -234,6 +253,17 @@ if exist "scripts\test-db-connection.ts" (
 )
 echo.
 
+:: Detectar IP de red local
+set "LOCAL_IP=localhost"
+for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /C:"IPv4"') do (
+    set "temp=%%a"
+    set "temp=!temp: =!"
+    if "!LOCAL_IP!"=="localhost" (
+        echo !temp! | findstr /C:"192.168" >nul 2>&1
+        if !ERRORLEVEL! EQU 0 set "LOCAL_IP=!temp!"
+    )
+)
+
 :: ============================================
 :: RESUMEN FINAL
 :: ============================================
@@ -242,7 +272,8 @@ echo   CONFIGURACION COMPLETADA
 echo ===============================================
 echo.
 echo   Dependencias instaladas
-echo   Archivo .env configurado
+echo   Archivo .env backend configurado
+echo   Archivo .env frontend configurado (VITE_API_URL=/api)
 if !POSTGRES_READY! EQU 1 (
     echo   PostgreSQL configurado y listo
 ) else (
@@ -257,6 +288,9 @@ if !POSTGRES_READY! EQU 1 (
     echo   - Todo:     npm run dev:all
     echo   - Backend:  npm run dev:backend
     echo   - Frontend: npm run dev
+    echo.
+    echo   Acceso desde red local:
+    echo   http://!LOCAL_IP!:5180
 ) else (
     echo   1. Instala PostgreSQL (Docker o local)
     echo   2. Ejecuta este script nuevamente
