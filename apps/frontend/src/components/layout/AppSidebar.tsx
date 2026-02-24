@@ -21,12 +21,14 @@ import {
 import { useNotificationStore } from "@/stores/useNotificationStore";
 import { useSidebarStore } from "@/stores/useSidebarStore";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { ROUTE_PERMISSIONS } from "@/config/routePermissions";
 
 interface NavItem {
   id: string;
   label: string;
   icon: React.ReactNode;
   path: string;
+  requiredPermission: string;
 }
 
 export const AppSidebar: React.FC = () => {
@@ -34,7 +36,7 @@ export const AppSidebar: React.FC = () => {
   const location = useLocation();
   const { isExpanded, setExpanded } = useSidebarStore();
   const unreadCount = useNotificationStore((state) => state.unreadCount);
-  const { user, logout } = useAuthStore();
+  const { user, logout, hasPermission } = useAuthStore();
 
   // Determinar item activo basado en la ruta actual
   const getActiveItem = () => {
@@ -54,68 +56,82 @@ export const AppSidebar: React.FC = () => {
 
   const activeItem = getActiveItem();
 
-  const navItems: NavItem[] = [
+  const allNavItems: NavItem[] = [
     {
       id: "home",
       label: "Inicio",
       icon: <Home size={20} />,
       path: "/dashboard",
+      requiredPermission: ROUTE_PERMISSIONS.home,
     },
     {
       id: "map",
       label: "Mapa y Zonas",
       icon: <Map size={20} />,
       path: "/mapa",
+      requiredPermission: ROUTE_PERMISSIONS.mapa,
     },
     {
       id: "risk",
       label: "Análisis de Riesgos",
       icon: <AlertTriangle size={20} />,
       path: "/riesgos",
+      requiredPermission: ROUTE_PERMISSIONS.riesgos,
     },
     {
       id: "alerts",
       label: "Alertas y Eventos",
       icon: <Layers size={20} />,
       path: "/alertas",
+      requiredPermission: ROUTE_PERMISSIONS.alertas,
     },
     {
       id: "notifications",
       label: "Notificaciones",
       icon: <Bell size={20} />,
       path: "/notificaciones",
+      requiredPermission: ROUTE_PERMISSIONS.notificaciones,
     },
     {
       id: "accidents",
       label: "Siniestros Viales",
       icon: <Car size={20} />,
       path: "/siniestros",
+      requiredPermission: ROUTE_PERMISSIONS.siniestros,
     },
     {
       id: "incidents",
       label: "Módulo Incidentes",
       icon: <FileSearch size={20} />,
       path: "/incidentes",
+      requiredPermission: ROUTE_PERMISSIONS.incidentes,
     },
     {
       id: "history",
       label: "Historial",
       icon: <Calendar size={20} />,
       path: "/historial",
+      requiredPermission: ROUTE_PERMISSIONS.historial,
     },
     {
       id: "stats",
       label: "Estadísticas",
       icon: <BarChart3 size={20} />,
       path: "/estadisticas",
+      requiredPermission: ROUTE_PERMISSIONS.estadisticas,
     },
     {
       id: "admin",
       label: "Administración",
       icon: <Settings size={20} />,
       path: "/admin",
+      requiredPermission: ROUTE_PERMISSIONS.admin,
     },
   ];
+
+  const navItems = allNavItems.filter((item) =>
+    hasPermission(item.requiredPermission),
+  );
 
   const handleNavigation = (item: NavItem) => {
     navigate(item.path);

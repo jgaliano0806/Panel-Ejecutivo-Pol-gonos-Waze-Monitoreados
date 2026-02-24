@@ -13,6 +13,8 @@ import {
 import { useNavigate, useLocation } from "react-router-dom";
 import { Badge } from "../ui/badge";
 import { cn } from "../../lib/utils";
+import { useAuthStore } from "../../stores/useAuthStore";
+import { ROUTE_PERMISSIONS } from "../../config/routePermissions";
 
 export type ViewType =
   | "home"
@@ -37,6 +39,7 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const hasPermission = useAuthStore((s) => s.hasPermission);
 
   const tabs = [
     {
@@ -45,6 +48,7 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
       icon: Home,
       color: "from-primary-600 to-primary-700",
       path: "/",
+      requiredPermission: ROUTE_PERMISSIONS.home,
     },
     {
       id: "map" as ViewType,
@@ -52,6 +56,7 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
       icon: Map,
       color: "from-primary-500 to-primary-600",
       path: "/mapa",
+      requiredPermission: ROUTE_PERMISSIONS.mapa,
     },
     {
       id: "risks" as ViewType,
@@ -59,6 +64,7 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
       icon: ShieldAlert,
       color: "from-red-500 to-red-600",
       path: "/riesgos",
+      requiredPermission: ROUTE_PERMISSIONS.riesgos,
     },
     {
       id: "events" as ViewType,
@@ -67,6 +73,7 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
       color: "from-warning-400 to-warning-500",
       badge: criticalAlertsCount > 0 ? criticalAlertsCount : undefined,
       path: "/alertas",
+      requiredPermission: ROUTE_PERMISSIONS.alertas,
     },
     {
       id: "accidents" as ViewType,
@@ -74,6 +81,7 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
       icon: Car,
       color: "from-orange-600 to-red-600",
       path: "/siniestros",
+      requiredPermission: ROUTE_PERMISSIONS.siniestros,
     },
     {
       id: "history" as ViewType,
@@ -81,6 +89,7 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
       icon: History,
       color: "from-blue-500 to-blue-600",
       path: "/historial",
+      requiredPermission: ROUTE_PERMISSIONS.historial,
     },
     {
       id: "stats" as ViewType,
@@ -88,6 +97,7 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
       icon: BarChart3,
       color: "from-purple-500 to-purple-600",
       path: "/estadisticas",
+      requiredPermission: ROUTE_PERMISSIONS.estadisticas,
     },
     {
       id: "admin" as ViewType,
@@ -95,8 +105,9 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
       icon: Settings,
       color: "from-gray-600 to-gray-700",
       path: "/admin",
+      requiredPermission: ROUTE_PERMISSIONS.admin,
     },
-  ];
+  ].filter((tab) => hasPermission(tab.requiredPermission));
 
   // Determinar la vista actual basada en la URL
   const getActiveView = () => {

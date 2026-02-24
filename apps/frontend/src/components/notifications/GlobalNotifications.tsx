@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -79,14 +79,19 @@ export const GlobalNotifications: React.FC<GlobalNotificationsProps> = ({
   // NOTA: El TTS se maneja centralizadamente en useRealtimeNotifications.ts
   // para evitar reproducción duplicada de audio
 
-  // Filtramos solo las no leídas que cumplen el filtro de TTS/Snackbar
-  // Limitamos a 3 para no saturar la pantalla
+  // IDs cuya toast expiró tras 1 min (solo se ocultan del mapa, NO se marcan como leídas)
+  const [toastDismissedIds, setToastDismissedIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  const onToastTimeout = useCallback((id: string) => {
+    setToastDismissedIds((prev) => new Set(prev).add(id));
+  }, []);
+
   const activeNotifications = notifications
     .filter((n) => {
-      // Solo mostrar no leídas
       if (n.is_read) return false;
-
-      // Aplicar filtro de incidentes permitidos
+      if (toastDismissedIds.has(n.id)) return false; // Toast expirado → ocultar pero sigue no leída
       const incidentType = n.type || n.data?.incidentType;
       const subtype = n.data?.subtype;
       return shouldShowTTSAndSnackbar(incidentType, subtype);
@@ -106,6 +111,7 @@ export const GlobalNotifications: React.FC<GlobalNotificationsProps> = ({
             key={notification.id}
             notification={notification}
             onDismiss={() => markAsRead(notification.id)}
+            onToastTimeout={onToastTimeout}
           />
         ))}
       </AnimatePresence>
@@ -116,13 +122,23 @@ export const GlobalNotifications: React.FC<GlobalNotificationsProps> = ({
 interface NotificationItemProps {
   notification: Notification;
   onDismiss: () => void;
+  onToastTimeout: (id: string) => void;
 }
+
+const TOAST_DURATION_MS = 60_000; // 1 minuto — solo oculta el toast; la notificación sigue no leída en el módulo
 
 const NotificationItem: React.FC<NotificationItemProps> = ({
   notification,
   onDismiss,
+  onToastTimeout,
 }) => {
   const navigate = useNavigate();
+
+  // Después de 1 min ocultar el toast SIN marcar como leída
+  useEffect(() => {
+    const timer = setTimeout(() => onToastTimeout(notification.id), TOAST_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, [notification.id, onToastTimeout]);
 
   const handleNavigate = () => {
     onDismiss(); // Mark as read

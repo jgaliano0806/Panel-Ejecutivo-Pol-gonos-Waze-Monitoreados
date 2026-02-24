@@ -1,4 +1,9 @@
-import React, { useState, useEffect } from "react";
+/**
+ * UserManagement — Panel de Administración de Usuarios y Roles
+ * Conectado al backend vía hooks useUsers / useRoles
+ */
+
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import {
   UserPlus,
@@ -9,853 +14,916 @@ import {
   Shield,
   Mail,
   Phone,
-  Calendar,
   Eye,
   EyeOff,
   UserCheck,
   UserX,
   Settings,
+  Trash2,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
+import {
+  useUsers,
+  useCreateUser,
+  useUpdateUser,
+  useDeleteUser,
+  useToggleUserStatus,
+  UserDTO,
+} from "../../hooks/useUsers";
+import {
+  useRoles,
+  useCreateRole,
+  useUpdateRole,
+  useDeleteRole,
+  usePermissions,
+  RoleDTO,
+} from "../../hooks/useRoles";
 
-interface Role {
-  id: string;
-  name: string;
-  description: string;
-  permissions: string[];
-  color: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+// =====================================================
+// TIPOS INTERNOS
+// =====================================================
 
-interface User {
-  id: string;
+interface UserFormData {
   email: string;
   firstName: string;
   lastName: string;
-  phone?: string;
-  roleId: string;
-  isActive: boolean;
-  emailVerified: boolean;
-  lastLogin?: string;
-  createdAt: string;
-  updatedAt: string;
+  phone: string;
+  password: string;
+  roleIds: number[];
 }
 
-const defaultRoles: Role[] = [
-  {
-    id: "1",
-    name: "Administrador",
-    description: "Acceso completo a todas las funcionalidades del sistema",
-    permissions: [
-      "admin",
-      "users.manage",
-      "catalogs.manage",
-      "reports.view",
-      "settings.manage",
-    ],
-    color: "#dc2626",
-    isActive: true,
-    createdAt: "2025-01-01T00:00:00Z",
-    updatedAt: "2025-01-01T00:00:00Z",
-  },
-  {
-    id: "2",
-    name: "Supervisor",
-    description: "Supervisión de operaciones y gestión de usuarios básicos",
-    permissions: ["users.view", "reports.view", "incidents.manage"],
-    color: "#ea580c",
-    isActive: true,
-    createdAt: "2025-01-01T00:00:00Z",
-    updatedAt: "2025-01-01T00:00:00Z",
-  },
-  {
-    id: "3",
-    name: "Operador",
-    description: "Gestión básica de incidentes y visualización de reportes",
-    permissions: ["incidents.view", "reports.view"],
-    color: "#2563eb",
-    isActive: true,
-    createdAt: "2025-01-01T00:00:00Z",
-    updatedAt: "2025-01-01T00:00:00Z",
-  },
-  {
-    id: "4",
-    name: "Visualizador",
-    description: "Solo lectura de datos e incidentes",
-    permissions: ["incidents.view"],
-    color: "#16a34a",
-    isActive: true,
-    createdAt: "2025-01-01T00:00:00Z",
-    updatedAt: "2025-01-01T00:00:00Z",
-  },
-];
+interface RoleFormData {
+  name: string;
+  description: string;
+  color: string;
+  permissionIds: number[];
+}
 
-const defaultUsers: User[] = [
-  {
-    id: "1",
-    email: "admin@casisasa.com",
-    firstName: "Administrador",
-    lastName: "Sistema",
-    phone: "+54 351 123-4567",
-    roleId: "1",
-    isActive: true,
-    emailVerified: true,
-    lastLogin: "2025-12-24T10:30:00Z",
-    createdAt: "2025-01-01T00:00:00Z",
-    updatedAt: "2025-12-24T10:30:00Z",
-  },
-  {
-    id: "2",
-    email: "supervisor@casisasa.com",
-    firstName: "Juan",
-    lastName: "Pérez",
-    phone: "+54 351 234-5678",
-    roleId: "2",
-    isActive: true,
-    emailVerified: true,
-    lastLogin: "2025-12-24T09:15:00Z",
-    createdAt: "2025-01-15T00:00:00Z",
-    updatedAt: "2025-12-24T09:15:00Z",
-  },
-];
+type TabType = "users" | "roles";
 
-const UserManagement: React.FC = () => {
-  const [users, setUsers] = useState<User[]>(defaultUsers);
-  const [roles, setRoles] = useState<Role[]>(defaultRoles);
-  const [activeTab, setActiveTab] = useState<"users" | "roles">("users");
-  const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [editingRole, setEditingRole] = useState<Role | null>(null);
-  const [showForm, setShowForm] = useState(false);
+// =====================================================
+// FORMULARIO DE USUARIO (fuera del componente padre
+// para evitar re-creación en cada render)
+// =====================================================
+const UserForm = ({
+  user,
+  onSave,
+  onCancel,
+  roles,
+  isPending,
+  error,
+}: {
+  user: UserDTO | null;
+  onSave: (data: UserFormData) => void;
+  onCancel: () => void;
+  roles: RoleDTO[];
+  isPending: boolean;
+  error: Error | null;
+}) => {
+  const [formData, setFormData] = useState<UserFormData>({
+    email: user?.email || "",
+    firstName: user?.firstName || "",
+    lastName: user?.lastName || "",
+    phone: user?.phone || "",
+    password: "",
+    roleIds: user?.roles.map((r) => r.id) || [],
+  });
+  const [showPassword, setShowPassword] = useState(false);
 
-  const getRoleName = (roleId: string) => {
-    const role = roles.find((r) => r.id === roleId);
-    return role?.name || "Rol desconocido";
-  };
-
-  const getRoleColor = (roleId: string) => {
-    const role = roles.find((r) => r.id === roleId);
-    return role?.color || "#6b7280";
-  };
-
-  const handleSaveUser = (user: User) => {
-    if (editingUser) {
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === user.id
-            ? { ...user, updatedAt: new Date().toISOString() }
-            : u
-        )
-      );
-    } else {
-      const newUser = {
-        ...user,
-        id: Date.now().toString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        emailVerified: false,
-      };
-      setUsers((prev) => [...prev, newUser]);
-    }
-    setEditingUser(null);
-    setShowForm(false);
-  };
-
-  const handleSaveRole = (role: Role) => {
-    if (editingRole) {
-      setRoles((prev) =>
-        prev.map((r) =>
-          r.id === role.id
-            ? { ...role, updatedAt: new Date().toISOString() }
-            : r
-        )
-      );
-    } else {
-      const newRole = {
-        ...role,
-        id: Date.now().toString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setRoles((prev) => [...prev, newRole]);
-    }
-    setEditingRole(null);
-    setShowForm(false);
-  };
-
-  const handleDeleteUser = (id: string) => {
-    if (confirm("¿Estás seguro de que quieres eliminar este usuario?")) {
-      setUsers((prev) => prev.filter((u) => u.id !== id));
-    }
-  };
-
-  const handleDeleteRole = (id: string) => {
-    // Verificar si hay usuarios con este rol
-    const usersWithRole = users.filter((u) => u.roleId === id);
-    if (usersWithRole.length > 0) {
-      alert(
-        `No se puede eliminar este rol porque ${usersWithRole.length} usuario(s) lo tienen asignado.`
-      );
-      return;
-    }
-
-    if (confirm("¿Estás seguro de que quieres eliminar este rol?")) {
-      setRoles((prev) => prev.filter((r) => r.id !== id));
-    }
-  };
-
-  const toggleUserStatus = (userId: string) => {
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === userId
-          ? { ...u, isActive: !u.isActive, updatedAt: new Date().toISOString() }
-          : u
-      )
-    );
-  };
-
-  const UserForm: React.FC<{
-    user: User | null;
-    onSave: (user: User) => void;
-    onCancel: () => void;
-  }> = ({ user, onSave, onCancel }) => {
-    const [formData, setFormData] = useState<User>(
-      user || {
-        id: "",
-        email: "",
-        firstName: "",
-        lastName: "",
-        phone: "",
-        roleId: "",
-        isActive: true,
-        emailVerified: false,
-        createdAt: "",
-        updatedAt: "",
-      }
-    );
-
-    const handleSubmit = (e: React.FormEvent) => {
-      e.preventDefault();
-      onSave(formData);
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-white dark:bg-veltrix-card rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-veltrix-border"
-        >
-          <div className="p-6">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-              {user ? "Editar Usuario" : "Nuevo Usuario"}
-            </h3>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Nombre *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.firstName}
-                    onChange={(e) =>
-                      setFormData({ ...formData, firstName: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-veltrix-border rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:bg-veltrix-bg dark:text-white"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Apellido *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.lastName}
-                    onChange={(e) =>
-                      setFormData({ ...formData, lastName: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-veltrix-border rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:bg-veltrix-bg dark:text-white"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-veltrix-border rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:bg-veltrix-bg dark:text-white"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Teléfono
-                </label>
-                <input
-                  type="tel"
-                  value={formData.phone || ""}
-                  onChange={(e) =>
-                    setFormData({ ...formData, phone: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-veltrix-border rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:bg-veltrix-bg dark:text-white"
-                  placeholder="+54 351 123-4567"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Rol *
-                </label>
-                <select
-                  value={formData.roleId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, roleId: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-veltrix-border rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:bg-veltrix-bg dark:text-white"
-                  required
-                >
-                  <option value="">Seleccionar rol...</option>
-                  {roles
-                    .filter((r) => r.isActive)
-                    .map((role) => (
-                      <option key={role.id} value={role.id}>
-                        {role.name}
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="userActive"
-                  checked={formData.isActive}
-                  onChange={(e) =>
-                    setFormData({ ...formData, isActive: e.target.checked })
-                  }
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <label
-                  htmlFor="userActive"
-                  className="text-sm text-gray-700 dark:text-gray-300"
-                >
-                  Usuario activo
-                </label>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Save size={16} />
-                  {user ? "Actualizar" : "Crear"}
-                </button>
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  className="flex-1 bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors flex items-center justify-center gap-2"
-                >
-                  <X size={16} />
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
-        </motion.div>
-      </div>
-    );
-  };
-
-  const RoleForm: React.FC<{
-    role: Role | null;
-    onSave: (role: Role) => void;
-    onCancel: () => void;
-  }> = ({ role, onSave, onCancel }) => {
-    const [formData, setFormData] = useState<Role>(
-      role || {
-        id: "",
-        name: "",
-        description: "",
-        permissions: [],
-        color: "#6b7280",
-        isActive: true,
-        createdAt: "",
-        updatedAt: "",
-      }
-    );
-
-    const availablePermissions = [
-      {
-        id: "admin",
-        name: "Administrador",
-        description: "Acceso completo al sistema",
-      },
-      {
-        id: "users.manage",
-        name: "Gestionar Usuarios",
-        description: "Crear, editar y eliminar usuarios",
-      },
-      {
-        id: "users.view",
-        name: "Ver Usuarios",
-        description: "Visualizar lista de usuarios",
-      },
-      {
-        id: "catalogs.manage",
-        name: "Gestionar Catálogos",
-        description: "Editar tipos y subtipos de incidentes",
-      },
-      {
-        id: "incidents.manage",
-        name: "Gestionar Incidentes",
-        description: "Crear y modificar incidentes",
-      },
-      {
-        id: "incidents.view",
-        name: "Ver Incidentes",
-        description: "Visualizar incidentes en el mapa",
-      },
-      {
-        id: "reports.view",
-        name: "Ver Reportes",
-        description: "Acceder a estadísticas y reportes",
-      },
-      {
-        id: "settings.manage",
-        name: "Gestionar Configuración",
-        description: "Modificar configuración del sistema",
-      },
-    ];
-
-    const handleSubmit = (e: React.FormEvent) => {
-      e.preventDefault();
-      onSave(formData);
-    };
-
-    const togglePermission = (permissionId: string) => {
-      setFormData((prev) => ({
-        ...prev,
-        permissions: prev.permissions.includes(permissionId)
-          ? prev.permissions.filter((p) => p !== permissionId)
-          : [...prev.permissions, permissionId],
-      }));
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-white dark:bg-veltrix-card rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-veltrix-border"
-        >
-          <div className="p-6">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-              {role ? "Editar Rol" : "Nuevo Rol"}
-            </h3>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nombre *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-veltrix-border rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:bg-veltrix-bg dark:text-white"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Color
-                  </label>
-                  <input
-                    type="color"
-                    value={formData.color}
-                    onChange={(e) =>
-                      setFormData({ ...formData, color: e.target.value })
-                    }
-                    className="w-full h-10 border border-gray-300 dark:border-veltrix-border rounded-lg cursor-pointer dark:bg-veltrix-bg"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Descripción
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-veltrix-border rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:bg-veltrix-bg dark:text-white"
-                  rows={3}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Permisos
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {availablePermissions.map((permission) => (
-                    <div
-                      key={permission.id}
-                      className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg"
-                    >
-                      <input
-                        type="checkbox"
-                        id={permission.id}
-                        checked={formData.permissions.includes(permission.id)}
-                        onChange={() => togglePermission(permission.id)}
-                        className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <div className="flex-1">
-                        <label
-                          htmlFor={permission.id}
-                          className="font-medium text-sm text-gray-900 cursor-pointer"
-                        >
-                          {permission.name}
-                        </label>
-                        <p className="text-xs text-gray-600 mt-1">
-                          {permission.description}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="roleActive"
-                  checked={formData.isActive}
-                  onChange={(e) =>
-                    setFormData({ ...formData, isActive: e.target.checked })
-                  }
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <label
-                  htmlFor="roleActive"
-                  className="text-sm text-gray-700 dark:text-gray-300"
-                >
-                  Rol activo
-                </label>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Save size={16} />
-                  {role ? "Actualizar" : "Crear"}
-                </button>
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  className="flex-1 bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors flex items-center justify-center gap-2"
-                >
-                  <X size={16} />
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
-        </motion.div>
-      </div>
-    );
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
   };
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Gestión de Usuarios y Perfiles
-        </h2>
-        <p className="text-gray-600">
-          Administra usuarios, roles y permisos del sistema
-        </p>
-      </div>
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white dark:bg-veltrix-card rounded-xl p-6 mb-6 border border-gray-200 dark:border-veltrix-border/50 shadow-lg"
+    >
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        {user ? "Editar Usuario" : "Nuevo Usuario"}
+      </h3>
 
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label
+              htmlFor="user-firstName"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
+              Nombre
+            </label>
+            <input
+              id="user-firstName"
+              type="text"
+              value={formData.firstName}
+              onChange={(e) =>
+                setFormData({ ...formData, firstName: e.target.value })
+              }
+              className="w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-veltrix-bg border border-gray-300 dark:border-veltrix-border text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+              required
+              placeholder="Nombre"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="user-lastName"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
+              Apellido
+            </label>
+            <input
+              id="user-lastName"
+              type="text"
+              value={formData.lastName}
+              onChange={(e) =>
+                setFormData({ ...formData, lastName: e.target.value })
+              }
+              className="w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-veltrix-bg border border-gray-300 dark:border-veltrix-border text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+              required
+              placeholder="Apellido"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label
+              htmlFor="user-email"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
+              <Mail size={14} className="inline mr-1" /> Email
+            </label>
+            <input
+              id="user-email"
+              type="email"
+              value={formData.email}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
+              className="w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-veltrix-bg border border-gray-300 dark:border-veltrix-border text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+              required
+              placeholder="usuario@casisa.com"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="user-phone"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
+              <Phone size={14} className="inline mr-1" /> Teléfono
+            </label>
+            <input
+              id="user-phone"
+              type="tel"
+              value={formData.phone}
+              onChange={(e) =>
+                setFormData({ ...formData, phone: e.target.value })
+              }
+              className="w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-veltrix-bg border border-gray-300 dark:border-veltrix-border text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+              placeholder="+54 351 123-4567"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label
+            htmlFor="user-password"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+          >
+            Contraseña{" "}
+            {user && (
+              <span className="text-xs text-gray-500">
+                (dejar vacío para no cambiar)
+              </span>
+            )}
+          </label>
+          <div className="relative">
+            <input
+              id="user-password"
+              type={showPassword ? "text" : "password"}
+              value={formData.password}
+              onChange={(e) =>
+                setFormData({ ...formData, password: e.target.value })
+              }
+              className="w-full px-3 py-2 pr-10 rounded-lg bg-gray-50 dark:bg-veltrix-bg border border-gray-300 dark:border-veltrix-border text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+              required={!user}
+              minLength={8}
+              placeholder="Mínimo 8 caracteres"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+              aria-label={showPassword ? "Ocultar" : "Mostrar"}
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <Shield size={14} className="inline mr-1" /> Roles
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {roles.map((role) => (
+              <button
+                key={role.id}
+                type="button"
+                onClick={() => {
+                  const newRoleIds = formData.roleIds.includes(role.id)
+                    ? formData.roleIds.filter((id) => id !== role.id)
+                    : [...formData.roleIds, role.id];
+                  setFormData({ ...formData, roleIds: newRoleIds });
+                }}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                  formData.roleIds.includes(role.id)
+                    ? "text-white shadow-md"
+                    : "bg-gray-100 dark:bg-veltrix-bg text-gray-600 dark:text-gray-400 hover:bg-gray-200"
+                }`}
+                style={
+                  formData.roleIds.includes(role.id)
+                    ? { backgroundColor: role.color }
+                    : undefined
+                }
+              >
+                {role.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-4 border-t dark:border-veltrix-border/50">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-veltrix-bg text-gray-700 dark:text-gray-300 hover:bg-gray-300 transition-colors"
+          >
+            <X size={16} className="inline mr-1" /> Cancelar
+          </button>
+          <button
+            type="submit"
+            className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-500 hover:to-blue-600 shadow-md transition-all"
+            disabled={isPending}
+          >
+            {isPending ? (
+              <Loader2 size={16} className="inline mr-1 animate-spin" />
+            ) : (
+              <Save size={16} className="inline mr-1" />
+            )}
+            {user ? "Actualizar" : "Crear"}
+          </button>
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+            <AlertCircle size={16} />
+            {error.message}
+          </div>
+        )}
+      </form>
+    </motion.div>
+  );
+};
+
+// =====================================================
+// FORMULARIO DE ROL (fuera del componente padre
+// para evitar re-creación en cada render)
+// =====================================================
+const RoleForm = ({
+  role,
+  onSave,
+  onCancel,
+  isPending,
+  error,
+}: {
+  role: RoleDTO | null;
+  onSave: (data: RoleFormData) => void;
+  onCancel: () => void;
+  isPending: boolean;
+  error: Error | null;
+}) => {
+  const { data: allPermissions = [] } = usePermissions();
+
+  const [formData, setFormData] = useState<RoleFormData>({
+    name: role?.name || "",
+    description: role?.description || "",
+    color: role?.color || "#6b7280",
+    permissionIds: role?.permissions.map((p) => p.id) || [],
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  const togglePermission = (permissionId: number) => {
+    const newIds = formData.permissionIds.includes(permissionId)
+      ? formData.permissionIds.filter((id) => id !== permissionId)
+      : [...formData.permissionIds, permissionId];
+    setFormData({ ...formData, permissionIds: newIds });
+  };
+
+  // Agrupar permisos por categoría
+  const permissionsByCategory = allPermissions.reduce(
+    (acc, perm) => {
+      const cat = perm.category || "general";
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(perm);
+      return acc;
+    },
+    {} as Record<string, typeof allPermissions>,
+  );
+
+  const categoryLabels: Record<string, string> = {
+    system: "Sistema",
+    users: "Usuarios",
+    catalogs: "Catálogos",
+    incidents: "Incidentes",
+    reports: "Reportes",
+    settings: "Configuración",
+    general: "General",
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white dark:bg-veltrix-card rounded-xl p-6 mb-6 border border-gray-200 dark:border-veltrix-border/50 shadow-lg"
+    >
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        {role ? "Editar Rol" : "Nuevo Rol"}
+      </h3>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-3 gap-4">
+          <div className="col-span-2">
+            <label
+              htmlFor="role-name"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
+              Nombre del Rol
+            </label>
+            <input
+              id="role-name"
+              type="text"
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              className="w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-veltrix-bg border border-gray-300 dark:border-veltrix-border text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+              required
+              placeholder="Nombre del rol"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="role-color"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
+              Color
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                id="role-color"
+                type="color"
+                value={formData.color}
+                onChange={(e) =>
+                  setFormData({ ...formData, color: e.target.value })
+                }
+                className="w-10 h-10 rounded-lg cursor-pointer border-0"
+                title="Color del rol"
+              />
+              <span className="text-sm text-gray-500">{formData.color}</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label
+            htmlFor="role-description"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+          >
+            Descripción
+          </label>
+          <textarea
+            id="role-description"
+            value={formData.description}
+            onChange={(e) =>
+              setFormData({ ...formData, description: e.target.value })
+            }
+            className="w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-veltrix-bg border border-gray-300 dark:border-veltrix-border text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+            rows={2}
+            placeholder="Descripción del rol"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <Shield size={14} className="inline mr-1" /> Permisos
+          </label>
+
+          <div className="space-y-4 max-h-60 overflow-y-auto">
+            {Object.entries(permissionsByCategory).map(([category, perms]) => (
+              <div key={category}>
+                <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
+                  {categoryLabels[category] || category}
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {perms.map((perm) => (
+                    <label
+                      key={perm.id}
+                      className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
+                        formData.permissionIds.includes(perm.id)
+                          ? "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700"
+                          : "bg-gray-50 dark:bg-veltrix-bg border border-transparent hover:bg-gray-100 dark:hover:bg-veltrix-bg/70"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.permissionIds.includes(perm.id)}
+                        onChange={() => togglePermission(perm.id)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                          {perm.name}
+                        </div>
+                        {perm.description && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {perm.description}
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-4 border-t dark:border-veltrix-border/50">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-veltrix-bg text-gray-700 dark:text-gray-300 hover:bg-gray-300 transition-colors"
+          >
+            <X size={16} className="inline mr-1" /> Cancelar
+          </button>
+          <button
+            type="submit"
+            className="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-500 hover:to-purple-600 shadow-md transition-all"
+            disabled={isPending}
+          >
+            {isPending ? (
+              <Loader2 size={16} className="inline mr-1 animate-spin" />
+            ) : (
+              <Save size={16} className="inline mr-1" />
+            )}
+            {role ? "Actualizar" : "Crear"}
+          </button>
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+            <AlertCircle size={16} />
+            {error.message}
+          </div>
+        )}
+      </form>
+    </motion.div>
+  );
+};
+
+// =====================================================
+// COMPONENTE PRINCIPAL
+// =====================================================
+
+const UserManagement: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<TabType>("users");
+  const [showUserForm, setShowUserForm] = useState(false);
+  const [showRoleForm, setShowRoleForm] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserDTO | null>(null);
+  const [editingRole, setEditingRole] = useState<RoleDTO | null>(null);
+
+  // Queries
+  const {
+    data: users = [],
+    isLoading: usersLoading,
+    error: usersError,
+  } = useUsers();
+  const {
+    data: roles = [],
+    isLoading: rolesLoading,
+    error: rolesError,
+  } = useRoles();
+
+  // Mutations
+  const createUser = useCreateUser();
+  const updateUser = useUpdateUser();
+  const deleteUser = useDeleteUser();
+  const toggleStatus = useToggleUserStatus();
+  const createRole = useCreateRole();
+  const updateRole = useUpdateRole();
+  const deleteRole = useDeleteRole();
+
+  const handleSaveUser = async (data: UserFormData) => {
+    try {
+      if (editingUser) {
+        await updateUser.mutateAsync({
+          id: editingUser.id,
+          email: data.email,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          phone: data.phone || undefined,
+          password: data.password || undefined,
+          roleIds: data.roleIds,
+        });
+      } else {
+        await createUser.mutateAsync({
+          email: data.email,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          phone: data.phone || undefined,
+          password: data.password,
+          roleIds: data.roleIds,
+        });
+      }
+      setShowUserForm(false);
+      setEditingUser(null);
+    } catch {
+      // Error manejado por la mutation
+    }
+  };
+
+  const handleSaveRole = async (data: RoleFormData) => {
+    try {
+      if (editingRole) {
+        await updateRole.mutateAsync({
+          id: editingRole.id,
+          name: data.name,
+          description: data.description || undefined,
+          color: data.color,
+          permissionIds: data.permissionIds,
+        });
+      } else {
+        await createRole.mutateAsync({
+          name: data.name,
+          description: data.description || undefined,
+          color: data.color,
+          permissionIds: data.permissionIds,
+        });
+      }
+      setShowRoleForm(false);
+      setEditingRole(null);
+    } catch {
+      // Error manejado por la mutation
+    }
+  };
+
+  const handleDeleteUser = async (id: number) => {
+    if (window.confirm("¿Está seguro de eliminar este usuario?")) {
+      await deleteUser.mutateAsync(id);
+    }
+  };
+
+  const handleDeleteRole = async (id: number) => {
+    const role = roles.find((r) => r.id === id);
+    if (role && role.userCount > 0) {
+      alert("No se puede eliminar un rol que tiene usuarios asignados.");
+      return;
+    }
+    if (window.confirm("¿Está seguro de eliminar este rol?")) {
+      await deleteRole.mutateAsync(id);
+    }
+  };
+
+  const handleToggleUserStatus = async (userId: number) => {
+    await toggleStatus.mutateAsync(userId);
+  };
+
+  // =====================================================
+  // RENDER PRINCIPAL
+  // =====================================================
+  return (
+    <div className="p-6">
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-lg w-fit">
+      <div className="flex items-center gap-4 mb-6">
         <button
           onClick={() => setActiveTab("users")}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
             activeTab === "users"
-              ? "bg-white text-gray-900 shadow-sm"
-              : "text-gray-600 hover:text-gray-900"
+              ? "bg-blue-600 text-white shadow-md"
+              : "bg-gray-100 dark:bg-veltrix-bg text-gray-600 dark:text-gray-400 hover:bg-gray-200"
           }`}
         >
-          Usuarios ({users.length})
+          <UserPlus size={18} /> Usuarios ({users.length})
         </button>
         <button
           onClick={() => setActiveTab("roles")}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
             activeTab === "roles"
-              ? "bg-white text-gray-900 shadow-sm"
-              : "text-gray-600 hover:text-gray-900"
+              ? "bg-purple-600 text-white shadow-md"
+              : "bg-gray-100 dark:bg-veltrix-bg text-gray-600 dark:text-gray-400 hover:bg-gray-200"
           }`}
         >
-          Roles ({roles.length})
+          <Settings size={18} /> Roles ({roles.length})
         </button>
       </div>
 
-      {/* Usuarios */}
+      {/* TAB: USUARIOS */}
       {activeTab === "users" && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Usuarios del Sistema
-            </h3>
+        <div>
+          {/* Botón crear */}
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Gestión de Usuarios
+            </h2>
             <button
               onClick={() => {
                 setEditingUser(null);
-                setShowForm(true);
+                setShowUserForm(true);
               }}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-500 hover:to-blue-600 shadow-md transition-all"
             >
-              <UserPlus size={16} />
-              Nuevo Usuario
+              <Plus size={16} /> Nuevo Usuario
             </button>
           </div>
 
-          <div className="grid gap-4">
-            {users.map((user) => (
-              <motion.div
-                key={user.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
-                      <span className="text-lg font-semibold text-gray-600">
+          {/* Formulario */}
+          {showUserForm && (
+            <UserForm
+              user={editingUser}
+              onSave={handleSaveUser}
+              onCancel={() => {
+                setShowUserForm(false);
+                setEditingUser(null);
+              }}
+              roles={roles}
+              isPending={createUser.isPending || updateUser.isPending}
+              error={createUser.error || updateUser.error}
+            />
+          )}
+
+          {/* Loading */}
+          {usersLoading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 size={32} className="animate-spin text-blue-500" />
+            </div>
+          )}
+
+          {/* Error */}
+          {usersError && (
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 mb-4">
+              <AlertCircle size={20} />
+              <span>Error cargando usuarios: {usersError.message}</span>
+            </div>
+          )}
+
+          {/* Lista de usuarios */}
+          {!usersLoading && !usersError && (
+            <div className="space-y-3">
+              {users.map((user) => (
+                <motion.div
+                  key={user.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="bg-white dark:bg-veltrix-card rounded-xl p-4 border border-gray-200 dark:border-veltrix-border/50 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      {/* Avatar */}
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
+                          user.isActive
+                            ? "bg-gradient-to-br from-blue-500 to-blue-600"
+                            : "bg-gray-400"
+                        }`}
+                      >
                         {user.firstName[0]}
                         {user.lastName[0]}
-                      </span>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">
-                        {user.firstName} {user.lastName}
-                      </h4>
-                      <div className="flex items-center gap-4 text-sm text-gray-600">
-                        <span className="flex items-center gap-1">
-                          <Mail size={14} />
-                          {user.email}
-                        </span>
-                        {user.phone && (
+                      </div>
+
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-gray-900 dark:text-white">
+                            {user.firstName} {user.lastName}
+                          </span>
+                          {!user.isActive && (
+                            <span className="px-2 py-0.5 rounded-full text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
+                              Desactivado
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
                           <span className="flex items-center gap-1">
-                            <Phone size={14} />
-                            {user.phone}
+                            <Mail size={12} /> {user.email}
+                          </span>
+                          {user.phone && (
+                            <span className="flex items-center gap-1">
+                              <Phone size={12} /> {user.phone}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      {/* Roles badges */}
+                      <div className="flex gap-1">
+                        {user.roles.map((role) => (
+                          <span
+                            key={role.id}
+                            className="px-2 py-0.5 rounded-full text-xs font-medium text-white"
+                            style={{ backgroundColor: role.color }}
+                          >
+                            {role.name}
+                          </span>
+                        ))}
+                        {user.roles.length === 0 && (
+                          <span className="px-2 py-0.5 rounded-full text-xs bg-gray-200 dark:bg-gray-700 text-gray-500">
+                            Sin rol
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span
-                          className="px-2 py-1 text-xs rounded-full text-white"
-                          style={{ backgroundColor: getRoleColor(user.roleId) }}
+
+                      {/* Acciones */}
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleToggleUserStatus(user.id)}
+                          className={`p-2 rounded-lg transition-colors ${
+                            user.isActive
+                              ? "text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"
+                              : "text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                          }`}
+                          title={user.isActive ? "Desactivar" : "Activar"}
                         >
-                          {getRoleName(user.roleId)}
-                        </span>
-                        {user.emailVerified && (
-                          <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
-                            Email verificado
-                          </span>
-                        )}
+                          {user.isActive ? (
+                            <UserCheck size={18} />
+                          ) : (
+                            <UserX size={18} />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingUser(user);
+                            setShowUserForm(true);
+                          }}
+                          className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                          title="Editar"
+                        >
+                          <Edit3 size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="p-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          title="Eliminar"
+                        >
+                          <Trash2 size={18} />
+                        </button>
                       </div>
                     </div>
                   </div>
+                </motion.div>
+              ))}
 
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`px-2 py-1 text-xs rounded-full ${
-                        user.isActive
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {user.isActive ? "Activo" : "Inactivo"}
-                    </span>
-
-                    <button
-                      onClick={() => toggleUserStatus(user.id)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        user.isActive
-                          ? "text-red-400 hover:text-red-600 hover:bg-red-50"
-                          : "text-green-400 hover:text-green-600 hover:bg-green-50"
-                      }`}
-                      title={
-                        user.isActive ? "Desactivar usuario" : "Activar usuario"
-                      }
-                    >
-                      {user.isActive ? (
-                        <UserX size={16} />
-                      ) : (
-                        <UserCheck size={16} />
-                      )}
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setEditingUser(user);
-                        setShowForm(true);
-                      }}
-                      className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                    >
-                      <Edit3 size={16} />
-                    </button>
-                  </div>
+              {users.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  No hay usuarios registrados
                 </div>
-
-                {user.lastLogin && (
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <p className="text-xs text-gray-500">
-                      Último acceso:{" "}
-                      {new Date(user.lastLogin).toLocaleString("es-AR")}
-                    </p>
-                  </div>
-                )}
-              </motion.div>
-            ))}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Roles */}
+      {/* TAB: ROLES */}
       {activeTab === "roles" && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Roles y Permisos
-            </h3>
+        <div>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Gestión de Roles
+            </h2>
             <button
               onClick={() => {
                 setEditingRole(null);
-                setShowForm(true);
+                setShowRoleForm(true);
               }}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-500 hover:to-purple-600 shadow-md transition-all"
             >
-              <Plus size={16} />
-              Nuevo Rol
+              <Plus size={16} /> Nuevo Rol
             </button>
           </div>
 
-          <div className="grid gap-4">
-            {roles.map((role) => (
-              <motion.div
-                key={role.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div
-                      className="w-12 h-12 rounded-lg flex items-center justify-center"
-                      style={{
-                        backgroundColor: role.color + "20",
-                        color: role.color,
-                      }}
-                    >
-                      <Shield size={24} />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900">
-                        {role.name}
-                      </h4>
-                      <p className="text-sm text-gray-600 mb-2">
-                        {role.description}
-                      </p>
-                      <div className="flex flex-wrap gap-1">
-                        {role.permissions.slice(0, 3).map((permission) => (
-                          <span
-                            key={permission}
-                            className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded"
-                          >
-                            {permission}
-                          </span>
-                        ))}
-                        {role.permissions.length > 3 && (
-                          <span className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
-                            +{role.permissions.length - 3} más
-                          </span>
-                        )}
+          {showRoleForm && (
+            <RoleForm
+              role={editingRole}
+              onSave={handleSaveRole}
+              onCancel={() => {
+                setShowRoleForm(false);
+                setEditingRole(null);
+              }}
+              isPending={createRole.isPending || updateRole.isPending}
+              error={createRole.error || updateRole.error}
+            />
+          )}
+
+          {rolesLoading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 size={32} className="animate-spin text-purple-500" />
+            </div>
+          )}
+
+          {rolesError && (
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 mb-4">
+              <AlertCircle size={20} />
+              <span>Error cargando roles: {rolesError.message}</span>
+            </div>
+          )}
+
+          {!rolesLoading && !rolesError && (
+            <div className="grid grid-cols-2 gap-4">
+              {roles.map((role) => (
+                <motion.div
+                  key={role.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="bg-white dark:bg-veltrix-card rounded-xl p-5 border border-gray-200 dark:border-veltrix-border/50 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-4 h-4 rounded-full"
+                        style={{ backgroundColor: role.color }}
+                      />
+                      <div>
+                        <h3 className="font-semibold text-gray-900 dark:text-white">
+                          {role.name}
+                        </h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {role.description || "Sin descripción"}
+                        </p>
                       </div>
                     </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          setEditingRole(role);
+                          setShowRoleForm(true);
+                        }}
+                        className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                        title="Editar"
+                      >
+                        <Edit3 size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteRole(role.id)}
+                        className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        title="Eliminar"
+                        disabled={role.userCount > 0}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`px-2 py-1 text-xs rounded-full ${
-                        role.isActive
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {role.isActive ? "Activo" : "Inactivo"}
-                    </span>
-
-                    <button
-                      onClick={() => {
-                        setEditingRole(role);
-                        setShowForm(true);
-                      }}
-                      className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                    >
-                      <Edit3 size={16} />
-                    </button>
+                  {/* Info de permisos */}
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {role.permissions.map((perm) => (
+                      <span
+                        key={perm.id}
+                        className="px-2 py-0.5 rounded text-xs bg-gray-100 dark:bg-veltrix-bg text-gray-600 dark:text-gray-400"
+                      >
+                        {perm.name}
+                      </span>
+                    ))}
+                    {role.permissions.length === 0 && (
+                      <span className="text-xs text-gray-400">
+                        Sin permisos asignados
+                      </span>
+                    )}
                   </div>
+
+                  <div className="text-xs text-gray-400">
+                    {role.userCount} usuario{role.userCount !== 1 ? "s" : ""}{" "}
+                    asignado{role.userCount !== 1 ? "s" : ""}
+                  </div>
+                </motion.div>
+              ))}
+
+              {roles.length === 0 && (
+                <div className="col-span-2 text-center py-12 text-gray-500">
+                  No hay roles configurados
                 </div>
-              </motion.div>
-            ))}
-          </div>
+              )}
+            </div>
+          )}
         </div>
-      )}
-
-      {/* Modales */}
-      {showForm && editingUser !== null && (
-        <UserForm
-          user={editingUser}
-          onSave={handleSaveUser}
-          onCancel={() => {
-            setEditingUser(null);
-            setShowForm(false);
-          }}
-        />
-      )}
-
-      {showForm && editingRole !== null && (
-        <RoleForm
-          role={editingRole}
-          onSave={handleSaveRole}
-          onCancel={() => {
-            setEditingRole(null);
-            setShowForm(false);
-          }}
-        />
       )}
     </div>
   );

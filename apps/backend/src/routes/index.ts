@@ -16,6 +16,9 @@ import incidentsRoutes from "./incidents.routes";
 import jamsRoutes from "./jams.routes";
 import ttsRoutes from "./tts.routes";
 import riskRoutes from "./risk.routes";
+import authRoutes from "./auth.routes";
+import usersRoutes from "./users.routes";
+import rolesRoutes from "./roles.routes";
 
 /**
  * Registra todos los módulos de rutas en la instancia de Fastify
@@ -23,6 +26,15 @@ import riskRoutes from "./risk.routes";
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
   // Health checks (sin prefijo para compatibilidad con orquestadores)
   await app.register(healthRoutes);
+
+  // Autenticación (login, logout, sesiones)
+  await app.register(authRoutes, { prefix: "/api/auth" });
+
+  // CRUD de Usuarios
+  await app.register(usersRoutes, { prefix: "/api/users" });
+
+  // CRUD de Roles y Permisos
+  await app.register(rolesRoutes, { prefix: "/api/roles" });
 
   // API de Catálogos
   await app.register(catalogsRoutes, { prefix: "/api/catalogs" });

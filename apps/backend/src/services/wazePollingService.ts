@@ -189,7 +189,7 @@ export class WazePollingService {
                 CREATE TABLE IF NOT EXISTS waze_tvt_metrics (
                     id SERIAL PRIMARY KEY,
                     polygon_id VARCHAR(50) NOT NULL,
-                    wazers_count INTEGER DEFAULT 0,
+                    wazers_count NUMERIC(10, 2) DEFAULT 0,
                     jam_level_counts JSONB,
                     length_of_jams JSONB,
                     update_time TIMESTAMPTZ,

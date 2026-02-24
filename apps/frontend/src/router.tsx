@@ -8,108 +8,151 @@ import { IncidentsModule } from "./pages/IncidentsModule";
 import { AppLayout } from "./components/layout/AppLayout";
 import { SectionErrorBoundary } from "./components/common/ErrorBoundary";
 import { NotificationsPage } from "./pages/NotificationsPage";
+import { LoginPage } from "./pages/LoginPage";
+import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { ROUTE_PERMISSIONS } from "./config/routePermissions";
 
 export const router = createBrowserRouter(
   [
     {
+      path: "/login",
+      element: (
+        <SectionErrorBoundary sectionName="Login">
+          <LoginPage />
+        </SectionErrorBoundary>
+      ),
+    },
+    {
       path: "/",
       element: (
-        <SectionErrorBoundary sectionName="Dashboard Principal">
-          <Dashboard />
-        </SectionErrorBoundary>
+        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.home]}>
+          <SectionErrorBoundary sectionName="Dashboard Principal">
+            <Dashboard />
+          </SectionErrorBoundary>
+        </ProtectedRoute>
       ),
     },
     {
       path: "/dashboard",
       element: (
-        <SectionErrorBoundary sectionName="Dashboard">
-          <Dashboard />
-        </SectionErrorBoundary>
+        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.dashboard]}>
+          <SectionErrorBoundary sectionName="Dashboard">
+            <Dashboard />
+          </SectionErrorBoundary>
+        </ProtectedRoute>
       ),
     },
     {
       path: "/mapa",
       element: (
-        <SectionErrorBoundary sectionName="Mapa">
-          <Dashboard />
-        </SectionErrorBoundary>
+        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.mapa]}>
+          <SectionErrorBoundary sectionName="Mapa">
+            <Dashboard />
+          </SectionErrorBoundary>
+        </ProtectedRoute>
       ),
     },
     {
       path: "/alertas",
       element: (
-        <SectionErrorBoundary sectionName="Alertas">
-          <Dashboard />
-        </SectionErrorBoundary>
+        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.alertas]}>
+          <SectionErrorBoundary sectionName="Alertas">
+            <Dashboard />
+          </SectionErrorBoundary>
+        </ProtectedRoute>
       ),
     },
     {
       path: "/siniestros",
       element: (
-        <AppLayout>
-          <SectionErrorBoundary sectionName="Siniestros">
-            <RoadAccidentsPage />
-          </SectionErrorBoundary>
-        </AppLayout>
+        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.siniestros]}>
+          <AppLayout>
+            <SectionErrorBoundary sectionName="Siniestros">
+              <RoadAccidentsPage />
+            </SectionErrorBoundary>
+          </AppLayout>
+        </ProtectedRoute>
       ),
     },
     {
       path: "/historial",
       element: (
-        <AppLayout>
-          <SectionErrorBoundary sectionName="Historial de Incidentes">
-            <IncidentsHistoryPage />
-          </SectionErrorBoundary>
-        </AppLayout>
+        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.historial]}>
+          <AppLayout>
+            <SectionErrorBoundary sectionName="Historial de Incidentes">
+              <IncidentsHistoryPage />
+            </SectionErrorBoundary>
+          </AppLayout>
+        </ProtectedRoute>
       ),
     },
     {
       path: "/estadisticas",
       element: (
-        <AppLayout>
-          <SectionErrorBoundary sectionName="Estadísticas">
-            <StatsPage />
-          </SectionErrorBoundary>
-        </AppLayout>
+        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.estadisticas]}>
+          <AppLayout>
+            <SectionErrorBoundary sectionName="Estadísticas">
+              <StatsPage />
+            </SectionErrorBoundary>
+          </AppLayout>
+        </ProtectedRoute>
       ),
     },
     {
       path: "/riesgos",
       element: (
-        <AppLayout>
-          <SectionErrorBoundary sectionName="Dashboard de Riesgos">
-            <RiskDashboard />
-          </SectionErrorBoundary>
-        </AppLayout>
+        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.riesgos]}>
+          <AppLayout>
+            <SectionErrorBoundary sectionName="Dashboard de Riesgos">
+              <RiskDashboard />
+            </SectionErrorBoundary>
+          </AppLayout>
+        </ProtectedRoute>
       ),
     },
 
     {
       path: "/notificaciones",
       element: (
-        <AppLayout>
-          <SectionErrorBoundary sectionName="Notificaciones">
-            <NotificationsPage />
-          </SectionErrorBoundary>
-        </AppLayout>
+        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.notificaciones]}>
+          <AppLayout>
+            <SectionErrorBoundary sectionName="Notificaciones">
+              <NotificationsPage />
+            </SectionErrorBoundary>
+          </AppLayout>
+        </ProtectedRoute>
       ),
     },
     {
       path: "/incidentes",
       element: (
-        <AppLayout>
-          <SectionErrorBoundary sectionName="Módulo de Incidentes">
-            <IncidentsModule />
+        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.incidentes]}>
+          <AppLayout>
+            <SectionErrorBoundary sectionName="Módulo de Incidentes">
+              <IncidentsModule />
+            </SectionErrorBoundary>
+          </AppLayout>
+        </ProtectedRoute>
+      ),
+    },
+    {
+      path: "/admin",
+      element: (
+        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.admin]}>
+          <SectionErrorBoundary sectionName="Administración">
+            <Dashboard />
           </SectionErrorBoundary>
-        </AppLayout>
+        </ProtectedRoute>
       ),
     },
     {
       path: "*",
       element: (
-        <SectionErrorBoundary sectionName="Página no encontrada">
-          <Dashboard />
-        </SectionErrorBoundary>
+        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.home]}>
+          <SectionErrorBoundary sectionName="Página no encontrada">
+            <Dashboard />
+          </SectionErrorBoundary>
+        </ProtectedRoute>
       ),
     },
   ],

@@ -9,6 +9,7 @@
  */
 
 import { API_CONFIG } from "../config/constants";
+import { logger } from "./logger";
 
 // Voces disponibles (argentinas y mexicanas)
 export const EDGE_TTS_VOICES = {
@@ -67,7 +68,7 @@ export const initializeAudio = async () => {
       oscillator.start(0);
       oscillator.stop(0.1);
 
-      console.log("🔊 AudioContext inicializado y desbloqueado");
+      logger.debug("AudioContext inicializado y desbloqueado");
     }
 
     // Método fallback para HTML5 Audio
@@ -78,9 +79,9 @@ export const initializeAudio = async () => {
 
     audioInitialized = true;
     forceUnlockAudio(); // Desbloquear TTS para que processQueue pueda reproducir
-    console.log("🔊 Sistema de audio desbloqueado por interacción de usuario");
+    logger.info("Sistema de audio desbloqueado por interacción de usuario");
   } catch (e) {
-    console.warn("⚠️ No se pudo inicializar el audio:", e);
+    logger.warn("No se pudo inicializar el audio", { error: e });
   }
 };
 
@@ -110,9 +111,9 @@ export const setTTSMuted = (value: boolean): void => {
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     audioQueue = [];
     isPlaying = false;
-    console.log("🔇 TTS: Silenciado por el operador");
+    logger.debug("TTS silenciado por el operador");
   } else {
-    console.log("🔊 TTS: Sonido reactivado por el operador");
+    logger.debug("TTS sonido reactivado por el operador");
   }
 };
 
@@ -124,10 +125,15 @@ export const toggleTTSMuted = (): boolean => {
 // ============================================================
 // SISTEMA DE DESBLOQUEO DE AUDIO (Autoplay Policy)
 // ============================================================
+// MODO VIDEOWALL: En centros de operaciones/videowall nadie hace click.
+// El audio se intenta desbloquear automáticamente al cargar.
+// Si el navegador se ejecuta con --autoplay-policy=no-user-gesture-required,
+// el audio funciona inmediatamente sin ninguna interacción.
+// ============================================================
 let _audioUnlocked = false;
 
 /**
- * Verifica si el audio esta desbloqueado (hubo interaccion del usuario).
+ * Verifica si el audio esta desbloqueado.
  */
 export const isAudioUnlocked = (): boolean => _audioUnlocked;
 
@@ -137,7 +143,7 @@ export const isAudioUnlocked = (): boolean => _audioUnlocked;
 export const forceUnlockAudio = (): void => {
   if (_audioUnlocked) return;
   _audioUnlocked = true;
-  console.log("🔓 TTS: Audio desbloqueado manualmente");
+  logger.debug("Audio desbloqueado manualmente");
   _drainQueueAfterUnlock();
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("tts-unlocked"));
@@ -157,7 +163,7 @@ const _handleUserInteraction = (): void => {
   document.removeEventListener("keydown", _handleUserInteraction, true);
   document.removeEventListener("touchstart", _handleUserInteraction, true);
 
-  console.log("🔓 TTS: Audio desbloqueado por interaccion del usuario");
+  logger.debug("Audio desbloqueado por interaccion del usuario");
   _drainQueueAfterUnlock();
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("tts-unlocked"));
@@ -169,10 +175,54 @@ const _handleUserInteraction = (): void => {
  */
 const _drainQueueAfterUnlock = (): void => {
   if (audioQueue.length > 0) {
-    console.log(
-      `🔊 TTS: Procesando ${audioQueue.length} mensaje(s) encolado(s) tras desbloqueo`,
-    );
+    logger.debug("Procesando mensajes encolados tras desbloqueo", {
+      count: audioQueue.length,
+    });
     processQueue();
+  }
+};
+
+/**
+ * AUTO-DESBLOQUEO para modo videowall/kiosk.
+ * Intenta reproducir un audio silencioso para desbloquear el autoplay.
+ * Funciona automáticamente si Chrome se ejecuta con:
+ * --autoplay-policy=no-user-gesture-required
+ */
+const _attemptAutoUnlock = async (): Promise<void> => {
+  if (_audioUnlocked) return;
+
+  try {
+    // Intentar con AudioContext (funciona en Chrome con flag de autoplay)
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (AudioCtx) {
+      const ctx = new AudioCtx();
+      await ctx.resume();
+
+      // Reproducir un oscilador silencioso para desbloquear
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      gainNode.gain.value = 0; // Silencio total
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      oscillator.start(0);
+      oscillator.stop(0.05);
+    }
+
+    // Intentar con HTML5 Audio (audio silencioso en base64)
+    const silentAudio = new Audio(
+      "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA",
+    );
+    await silentAudio.play();
+
+    // Si llegamos aquí, el audio está desbloqueado
+    _audioUnlocked = true;
+    audioInitialized = true;
+    logger.info("Audio auto-desbloqueado al cargar (modo videowall)");
+    window.dispatchEvent(new CustomEvent("tts-unlocked"));
+  } catch (e) {
+    logger.warn(
+      "Auto-desbloqueo falló — ejecutar Chrome con --autoplay-policy=no-user-gesture-required",
+    );
   }
 };
 
@@ -190,6 +240,19 @@ if (typeof window !== "undefined") {
     capture: true,
     once: false,
   });
+
+  // Intentar auto-desbloquear al cargar la página (para videowall/kiosk)
+  // Se ejecuta después de que el DOM esté listo
+  if (
+    document.readyState === "complete" ||
+    document.readyState === "interactive"
+  ) {
+    setTimeout(_attemptAutoUnlock, 500);
+  } else {
+    window.addEventListener("DOMContentLoaded", () => {
+      setTimeout(_attemptAutoUnlock, 500);
+    });
+  }
 }
 
 /**
@@ -197,8 +260,11 @@ if (typeof window !== "undefined") {
  */
 export const configureTTS = (config: Partial<TTSConfig>) => {
   currentConfig = { ...currentConfig, ...config };
+  if (config.voice) {
+    currentConfig.voice = ensureArgentineVoice(config.voice);
+  }
   localStorage.setItem("tts_config", JSON.stringify(currentConfig));
-  console.log("🔊 TTS configurado:", currentConfig);
+  logger.debug("TTS configurado", { ...currentConfig });
 };
 
 /**
@@ -272,7 +338,7 @@ const playBackendTTS = async (text: string): Promise<void> => {
   const ttsUrl = apiBase.startsWith("/")
     ? `${apiBase.replace(/\/?$/, "")}/tts/speak`
     : `${apiBase.replace(/\/api\/?$/, "")}/api/tts/speak`;
-  console.log(`🔊 TTS: Llamando a ${ttsUrl}`);
+  logger.debug("TTS backend request", { ttsUrl });
 
   const response = await fetch(ttsUrl, {
     method: "POST",
@@ -287,41 +353,33 @@ const playBackendTTS = async (text: string): Promise<void> => {
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error(
-      `❌ TTS backend respondió con error: ${response.status}`,
-      errorText,
-    );
+    logger.error("TTS backend error", { status: response.status, errorText });
     throw new Error(`Error en TTS backend: ${response.status}`);
   }
 
-  console.log("✅ TTS: Backend respondió OK, obteniendo audio blob...");
   const audioBlob = await response.blob();
   const audioUrl = URL.createObjectURL(audioBlob);
-  console.log(`🔊 TTS: Audio URL creado: ${audioUrl}`);
 
   return new Promise((resolve, reject) => {
     currentAudio = new Audio(audioUrl);
 
     currentAudio.onended = () => {
-      console.log("✅ TTS: Audio terminó de reproducirse");
       URL.revokeObjectURL(audioUrl);
       currentAudio = null;
       resolve();
     };
 
     currentAudio.onerror = (e) => {
-      console.error("❌ TTS: Error en elemento Audio:", e);
+      logger.error("Error en elemento Audio", { error: e });
       URL.revokeObjectURL(audioUrl);
       currentAudio = null;
       reject(new Error("Error reproduciendo audio"));
     };
 
-    console.log("🔊 TTS: Intentando reproducir audio...");
     currentAudio.play().catch((err) => {
-      console.error(
-        "❌ TTS: play() rechazado (posible bloqueo de autoplay):",
-        err,
-      );
+      logger.error("play() rechazado (posible bloqueo de autoplay)", {
+        error: err,
+      });
       reject(err);
     });
   });
@@ -329,7 +387,7 @@ const playBackendTTS = async (text: string): Promise<void> => {
 
 /**
  * Fallback a Web Speech API si el backend no está disponible.
- * Solo usa voces es-AR (argentino). Nunca es-ES ni otras variantes.
+ * Solo usa voces latinoamericanas (es-AR, es-MX). Excluye es-ES.
  */
 const playWebSpeechFallback = (text: string): Promise<void> => {
   return new Promise((resolve, reject) => {
@@ -345,7 +403,12 @@ const playWebSpeechFallback = (text: string): Promise<void> => {
     if (voices.length === 0) {
       const handler = () => {
         window.speechSynthesis.onvoiceschanged = null;
-        _pickAndSpeak(window.speechSynthesis.getVoices(), utterance, resolve, reject);
+        _pickAndSpeak(
+          window.speechSynthesis.getVoices(),
+          utterance,
+          resolve,
+          reject,
+        );
       };
       window.speechSynthesis.onvoiceschanged = handler;
       return;
@@ -361,21 +424,39 @@ function _pickAndSpeak(
   resolve: () => void,
   reject: (e: any) => void,
 ) {
-  const arVoices = voices.filter((v) => v.lang === "es-AR" || v.lang.startsWith("es-AR-"));
-  const esVoices = voices.filter((v) => v.lang.startsWith("es-"));
-  const targetVoice = arVoices[0] || esVoices[0];
+  // Prioridad: es-AR > es-MX > otra latina > es-ES (último recurso)
+  const arVoices = voices.filter(
+    (v) => v.lang === "es-AR" || v.lang.startsWith("es-AR-"),
+  );
+  const mxVoices = voices.filter(
+    (v) => v.lang === "es-MX" || v.lang.startsWith("es-MX-"),
+  );
+  const latamVoices = voices.filter(
+    (v) =>
+      v.lang.startsWith("es-") &&
+      !v.lang.startsWith("es-ES") &&
+      !v.lang.startsWith("es-AR") &&
+      !v.lang.startsWith("es-MX"),
+  );
+  const esEsVoices = voices.filter(
+    (v) => v.lang === "es-ES" || v.lang.startsWith("es-ES-"),
+  );
+
+  const targetVoice =
+    arVoices[0] || mxVoices[0] || latamVoices[0] || esEsVoices[0];
 
   if (!targetVoice) {
     reject(
       new Error(
-        "No hay voces en español disponibles en este navegador. Use el backend TTS (Edge TTS).",
+        "No hay voces en español disponibles en este navegador. " +
+          "El backend TTS (Edge TTS es-AR) debe estar activo.",
       ),
     );
     return;
   }
 
   utterance.voice = targetVoice;
-  utterance.lang = targetVoice.lang.startsWith("es-AR") ? "es-AR" : targetVoice.lang;
+  utterance.lang = "es-AR";
   utterance.pitch = 0.95;
   utterance.rate = 0.88;
 
@@ -394,28 +475,52 @@ const processQueue = async () => {
   if (isPlaying) return;
   if (audioQueue.length === 0) return;
 
-  // === GUARD: No intentar reproducir si el audio esta bloqueado ===
+  // MODO VIDEOWALL: Siempre intentar reproducir.
+  // Si el audio está bloqueado, intentamos de todas formas —
+  // play() lanzará un error que capturamos gracefully.
+  // Esto es necesario para videowalls donde nadie hace click.
   if (!_audioUnlocked) {
-    console.log(
-      `🔒 TTS: Audio bloqueado (${audioQueue.length} mensaje(s) en cola). Esperando interaccion del usuario...`,
-    );
-    return;
+    logger.debug("Audio no desbloqueado, intentando reproducir", {
+      queueLength: audioQueue.length,
+    });
   }
 
   isPlaying = true;
   const text = audioQueue.shift()!;
-  console.log(`🔊 TTS: Procesando mensaje: "${text.substring(0, 50)}..."`);
 
   try {
     await playBackendTTS(text);
-    console.log("✅ TTS: Audio reproducido exitosamente");
+    logger.debug("TTS reproducido via backend (es-AR Edge TTS)");
+    if (!_audioUnlocked) {
+      _audioUnlocked = true;
+      logger.info("Audio desbloqueado exitosamente tras reproducción");
+      window.dispatchEvent(new CustomEvent("tts-unlocked"));
+    }
   } catch (error) {
-    console.warn("⚠️ Backend TTS falló, usando fallback:", error);
+    logger.warn("Backend TTS (es-AR) falló, usando Web Speech fallback", {
+      error,
+    });
     try {
       await playWebSpeechFallback(text);
-      console.log("✅ TTS: Fallback reproducido exitosamente");
+      if (!_audioUnlocked) {
+        _audioUnlocked = true;
+        logger.info("Audio desbloqueado via fallback");
+        window.dispatchEvent(new CustomEvent("tts-unlocked"));
+      }
     } catch (fallbackError) {
-      console.error("❌ Fallback TTS también falló:", fallbackError);
+      logger.error("Todos los métodos TTS fallaron", { error, fallbackError });
+      const isAutoplayError =
+        String(fallbackError).toLowerCase().includes("user") ||
+        String(fallbackError).toLowerCase().includes("interact") ||
+        String(fallbackError).toLowerCase().includes("gesture") ||
+        String(error).toLowerCase().includes("user") ||
+        String(error).toLowerCase().includes("interact");
+      if (isAutoplayError && !_audioUnlocked) {
+        audioQueue.unshift(text);
+        logger.warn("Bloqueado por autoplay policy", {
+          pending: audioQueue.length,
+        });
+      }
     }
   }
 
@@ -436,7 +541,7 @@ export const speakNotification = async (
   message: string,
 ): Promise<void> => {
   if (_muted) {
-    console.log("🔇 TTS: Silenciado — mensaje descartado");
+    logger.debug("TTS silenciado — mensaje descartado");
     return;
   }
 
@@ -445,13 +550,8 @@ export const speakNotification = async (
   // Agregar a la cola
   audioQueue.push(text);
 
-  if (!_audioUnlocked) {
-    console.log(
-      `🔒 TTS: Mensaje encolado (${audioQueue.length} pendientes). Click en la pagina para activar audio.`,
-    );
-    return;
-  }
-
+  // MODO VIDEOWALL: Siempre intentar procesar la cola.
+  // processQueue() manejará el caso de autoplay bloqueado internamente.
   processQueue();
 };
 
@@ -493,7 +593,7 @@ export const testVoice = async (): Promise<void> => {
   try {
     await playBackendTTS(testText);
   } catch (error) {
-    console.warn("⚠️ Probando con fallback...");
+    logger.warn("Backend TTS falló en test, probando fallback");
     await playWebSpeechFallback(testText);
   }
 };
@@ -514,7 +614,7 @@ export const getAvailableVoices = async (): Promise<
     const data = await response.json();
     return data.voices;
   } catch (error) {
-    console.error("Error obteniendo voces:", error);
+    logger.error("Error obteniendo voces", { error });
     // Devolver voces por defecto
     return [
       {
@@ -533,8 +633,17 @@ export const getAvailableVoices = async (): Promise<
   }
 };
 
-// Voces válidas (solo argentinas y mexicanas - nunca es-ES)
+// Voces válidas (solo argentinas y mexicanas)
 const VALID_VOICE_IDS = new Set(Object.values(EDGE_TTS_VOICES));
+
+/**
+ * Valida que una voz sea es-AR o es-MX. Si no, fuerza es-AR-ElenaNeural.
+ */
+function ensureArgentineVoice(voiceId: string): string {
+  if (VALID_VOICE_IDS.has(voiceId as any)) return voiceId;
+  logger.warn(`Voz "${voiceId}" no es argentina/latina, forzando es-AR-ElenaNeural`);
+  return EDGE_TTS_VOICES.ELENA_AR;
+}
 
 // Cargar configuración de localStorage al iniciar
 if (typeof window !== "undefined") {
@@ -543,24 +652,18 @@ if (typeof window !== "undefined") {
     try {
       const parsed = JSON.parse(savedConfig);
       currentConfig = { ...DEFAULT_CONFIG, ...parsed };
-      // Forzar voz argentina si la guardada es es-ES o inválida
-      const voiceId = currentConfig.voice as (typeof EDGE_TTS_VOICES)[keyof typeof EDGE_TTS_VOICES];
-      if (
-        !VALID_VOICE_IDS.has(voiceId) ||
-        currentConfig.voice.includes("es-ES")
-      ) {
-        currentConfig.voice = EDGE_TTS_VOICES.ELENA_AR;
-        localStorage.setItem("tts_config", JSON.stringify(currentConfig));
-      }
+      currentConfig.voice = ensureArgentineVoice(currentConfig.voice);
+      localStorage.setItem("tts_config", JSON.stringify(currentConfig));
     } catch (e) {
-      console.error("Error cargando config TTS:", e);
+      logger.error("Error cargando config TTS", { error: e });
+      currentConfig = { ...DEFAULT_CONFIG };
     }
   }
 }
 
 // Compatibilidad hacia atrás con ElevenLabs (ahora no usado)
 export const configureElevenLabs = (_apiKey: string, _voiceId?: string) => {
-  console.log("ℹ️ ElevenLabs deshabilitado - usando Edge TTS gratuito");
+  logger.debug("ElevenLabs deshabilitado — usando Edge TTS gratuito");
 };
 export const isElevenLabsConfigured = () => false;
 export const saveElevenLabsConfig = (_apiKey: string, _voiceId?: string) => {};
