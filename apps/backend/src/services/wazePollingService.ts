@@ -559,6 +559,22 @@ export class WazePollingService {
             // Generar mensaje descriptivo, excluyendo tags AI internos
             const message = this.getNotificationMessage(alert);
 
+            // Enriquecer con nombre y grupo del polígono para el TTS
+            let polygonName = polygonId;
+            let polygonGroup = "";
+            try {
+              const polyRes = await dbService.query(
+                `SELECT name, "group" FROM config_polygons WHERE id = $1`,
+                [polygonId],
+              );
+              if (polyRes.rows.length > 0) {
+                polygonName = polyRes.rows[0].name || polygonId;
+                polygonGroup = polyRes.rows[0].group || "";
+              }
+            } catch (_e) {
+              // No bloquear la notificación si falla la consulta
+            }
+
             await notificationService.create(
               alert.type === "ACCIDENT" ? "ACCIDENT" : "HAZARD",
               title,
@@ -566,6 +582,8 @@ export class WazePollingService {
               {
                 ...alert,
                 polygonId,
+                polygonName,
+                polygonGroup,
                 // Almacenar lat/lng explícitamente para la dedup por contenido
                 latitude: lat,
                 longitude: lng,

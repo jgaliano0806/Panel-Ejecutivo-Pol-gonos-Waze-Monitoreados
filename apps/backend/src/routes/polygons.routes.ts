@@ -15,6 +15,8 @@ interface PolygonInput {
   is_active?: boolean;
 }
 
+type PolygonPatch = Partial<Omit<PolygonInput, "id">>;
+
 export default async function polygonsRoutes(fastify: FastifyInstance) {
   // GET /api/polygons - Obtener todos (compatibilidad con frontend)
   fastify.get("/", async (request, reply) => {
@@ -61,22 +63,34 @@ export default async function polygonsRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // GET /api/polygons/all
-  fastify.get("/all", async (request, reply) => {
-    try {
-      const result = await dbService.query(`
-        SELECT id, name, "group", feed_url, tvt_feed_url, coordinates, geometry, is_active
-        FROM config_polygons
-        ORDER BY "group", name
-      `);
-      return result.rows;
-    } catch (error) {
-      fastify.log.error(error);
-      return reply
-        .code(500)
-        .send({ error: "Database error retrieving polygons" });
-    }
-  });
+  // GET /api/polygons/all — supports ?limit=N&offset=N
+  fastify.get<{ Querystring: { limit?: string; offset?: string } }>(
+    "/all",
+    async (request, reply) => {
+      try {
+        const limit = Math.min(
+          parseInt(request.query.limit ?? "500", 10) || 500,
+          1000,
+        );
+        const offset = parseInt(request.query.offset ?? "0", 10) || 0;
+
+        const result = await dbService.query(
+          `SELECT id, name, "group", feed_url, tvt_feed_url, coordinates, geometry, is_active
+           FROM config_polygons
+           ORDER BY "group", name
+           LIMIT $1 OFFSET $2`,
+          [limit, offset],
+        );
+
+        return result.rows;
+      } catch (error) {
+        fastify.log.error(error);
+        return reply
+          .code(500)
+          .send({ error: "Database error retrieving polygons" });
+      }
+    },
+  );
 
   // GET /api/polygons/:id
   fastify.get<{ Params: { id: string } }>("/:id", async (request, reply) => {
@@ -208,37 +222,98 @@ export default async function polygonsRoutes(fastify: FastifyInstance) {
     },
   );
 
-  // DELETE /api/polygons/:id - Eliminar (soft delete preferred, but user requested CRUD)
-  // Implementaré borrado físico si no hay constraints, o soft delete si prefieren.
-  // El schema tiene is_active, así que soft delete es mejor, pero DELETE endpoint suele borrar
-  // A menos que sea "Desactivar".
-  // Hare DELETE físico con cuidado.
+  // PATCH /api/polygons/:id — partial update
+  fastify.patch<{ Params: { id: string }; Body: PolygonPatch }>(
+    "/:id",
+    async (request, reply) => {
+      try {
+        const { id } = request.params;
+        const updates = request.body;
+
+        const ALLOWED_COLS = [
+          "name",
+          "group",
+          "feed_url",
+          "tvt_feed_url",
+          "coordinates",
+          "geometry",
+          "is_active",
+        ] as const;
+
+        const setClauses: string[] = [];
+        const params: unknown[] = [id];
+        let pIdx = 2;
+
+        for (const col of ALLOWED_COLS) {
+          const val = (updates as Record<string, unknown>)[col];
+          if (val === undefined) continue;
+          if (col === "group") {
+            setClauses.push(`"group" = $${pIdx++}`);
+          } else if (col === "coordinates" || col === "geometry") {
+            const json =
+              typeof val === "string" ? val : JSON.stringify(val);
+            setClauses.push(`${col} = $${pIdx++}::jsonb`);
+            params.push(json);
+            continue;
+          } else {
+            setClauses.push(`${col} = $${pIdx++}`);
+          }
+          params.push(val);
+        }
+
+        if (setClauses.length === 0) {
+          return reply.code(400).send({ error: "No valid fields to update" });
+        }
+
+        setClauses.push("updated_at = NOW()");
+
+        const result = await dbService.query(
+          `UPDATE config_polygons SET ${setClauses.join(", ")} WHERE id = $1 RETURNING *`,
+          params,
+        );
+
+        if (result.rowCount === 0) {
+          return reply.code(404).send({ error: "Polygon not found" });
+        }
+
+        return result.rows[0];
+      } catch (error) {
+        fastify.log.error(error);
+        return reply
+          .code(500)
+          .send({ error: "Database error updating polygon" });
+      }
+    },
+  );
+
+  // DELETE /api/polygons/:id — soft delete (sets is_active = false)
   fastify.delete<{ Params: { id: string } }>("/:id", async (request, reply) => {
     try {
       const { id } = request.params;
       if (id === "UNKNOWN") {
         return reply.code(403).send({
-          error: "No se puede eliminar el polígono de sistema UNKNOWN",
+          error: "No se puede desactivar el polígono de sistema UNKNOWN",
         });
       }
+
       const result = await dbService.query(
-        "DELETE FROM config_polygons WHERE id = $1 RETURNING id",
+        `UPDATE config_polygons
+         SET is_active = false, updated_at = NOW()
+         WHERE id = $1
+         RETURNING *`,
         [id],
       );
+
       if (result.rowCount === 0) {
         return reply.code(404).send({ error: "Polygon not found" });
       }
-      return { message: "Polygon deleted successfully", id };
-    } catch (error: any) {
+
+      return { message: "Polygon deactivated", polygon: result.rows[0] };
+    } catch (error) {
       fastify.log.error(error);
-      if (error.code === "23503") {
-        // FK violation
-        return reply.code(409).send({
-          error:
-            "Cannot delete polygon: referenced by other records. Try deactivating instead.",
-        });
-      }
-      return reply.code(500).send({ error: "Database error deleting polygon" });
+      return reply
+        .code(500)
+        .send({ error: "Database error deactivating polygon" });
     }
   });
 }

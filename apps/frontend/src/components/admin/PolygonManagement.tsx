@@ -836,8 +836,12 @@ const PolygonManagement: React.FC = () => {
     setTouched({});
   };
 
-  const handleDelete = async (polygonId: string) => {
-    if (!confirm("¿Estás seguro de que quieres eliminar este polígono?"))
+  const handleDeactivate = async (polygonId: string) => {
+    if (
+      !confirm(
+        `¿Desactivar el polígono "${polygonId}"? Quedará inactivo pero sus datos históricos se conservan.`,
+      )
+    )
       return;
 
     try {
@@ -847,14 +851,43 @@ const PolygonManagement: React.FC = () => {
 
       if (response.ok) {
         await queryClient.invalidateQueries({ queryKey: ["polygons"] });
-        setPolygons(polygons.filter((p) => p.id !== polygonId));
+        setPolygons((prev) =>
+          prev.map((p) =>
+            p.id === polygonId ? { ...p, is_active: false } : p,
+          ),
+        );
       } else {
         const err = await response.json().catch(() => ({}));
-        alert(err.error || "Error al eliminar el polígono");
+        alert(err.error || "Error al desactivar el polígono");
       }
     } catch (error) {
-      console.error("Error al eliminar polígono:", error);
-      alert("Error al eliminar el polígono");
+      console.error("Error al desactivar polígono:", error);
+      alert("Error al desactivar el polígono");
+    }
+  };
+
+  const handleReactivate = async (polygonId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/polygons/${polygonId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: true }),
+      });
+
+      if (response.ok) {
+        await queryClient.invalidateQueries({ queryKey: ["polygons"] });
+        setPolygons((prev) =>
+          prev.map((p) =>
+            p.id === polygonId ? { ...p, is_active: true } : p,
+          ),
+        );
+      } else {
+        const err = await response.json().catch(() => ({}));
+        alert(err.error || "Error al reactivar el polígono");
+      }
+    } catch (error) {
+      console.error("Error al reactivar polígono:", error);
+      alert("Error al reactivar el polígono");
     }
   };
 
@@ -1062,7 +1095,7 @@ const PolygonManagement: React.FC = () => {
               items={sortedPolygons}
               estimateSize={80}
               renderItem={(polygon: PolygonData) => (
-                <div className="grid grid-cols-[48px_minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] divide-x divide-gray-100 dark:divide-veltrix-border border-b border-gray-100 dark:border-veltrix-border hover:bg-gray-50 dark:hover:bg-veltrix-bg/30 transition-colors items-center text-sm bg-white dark:bg-veltrix-card text-gray-900 dark:text-white">
+                <div className={`grid grid-cols-[48px_minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] divide-x divide-gray-100 dark:divide-veltrix-border border-b border-gray-100 dark:border-veltrix-border hover:bg-gray-50 dark:hover:bg-veltrix-bg/30 transition-colors items-center text-sm bg-white dark:bg-veltrix-card text-gray-900 dark:text-white ${polygon.is_active === false ? "opacity-50" : ""}`}>
                   <div className="px-2 py-3 flex items-center justify-center">
                     <input
                       type="checkbox"
@@ -1073,7 +1106,12 @@ const PolygonManagement: React.FC = () => {
                     />
                   </div>
                   <div className="px-4 py-3 font-medium text-gray-900 dark:text-white truncate">
-                    {polygon.name}
+                    <span>{polygon.name}</span>
+                    {polygon.is_active === false && (
+                      <span className="ml-2 inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                        Inactivo
+                      </span>
+                    )}
                   </div>
                   <div className="px-4 py-3 text-gray-600 dark:text-veltrix-muted truncate">
                     {polygon.group || "-"}
@@ -1170,25 +1208,49 @@ const PolygonManagement: React.FC = () => {
                           />
                         </svg>
                       </button>
-                      <button
-                        onClick={() => handleDelete(polygon.id)}
-                        className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                        title="Eliminar"
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+                      {polygon.is_active === false ? (
+                        <button
+                          type="button"
+                          onClick={() => handleReactivate(polygon.id)}
+                          className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 p-1.5 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-colors"
+                          title="Reactivar"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleDeactivate(polygon.id)}
+                          className="text-orange-500 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 p-1.5 hover:bg-orange-50 dark:hover:bg-orange-900/30 rounded-lg transition-colors"
+                          title="Desactivar"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+                            />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

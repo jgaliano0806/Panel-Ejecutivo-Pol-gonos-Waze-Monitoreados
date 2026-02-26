@@ -13,6 +13,7 @@ export interface NotificationData {
   street?: string;
   city?: string;
   polygonName?: string;
+  polygonGroup?: string;
 }
 
 export interface Notification {

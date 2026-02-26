@@ -197,22 +197,36 @@ const buildTTSMessage = (notification: Notification): string => {
   const street = notification.data?.street || "";
   const city = notification.data?.city || "";
   const type = notification.type || notification.data?.incidentType || "";
+  const polygonGroup = notification.data?.polygonGroup || "";
+  const polygonName = notification.data?.polygonName || "";
 
-  // Construir ubicación (sin incluir altura/kilómetro del incidente)
+  // Limpiar street de Waze (puede venir con KM, altura, abreviaturas)
+  const streetClean = street
+    ? street
+        .replace(/\bRN\s*/gi, "Ruta Nacional ")
+        .replace(/\bRP\s*/gi, "Ruta Provincial ")
+        .replace(/\bAU\s*/gi, "Autopista ")
+        .replace(/\bAv\.?\s*/gi, "Avenida ")
+        .replace(/\bKM\s*\d+/gi, "")
+        .replace(/\baltura\s*\d*/gi, "")
+        .replace(/\//g, ", ")
+        .replace(/\s*,\s*,/g, ",")
+        .replace(/^\s*,\s*|\s*,\s*$/g, "")
+        .trim()
+    : "";
+
+  // Construir ubicación:
+  // 1. polygonGroup + polygonName (vía y tramo controlados, ej: "Autopista A-019, tramo A-019-1")
+  // 2. streetClean de Waze — si no hay grupo
+  // 3. city — último recurso
   let ubicacion = "";
-  if (street) {
-    // Limpiar y formatear nombre de calle, removiendo KM/altura
-    ubicacion = street
-      .replace(/\bRN\s*/gi, "Ruta Nacional ")
-      .replace(/\bRP\s*/gi, "Ruta Provincial ")
-      .replace(/\bAU\s*/gi, "Autopista ")
-      .replace(/\bAv\.?\s*/gi, "Avenida ")
-      .replace(/\bKM\s*\d+/gi, "") // Remover kilómetros
-      .replace(/\baltura\s*\d*/gi, "") // Remover altura
-      .replace(/\//g, ", ")
-      .replace(/\s*,\s*,/g, ",")
-      .replace(/^\s*,\s*|\s*,\s*$/g, "")
-      .trim();
+  if (polygonGroup) {
+    ubicacion = polygonGroup;
+    if (polygonName && polygonName !== polygonGroup) {
+      ubicacion += `, tramo ${polygonName}`;
+    }
+  } else if (streetClean) {
+    ubicacion = streetClean;
   } else if (city) {
     ubicacion = city;
   }
