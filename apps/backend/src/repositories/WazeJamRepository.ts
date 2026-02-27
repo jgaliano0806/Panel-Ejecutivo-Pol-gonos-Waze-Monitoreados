@@ -96,14 +96,13 @@ export class WazeJamRepository extends BaseRepository<WazeJam> {
           $${offset + 9}, $${offset + 10}, $${offset + 11})`
       );
 
-      // CRÍTICO: El feed de Waze envía 'line', no 'polyline'
       const polylineData = jam.polyline || (jam as any).line || [];
 
       values.push(
         jam.uuid,
         jam.polygon_id,
         jam.level,
-        JSON.stringify(polylineData), // Asegurar JSON válido
+        JSON.stringify(polylineData),
         jam.speedKMH,
         jam.delay,
         jam.length,

@@ -73,16 +73,27 @@ export const useAllIncidents = () => {
   });
 };
 
+function parseLine(raw: unknown): Array<{ x: number; y: number }> | undefined {
+  if (!raw) return undefined;
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    } catch { /* invalid JSON */ }
+  }
+  return undefined;
+}
+
 export const useAllJams = () => {
   return useQuery<TrafficJam[]>({
     queryKey: ["jams"],
     queryFn: async () => {
       const jams = await fetcher<any[]>("/jams/all");
-      // Transform polyline to line for MapLibre compatibility
       return jams.map((jam) => ({
         ...jam,
-        line: jam.polyline || jam.line, // Map polyline to line
-        speed: jam.speedKMH || jam.speed, // Ensure speed is available
+        line: parseLine(jam.polyline ?? jam.line),
+        speed: jam.speedKMH || jam.speed,
       }));
     },
     refetchInterval: REFRESH_INTERVALS.realTimeData,
