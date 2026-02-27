@@ -40,11 +40,11 @@ export const NETWORK_CONFIG = {
 // Con WebSockets, las actualizaciones llegan push-based en tiempo real.
 // Los refetchInterval sirven SOLO como fallback si el WebSocket se desconecta.
 export const REFRESH_INTERVALS = {
-  // Fallback largo: los datos se actualizan vía WS; esto es red de seguridad
-  realTimeData: false as const,    // sin polling (WS only)
-  globalKpis: false as const,      // sin polling (WS only)
-  trafficMetrics: false as const,  // sin polling (WS only)
-  alertStats: false as const,      // sin polling (WS only)
+  // Fallback: los datos llegan vía WS, pero si se desconecta se refetchean por polling
+  realTimeData: 120_000,           // 2 min fallback
+  globalKpis: 120_000,             // 2 min fallback
+  trafficMetrics: 120_000,         // 2 min fallback
+  alertStats: 120_000,             // 2 min fallback
   // Datos históricos: menos urgentes, OK con polling moderado
   historicalData: 300_000,         // 5 minutos
   // Tendencias: baja frecuencia

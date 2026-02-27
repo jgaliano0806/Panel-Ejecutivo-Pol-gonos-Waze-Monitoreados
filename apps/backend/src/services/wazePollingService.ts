@@ -249,11 +249,7 @@ export class WazePollingService {
 
         if (result.success) {
           successCount++;
-
-          // Emitir via WebSocket si hay datos
-          if (result.alerts > 0 || result.jams > 0) {
-            await this.emitUpdate(polygon.id);
-          }
+          await this.emitUpdate(polygon.id);
         } else {
           errorCount++;
         }
