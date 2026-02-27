@@ -122,12 +122,8 @@ const PolygonDetail: React.FC<PolygonDetailProps> = ({
           </div>
         </div>
 
-        {/* Resumen de Tráfico */}
-        <CongestionIndexCard
-          polygonId={polygon.id}
-          metrics={polygon.trafficMetrics || null}
-          jams={polygonJams}
-        />
+        {/* Resumen de Tráfico — solo datos del feed TVT */}
+        <CongestionIndexCard polygonId={polygon.id} />
 
         {/* Lista de incidentes */}
         <div>
@@ -202,7 +198,7 @@ const PolygonDetail: React.FC<PolygonDetailProps> = ({
                             Confianza
                           </span>
                           <span className="text-gray-900 dark:text-gray-200 font-bold">
-                            {Math.round(incident.confidence * 100)}%
+                            {incident.confidence}/10
                           </span>
                         </div>
                       )}
@@ -261,6 +257,27 @@ const PolygonDetail: React.FC<PolygonDetailProps> = ({
                       </div>
                     </div>
                     <div className="p-2.5 space-y-1 text-xs">
+                      {jam.speed !== undefined && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500 dark:text-gray-400">Velocidad</span>
+                          <span className={cn(
+                            "font-bold",
+                            jam.speed < 15 ? "text-red-600 dark:text-red-400"
+                              : jam.speed < 30 ? "text-orange-600 dark:text-orange-400"
+                              : "text-green-600 dark:text-green-400",
+                          )}>
+                            {jam.speed} km/h
+                          </span>
+                        </div>
+                      )}
+                      {jam.delay !== undefined && jam.delay !== 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500 dark:text-gray-400">Demora</span>
+                          <span className="text-gray-900 dark:text-white font-bold">
+                            {jam.delay === -1 ? "Bloqueado" : `${Math.floor(jam.delay / 60)}m ${jam.delay % 60}s`}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex justify-between">
                         <span className="text-gray-500 dark:text-gray-400">Longitud</span>
                         <span className="text-gray-900 dark:text-gray-200">{jam.length} m</span>

@@ -343,14 +343,26 @@ export class WazePollingService {
         return result;
       }
 
-      // Almacenar alerts
+      // Almacenar alerts — si no vienen, desactivar los existentes
       if (data.alerts && data.alerts.length > 0) {
         result.alerts = await this.storeAlerts(data.alerts, polygon.id);
+      } else {
+        await dbService.query(
+          `UPDATE waze_alerts SET is_active = false, updated_at = NOW()
+               WHERE polygon_id = $1 AND is_active = true`,
+          [polygon.id],
+        );
       }
 
-      // Almacenar jams
+      // Almacenar jams — si no vienen, desactivar los existentes
       if (data.jams && data.jams.length > 0) {
         result.jams = await this.storeJams(data.jams, polygon.id);
+      } else {
+        await dbService.query(
+          `UPDATE waze_jams SET is_active = false, updated_at = NOW()
+               WHERE polygon_id = $1 AND is_active = true`,
+          [polygon.id],
+        );
       }
 
       // Almacenar irregularities si existen
