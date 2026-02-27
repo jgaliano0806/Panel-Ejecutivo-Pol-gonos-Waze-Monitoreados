@@ -34,9 +34,9 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
         },
         "/socket.io": {
-          target: "http://127.0.0.1:3002",
-          changeOrigin: true,
+          target: "ws://127.0.0.1:3002",
           ws: true,
+          rewriteWsOrigin: true, // Ajusta los headers Origin para WebSockets a veces rompen
         },
       },
     },

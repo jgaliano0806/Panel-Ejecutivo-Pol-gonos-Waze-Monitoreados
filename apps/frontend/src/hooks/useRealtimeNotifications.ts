@@ -59,10 +59,14 @@ const executeTTS = async (
   notification: Notification,
   markTTSPlayed: (id: string) => void,
 ): Promise<void> => {
+  const polygonName = notification.data?.polygonName || "";
+  const prefix = polygonName ? `En ${polygonName}. ` : "";
+  const message = prefix ? `${prefix}${notification.message}` : notification.message;
+
   // Si audio no esta desbloqueado, speakNotification solo encola.
   // No marcar como played para que el retry lo intente despues.
   if (!isAudioUnlocked()) {
-    await speakNotification(notification.title, notification.message);
+    await speakNotification(notification.title, message);
     return;
   }
 
@@ -71,8 +75,8 @@ const executeTTS = async (
     playAlertBeep();
     await new Promise((resolve) => setTimeout(resolve, 400));
 
-    // Ejecutar TTS
-    await speakNotification(notification.title, notification.message);
+    // Ejecutar TTS (incluye polygonName para coincidir con la UI)
+    await speakNotification(notification.title, message);
 
     // Marcar como reproducido solo si el audio esta desbloqueado
     markTTSPlayed(notification.id);

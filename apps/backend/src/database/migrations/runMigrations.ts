@@ -295,7 +295,9 @@ export async function runMigrations(): Promise<void> {
       try {
         const sql = fs.readFileSync(migration028Path, "utf-8");
         await dbService.query(sql);
-        console.log("✅ Migración 028 ejecutada: columnas decimales corregidas");
+        console.log(
+          "✅ Migración 028 ejecutada: columnas decimales corregidas",
+        );
       } catch (migError: any) {
         if (
           !migError.message?.includes("already exists") &&
@@ -309,10 +311,7 @@ export async function runMigrations(): Promise<void> {
     }
 
     // Migración 029: Seed de los 66 polígonos productivos con feed URLs
-    const migration029Path = path.join(
-      migrationsDir,
-      "029_seed_polygons.sql",
-    );
+    const migration029Path = path.join(migrationsDir, "029_seed_polygons.sql");
     if (fs.existsSync(migration029Path)) {
       try {
         const sql = fs.readFileSync(migration029Path, "utf-8");
@@ -368,6 +367,44 @@ export async function runMigrations(): Promise<void> {
         ) {
           console.warn("⚠️ Migración 031:", migError.message);
         }
+      }
+    }
+
+    // Migración 033: Campos de perfil (avatar_url, must_change_password)
+    const migration033Path = path.join(
+      migrationsDir,
+      "033_user_profile_fields.sql",
+    );
+    if (fs.existsSync(migration033Path)) {
+      try {
+        const sql = fs.readFileSync(migration033Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 033 ejecutada: campos de perfil (must_change_password, avatar_url) agregados",
+        );
+      } catch (migError: any) {
+        if (
+          !migError.message?.includes("already exists") &&
+          !migError.message?.includes("ya existe")
+        ) {
+          console.warn("⚠️ Migración 033:", migError.message);
+        }
+      }
+    }
+
+    const migration032Path = path.join(
+      migrationsDir,
+      "032_translate_catalogs_spanish.sql",
+    );
+    if (fs.existsSync(migration032Path)) {
+      try {
+        const sql = fs.readFileSync(migration032Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 032 ejecutada: catálogos traducidos a español",
+        );
+      } catch (migError: any) {
+        console.warn("⚠️ Migración 032:", migError.message);
       }
     }
 

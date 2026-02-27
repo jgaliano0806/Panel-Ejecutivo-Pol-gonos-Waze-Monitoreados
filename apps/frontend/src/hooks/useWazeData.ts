@@ -13,7 +13,6 @@ import type {
 import { realCordobaPolygons } from "../data/mock/realCordobaPolygons";
 import { REFRESH_INTERVALS, API_CONFIG } from "../config/constants";
 
-
 /**
  * Hook para consumir la API del Backend
  */
@@ -80,7 +79,9 @@ function parseLine(raw: unknown): Array<{ x: number; y: number }> | undefined {
     try {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) return parsed;
-    } catch { /* invalid JSON */ }
+    } catch {
+      /* invalid JSON */
+    }
   }
   return undefined;
 }
@@ -321,21 +322,6 @@ export const useBlockingAnalysis = () => {
     queryKey: ["blocking-analysis"],
     queryFn: () =>
       fetcher<BlockingAnalysisResponse>("/incidents/blocking-analysis"),
-    refetchInterval: REFRESH_INTERVALS.realTimeData,
-  });
-};
-
-export interface WazeTVTMetric {
-  polygonId: string;
-  wazersCount: number;
-  jamLevels: any;
-  updateTime: string;
-}
-
-export const useWazeTVT = () => {
-  return useQuery<WazeTVTMetric[]>({
-    queryKey: ["tvt-metrics"],
-    queryFn: () => fetcher<WazeTVTMetric[]>("/tvt/metrics"),
     refetchInterval: REFRESH_INTERVALS.realTimeData,
   });
 };

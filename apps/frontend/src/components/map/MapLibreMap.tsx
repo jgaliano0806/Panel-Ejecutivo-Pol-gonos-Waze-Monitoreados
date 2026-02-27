@@ -5,6 +5,7 @@ import React, {
   useState,
   startTransition,
 } from "react";
+import { createPortal } from "react-dom";
 import Map, {
   Source,
   Layer,
@@ -37,6 +38,10 @@ import {
   FileText,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useIncidentDetail } from "../../hooks/useIncidentsModule";
+import { IncidentDetailModal } from "../incidents/IncidentDetailModal";
+import { exportIncidentToPDF } from "../../lib/pdf-export";
+import { useAuthStore } from "../../stores/useAuthStore";
 
 // Configuración inicial
 const INITIAL_VIEW_STATE = {
@@ -116,11 +121,15 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   showWazeIncidents = true,
 }) => {
   const mapRef = useRef<MapRef>(null);
-  const incidentMarkersRef = useRef(new window.Map<string, maplibregl.Marker>());
+  const incidentMarkersRef = useRef(
+    new window.Map<string, maplibregl.Marker>(),
+  );
   const navigate = useNavigate();
   const isDark = useThemeStore((state) => state.isDark);
   const [selectedIncident, setSelectedIncident] = useState<any>(null);
   const [selectedJam, setSelectedJam] = useState<any>(null);
+  const [detailIncidentId, setDetailIncidentId] = useState<string | null>(null);
+  const { data: detailIncident } = useIncidentDetail(detailIncidentId);
 
   // Estado para capas (Tráfico sigue siendo interno por ahora, a menos que el sidebar lo quiera controlar también)
   const [showTraffic] = useState(true);
@@ -287,7 +296,10 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             : new Date().toISOString(),
           reportBy: incidentDetails.reportBy || "Wazer",
           nThumbsUp: incidentDetails.nThumbsUp || 0,
-          confidence: typeof incidentDetails.confidence === "number" ? incidentDetails.confidence : Number(incidentDetails.confidence) || 0,
+          confidence:
+            typeof incidentDetails.confidence === "number"
+              ? incidentDetails.confidence
+              : Number(incidentDetails.confidence) || 0,
           magvar: incidentDetails.magvar || 0,
           iconId: `waze-${(incidentDetails.type || "hazard").toLowerCase()}`,
         };
@@ -330,9 +342,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     const type =
       firstDashIndex === -1 ? cleanId : cleanId.substring(0, firstDashIndex);
     const subtype =
-      firstDashIndex === -1
-        ? undefined
-        : cleanId.substring(firstDashIndex + 1);
+      firstDashIndex === -1 ? undefined : cleanId.substring(firstDashIndex + 1);
     const svgString = getWazeIconSvg(type, subtype);
     if (!svgString) return;
     const img = new Image(64, 64);
@@ -362,11 +372,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     "waze-road_closed-road_closed_event",
   ];
 
-  const INTERACTIVE_LAYER_IDS = [
-    "jams-core",
-    "jam-labels-bg",
-    "polygons-fill",
-  ];
+  const INTERACTIVE_LAYER_IDS = ["jams-core", "jam-labels-bg", "polygons-fill"];
 
   const onMapLoad = (e: any) => {
     const map = e.target;
@@ -389,18 +395,27 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     const safeQuery = (px: [number, number], box = false) => {
       try {
         const layers = INTERACTIVE_LAYER_IDS.filter((id) => {
-          try { return !!map.getLayer(id); } catch { return false; }
+          try {
+            return !!map.getLayer(id);
+          } catch {
+            return false;
+          }
         });
         if (!layers.length) return [];
         if (box) {
           const h = 18;
           return map.queryRenderedFeatures(
-            [[px[0] - h, px[1] - h], [px[0] + h, px[1] + h]] as [[number, number], [number, number]],
+            [
+              [px[0] - h, px[1] - h],
+              [px[0] + h, px[1] + h],
+            ] as [[number, number], [number, number]],
             { layers },
           );
         }
         return map.queryRenderedFeatures(px, { layers });
-      } catch { return []; }
+      } catch {
+        return [];
+      }
     };
 
     // --- Cursor pointer ---
@@ -432,18 +447,24 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
       if (!features.length) return;
 
       const jamF = features.find(
-        (f: any) => f.layer?.id === "jams-core" || f.layer?.id === "jam-labels-bg",
+        (f: any) =>
+          f.layer?.id === "jams-core" || f.layer?.id === "jam-labels-bg",
       );
       const polyF = features.find((f: any) => f.layer?.id === "polygons-fill");
 
       if (jamF) {
         const p = jamF.properties as any;
-        const lngLat = (p.midLng != null && p.midLat != null)
-          ? { lng: p.midLng, lat: p.midLat }
-          : map.unproject([e.offsetX, e.offsetY]);
+        const lngLat =
+          p.midLng != null && p.midLat != null
+            ? { lng: p.midLng, lat: p.midLat }
+            : map.unproject([e.offsetX, e.offsetY]);
         setSelectedIncident(null);
         setSelectedJam({ lng: lngLat.lng, lat: lngLat.lat, properties: p });
-        map.flyTo({ center: [lngLat.lng, lngLat.lat], zoom: 15, duration: 800 });
+        map.flyTo({
+          center: [lngLat.lng, lngLat.lat],
+          zoom: 15,
+          duration: 800,
+        });
       } else if (polyF && onPolygonClick) {
         onPolygonClick(polyF.properties.id);
         setSelectedIncident(null);
@@ -533,7 +554,10 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
       el.style.cursor = "pointer";
       el.setAttribute("role", "button");
       el.setAttribute("tabindex", "0");
-      el.setAttribute("aria-label", `Incidente: ${inc.type}${inc.subtype ? `, ${inc.subtype}` : ""}`);
+      el.setAttribute(
+        "aria-label",
+        `Incidente: ${inc.type}${inc.subtype ? `, ${inc.subtype}` : ""}`,
+      );
       el.style.touchAction = "manipulation";
       el.innerHTML = `
         <div style="
@@ -551,17 +575,24 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         </div>
       `;
 
-      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const reducedMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
       const inner = el.firstElementChild as HTMLElement;
       if (!reducedMotion) {
-        inner.addEventListener("mouseenter", () => { inner.style.transform = "scale(1.25)"; });
-        inner.addEventListener("mouseleave", () => { inner.style.transform = ""; });
+        inner.addEventListener("mouseenter", () => {
+          inner.style.transform = "scale(1.25)";
+        });
+        inner.addEventListener("mouseleave", () => {
+          inner.style.transform = "";
+        });
       }
 
       const handleActivate = () => {
-        const timeMs = inc.timestamp instanceof Date
-          ? inc.timestamp.getTime()
-          : new Date(inc.timestamp).getTime();
+        const timeMs =
+          inc.timestamp instanceof Date
+            ? inc.timestamp.getTime()
+            : new Date(inc.timestamp).getTime();
         setSelectedJam(null);
         setSelectedIncident({
           lng: inc.location.lng,
@@ -570,18 +601,29 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             id: inc.id,
             isNew: Date.now() - timeMs < 300000 ? 1 : 0,
             description: inc.description || "Sin descripción",
-            street: inc.street || `${inc.location.lat.toFixed(5)}, ${inc.location.lng.toFixed(5)}`,
+            street:
+              inc.street ||
+              `${inc.location.lat.toFixed(5)}, ${inc.location.lng.toFixed(5)}`,
             type: inc.type,
             subtype: inc.subtype || "",
-            timestamp: inc.timestamp ? new Date(inc.timestamp).toISOString() : "",
+            timestamp: inc.timestamp
+              ? new Date(inc.timestamp).toISOString()
+              : "",
             reportBy: inc.reportBy,
             reportRating: inc.reportRating,
             reliability: inc.reliability,
-            confidence: typeof inc.confidence === "number" ? inc.confidence : Number(inc.confidence) || 0,
+            confidence:
+              typeof inc.confidence === "number"
+                ? inc.confidence
+                : Number(inc.confidence) || 0,
             magvar: (inc as any).magvar,
           },
         });
-        map.flyTo({ center: [inc.location.lng, inc.location.lat], zoom: 15, duration: 800 });
+        map.flyTo({
+          center: [inc.location.lng, inc.location.lat],
+          zoom: 15,
+          duration: 800,
+        });
       };
 
       el.addEventListener("click", (e) => {
@@ -851,7 +893,10 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
               : "",
             reportBy: inc.reportBy,
             nThumbsUp: inc.nThumbsUp || 0,
-            confidence: typeof inc.confidence === "number" ? inc.confidence : Number(inc.confidence) || 0,
+            confidence:
+              typeof inc.confidence === "number"
+                ? inc.confidence
+                : Number(inc.confidence) || 0,
             magvar: inc.magvar,
           },
         };
@@ -986,7 +1031,9 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         basemap: {
           type: "raster",
           tiles: isDark
-            ? ["https://a.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png"]
+            ? [
+                "https://a.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png",
+              ]
             : ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
           tileSize: 256,
           attribution: isDark ? "© CARTO" : "© OpenStreetMap contributors",
@@ -1673,26 +1720,28 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                     <span className="w-3.5 h-3.5 flex items-center justify-center">
                       👍
                     </span>
-                    {Number(selectedIncident?.properties?.nThumbsUp) || 0} valoraciones
+                    {Number(selectedIncident?.properties?.nThumbsUp) || 0}{" "}
+                    valoraciones
                   </span>
                   <div className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-veltrix-bg rounded-full shadow-sm border border-gray-100 dark:border-veltrix-border">
                     <ShieldCheck className="h-3 w-3 text-gray-400" />
                     <span className="font-medium">
-                      Confianza: {(() => {
-                      const c = selectedIncident?.properties?.confidence;
-                      if (c == null) return "N/A";
-                      const n = typeof c === "number" ? c : parseFloat(String(c));
-                      return !Number.isNaN(n) ? `${n.toFixed(1)}/5` : "N/A";
-                    })()}
+                      Confianza:{" "}
+                      {(() => {
+                        const c = selectedIncident?.properties?.confidence;
+                        if (c == null) return "N/A";
+                        const n =
+                          typeof c === "number" ? c : parseFloat(String(c));
+                        return !Number.isNaN(n) ? `${n.toFixed(1)}/5` : "N/A";
+                      })()}
                     </span>
                   </div>
                 </div>
                 <button
                   onClick={() => {
+                    const incId = selectedIncident.properties.id;
                     setSelectedIncident(null);
-                    navigate(
-                      `/incidentes?incidentId=${selectedIncident.properties.id}`,
-                    );
+                    setDetailIncidentId(incId);
                   }}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition-colors"
                 >
@@ -1704,6 +1753,36 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
           </Popup>
         )}
       </Map>
+
+      {/* Modal de detalle de incidente (renderizado en body via portal) */}
+      {!!detailIncidentId &&
+        !!detailIncident &&
+        createPortal(
+          <IncidentDetailModal
+            incident={detailIncident}
+            isOpen={true}
+            onClose={() => setDetailIncidentId(null)}
+            onViewOnMap={(incident) => {
+              setDetailIncidentId(null);
+              navigate(
+                `/mapa?lat=${incident.location.lat}&lng=${incident.location.lng}&zoom=16&highlight=${incident.uuid}`,
+              );
+            }}
+            onExportPDF={async (incident) => {
+              try {
+                // Acceso lazy: solo se lee cuando el usuario exporta
+                const authUser = useAuthStore.getState().user;
+                const userName = authUser
+                  ? `${authUser.firstName} ${authUser.lastName}`.trim()
+                  : undefined;
+                await exportIncidentToPDF(incident, userName);
+              } catch (error) {
+                console.error("Error exportando PDF:", error);
+              }
+            }}
+          />,
+          document.body,
+        )}
     </div>
   );
 };

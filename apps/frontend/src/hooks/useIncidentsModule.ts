@@ -224,9 +224,12 @@ export function translateIncidentType(type: string): string {
   const translations: Record<string, string> = {
     ACCIDENT: "Accidente",
     HAZARD: "Peligro",
-    WEATHERHAZARD: "Riesgo Climático",
-    ROAD_CLOSED: "Vía Cerrada",
+    WEATHERHAZARD: "Peligro meteorológico",
+    ROAD_CLOSED: "Camino cerrado",
+    ROAD_CLOSED_EVENT: "Corte de ruta",
     JAM: "Congestión",
+    CONSTRUCTION: "Obras",
+    POLICE: "Policía",
   };
   return translations[type] || type;
 }
@@ -236,20 +239,62 @@ export function translateIncidentType(type: string): string {
  */
 export function translateIncidentSubtype(subtype: string): string {
   const translations: Record<string, string> = {
-    ACCIDENT_MAJOR: "Accidente Grave",
-    ACCIDENT_MINOR: "Accidente Menor",
-    HAZARD_ON_ROAD_CAR_STOPPED: "Vehículo Detenido en Carril",
-    HAZARD_ON_SHOULDER_CAR_STOPPED: "Vehículo Detenido en Banquina",
-    HAZARD_ON_ROAD_OBJECT: "Obstáculo en la Vía",
-    HAZARD_ON_SHOULDER_ANIMALS: "Animales Sueltos",
-    HAZARD_ON_ROAD_CONSTRUCTION: "Zona de Construcción",
+    // Accidentes
+    ACCIDENT_MINOR: "Accidente leve",
+    ACCIDENT_MAJOR: "Colisión múltiple",
+    ACCIDENT_BLOCKING: "Accidente bloqueante",
+    ACCIDENT_OTHER_SIDE: "Accidente al otro lado",
+    NO_SUBTYPE: "Sin subtipo",
+    // Congestión
+    JAM_MODERATE: "Congestión moderada",
+    JAM_HEAVY: "Congestión pesada",
+    JAM_STANDSTILL: "Tráfico parado",
+    JAM_LIGHT_TRAFFIC: "Tránsito lento",
+    JAM_MODERATE_TRAFFIC: "Tránsito denso",
+    JAM_HEAVY_TRAFFIC: "Embotellamiento",
+    JAM_STAND_STILL_TRAFFIC: "Tránsito detenido",
+    // Peligros en calzada
+    HAZARD_ON_ROAD: "Peligro en calzada",
+    HAZARD_ON_ROAD_OBJECT: "Objeto en calzada",
     HAZARD_ON_ROAD_POT_HOLE: "Bache",
-    HAZARD_ON_ROAD_LANE_CLOSED: "Carril Cerrado",
-    HAZARD_WEATHER_FLOOD: "Inundación",
+    HAZARD_ON_ROAD_ROAD_KILL: "Animal muerto en calzada",
+    HAZARD_ON_ROAD_CONSTRUCTION: "Obras en calzada",
+    HAZARD_ON_ROAD_ICE: "Hielo en calzada",
+    HAZARD_ON_ROAD_CAR_STOPPED: "Vehículo detenido en carril",
+    HAZARD_ON_ROAD_TRAFFIC_LIGHT_FAULT: "Semáforo averiado",
+    HAZARD_ON_ROAD_LANE_CLOSED: "Carril cerrado",
+    HAZARD_ON_ROAD_OIL: "Derrame de aceite",
+    // Peligros en banquina
+    HAZARD_ON_SHOULDER: "Vehículo en banquina",
+    HAZARD_ON_SHOULDER_CAR_STOPPED: "Vehículo en banquina",
+    HAZARD_ON_SHOULDER_ANIMALS: "Animales en banquina",
+    HAZARD_ON_SHOULDER_MISSING_SIGN: "Señal faltante",
+    // Peligros climáticos
+    HAZARD_WEATHER: "Peligro climático",
     HAZARD_WEATHER_FOG: "Niebla",
-    HAZARD_WEATHER_HEAVY_RAIN: "Lluvia Intensa",
-    ROAD_CLOSED_CONSTRUCTION: "Cierre por Construcción",
-    ROAD_CLOSED_EVENT: "Cierre por Evento",
+    HAZARD_WEATHER_HAIL: "Granizo",
+    HAZARD_WEATHER_HEAVY_RAIN: "Lluvia intensa",
+    HAZARD_WEATHER_HEAVY_SNOW: "Nieve en el camino",
+    HAZARD_WEATHER_FLOOD: "Inundación",
+    HAZARD_WEATHER_MONSOON: "Lluvia torrencial",
+    HAZARD_WEATHER_TORNADO: "Tornado",
+    HAZARD_WEATHER_HEAT_WAVE: "Ola de calor",
+    HAZARD_WEATHER_HURRICANE: "Huracán",
+    HAZARD_WEATHER_FREEZING_RAIN: "Camino con hielo",
+    HAZARD_WEATHER_SLIPPERY_ROAD: "Camino resbaladizo",
+    // Cierres de ruta
+    ROAD_CLOSED_CONSTRUCTION: "Cierre por obras",
+    ROAD_CLOSED_EVENT: "Cierre por evento",
+    ROAD_CLOSED_HAZARD: "Cierre por peligro",
+    // Obras
+    ROADWORK_CONSTRUCTION: "Construcción",
+    ROADWORK_MAINTENANCE: "Mantenimiento",
+    ROADWORK_UTILITIES: "Servicios públicos",
+    // Policía
+    POLICE_VISIBLE: "Policía visible",
+    POLICE_HIDDEN: "Policía oculto",
+    POLICE_SPEED_TRAP: "Radar móvil",
+    POLICE_OTHER_SIDE: "Policía al otro lado",
   };
   return translations[subtype] || subtype?.replace(/_/g, " ") || "";
 }
@@ -263,7 +308,10 @@ export function getIncidentTypeColor(type: string): string {
     HAZARD: "bg-amber-500",
     WEATHERHAZARD: "bg-blue-500",
     ROAD_CLOSED: "bg-purple-500",
+    ROAD_CLOSED_EVENT: "bg-purple-600",
     JAM: "bg-orange-500",
+    CONSTRUCTION: "bg-violet-500",
+    POLICE: "bg-indigo-500",
   };
   return colors[type] || "bg-gray-500";
 }

@@ -53,7 +53,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
   const wazeUrl = `https://www.waze.com/ul?ll=${incident.location.lat},${incident.location.lng}&navigate=yes`;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-[10000] overflow-y-auto">
       {/* Overlay */}
       <div
         className="fixed inset-0 bg-black/50 backdrop-blur-sm"
@@ -227,7 +227,9 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                   <div className="flex items-center justify-center gap-1 text-green-600 dark:text-green-400 mb-1">
                     <CheckCircle className="w-4 h-4" />
                     <span className="text-lg font-bold">
-                      {incident.reliability != null ? incident.reliability.toFixed(1) : "N/A"}
+                      {incident.reliability != null
+                        ? incident.reliability.toFixed(1)
+                        : "N/A"}
                     </span>
                     <span className="text-xs opacity-70">/10</span>
                   </div>
@@ -243,7 +245,9 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                   <div className="flex items-center justify-center gap-1 text-blue-600 dark:text-blue-400 mb-1">
                     <Star className="w-4 h-4" />
                     <span className="text-lg font-bold">
-                      {incident.confidence != null ? incident.confidence.toFixed(1) : "N/A"}
+                      {incident.confidence != null
+                        ? incident.confidence.toFixed(1)
+                        : "N/A"}
                     </span>
                     <span className="text-xs opacity-70">/5</span>
                   </div>

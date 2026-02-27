@@ -2,8 +2,9 @@ import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import type { GlobalKPIs, Incident, TrafficAlert, Polygon } from "../../types";
+import { useAllTvtMetrics } from "../../hooks/useWazeData";
 
-import { Target, AlertTriangle, Car, MapPin } from "lucide-react";
+import { Target, AlertTriangle, Car, Users } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 interface MapKPIFooterProps {
@@ -17,11 +18,19 @@ interface MapKPIFooterProps {
 
 export const MapKPIFooter: React.FC<MapKPIFooterProps> = ({
   kpis,
-  criticalPolygons,
   incidents = [],
   alerts = [],
 }) => {
   const navigate = useNavigate();
+
+  const { data: tvtData } = useAllTvtMetrics();
+  const totalWazers = useMemo(
+    () =>
+      Math.round(
+        tvtData?.reduce((sum, m) => sum + (Number(m.wazersCount) || 0), 0) || 0,
+      ),
+    [tvtData],
+  );
 
   const totalEvents = useMemo(
     () => incidents.length + alerts.length,
@@ -67,10 +76,10 @@ export const MapKPIFooter: React.FC<MapKPIFooterProps> = ({
       active: (kpis.roadAccidentsCritical || 0) > 0,
     },
     {
-      id: "critical",
-      label: "RIESGOS",
-      value: criticalPolygons,
-      icon: MapPin,
+      id: "tvt",
+      label: "WAZERS",
+      value: totalWazers,
+      icon: Users,
       status: "primary",
       active: false,
     },
@@ -104,7 +113,7 @@ export const MapKPIFooter: React.FC<MapKPIFooterProps> = ({
               onClick={() => {
                 if (metric.id === "events") navigate("/alertas");
                 if (metric.id === "incidents") navigate("/siniestros");
-                if (metric.id === "critical") navigate("/riesgos");
+                if (metric.id === "critical") navigate("/riesgos"); // Fallback just in case
               }}
               title={`Ver detalle de ${metric.label}`}
               aria-label={`Ver detalle de ${metric.label}: ${metric.value}`}

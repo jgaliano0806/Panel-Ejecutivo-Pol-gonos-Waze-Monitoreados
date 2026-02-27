@@ -14,8 +14,6 @@ import {
   Eye,
   RefreshCw,
   Download,
-  TrendingUp,
-  Database,
 } from "lucide-react";
 import {
   clearTranslationsCache,
@@ -912,88 +910,6 @@ const CatalogManagement: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Estadísticas */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-veltrix-card border border-gray-200 dark:border-veltrix-border rounded-lg p-4"
-          >
-            <div className="flex items-center gap-3">
-              <Database className="text-blue-600" size={24} />
-              <div>
-                <p className="text-sm text-gray-600 dark:text-veltrix-muted">
-                  Total Incidentes
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {stats.total_incidents || 0}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white dark:bg-veltrix-card border border-gray-200 dark:border-veltrix-border rounded-lg p-4"
-          >
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="text-green-600" size={24} />
-              <div>
-                <p className="text-sm text-gray-600 dark:text-veltrix-muted">
-                  Tipos Únicos
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {stats.unique_types || 0}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-white border border-gray-200 rounded-lg p-4"
-          >
-            <div className="flex items-center gap-3">
-              <TrendingUp className="text-purple-600" size={24} />
-              <div>
-                <p className="text-sm text-gray-600 dark:text-veltrix-muted">
-                  Subtipos Únicos
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {stats.unique_subtypes || 0}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-white border border-gray-200 rounded-lg p-4"
-          >
-            <div className="flex items-center gap-3">
-              <RefreshCw className="text-orange-600" size={24} />
-              <div>
-                <p className="text-sm text-gray-600 dark:text-veltrix-muted">
-                  Última Sync
-                </p>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  {stats.last_sync
-                    ? new Date(stats.last_sync).toLocaleDateString("es-AR")
-                    : "Nunca"}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
 
       {/* Loading */}
       {loading ? (

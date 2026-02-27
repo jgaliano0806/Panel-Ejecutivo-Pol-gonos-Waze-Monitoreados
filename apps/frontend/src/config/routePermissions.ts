@@ -44,8 +44,7 @@ export const ROUTE_PERMISSIONS = {
   siniestros: "incidents.view",
   incidentes: "incidents.view",
 
-  /** Estadísticas y análisis de riesgos - reportes */
-  estadisticas: "reports.view",
+  /** Análisis de riesgos - reportes */
   riesgos: "reports.view",
 
   /** Panel de administración - solo admin */
@@ -61,7 +60,6 @@ export const FALLBACK_ROUTES: readonly string[] = [
   "/mapa",
   "/alertas",
   "/incidentes",
-  "/estadisticas",
   "/riesgos",
 ] as const;
 
@@ -74,14 +72,13 @@ export const PATH_TO_PERMISSION: Record<string, PermissionCode> = {
   "/notificaciones": ROUTE_PERMISSIONS.notificaciones,
   "/siniestros": ROUTE_PERMISSIONS.siniestros,
   "/incidentes": ROUTE_PERMISSIONS.incidentes,
-  "/estadisticas": ROUTE_PERMISSIONS.estadisticas,
   "/riesgos": ROUTE_PERMISSIONS.riesgos,
   "/admin": ROUTE_PERMISSIONS.admin,
 };
 
 /**
  * Obtiene los permisos requeridos para una ruta (array para requiredPermissions).
- * @param path - Ruta (ej: /admin, /estadisticas)
+ * @param path - Ruta (ej: /admin, /mapa)
  * @returns Array con el permiso requerido, o [] si la ruta no requiere permiso específico
  */
 export function getRequiredPermissionsForPath(path: string): PermissionCode[] {

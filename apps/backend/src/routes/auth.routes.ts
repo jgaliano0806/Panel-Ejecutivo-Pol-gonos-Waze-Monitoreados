@@ -234,4 +234,180 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
       }
     },
   );
+
+  /**
+   * POST /change-password
+   * Cambiar contraseña del usuario autenticado
+   */
+  app.post<{ Body: { currentPassword: string; newPassword: string } }>(
+    "/change-password",
+    { preHandler: [authenticate] },
+    async (request, reply) => {
+      try {
+        if (!request.user) {
+          return reply
+            .code(401)
+            .send({ success: false, error: "No autenticado" });
+        }
+
+        const { currentPassword, newPassword } = request.body;
+
+        if (!currentPassword || !newPassword) {
+          return reply.code(400).send({
+            success: false,
+            error: "Contraseña actual y nueva son requeridas",
+          });
+        }
+
+        await authService.changePassword(
+          request.user.userId,
+          currentPassword,
+          newPassword,
+        );
+
+        return reply.code(200).send({
+          success: true,
+          message: "Contraseña cambiada exitosamente",
+        });
+      } catch (error) {
+        if (error instanceof AuthError) {
+          return reply.code(error.statusCode).send({
+            success: false,
+            error: error.message,
+          });
+        }
+
+        app.log.error(error, "Error cambiando contraseña");
+        return reply.code(500).send({
+          success: false,
+          error: "Error cambiando contraseña",
+        });
+      }
+    },
+  );
+
+  /**
+   * PUT /profile
+   * Actualizar datos personales del usuario autenticado
+   */
+  app.put<{
+    Body: {
+      firstName?: string;
+      lastName?: string;
+      phone?: string;
+      email?: string;
+    };
+  }>("/profile", { preHandler: [authenticate] }, async (request, reply) => {
+    try {
+      if (!request.user) {
+        return reply
+          .code(401)
+          .send({ success: false, error: "No autenticado" });
+      }
+
+      const { firstName, lastName, phone, email } = request.body;
+
+      await authService.updateProfile(request.user.userId, {
+        firstName,
+        lastName,
+        phone,
+        email,
+      });
+
+      // Devolver usuario actualizado
+      const updatedUser = await authService.getCurrentUser(request.user.userId);
+
+      return reply.code(200).send({
+        success: true,
+        message: "Perfil actualizado exitosamente",
+        data: updatedUser,
+      });
+    } catch (error) {
+      if (error instanceof AuthError) {
+        return reply.code(error.statusCode).send({
+          success: false,
+          error: error.message,
+        });
+      }
+
+      app.log.error(error, "Error actualizando perfil");
+      return reply.code(500).send({
+        success: false,
+        error: "Error actualizando perfil",
+      });
+    }
+  });
+
+  /**
+   * POST /avatar
+   * Subir imagen de avatar del usuario autenticado
+   */
+  app.post(
+    "/avatar",
+    { preHandler: [authenticate] },
+    async (request, reply) => {
+      try {
+        if (!request.user) {
+          return reply
+            .code(401)
+            .send({ success: false, error: "No autenticado" });
+        }
+
+        const data = await request.file();
+        if (!data) {
+          return reply.code(400).send({
+            success: false,
+            error: "No se proporcionó un archivo",
+          });
+        }
+
+        // Validar tipo de archivo
+        const allowedMimes = [
+          "image/jpeg",
+          "image/png",
+          "image/webp",
+          "image/gif",
+        ];
+        if (!allowedMimes.includes(data.mimetype)) {
+          return reply.code(400).send({
+            success: false,
+            error: "Tipo de archivo no permitido. Use JPEG, PNG, WebP o GIF.",
+          });
+        }
+
+        // Crear directorio si no existe
+        const fs = await import("fs");
+        const path = await import("path");
+        const avatarsDir = path.join(__dirname, "../../public/avatars");
+        if (!fs.existsSync(avatarsDir)) {
+          fs.mkdirSync(avatarsDir, { recursive: true });
+        }
+
+        // Guardar archivo con nombre único
+        const ext = data.mimetype.split("/")[1] || "jpg";
+        const fileName = `user_${request.user.userId}_${Date.now()}.${ext}`;
+        const filePath = path.join(avatarsDir, fileName);
+
+        const fileBuffer = await data.toBuffer();
+        fs.writeFileSync(filePath, fileBuffer);
+
+        // URL relativa para servir desde /public/
+        const avatarUrl = `/public/avatars/${fileName}`;
+
+        await authService.updateAvatar(request.user.userId, avatarUrl);
+
+        return reply.code(200).send({
+          success: true,
+          message: "Avatar actualizado exitosamente",
+          data: { avatarUrl },
+        });
+      } catch (error) {
+        app.log.error(error, "Error subiendo avatar");
+        return reply.code(500).send({
+          success: false,
+          error: "Error subiendo avatar",
+        });
+      }
+    },
+  );
 }

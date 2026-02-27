@@ -1,18 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import {
-  Settings,
-  Save,
-  Database,
-  Mail,
-  Bell,
-  Shield,
-  Globe,
-  Clock,
-  HardDrive,
-  Zap,
-  Volume2
-} from 'lucide-react';
+import { Settings, Save, Volume2 } from 'lucide-react';
 import { TTSConfiguration } from './TTSConfiguration';
 
 interface SystemSetting {
@@ -33,207 +21,14 @@ interface SystemSetting {
 }
 
 const SystemSettings: React.FC = () => {
-  const [settings, setSettings] = useState<SystemSetting[]>([
-    // Base de datos
-    {
-      id: 'db_host',
-      category: 'database',
-      name: 'Host de Base de Datos',
-      description: 'Dirección del servidor de base de datos',
-      type: 'text',
-      value: 'localhost',
-      defaultValue: 'localhost',
-      validation: { required: true }
-    },
-    {
-      id: 'db_port',
-      category: 'database',
-      name: 'Puerto de Base de Datos',
-      description: 'Puerto de conexión a la base de datos',
-      type: 'number',
-      value: 5432,
-      defaultValue: 5432,
-      validation: { required: true, min: 1, max: 65535 }
-    },
-    {
-      id: 'db_name',
-      category: 'database',
-      name: 'Nombre de Base de Datos',
-      description: 'Nombre de la base de datos principal',
-      type: 'text',
-      value: 'waze_monitor',
-      defaultValue: 'waze_monitor',
-      validation: { required: true }
-    },
-    {
-      id: 'db_max_connections',
-      category: 'database',
-      name: 'Máximo de Conexiones',
-      description: 'Número máximo de conexiones simultáneas',
-      type: 'number',
-      value: 20,
-      defaultValue: 20,
-      validation: { required: true, min: 1, max: 100 }
-    },
-
-    // Email
-    {
-      id: 'email_enabled',
-      category: 'email',
-      name: 'Email Habilitado',
-      description: 'Habilitar envío de notificaciones por email',
-      type: 'boolean',
-      value: true,
-      defaultValue: true
-    },
-    {
-      id: 'email_smtp_host',
-      category: 'email',
-      name: 'SMTP Host',
-      description: 'Servidor SMTP para envío de emails',
-      type: 'text',
-      value: 'smtp.gmail.com',
-      defaultValue: 'smtp.gmail.com',
-      validation: { required: true }
-    },
-    {
-      id: 'email_smtp_port',
-      category: 'email',
-      name: 'SMTP Port',
-      description: 'Puerto del servidor SMTP',
-      type: 'number',
-      value: 587,
-      defaultValue: 587,
-      validation: { required: true, min: 1, max: 65535 }
-    },
-    {
-      id: 'email_from_address',
-      category: 'email',
-      name: 'Email Remitente',
-      description: 'Dirección de email usada como remitente',
-      type: 'text',
-      value: 'noreply@casisasa.com',
-      defaultValue: 'noreply@casisasa.com',
-      validation: { required: true, pattern: '^[^@]+@[^@]+\\.[^@]+$' }
-    },
-
-    // Notificaciones
-    {
-      id: 'notifications_enabled',
-      category: 'notifications',
-      name: 'Notificaciones Habilitadas',
-      description: 'Habilitar sistema de notificaciones push',
-      type: 'boolean',
-      value: true,
-      defaultValue: true
-    },
-    {
-      id: 'notification_retention_days',
-      category: 'notifications',
-      name: 'Retención de Notificaciones',
-      description: 'Días para mantener notificaciones en el sistema',
-      type: 'number',
-      value: 30,
-      defaultValue: 30,
-      validation: { required: true, min: 1, max: 365 }
-    },
-    {
-      id: 'critical_alert_emails',
-      category: 'notifications',
-      name: 'Emails de Alertas Críticas',
-      description: 'Emails separados por coma para alertas críticas',
-      type: 'text',
-      value: 'admin@casisasa.com,supervisor@casisasa.com',
-      defaultValue: 'admin@casisasa.com',
-      validation: { required: true }
-    },
-
-    // Seguridad
-    {
-      id: 'session_timeout',
-      category: 'security',
-      name: 'Tiempo de Sesión',
-      description: 'Minutos antes de que expire la sesión automáticamente',
-      type: 'number',
-      value: 480,
-      defaultValue: 480,
-      validation: { required: true, min: 15, max: 1440 }
-    },
-    {
-      id: 'password_min_length',
-      category: 'security',
-      name: 'Longitud Mínima de Contraseña',
-      description: 'Caracteres mínimos requeridos para contraseñas',
-      type: 'number',
-      value: 8,
-      defaultValue: 8,
-      validation: { required: true, min: 6, max: 50 }
-    },
-    {
-      id: 'two_factor_enabled',
-      category: 'security',
-      name: '2FA Obligatorio',
-      description: 'Requerir autenticación de dos factores',
-      type: 'boolean',
-      value: false,
-      defaultValue: false
-    },
-
-    // Sistema
-    {
-      id: 'timezone',
-      category: 'system',
-      name: 'Zona Horaria',
-      description: 'Zona horaria del sistema',
-      type: 'select',
-      value: 'America/Argentina/Cordoba',
-      defaultValue: 'America/Argentina/Cordoba',
-      options: [
-        { label: 'Argentina - Córdoba', value: 'America/Argentina/Cordoba' },
-        { label: 'Argentina - Buenos Aires', value: 'America/Argentina/Buenos_Aires' },
-        { label: 'UTC', value: 'UTC' },
-        { label: 'GMT', value: 'GMT' }
-      ],
-      validation: { required: true }
-    },
-    {
-      id: 'log_level',
-      category: 'system',
-      name: 'Nivel de Logs',
-      description: 'Nivel de detalle para los logs del sistema',
-      type: 'select',
-      value: 'info',
-      defaultValue: 'info',
-      options: [
-        { label: 'Error', value: 'error' },
-        { label: 'Advertencia', value: 'warn' },
-        { label: 'Información', value: 'info' },
-        { label: 'Debug', value: 'debug' }
-      ],
-      validation: { required: true }
-    },
-    {
-      id: 'maintenance_mode',
-      category: 'system',
-      name: 'Modo Mantenimiento',
-      description: 'Activar modo mantenimiento (solo administradores)',
-      type: 'boolean',
-      value: false,
-      defaultValue: false
-    }
-  ]);
+  const [settings, setSettings] = useState<SystemSetting[]>([]);
 
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [hasChanges, setHasChanges] = useState(false);
 
   const categories = [
     { id: 'all', name: 'Todas', icon: Settings, color: 'gray' },
-    { id: 'voice', name: 'Voz (TTS)', icon: Volume2, color: 'indigo' },
-    { id: 'database', name: 'Base de Datos', icon: Database, color: 'blue' },
-    { id: 'email', name: 'Email', icon: Mail, color: 'green' },
-    { id: 'notifications', name: 'Notificaciones', icon: Bell, color: 'yellow' },
-    { id: 'security', name: 'Seguridad', icon: Shield, color: 'red' },
-    { id: 'system', name: 'Sistema', icon: Globe, color: 'purple' }
+    { id: 'voice', name: 'Voz (TTS)', icon: Volume2, color: 'indigo' }
   ];
 
   const filteredSettings = activeCategory === 'all'
@@ -343,7 +138,7 @@ const SystemSettings: React.FC = () => {
         {categories.map((category) => {
           const Icon = category.icon;
           const isActive = activeCategory === category.id;
-          const count = category.id === 'all' ? settings.length : settings.filter(s => s.category === category.id).length;
+          const count = category.id === 'all' || category.id === 'voice' ? 1 : settings.filter(s => s.category === category.id).length;
 
           return (
             <button
@@ -367,13 +162,13 @@ const SystemSettings: React.FC = () => {
         })}
       </div>
 
-      {/* Configuración de Voz TTS (categoría especial) */}
-      {activeCategory === 'voice' && (
+      {/* Configuración de Voz TTS */}
+      {(activeCategory === 'all' || activeCategory === 'voice') && (
         <TTSConfiguration />
       )}
 
-      {/* Configuraciones estándar */}
-      {activeCategory !== 'voice' && (
+      {/* Configuraciones estándar (si hubiera otras categorías) */}
+      {activeCategory !== 'voice' && activeCategory !== 'all' && (
       <div className="space-y-6">
         {filteredSettings.map((setting) => (
           <motion.div

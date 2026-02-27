@@ -1,6 +1,5 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
-import { StatsPage } from "./pages/StatsPage";
 import { RiskDashboard } from "./pages/RiskDashboard";
 import { RoadAccidentsPage } from "./pages/RoadAccidentsPage";
 import { IncidentsModule } from "./pages/IncidentsModule";
@@ -8,6 +7,7 @@ import { AppLayout } from "./components/layout/AppLayout";
 import { SectionErrorBoundary } from "./components/common/ErrorBoundary";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { LoginPage } from "./pages/LoginPage";
+import { ProfilePage } from "./pages/ProfilePage";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { ROUTE_PERMISSIONS } from "./config/routePermissions";
 
@@ -23,23 +23,11 @@ export const router = createBrowserRouter(
     },
     {
       path: "/",
-      element: (
-        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.home]}>
-          <SectionErrorBoundary sectionName="Dashboard Principal">
-            <Dashboard />
-          </SectionErrorBoundary>
-        </ProtectedRoute>
-      ),
+      element: <Navigate to="/mapa" replace />,
     },
     {
       path: "/dashboard",
-      element: (
-        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.dashboard]}>
-          <SectionErrorBoundary sectionName="Dashboard">
-            <Dashboard />
-          </SectionErrorBoundary>
-        </ProtectedRoute>
-      ),
+      element: <Navigate to="/mapa" replace />,
     },
     {
       path: "/mapa",
@@ -74,18 +62,6 @@ export const router = createBrowserRouter(
       ),
     },
     {
-      path: "/estadisticas",
-      element: (
-        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.estadisticas]}>
-          <AppLayout>
-            <SectionErrorBoundary sectionName="Estadísticas">
-              <StatsPage />
-            </SectionErrorBoundary>
-          </AppLayout>
-        </ProtectedRoute>
-      ),
-    },
-    {
       path: "/riesgos",
       element: (
         <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.riesgos]}>
@@ -101,7 +77,9 @@ export const router = createBrowserRouter(
     {
       path: "/notificaciones",
       element: (
-        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.notificaciones]}>
+        <ProtectedRoute
+          requiredPermissions={[ROUTE_PERMISSIONS.notificaciones]}
+        >
           <AppLayout>
             <SectionErrorBoundary sectionName="Notificaciones">
               <NotificationsPage />
@@ -133,14 +111,18 @@ export const router = createBrowserRouter(
       ),
     },
     {
-      path: "*",
+      path: "/perfil",
       element: (
-        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.home]}>
-          <SectionErrorBoundary sectionName="Página no encontrada">
-            <Dashboard />
+        <ProtectedRoute>
+          <SectionErrorBoundary sectionName="Perfil">
+            <ProfilePage />
           </SectionErrorBoundary>
         </ProtectedRoute>
       ),
+    },
+    {
+      path: "*",
+      element: <Navigate to="/mapa" replace />,
     },
   ],
   {

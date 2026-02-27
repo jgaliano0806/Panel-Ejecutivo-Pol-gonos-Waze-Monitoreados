@@ -4,24 +4,19 @@ import {
   Settings,
   Database,
   Users,
-  Shield,
   FileText,
   ChevronRight,
-  BarChart3,
 } from "lucide-react";
 import PolygonManagement from "./PolygonManagement";
 import CatalogManagement from "./CatalogManagement";
 import UserManagement from "./UserManagement";
-import SSOConfiguration from "./SSOConfiguration";
 import SystemSettings from "./SystemSettings";
 
 type AdminSection =
   | "polygons"
   | "catalogs"
   | "users"
-  | "sso"
-  | "settings"
-  | "reports";
+  | "settings";
 
 interface AdminSectionConfig {
   id: AdminSection;
@@ -54,25 +49,11 @@ const adminSections: AdminSectionConfig[] = [
     color: "from-purple-600 to-purple-700",
   },
   {
-    id: "sso",
-    label: "Autenticación SSO",
-    icon: Shield,
-    description: "Configuración de login con Microsoft y Google",
-    color: "from-orange-600 to-orange-700",
-  },
-  {
     id: "settings",
     label: "Configuración Sistema",
     icon: Settings,
     description: "Parámetros generales y configuraciones avanzadas",
     color: "from-gray-600 to-gray-700",
-  },
-  {
-    id: "reports",
-    label: "Reportes",
-    icon: BarChart3,
-    description: "Estadísticas y reportes del sistema",
-    color: "from-indigo-600 to-indigo-700",
   },
 ];
 
@@ -87,16 +68,8 @@ const AdminPanel: React.FC = () => {
         return <CatalogManagement />;
       case "users":
         return <UserManagement />;
-      case "sso":
-        return <SSOConfiguration />;
       case "settings":
         return <SystemSettings />;
-      case "reports":
-        return (
-          <div className="p-8 text-center text-gray-500 dark:text-veltrix-muted">
-            Reportes - Próximamente
-          </div>
-        );
       default:
         return <PolygonManagement />;
     }

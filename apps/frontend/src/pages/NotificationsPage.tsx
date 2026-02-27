@@ -14,8 +14,6 @@ import {
   AlertOctagon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { speakNotification } from "@/lib/tts-utils";
-import { socket } from "@/services/websocket";
 
 export const NotificationsPage: React.FC = () => {
   const notifications = useNotificationStore((state) => state.notifications);
@@ -23,9 +21,7 @@ export const NotificationsPage: React.FC = () => {
   const clearNotifications = useNotificationStore(
     (state) => state.clearNotifications,
   );
-  const addNotification = useNotificationStore(
-    (state) => state.addNotification,
-  );
+
   const removeDuplicates = useNotificationStore(
     (state) => state.removeDuplicates,
   );
@@ -115,104 +111,6 @@ export const NotificationsPage: React.FC = () => {
                 count={notifications.filter((n) => n.is_read).length}
               />
             </div>
-          </div>
-
-          {/* Herramientas de Validación (Solo para testing) */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
-              Validación de Sistema
-            </h3>
-            <button
-              onClick={() => {
-                const tests: Notification[] = [
-                  {
-                    id: `test-1-${Date.now()}`,
-                    type: "HAZARD",
-                    title: "Peligro en la Vía",
-                    message: "Vehículo detenido en banquina, RP E73",
-                    created_at: new Date().toISOString(),
-                    is_read: false,
-                    data: {
-                      incidentType: "HAZARD",
-                      subtype: "HAZARD_ON_SHOULDER_CAR_STOPPED",
-                      street: "RP E73",
-                      city: "Córdoba",
-                      polygonName: "Ruta Provincial E73",
-                    },
-                  },
-                  {
-                    id: `test-2-${Date.now()}`,
-                    type: "ACCIDENT",
-                    title: "Accidente Reportado",
-                    message: "Colisión múltiple con demoras, RN 20",
-                    created_at: new Date().toISOString(),
-                    is_read: false,
-                    data: {
-                      incidentType: "ACCIDENT",
-                      subtype: "ACCIDENT_MAJOR",
-                      street: "RN 20",
-                      city: "Villa María",
-                      polygonName: "Ruta Nacional 20",
-                    },
-                  },
-                  {
-                    id: `test-3-${Date.now()}`,
-                    type: "HAZARD",
-                    title: "Obras en la Vía",
-                    message: "Obras preventivas por mantenimiento",
-                    created_at: new Date().toISOString(),
-                    is_read: false,
-                    data: {
-                      incidentType: "HAZARD",
-                      subtype: "HAZARD_ON_ROAD_CONSTRUCTION",
-                      street: "Circunvalación",
-                      city: "Córdoba Capital",
-                      polygonName: "Circunvalación",
-                    },
-                  },
-                ];
-
-                tests.forEach((t, i) => {
-                  setTimeout(() => {
-                    console.log("🧪 Disparando notificación de prueba:", t.id);
-                    // Simular notificación que viene por WebSocket
-                    // Disparamos el evento directamente en el socket para que el listener lo capture
-                    // Esto simula el comportamiento del servidor
-                    if (socket.connected) {
-                      // Usar el método interno del socket para disparar el evento localmente
-                      // Esto activará el listener en useRealtimeNotifications
-                      const listeners =
-                        (socket as any)._callbacks?.["$notification:new"] ||
-                        (socket as any).listeners?.("notification:new");
-                      if (listeners && listeners.length > 0) {
-                        listeners.forEach((listener: Function) => listener(t));
-                        console.log(
-                          "📡 Notificación simulada por WebSocket (activó listeners)",
-                        );
-                      } else {
-                        // Si no hay listeners registrados, agregar directamente
-                        console.warn(
-                          "⚠️ No hay listeners registrados, agregando directamente",
-                        );
-                        addNotification(t);
-                        speakNotification(t.title, t.message);
-                      }
-                    } else {
-                      // Si el socket no está conectado, agregar directamente al store
-                      console.warn(
-                        "⚠️ Socket no conectado, agregando directamente al store",
-                      );
-                      addNotification(t);
-                      speakNotification(t.title, t.message);
-                    }
-                  }, i * 2000);
-                });
-              }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-200 dark:border-amber-800 rounded-lg text-sm font-bold hover:bg-amber-100 transition-colors shadow-sm"
-            >
-              <AlertOctagon className="h-4 w-4" />
-              Probar Demo (Voz + Vista)
-            </button>
           </div>
         </div>
 

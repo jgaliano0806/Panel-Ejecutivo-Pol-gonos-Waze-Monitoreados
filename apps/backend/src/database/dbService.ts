@@ -41,9 +41,9 @@ export class DatabaseService {
       database: process.env.DB_NAME || "panel_waze",
       user: process.env.DB_USER || "postgres",
       password: process.env.DB_PASSWORD || "postgres",
-      max: 20, // Máximo de conexiones en el pool
+      max: process.env.DB_POOL_MAX ? parseInt(process.env.DB_POOL_MAX) : 30, // Aumentado para soportar más concurrencia de Waze feeds
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
+      connectionTimeoutMillis: 10000, // Aumentado a 10s para evitar 500s cuando el pool está lleno por segundos
     };
 
     this.pool = new Pool(config);

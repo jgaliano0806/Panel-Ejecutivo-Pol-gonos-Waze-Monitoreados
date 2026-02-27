@@ -4,7 +4,6 @@ import {
   Home,
   Map,
   AlertCircle,
-  BarChart3,
   ShieldAlert,
   Car,
   Settings,
@@ -19,7 +18,6 @@ export type ViewType =
   | "home"
   | "map"
   | "events"
-  | "stats"
   | "risks"
   | "accidents"
   | "admin";
@@ -56,14 +54,14 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
       path: "/mapa",
       requiredPermission: ROUTE_PERMISSIONS.mapa,
     },
-    {
-      id: "risks" as ViewType,
-      label: "Análisis de Riesgos",
-      icon: ShieldAlert,
-      color: "from-red-500 to-red-600",
-      path: "/riesgos",
-      requiredPermission: ROUTE_PERMISSIONS.riesgos,
-    },
+    // {
+    //   id: "risks" as ViewType,
+    //   label: "Análisis de Riesgos",
+    //   icon: ShieldAlert,
+    //   color: "from-red-500 to-red-600",
+    //   path: "/riesgos",
+    //   requiredPermission: ROUTE_PERMISSIONS.riesgos,
+    // },
     {
       id: "events" as ViewType,
       label: "Alertas y Eventos",
@@ -80,14 +78,6 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
       color: "from-orange-600 to-red-600",
       path: "/siniestros",
       requiredPermission: ROUTE_PERMISSIONS.siniestros,
-    },
-    {
-      id: "stats" as ViewType,
-      label: "Estadísticas",
-      icon: BarChart3,
-      color: "from-purple-500 to-purple-600",
-      path: "/estadisticas",
-      requiredPermission: ROUTE_PERMISSIONS.estadisticas,
     },
     {
       id: "admin" as ViewType,
@@ -108,7 +98,6 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
     if (location.pathname === "/alertas") return "events";
     if (location.pathname === "/siniestros") return "accidents";
     if (location.pathname === "/admin") return "admin";
-    if (location.pathname === "/estadisticas") return "stats";
     return currentView;
   };
 

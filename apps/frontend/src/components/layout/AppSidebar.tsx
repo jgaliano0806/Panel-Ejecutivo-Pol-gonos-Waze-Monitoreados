@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   Layers,
   Car,
-  BarChart3,
   Settings,
   ChevronRight,
   Menu,
@@ -46,7 +45,6 @@ export const AppSidebar: React.FC = () => {
     if (location.pathname === "/siniestros") return "accidents";
     if (location.pathname === "/notificaciones") return "notifications";
     if (location.pathname === "/incidentes") return "incidents";
-    if (location.pathname === "/estadisticas") return "stats";
     if (location.pathname === "/admin") return "admin";
     return "home";
   };
@@ -61,13 +59,13 @@ export const AppSidebar: React.FC = () => {
       path: "/mapa",
       requiredPermission: ROUTE_PERMISSIONS.mapa,
     },
-    {
-      id: "risk",
-      label: "Análisis de Riesgos",
-      icon: <AlertTriangle size={20} />,
-      path: "/riesgos",
-      requiredPermission: ROUTE_PERMISSIONS.riesgos,
-    },
+    // {
+    //   id: "risk",
+    //   label: "Análisis de Riesgos",
+    //   icon: <AlertTriangle size={20} />,
+    //   path: "/riesgos",
+    //   requiredPermission: ROUTE_PERMISSIONS.riesgos,
+    // },
     {
       id: "alerts",
       label: "Alertas y Eventos",
@@ -95,13 +93,6 @@ export const AppSidebar: React.FC = () => {
       icon: <FileSearch size={20} />,
       path: "/incidentes",
       requiredPermission: ROUTE_PERMISSIONS.incidentes,
-    },
-    {
-      id: "stats",
-      label: "Estadísticas",
-      icon: <BarChart3 size={20} />,
-      path: "/estadisticas",
-      requiredPermission: ROUTE_PERMISSIONS.estadisticas,
     },
     {
       id: "admin",
@@ -208,18 +199,34 @@ export const AppSidebar: React.FC = () => {
       <div className="p-3 border-t border-gray-800 dark:border-veltrix-border">
         {user && isExpanded ? (
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
-              {user.firstName[0]}
-              {user.lastName[0]}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-white truncate">
-                {user.firstName} {user.lastName}
+            <button
+              onClick={() => navigate("/perfil")}
+              className="flex items-center gap-2 flex-1 min-w-0 p-1 -m-1 rounded-lg hover:bg-gray-800 dark:hover:bg-veltrix-bg transition-colors"
+              title="Ver perfil"
+            >
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-xs font-bold text-white shrink-0 overflow-hidden">
+                {user.avatarUrl ? (
+                  <img
+                    src={`${window.location.origin}${user.avatarUrl}`}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <>
+                    {user.firstName[0]}
+                    {user.lastName[0]}
+                  </>
+                )}
               </div>
-              <div className="text-xs text-gray-400 truncate">
-                {user.roles.map((r) => r.name).join(", ") || "Sin rol"}
+              <div className="flex-1 min-w-0 text-left">
+                <div className="text-sm font-medium text-white truncate">
+                  {user.firstName} {user.lastName}
+                </div>
+                <div className="text-xs text-gray-400 truncate">
+                  {user.roles.map((r) => r.name).join(", ") || "Sin rol"}
+                </div>
               </div>
-            </div>
+            </button>
             <button
               onClick={handleLogout}
               className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-900/20 transition-colors"
@@ -229,13 +236,33 @@ export const AppSidebar: React.FC = () => {
             </button>
           </div>
         ) : user ? (
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-900/20 transition-colors"
-            title="Cerrar sesión"
-          >
-            <LogOut size={18} />
-          </button>
+          <div className="flex flex-col items-center gap-2">
+            <button
+              onClick={() => navigate("/perfil")}
+              className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-xs font-bold text-white overflow-hidden hover:ring-2 hover:ring-blue-400 transition-all"
+              title="Ver perfil"
+            >
+              {user.avatarUrl ? (
+                <img
+                  src={`${window.location.origin}${user.avatarUrl}`}
+                  alt="Avatar"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <>
+                  {user.firstName[0]}
+                  {user.lastName[0]}
+                </>
+              )}
+            </button>
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-900/20 transition-colors"
+              title="Cerrar sesión"
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
         ) : (
           isExpanded && (
             <div className="text-xs text-gray-500 text-center">

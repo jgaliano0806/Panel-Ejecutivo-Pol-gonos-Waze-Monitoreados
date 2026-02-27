@@ -22,6 +22,8 @@ interface AuthUser {
   isActive: boolean;
   emailVerified: boolean;
   lastLogin: string | null;
+  mustChangePassword: boolean;
+  avatarUrl: string | null;
   roles: AuthRole[];
   permissions: string[];
 }
@@ -40,6 +42,17 @@ interface AuthState {
   clearError: () => void;
   hasPermission: (permission: string) => boolean;
   hasRole: (roleName: string) => boolean;
+  changePassword: (
+    currentPassword: string,
+    newPassword: string,
+  ) => Promise<{ success: boolean; error?: string }>;
+  updateProfile: (data: {
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    email?: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+  uploadAvatar: (file: File) => Promise<{ success: boolean; error?: string }>;
 }
 
 const TOKEN_KEY = "panel_waze_auth_token";
@@ -179,7 +192,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // Validación defensiva: asegurar permissions y roles son arrays
         const safeUser: AuthUser = {
           ...userData,
-          permissions: Array.isArray(userData.permissions) ? userData.permissions : [],
+          permissions: Array.isArray(userData.permissions)
+            ? userData.permissions
+            : [],
           roles: Array.isArray(userData.roles) ? userData.roles : [],
         };
         set({
@@ -224,5 +239,115 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!user) return false;
     const roles = Array.isArray(user.roles) ? user.roles : [];
     return roles.some((r) => r.name === roleName);
+  },
+
+  changePassword: async (
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<{ success: boolean; error?: string }> => {
+    const { token } = get();
+    try {
+      const response = await fetch(getApiUrl("/auth/change-password"), {
+        method: "POST",
+        headers: getAuthHeaders(token),
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        return {
+          success: false,
+          error: data.error || "Error al cambiar contraseña",
+        };
+      }
+
+      // Actualizar flag en el store
+      const { user } = get();
+      if (user) {
+        set({ user: { ...user, mustChangePassword: false } });
+      }
+
+      return { success: true };
+    } catch {
+      return { success: false, error: "Error de conexión" };
+    }
+  },
+
+  updateProfile: async (
+    profileData,
+  ): Promise<{ success: boolean; error?: string }> => {
+    const { token } = get();
+    try {
+      const response = await fetch(getApiUrl("/auth/profile"), {
+        method: "PUT",
+        headers: getAuthHeaders(token),
+        body: JSON.stringify(profileData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        return {
+          success: false,
+          error: data.error || "Error al actualizar perfil",
+        };
+      }
+
+      // Actualizar usuario en el store con los datos devueltos por el backend
+      if (data.data) {
+        const updatedUser = data.data as AuthUser;
+        const safeUser: AuthUser = {
+          ...updatedUser,
+          permissions: Array.isArray(updatedUser.permissions)
+            ? updatedUser.permissions
+            : [],
+          roles: Array.isArray(updatedUser.roles) ? updatedUser.roles : [],
+        };
+        set({ user: safeUser });
+      }
+
+      return { success: true };
+    } catch {
+      return { success: false, error: "Error de conexión" };
+    }
+  },
+
+  uploadAvatar: async (
+    file: File,
+  ): Promise<{ success: boolean; error?: string }> => {
+    const { token } = get();
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const headers: HeadersInit = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      // No poner Content-Type — el browser lo pone con boundary automáticamente
+
+      const response = await fetch(getApiUrl("/auth/avatar"), {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        return { success: false, error: data.error || "Error al subir avatar" };
+      }
+
+      // Actualizar avatarUrl en el store
+      const { user } = get();
+      if (user && data.data?.avatarUrl) {
+        set({ user: { ...user, avatarUrl: data.data.avatarUrl } });
+      }
+
+      return { success: true };
+    } catch {
+      return { success: false, error: "Error de conexión" };
+    }
   },
 }));

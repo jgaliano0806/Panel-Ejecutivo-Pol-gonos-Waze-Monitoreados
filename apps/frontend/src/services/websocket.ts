@@ -144,7 +144,10 @@ socket.on("waze:data_updated", (summary: any) => {
 // para evitar alertas falsas por tipos filtrados (ej: CONSTRUCTION).
 // ═══════════════════════════════════════════════════════════════
 socket.on("play_audio_alert", (data: { count: number; timestamp: string }) => {
-  logger.debug("play_audio_alert recibido (sonido delegado a notification:new)", data);
+  logger.debug(
+    "play_audio_alert recibido (sonido delegado a notification:new)",
+    data,
+  );
 });
 
 /**
@@ -215,16 +218,19 @@ const buildTTSMessage = (notification: Notification): string => {
         .trim()
     : "";
 
-  // Construir ubicación:
-  // 1. polygonGroup + polygonName (vía y tramo controlados, ej: "Autopista A-019, tramo A-019-1")
-  // 2. streetClean de Waze — si no hay grupo
-  // 3. city — último recurso
+  // Construir ubicación: grupo primero, tramo después
+  // 1. polygonGroup (ruta/vía) + polygonName (tramo) — ej: "Autovía A-019, tramo A-019-5"
+  // 2. polygonName solo — si no hay grupo
+  // 3. streetClean de Waze
+  // 4. city — último recurso
   let ubicacion = "";
   if (polygonGroup) {
     ubicacion = polygonGroup;
     if (polygonName && polygonName !== polygonGroup) {
       ubicacion += `, tramo ${polygonName}`;
     }
+  } else if (polygonName) {
+    ubicacion = polygonName;
   } else if (streetClean) {
     ubicacion = streetClean;
   } else if (city) {

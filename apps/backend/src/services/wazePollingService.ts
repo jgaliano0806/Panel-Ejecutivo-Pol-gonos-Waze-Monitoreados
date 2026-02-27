@@ -298,7 +298,9 @@ export class WazePollingService {
            AND type IN ('ACCIDENT','HAZARD')`,
       );
       criticalCount = parseInt(res.rows[0]?.cnt || "0", 10);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     // Broadcast global: todos los clientes invalidan caches simultáneamente
     eventBus.emit(SystemEvents.WAZE_POLL_CYCLE_DONE, {
@@ -637,7 +639,9 @@ export class WazePollingService {
                 };
               }
             } catch (e) {
-              logger.warn(`Clima no disponible para accidente ${accident.uuid}`);
+              logger.warn(
+                `Clima no disponible para accidente ${accident.uuid}`,
+              );
             }
 
             await roadAccidentService.createAccident({
@@ -926,15 +930,19 @@ export class WazePollingService {
 
   /**
    * Obtiene las métricas TVT más recientes para TODOS los polígonos.
-   * Usa DISTINCT ON para obtener solo la fila más reciente por polígono.
+   * Usa LATERAL JOIN para aprovechar el índice (polygon_id, created_at DESC).
    */
   public async getAllLatestTvtMetrics(): Promise<any[]> {
     try {
       const result = await dbService.query(
-        `SELECT DISTINCT ON (polygon_id)
-           polygon_id, wazers_count, jam_level_counts, length_of_jams, update_time, created_at
-         FROM waze_tvt_metrics
-         ORDER BY polygon_id, created_at DESC`,
+        `SELECT t.polygon_id, t.wazers_count, t.jam_level_counts, t.length_of_jams, t.update_time, t.created_at
+         FROM (SELECT DISTINCT polygon_id FROM waze_tvt_metrics) AS p
+         CROSS JOIN LATERAL (
+           SELECT * FROM waze_tvt_metrics m
+           WHERE m.polygon_id = p.polygon_id
+           ORDER BY m.created_at DESC
+           LIMIT 1
+         ) AS t`,
       );
       return result.rows.map((row: any) => ({
         polygonId: row.polygon_id,

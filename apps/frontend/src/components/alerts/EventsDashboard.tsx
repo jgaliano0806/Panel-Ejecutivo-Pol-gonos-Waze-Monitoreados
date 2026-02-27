@@ -3,7 +3,6 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
   useBlockingAnalysis,
-  useWazeTVT,
   useHistoricalIncidents,
   useWazeData,
   type BlockingAnalysisItem,
@@ -14,22 +13,16 @@ import { Map } from "../map/Map";
 import {
   LayoutList,
   LayoutGrid,
-  Filter,
   RefreshCw,
   Search,
   X,
   Calendar,
-  Clock,
   History,
   Activity,
 } from "lucide-react";
-import { EventsKPIs } from "./EventsKPIs";
 import { EventsCharts } from "./EventsCharts";
 import { EventsTable } from "./EventsTable";
-import { EventsHistoryChart } from "./EventsHistoryChart"; // Importar gráfico histórico
-import { MiniMapLibre } from "../map/MiniMapLibre";
 import { getIncidentDescription } from "../../utils/wazeTranslations";
-import { WazeIcon } from "../ui/WazeIcon";
 import { EventCard } from "./EventCard";
 
 export type DataSourceFilter = "current" | "historical" | "all";
@@ -37,7 +30,6 @@ export type StatusFilter = "active" | "inactive" | "all";
 
 export const EventsDashboard: React.FC = () => {
   const { data, isLoading, isError, refetch } = useBlockingAnalysis();
-  const { data: tvtData } = useWazeTVT();
   const { polygons, jams, incidents: allIncidents } = useWazeData();
   const navigate = useNavigate();
 
@@ -536,12 +528,6 @@ export const EventsDashboard: React.FC = () => {
           )}
         </div>
       </div>
-
-      {/* KPIs Section */}
-      <EventsKPIs analyses={filteredAnalyses} tvtMetrics={tvtData} />
-
-      {/* Historical Trend Chart (NEW) */}
-      <EventsHistoryChart />
 
       {/* Graphical Analysis with Interactivity */}
       <EventsCharts

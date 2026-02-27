@@ -3,11 +3,7 @@
  * Componente wrapper que verifica autenticación y permisos antes de renderizar.
  * Redirige a /login si no hay sesión activa.
  * Muestra "Acceso Denegado" con fallback inteligente si faltan permisos.
- *
- * Mejores prácticas aplicadas:
- * - error-handling: mensajes con siguiente paso, degradación elegante
- * - web-design: accesibilidad (aria-*), focus visible
- * - code-review: verificación de autorización explícita
+ * Muestra modal obligatorio de cambio de contraseña si mustChangePassword === true.
  */
 
 import React, { useEffect } from "react";
@@ -15,6 +11,7 @@ import { Navigate } from "react-router-dom";
 import { useAuthStore } from "../../stores/useAuthStore";
 import { usePermission } from "../../hooks/usePermission";
 import { AccessDenied } from "./AccessDenied";
+import { ChangePasswordModal } from "./ChangePasswordModal";
 import type { PermissionCode } from "../../config/routePermissions";
 
 interface ProtectedRouteProps {
@@ -60,9 +57,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (requiredPermissions && requiredPermissions.length > 0) {
-    const hasRequired = requiredPermissions.some((perm) =>
-      hasPermission(perm),
-    );
+    const hasRequired = requiredPermissions.some((perm) => hasPermission(perm));
     if (!hasRequired) {
       return (
         <AccessDenied
@@ -73,5 +68,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      {user.mustChangePassword && <ChangePasswordModal forced />}
+    </>
+  );
 };

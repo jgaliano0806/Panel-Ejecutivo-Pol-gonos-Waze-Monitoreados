@@ -22,6 +22,16 @@ import {
   Trash2,
   Loader2,
   AlertCircle,
+  Map,
+  Home,
+  Bell,
+  Layers,
+  Car,
+  CheckSquare,
+  Square,
+  Route,
+  Lock,
+  ShieldCheck,
 } from "lucide-react";
 import {
   useUsers,
@@ -348,6 +358,70 @@ const RoleForm = ({
     general: "General",
   };
 
+  // Obtener códigos de permisos seleccionados para el preview de rutas
+  const selectedPermCodes = allPermissions
+    .filter((p) => formData.permissionIds.includes(p.id))
+    .map((p) => p.code);
+
+  const hasSelectedPerm = (code: string) =>
+    selectedPermCodes.includes("admin") || selectedPermCodes.includes(code);
+
+  // Definición de rutas de la plataforma con sus permisos
+  const platformRoutes = [
+    { path: "/", label: "Dashboard", icon: Home, permission: "incidents.view" },
+    {
+      path: "/mapa",
+      label: "Mapa y Zonas",
+      icon: Map,
+      permission: "incidents.view",
+    },
+    {
+      path: "/alertas",
+      label: "Alertas y Eventos",
+      icon: Layers,
+      permission: "incidents.view",
+    },
+    {
+      path: "/notificaciones",
+      label: "Notificaciones",
+      icon: Bell,
+      permission: "incidents.view",
+    },
+    {
+      path: "/siniestros",
+      label: "Siniestros Viales",
+      icon: Car,
+      permission: "incidents.view",
+    },
+    {
+      path: "/incidentes",
+      label: "Panel de Incidentes",
+      icon: Layers,
+      permission: "incidents.view",
+    },
+    {
+      path: "/admin",
+      label: "Administración",
+      icon: Settings,
+      permission: "admin",
+    },
+  ];
+
+  // Seleccionar/deseleccionar todos los permisos de una categoría
+  const toggleCategory = (
+    categoryPerms: typeof allPermissions,
+    selectAll: boolean,
+  ) => {
+    const categoryIds = categoryPerms.map((p) => p.id);
+    let newIds: number[];
+    if (selectAll) {
+      newIds = [...new Set([...formData.permissionIds, ...categoryIds])];
+    } else {
+      newIds = formData.permissionIds.filter((id) => !categoryIds.includes(id));
+    }
+    setFormData({ ...formData, permissionIds: newIds });
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -10 }}
@@ -426,44 +500,111 @@ const RoleForm = ({
             <Shield size={14} className="inline mr-1" /> Permisos
           </label>
 
-          <div className="space-y-4 max-h-60 overflow-y-auto">
-            {Object.entries(permissionsByCategory).map(([category, perms]) => (
-              <div key={category}>
-                <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
-                  {categoryLabels[category] || category}
-                </h4>
-                <div className="grid grid-cols-2 gap-2">
-                  {perms.map((perm) => (
-                    <label
-                      key={perm.id}
-                      className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
-                        formData.permissionIds.includes(perm.id)
-                          ? "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700"
-                          : "bg-gray-50 dark:bg-veltrix-bg border border-transparent hover:bg-gray-100 dark:hover:bg-veltrix-bg/70"
+          <div className="space-y-4 max-h-72 overflow-y-auto pr-1">
+            {Object.entries(permissionsByCategory).map(([category, perms]) => {
+              const allSelected = perms.every((p) =>
+                formData.permissionIds.includes(p.id),
+              );
+
+              return (
+                <div key={category}>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                      {categoryLabels[category] || category}
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => toggleCategory(perms, !allSelected)}
+                      className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-md transition-colors ${
+                        allSelected
+                          ? "text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                          : "text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
                       }`}
                     >
-                      <input
-                        type="checkbox"
-                        checked={formData.permissionIds.includes(perm.id)}
-                        onChange={() => togglePermission(perm.id)}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {perm.name}
-                        </div>
-                        {perm.description && (
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {perm.description}
+                      {allSelected ? (
+                        <>
+                          <Square size={12} /> Quitar todos
+                        </>
+                      ) : (
+                        <>
+                          <CheckSquare size={12} /> Seleccionar todos
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {perms.map((perm) => (
+                      <label
+                        key={perm.id}
+                        className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
+                          formData.permissionIds.includes(perm.id)
+                            ? "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700"
+                            : "bg-gray-50 dark:bg-veltrix-bg border border-transparent hover:bg-gray-100 dark:hover:bg-veltrix-bg/70"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formData.permissionIds.includes(perm.id)}
+                          onChange={() => togglePermission(perm.id)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <div>
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            {perm.name}
                           </div>
-                        )}
-                      </div>
-                    </label>
-                  ))}
+                          {perm.description && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {perm.description}
+                            </div>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
+        </div>
+
+        {/* Preview de rutas accesibles */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <Route size={14} className="inline mr-1" /> Acceso a Secciones de la
+            Plataforma
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {platformRoutes.map((route) => {
+              const hasAccess = hasSelectedPerm(route.permission);
+              const Icon = route.icon;
+              return (
+                <div
+                  key={route.path}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                    hasAccess
+                      ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800"
+                      : "bg-gray-50 dark:bg-veltrix-bg text-gray-400 dark:text-gray-600 border border-transparent"
+                  }`}
+                >
+                  <Icon size={16} />
+                  <span className={hasAccess ? "font-medium" : "line-through"}>
+                    {route.label}
+                  </span>
+                  {hasAccess ? (
+                    <ShieldCheck size={14} className="ml-auto text-green-500" />
+                  ) : (
+                    <Lock size={14} className="ml-auto" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {formData.permissionIds.length === 0 && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1">
+              <AlertCircle size={12} /> Sin permisos asignados — el rol no
+              tendrá acceso a ninguna sección
+            </p>
+          )}
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t dark:border-veltrix-border/50">
@@ -847,74 +988,180 @@ const UserManagement: React.FC = () => {
 
           {!rolesLoading && !rolesError && (
             <div className="grid grid-cols-2 gap-4">
-              {roles.map((role) => (
-                <motion.div
-                  key={role.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="bg-white dark:bg-veltrix-card rounded-xl p-5 border border-gray-200 dark:border-veltrix-border/50 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: role.color }}
-                      />
-                      <div>
-                        <h3 className="font-semibold text-gray-900 dark:text-white">
-                          {role.name}
-                        </h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {role.description || "Sin descripción"}
-                        </p>
+              {roles.map((role) => {
+                const permCodes = role.permissions.map((p) => p.code);
+                const isSystemRole = [
+                  "Administrador",
+                  "Supervisor",
+                  "Operador",
+                  "Visualizador",
+                ].includes(role.name);
+                const hasPermCode = (code: string) =>
+                  permCodes.includes("admin") || permCodes.includes(code);
+
+                // Rutas accesibles para este rol
+                const accessibleRoutes = [
+                  { label: "Dashboard", icon: Home, perm: "incidents.view" },
+                  { label: "Mapa", icon: Map, perm: "incidents.view" },
+                  { label: "Alertas", icon: Layers, perm: "incidents.view" },
+                  { label: "Siniestros", icon: Car, perm: "incidents.view" },
+                  { label: "Admin", icon: Settings, perm: "admin" },
+                ].filter((r) => hasPermCode(r.perm));
+
+                return (
+                  <motion.div
+                    key={role.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className={`bg-white dark:bg-veltrix-card rounded-xl p-5 border hover:shadow-md transition-shadow ${
+                      !role.isActive
+                        ? "border-red-200 dark:border-red-800/50 opacity-70"
+                        : "border-gray-200 dark:border-veltrix-border/50"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-8 h-8 rounded-lg flex items-center justify-center"
+                          style={{ backgroundColor: role.color + "20" }}
+                        >
+                          <Shield size={16} style={{ color: role.color }} />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-gray-900 dark:text-white">
+                              {role.name}
+                            </h3>
+                            {/* Badge de estado */}
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                role.isActive
+                                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                  : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                              }`}
+                            >
+                              {role.isActive ? "Activo" : "Inactivo"}
+                            </span>
+                            {/* Badge de rol del sistema */}
+                            {isSystemRole && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                                Sistema
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {role.description || "Sin descripción"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            setEditingRole(role);
+                            setShowRoleForm(true);
+                          }}
+                          className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                          title="Editar"
+                        >
+                          <Edit3 size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteRole(role.id)}
+                          className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          title={
+                            isSystemRole
+                              ? "No se puede eliminar un rol del sistema"
+                              : role.userCount > 0
+                                ? "No se puede eliminar con usuarios asignados"
+                                : "Eliminar"
+                          }
+                          disabled={role.userCount > 0 || isSystemRole}
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => {
-                          setEditingRole(role);
-                          setShowRoleForm(true);
-                        }}
-                        className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                        title="Editar"
-                      >
-                        <Edit3 size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteRole(role.id)}
-                        className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                        title="Eliminar"
-                        disabled={role.userCount > 0}
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                    {/* Permisos como badges con colores por categoría */}
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {role.permissions.map((perm) => {
+                        const catColors: Record<string, string> = {
+                          system:
+                            "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400",
+                          users:
+                            "bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400",
+                          incidents:
+                            "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400",
+                          reports:
+                            "bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400",
+                          catalogs:
+                            "bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400",
+                          settings:
+                            "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+                        };
+                        const colorClass =
+                          catColors[perm.category] ||
+                          "bg-gray-100 text-gray-600 dark:bg-veltrix-bg dark:text-gray-400";
+                        return (
+                          <span
+                            key={perm.id}
+                            className={`px-2 py-0.5 rounded text-xs font-medium ${colorClass}`}
+                          >
+                            {perm.name}
+                          </span>
+                        );
+                      })}
+                      {role.permissions.length === 0 && (
+                        <span className="text-xs text-gray-400 italic">
+                          Sin permisos asignados
+                        </span>
+                      )}
                     </div>
-                  </div>
 
-                  {/* Info de permisos */}
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {role.permissions.map((perm) => (
-                      <span
-                        key={perm.id}
-                        className="px-2 py-0.5 rounded text-xs bg-gray-100 dark:bg-veltrix-bg text-gray-600 dark:text-gray-400"
-                      >
-                        {perm.name}
+                    {/* Rutas accesibles */}
+                    <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+                      <span className="text-xs text-gray-400 mr-1">
+                        Acceso:
                       </span>
-                    ))}
-                    {role.permissions.length === 0 && (
-                      <span className="text-xs text-gray-400">
-                        Sin permisos asignados
-                      </span>
-                    )}
-                  </div>
+                      {accessibleRoutes.length > 0 ? (
+                        accessibleRoutes.map((r) => {
+                          const Icon = r.icon;
+                          return (
+                            <span
+                              key={r.label}
+                              className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-xs"
+                              title={r.label}
+                            >
+                              <Icon size={12} />
+                              {r.label}
+                            </span>
+                          );
+                        })
+                      ) : (
+                        <span className="text-xs text-red-400 italic">
+                          Sin acceso
+                        </span>
+                      )}
+                    </div>
 
-                  <div className="text-xs text-gray-400">
-                    {role.userCount} usuario{role.userCount !== 1 ? "s" : ""}{" "}
-                    asignado{role.userCount !== 1 ? "s" : ""}
-                  </div>
-                </motion.div>
-              ))}
+                    {/* Footer */}
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-veltrix-border/30">
+                      <div className="flex items-center gap-1 text-xs text-gray-400">
+                        <UserPlus size={12} />
+                        {role.userCount} usuario
+                        {role.userCount !== 1 ? "s" : ""} asignado
+                        {role.userCount !== 1 ? "s" : ""}
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-gray-400">
+                        <Shield size={12} />
+                        {role.permissions.length} permiso
+                        {role.permissions.length !== 1 ? "s" : ""}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
 
               {roles.length === 0 && (
                 <div className="col-span-2 text-center py-12 text-gray-500">

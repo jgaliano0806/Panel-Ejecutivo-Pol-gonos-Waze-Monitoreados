@@ -210,6 +210,21 @@ export const LoginPage: React.FC = () => {
             </motion.button>
           </form>
 
+          {/* ¿Olvidó su contraseña? */}
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={() =>
+                alert(
+                  "Contacte al administrador del sistema para restablecer su contraseña.\n\nEl administrador puede generar una nueva contraseña desde el panel de Gestión de Usuarios.",
+                )
+              }
+              className="text-sm text-gray-400 hover:text-green-400 transition-colors underline underline-offset-2"
+            >
+              ¿Olvidó su contraseña?
+            </button>
+          </div>
+
           {/* Footer */}
           <div className="mt-6 pt-6 border-t border-white/[0.06] text-center">
             <p className="text-gray-500 text-xs">

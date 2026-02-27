@@ -183,46 +183,109 @@ export class ApiService {
     logger.info("🔍 getGlobalKPIs: Iniciando...");
 
     // Variables con valores por defecto
-    let polygons: PolygonStatus[] = [];
     let alerts: WazeAlert[] = [];
     let jams: WazeJam[] = [];
-    let roadAccidentsStats = { total: 0, critical: 0, high: 0 };
+    let rawPolygons: any[] = [];
 
-    // 1. Obtener polígonos (con manejo defensivo)
+    // 1. Obtener TODOS los datos en PARALELO (1 round-trip en vez de 6)
     try {
-      polygons = await this.getPolygonsStatus();
-      logger.info(`🔍 getGlobalKPIs: ${polygons.length} polígonos obtenidos`);
-    } catch (error) {
-      logger.error(`❌ getGlobalKPIs: Error obteniendo polígonos: ${error}`);
-    }
-
-    // 2. Obtener alertas (con manejo defensivo)
-    try {
-      alerts = await repositories().wazeAlerts.findAllActive();
+      const [polygonsResult, alertsResult, jamsResult] = await Promise.all([
+        repositories().polygons.findAll(),
+        repositories().wazeAlerts.findAllActive(),
+        repositories().wazeJams.findAllActive(),
+      ]);
+      rawPolygons = polygonsResult;
+      alerts = alertsResult;
+      jams = jamsResult;
       logger.info(
-        `🔍 getGlobalKPIs: ${alerts.length} alertas activas obtenidas`,
+        `🔍 getGlobalKPIs: ${rawPolygons.length} polígonos, ${alerts.length} alertas, ${jams.length} jams`,
       );
     } catch (error) {
-      logger.error(`❌ getGlobalKPIs: Error obteniendo alertas: ${error}`);
+      logger.error(`❌ getGlobalKPIs: Error obteniendo datos: ${error}`);
     }
 
-    // 3. Obtener jams (con manejo defensivo)
-    try {
-      jams = await repositories().wazeJams.findAllActive();
-      logger.info(`🔍 getGlobalKPIs: ${jams.length} jams activos obtenidos`);
-    } catch (error) {
-      logger.error(`❌ getGlobalKPIs: Error obteniendo jams: ${error}`);
+    // 2. Calcular estado de polígonos (reutilizando alerts y jams ya cargados)
+    const {
+      calculateAlertSeverity,
+      mapJamSeverity,
+    } = require("../utils/wazeUtils");
+
+    // Crear Maps para lookups O(1)
+    const alertsByPolygon = new Map<string, WazeAlert[]>();
+    const jamsByPolygon = new Map<string, WazeJam[]>();
+
+    for (const alert of alerts) {
+      if (!alert.polygon_id) continue;
+      if (!alertsByPolygon.has(alert.polygon_id)) {
+        alertsByPolygon.set(alert.polygon_id, []);
+      }
+      alertsByPolygon.get(alert.polygon_id)!.push(alert);
     }
 
-    // 4. Calcular estadísticas de siniestros (BASADO EN WAZE ALERTS REAL-TIME)
-    // Se reemplaza roadAccidentService.getAccidentsCount() para usar la data en vivo del feed
+    for (const jam of jams) {
+      if (!jam.polygon_id) continue;
+      if (!jamsByPolygon.has(jam.polygon_id)) {
+        jamsByPolygon.set(jam.polygon_id, []);
+      }
+      jamsByPolygon.get(jam.polygon_id)!.push(jam);
+    }
+
+    const lastUpdate = new Date();
+
+    // Procesar polígonos en un solo pass
+    const polygons: PolygonStatus[] = rawPolygons.map((poly: any) => {
+      const polyAlerts = alertsByPolygon.get(poly.id) || [];
+      const polyJams = jamsByPolygon.get(poly.id) || [];
+
+      const alertCount = polyAlerts.length;
+      const jamCount = polyJams.length;
+      let totalDelay = 0;
+      let totalSpeed = 0;
+      let criticalAlerts = 0;
+      let hasCriticalJam = false;
+      let hasHighJam = false;
+
+      for (const alert of polyAlerts) {
+        const sev = calculateAlertSeverity({
+          type: alert.type,
+          confidence: alert.confidence,
+          reliability: alert.reliability,
+          subtype: alert.subtype,
+        });
+        if (sev >= Severity.HIGH) criticalAlerts++;
+      }
+
+      for (const jam of polyJams) {
+        totalDelay += jam.delay || 0;
+        totalSpeed += jam.speedKMH || 0;
+        const sev = mapJamSeverity(jam.level || 0);
+        if (sev >= Severity.CRITICAL) hasCriticalJam = true;
+        if (sev >= Severity.HIGH) hasHighJam = true;
+      }
+
+      const avgSpeed = jamCount > 0 ? totalSpeed / jamCount : null;
+      let state: "low" | "medium" | "high" = "low";
+      if (criticalAlerts > 0 || hasCriticalJam || totalDelay > 900) {
+        state = "high";
+      } else if (hasHighJam || alertCount > 3 || totalDelay > 300) {
+        state = "medium";
+      }
+
+      return {
+        id: poly.id,
+        name: poly.name,
+        group: poly.group || "Sin Grupo",
+        state,
+        metrics: { alertCount, jamCount, totalDelay, avgSpeed, criticalAlerts },
+        lastUpdate,
+      };
+    });
+    // 3. Calcular estadísticas de siniestros (ya tenemos alerts y calculateAlertSeverity en scope)
 
     // Contar alertas de tipo ACCIDENTE en TODOS los polígonos monitoreados
     let racAccidentsTotal = 0;
     let racAccidentsCritical = 0;
     let racAccidentsHigh = 0;
-
-    const { calculateAlertSeverity } = require("../utils/wazeUtils");
 
     for (const alert of alerts) {
       // Filtrar por tipo y que tenga polígono asignado
