@@ -16,22 +16,6 @@ const Footer: React.FC = () => {
             <span className="font-bold text-white">GED</span>
           </div>
 
-          {/* Leyenda de Estados */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-gradient-to-br from-green-400 to-green-600"></div>
-              <span className="text-gray-300">Fluido</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-gradient-to-br from-yellow-400 to-orange-500"></div>
-              <span className="text-gray-300">Moderado</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-gradient-to-br from-red-500 to-red-700"></div>
-              <span className="text-gray-300">Crítico</span>
-            </div>
-          </div>
-
           {/* Fuente de datos */}
           <div className="flex items-center gap-2">
             <motion.div

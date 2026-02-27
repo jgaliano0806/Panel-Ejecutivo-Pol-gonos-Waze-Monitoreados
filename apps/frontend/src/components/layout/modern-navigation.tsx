@@ -4,7 +4,6 @@ import {
   Home,
   Map,
   AlertCircle,
-  History,
   BarChart3,
   ShieldAlert,
   Car,
@@ -20,7 +19,6 @@ export type ViewType =
   | "home"
   | "map"
   | "events"
-  | "history"
   | "stats"
   | "risks"
   | "accidents"
@@ -84,14 +82,6 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
       requiredPermission: ROUTE_PERMISSIONS.siniestros,
     },
     {
-      id: "history" as ViewType,
-      label: "Historial",
-      icon: History,
-      color: "from-blue-500 to-blue-600",
-      path: "/historial",
-      requiredPermission: ROUTE_PERMISSIONS.historial,
-    },
-    {
       id: "stats" as ViewType,
       label: "Estadísticas",
       icon: BarChart3,
@@ -117,7 +107,6 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
     if (location.pathname === "/riesgos") return "risks";
     if (location.pathname === "/alertas") return "events";
     if (location.pathname === "/siniestros") return "accidents";
-    if (location.pathname === "/historial") return "history";
     if (location.pathname === "/admin") return "admin";
     if (location.pathname === "/estadisticas") return "stats";
     return currentView;

@@ -119,7 +119,7 @@ export interface AccidentMedia {
   id: string;
   accident_id: string;
   file_path: string;
-  file_type: "image" | "video";
+  file_type: "image" | "video" | "document";
   original_name?: string;
   file_size_bytes?: number;
   created_at: string;
@@ -152,15 +152,18 @@ export const useRoadAccidents = (
         );
       }
 
-      const data = await response.json();
+      const raw = await response.json();
 
-      // Normalizar y validar cada accidente
+      // API retorna { data: [], total: number }
+      const data = Array.isArray(raw) ? raw : raw?.data ?? [];
+      const total = typeof raw?.total === "number" ? raw.total : data.length;
+
       if (!Array.isArray(data)) {
-        console.error("⚠️ API returned non-array data:", data);
-        return [];
+        console.error("⚠️ API returned invalid data:", raw);
+        return { data: [], total: 0 };
       }
 
-      return data.map((accident: any) => {
+      const normalized = data.map((accident: any) => {
         try {
           return normalizeAccident(accident);
         } catch (error) {
@@ -184,6 +187,8 @@ export const useRoadAccidents = (
           } as RoadAccident;
         }
       });
+
+      return { data: normalized, total };
     },
   });
 };

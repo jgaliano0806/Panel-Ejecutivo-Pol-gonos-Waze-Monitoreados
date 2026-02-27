@@ -11,11 +11,16 @@ import {
   Upload,
   Image as ImageIcon,
   Film,
-  Plus,
   X,
   MessageSquare,
   AlertTriangle,
   Navigation2,
+  ExternalLink,
+  User,
+  CheckCircle,
+  Star,
+  ThumbsUp,
+  FileText,
 } from "lucide-react";
 import {
   useRoadAccidents,
@@ -27,10 +32,14 @@ import { MiniMapLibre } from "../components/map/MiniMapLibre";
 import { VirtualizedList } from "../components/ui/VirtualizedList";
 
 import { realCordobaPolygons } from "../data/mock/realCordobaPolygons";
+import { usePolygonsStatus } from "../hooks/useWazeData";
 import { RoadAccident } from "../hooks/useRoadAccidents";
+import { exportAccidentToPDF } from "../lib/pdf-export";
+import { useAuthStore } from "../stores/useAuthStore";
 
 export const RoadAccidentsPage: React.FC = () => {
-  // Estados para filtros y paginación
+  const authUser = useAuthStore((s) => s.user);
+
   const [dateRange, setDateRange] = useState<{ from: string; to: string }>({
     from: "",
     to: "",
@@ -43,6 +52,8 @@ export const RoadAccidentsPage: React.FC = () => {
   );
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploadFiles, setUploadFiles] = useState<FileList | null>(null);
+  const [uploadDocFiles, setUploadDocFiles] = useState<FileList | null>(null);
+  const [uploadTab, setUploadTab] = useState<"media" | "docs">("media");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newAccident, setNewAccident] = useState({
     location_lat: "",
@@ -61,7 +72,7 @@ export const RoadAccidentsPage: React.FC = () => {
   } | null>(null);
 
   // Fechas: "to" debe ser fin de día (23:59:59) para incluir accidentes de esa noche
-  const { data: accidents, isLoading: listLoading } = useRoadAccidents({
+  const { data: accidentsResult, isLoading: listLoading } = useRoadAccidents({
     from: dateRange.from
       ? new Date(`${dateRange.from}T00:00:00.000`).toISOString()
       : undefined,
@@ -71,6 +82,10 @@ export const RoadAccidentsPage: React.FC = () => {
     limit: PAGE_SIZE,
     offset: page * PAGE_SIZE,
   });
+
+  const accidents = accidentsResult?.data ?? [];
+  const totalAccidents = accidentsResult?.total ?? 0;
+  const totalPages = Math.ceil(totalAccidents / PAGE_SIZE) || 1;
 
   // Reset page when filters change
   const handleDateChange = (type: "from" | "to", value: string) => {
@@ -91,6 +106,8 @@ export const RoadAccidentsPage: React.FC = () => {
   };
   const { data: accident, isLoading: detailsLoading } =
     useRoadAccident(selectedAccidentId);
+
+  const { data: backendPolygons } = usePolygonsStatus();
 
   const uploadMediaMutation = useUploadAccidentMedia();
   const createAccidentMutation = useCreateAccident();
@@ -205,17 +222,22 @@ export const RoadAccidentsPage: React.FC = () => {
   };
 
   const handleUpload = async () => {
-    if (!selectedAccidentId || !uploadFiles) return;
+    const files = uploadTab === "media" ? uploadFiles : uploadDocFiles;
+    if (!selectedAccidentId || !files) return;
 
     try {
       await uploadMediaMutation.mutateAsync({
         id: selectedAccidentId,
-        files: uploadFiles,
+        files,
       });
+      if (uploadTab === "media") {
+        setUploadFiles(null);
+      } else {
+        setUploadDocFiles(null);
+      }
       setIsUploadOpen(false);
-      setUploadFiles(null);
     } catch (error) {
-      console.error("Error uploading media:", error);
+      console.error("Error uploading files:", error);
       alert("Error al subir los archivos");
     }
   };
@@ -238,7 +260,8 @@ export const RoadAccidentsPage: React.FC = () => {
     return "Ubicación s/d";
   };
 
-  const MEDIA_BASE_URL = "";
+  const apiBase = import.meta.env.VITE_API_URL || "/api";
+  const MEDIA_BASE_URL = apiBase.endsWith("/api") ? apiBase.replace(/\/api$/, "") : apiBase;
 
   return (
     <div className="flex h-[calc(100vh-200px)] bg-gray-50 dark:bg-veltrix-bg transition-colors">
@@ -246,10 +269,15 @@ export const RoadAccidentsPage: React.FC = () => {
       <div className="w-96 border-r border-gray-200 dark:border-veltrix-border bg-white dark:bg-veltrix-card flex flex-col transition-colors">
         <div className="p-4 border-b border-gray-200 dark:border-veltrix-border">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <Car className="w-6 h-6 text-red-600 dark:text-red-500" />
-              Siniestros
-            </h1>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <Car className="w-6 h-6 text-red-600 dark:text-red-500" />
+                Siniestros
+              </h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                {listLoading ? "Cargando..." : `${totalAccidents} total`}
+              </p>
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={handleBackfillWeather}
@@ -258,13 +286,6 @@ export const RoadAccidentsPage: React.FC = () => {
                 title="Obtener clima histórico para todos los accidentes sin datos"
               >
                 <Cloud className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setIsCreateOpen(true)}
-                className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
-                title="Agregar nuevo siniestro"
-              >
-                <Plus className="w-5 h-5" />
               </button>
             </div>
           </div>
@@ -347,8 +368,10 @@ export const RoadAccidentsPage: React.FC = () => {
                           >
                             {m.file_type === "image" ? (
                               <ImageIcon className="w-3 h-3 text-gray-500 dark:text-gray-300" />
-                            ) : (
+                            ) : m.file_type === "video" ? (
                               <Film className="w-3 h-3 text-gray-500 dark:text-gray-300" />
+                            ) : (
+                              <FileText className="w-3 h-3 text-gray-500 dark:text-gray-300" />
                             )}
                           </div>
                         ))
@@ -371,22 +394,33 @@ export const RoadAccidentsPage: React.FC = () => {
         </div>
 
         {/* Paginación */}
-        <div className="p-3 border-t border-gray-200 dark:border-veltrix-border flex justify-between items-center bg-gray-50 dark:bg-veltrix-bg text-xs">
-          <button
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            disabled={page === 0}
-            className="px-3 py-1 bg-white dark:bg-veltrix-card border rounded disabled:opacity-50"
-          >
-            Anterior
-          </button>
-          <span className="dark:text-gray-300">Pág {page + 1}</span>
-          <button
-            onClick={() => setPage((p) => p + 1)}
-            disabled={!accidents || accidents.length < PAGE_SIZE}
-            className="px-3 py-1 bg-white dark:bg-veltrix-card border rounded disabled:opacity-50"
-          >
-            Siguiente
-          </button>
+        <div className="p-3 border-t border-gray-200 dark:border-veltrix-border bg-gray-50 dark:bg-veltrix-bg">
+          <div className="flex justify-between items-center gap-2 text-xs">
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0 || listLoading}
+              className="px-3 py-2 bg-white dark:bg-veltrix-card border border-gray-200 dark:border-veltrix-border rounded-lg font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-veltrix-bg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Anterior
+            </button>
+            <div className="flex flex-col items-center min-w-[120px]">
+              <span className="text-gray-600 dark:text-gray-400">
+                {totalAccidents === 0
+                  ? "Sin resultados"
+                  : `${page * PAGE_SIZE + 1}-${Math.min((page + 1) * PAGE_SIZE, totalAccidents)} de ${totalAccidents}`}
+              </span>
+              <span className="text-gray-500 dark:text-gray-500 text-[10px]">
+                Pág. {page + 1} / {totalPages}
+              </span>
+            </div>
+            <button
+              onClick={() => setPage((p) => p + 1)}
+              disabled={page >= totalPages - 1 || listLoading || totalAccidents === 0}
+              className="px-3 py-2 bg-white dark:bg-veltrix-card border border-gray-200 dark:border-veltrix-border rounded-lg font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-veltrix-bg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Siguiente
+            </button>
+          </div>
         </div>
       </div>
 
@@ -418,18 +452,166 @@ export const RoadAccidentsPage: React.FC = () => {
                     {accident.location_lng.toFixed(5)}
                   </p>
                 </div>
-                <button
-                  onClick={() => setIsUploadOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md transition-all active:scale-95"
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      if (!accident) return;
+                      const bPoly = accident.polygon_id && backendPolygons
+                        ? backendPolygons.find((p) => p.id === accident.polygon_id)
+                        : null;
+                      const localPoly = !bPoly && accident.polygon_id
+                        ? realCordobaPolygons.find((p) => p.id === accident.polygon_id)
+                        : null;
+                      const pdfUser = authUser
+                        ? `${authUser.firstName} ${authUser.lastName}`.trim()
+                        : undefined;
+                      exportAccidentToPDF(
+                        accident,
+                        bPoly?.name ?? localPoly?.name,
+                        bPoly?.group ?? localPoly?.group,
+                        pdfUser,
+                      );
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-all active:scale-95"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Exportar PDF
+                  </button>
+                </div>
+              </div>
+
+              {/* Badges de tipo y estado */}
+              <div className="flex items-center gap-3">
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-white ${getSeverityColor(accident.severity)}`}>
+                  <AlertTriangle className="w-4 h-4" />
+                  {getAccidentSubtypeLabel(accident.subtype)}
+                </span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  Registrado
+                </span>
+              </div>
+
+              {/* Grid de información detallada */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="flex items-start gap-3 p-3 bg-white dark:bg-veltrix-card border border-gray-100 dark:border-veltrix-border rounded-xl">
+                  <MapPin className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ubicación</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {accident.street || `${accident.location_lat.toFixed(5)}, ${accident.location_lng.toFixed(5)}`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 bg-white dark:bg-veltrix-card border border-gray-100 dark:border-veltrix-border rounded-xl">
+                  <Clock className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fecha de reporte</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {new Date(accident.accident_at).toLocaleString("es-AR", {
+                        weekday: "short",
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 bg-white dark:bg-veltrix-card border border-gray-100 dark:border-veltrix-border rounded-xl">
+                  <User className="w-5 h-5 text-purple-500 mt-0.5 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Reportado por</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {accident.waze_data?.reportBy || "Usuario anónimo"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 bg-white dark:bg-veltrix-card border border-gray-100 dark:border-veltrix-border rounded-xl">
+                  <MapPin className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Polígono</p>
+                    {(() => {
+                      const bPoly = accident.polygon_id && backendPolygons
+                        ? backendPolygons.find((p) => p.id === accident.polygon_id)
+                        : null;
+                      const localPoly = !bPoly && accident.polygon_id
+                        ? realCordobaPolygons.find((p) => p.id === accident.polygon_id)
+                        : null;
+                      const name = bPoly?.name ?? localPoly?.name;
+                      const group = bPoly?.group ?? localPoly?.group;
+                      return name ? (
+                        <>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{name}</p>
+                          {group && group !== "Sin Grupo" && (
+                            <p className="text-xs text-gray-400 dark:text-gray-500">{group}</p>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">N/A</p>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Métricas Waze */}
+              <div className="grid grid-cols-3 gap-4">
+                <div
+                  className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-900/30"
+                  title="Experiencia del usuario que reportó el incidente (escala 1-10 del feed Waze)"
                 >
-                  <Upload className="w-4 h-4" />
-                  Subir Respaldo
-                </button>
+                  <div className="flex items-center justify-center gap-1 text-green-600 dark:text-green-400 mb-1">
+                    <CheckCircle className="w-4 h-4" />
+                    <span className="text-lg font-bold">
+                      {accident.waze_data?.reliability != null ? Number(accident.waze_data.reliability).toFixed(1) : "N/A"}
+                    </span>
+                    <span className="text-xs opacity-70">/10</span>
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Experiencia del reportador
+                  </p>
+                </div>
+
+                <div
+                  className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900/30"
+                  title="Nivel de confirmación por la comunidad Waze (escala 1-5 del feed oficial)"
+                >
+                  <div className="flex items-center justify-center gap-1 text-blue-600 dark:text-blue-400 mb-1">
+                    <Star className="w-4 h-4" />
+                    <span className="text-lg font-bold">
+                      {accident.waze_data?.confidence != null ? Number(accident.waze_data.confidence).toFixed(1) : "N/A"}
+                    </span>
+                    <span className="text-xs opacity-70">/5</span>
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Verificado por comunidad
+                  </p>
+                </div>
+
+                <div
+                  className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-100 dark:border-purple-900/30"
+                  title="Cantidad de usuarios Waze que pasaron por el lugar y confirmaron el reporte"
+                >
+                  <div className="flex items-center justify-center gap-1 text-purple-600 dark:text-purple-400 mb-1">
+                    <ThumbsUp className="w-4 h-4" />
+                    <span className="text-lg font-bold">
+                      {accident.waze_data?.nThumbsUp || accident.waze_data?.thumbsUp || 0}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Wazers lo confirmaron
+                  </p>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Minimapa */}
-                <div className="bg-white dark:bg-veltrix-card rounded-2xl shadow-sm border border-gray-100 dark:border-veltrix-border overflow-hidden h-[350px]">
+                <div className="bg-white dark:bg-veltrix-card rounded-2xl shadow-sm border border-gray-100 dark:border-veltrix-border overflow-hidden h-[350px] relative">
                   <MiniMapLibre
                     center={[accident.location_lat, accident.location_lng]}
                     zoom={15}
@@ -441,7 +623,7 @@ export const RoadAccidentsPage: React.FC = () => {
                         id: accident.id,
                         type: accident.type || "ACCIDENT",
                         subtype: accident.subtype,
-                        color: "#ef4444", // red-500
+                        color: "#ef4444",
                         popup: (
                           <div>
                             <div className="font-bold">
@@ -455,6 +637,26 @@ export const RoadAccidentsPage: React.FC = () => {
                       },
                     ]}
                   />
+                  <div className="absolute bottom-2 right-2 flex gap-2 z-10">
+                    <a
+                      href={`https://www.google.com/maps?q=${accident.location_lat},${accident.location_lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 px-2 py-1 bg-white/90 dark:bg-gray-800/90 rounded text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 shadow-sm transition-colors"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      Google Maps
+                    </a>
+                    <a
+                      href={`https://www.waze.com/ul?ll=${accident.location_lat},${accident.location_lng}&navigate=yes`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 px-2 py-1 bg-white/90 dark:bg-gray-800/90 rounded text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 shadow-sm transition-colors"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      Waze
+                    </a>
+                  </div>
                 </div>
 
                 {/* Información Climática */}
@@ -614,21 +816,41 @@ export const RoadAccidentsPage: React.FC = () => {
                   </h3>
                   <div className="text-sm space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-veltrix-muted">
-                        ID Incidente:
-                      </span>
-                      <span className="font-mono text-xs dark:text-gray-400">
-                        {accident.incident_id || "N/A"}
+                      <span className="text-gray-500 dark:text-veltrix-muted">ID Incidente:</span>
+                      <span className="font-mono text-xs dark:text-gray-400">{accident.incident_id || "N/A"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 dark:text-veltrix-muted">Tipo:</span>
+                      <span className="font-medium dark:text-gray-300">{accident.type || "N/A"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 dark:text-veltrix-muted">Subtipo:</span>
+                      <span className="font-medium dark:text-gray-300">{getAccidentSubtypeLabel(accident.subtype)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 dark:text-veltrix-muted">Confiabilidad:</span>
+                      <span className="font-medium text-blue-600 dark:text-blue-400">
+                        {accident.waze_data?.reliability != null ? `${accident.waze_data.reliability}/10` : "N/A"}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-veltrix-muted">
-                        Confiabilidad:
-                      </span>
+                      <span className="text-gray-500 dark:text-veltrix-muted">Confirmación comunidad:</span>
                       <span className="font-medium text-blue-600 dark:text-blue-400">
-                        {accident.waze_data?.reliability || "N/A"}/10
+                        {accident.waze_data?.confidence != null ? `${accident.waze_data.confidence}/5` : "N/A"}
                       </span>
                     </div>
+                    {accident.waze_data?.reportBy && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 dark:text-veltrix-muted">Reportado por:</span>
+                        <span className="font-medium dark:text-gray-300">{accident.waze_data.reportBy}</span>
+                      </div>
+                    )}
+                    {accident.description && (
+                      <div className="pt-2 border-t border-gray-100 dark:border-veltrix-border mt-2">
+                        <span className="text-gray-500 dark:text-veltrix-muted block mb-1">Descripción:</span>
+                        <span className="text-gray-700 dark:text-gray-300">{accident.description}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -637,7 +859,7 @@ export const RoadAccidentsPage: React.FC = () => {
               <div className="bg-white dark:bg-veltrix-card rounded-2xl shadow-sm border border-gray-100 dark:border-veltrix-border p-6">
                 <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
                   <ImageIcon className="w-5 h-5 text-indigo-500" />
-                  Respaldo Multimedia ({accident.media?.length || 0})
+                  Respaldo Multimedia y Documental ({accident.media?.length || 0})
                 </h3>
 
                 {accident.media && accident.media.length > 0 ? (
@@ -645,7 +867,9 @@ export const RoadAccidentsPage: React.FC = () => {
                     {accident.media.map((item, idx) => (
                       <div
                         key={idx}
-                        className="group relative rounded-xl overflow-hidden bg-black border border-gray-200 dark:border-veltrix-border aspect-video shadow-sm"
+                        className={`group relative rounded-xl overflow-hidden border border-gray-200 dark:border-veltrix-border shadow-sm ${
+                          item.file_type === "document" ? "bg-gray-50 dark:bg-veltrix-bg aspect-[4/3]" : "bg-black aspect-video"
+                        }`}
                       >
                         {item.file_type === "image" ? (
                           <img
@@ -653,19 +877,36 @@ export const RoadAccidentsPage: React.FC = () => {
                             alt={item.original_name}
                             className="w-full h-full object-cover transition-transform group-hover:scale-105"
                           />
-                        ) : (
+                        ) : item.file_type === "video" ? (
                           <video
                             src={`${MEDIA_BASE_URL}${item.file_path}`}
                             className="w-full h-full object-cover"
                             controls
                           />
+                        ) : (
+                          <a
+                            href={`${MEDIA_BASE_URL}${item.file_path}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full h-full flex flex-col items-center justify-center gap-2 p-3 hover:bg-gray-100 dark:hover:bg-veltrix-card transition-colors"
+                          >
+                            <FileText className="w-10 h-10 text-indigo-500" />
+                            <span className="text-xs text-gray-700 dark:text-gray-300 font-medium text-center truncate max-w-full px-1">
+                              {item.original_name || "Documento"}
+                            </span>
+                            <span className="text-[10px] text-gray-400">
+                              {Math.round((item.file_size_bytes || 0) / 1024)} KB
+                            </span>
+                          </a>
                         )}
-                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 p-2 text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity flex justify-between">
-                          <span className="truncate">{item.original_name}</span>
-                          <span>
-                            {Math.round((item.file_size_bytes || 0) / 1024)} KB
-                          </span>
-                        </div>
+                        {item.file_type !== "document" && (
+                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 p-2 text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity flex justify-between">
+                            <span className="truncate">{item.original_name}</span>
+                            <span>
+                              {Math.round((item.file_size_bytes || 0) / 1024)} KB
+                            </span>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -673,10 +914,10 @@ export const RoadAccidentsPage: React.FC = () => {
                   <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 dark:border-veltrix-border rounded-2xl text-gray-400 dark:text-veltrix-muted">
                     <Upload className="w-12 h-12 mb-3 stroke-1" />
                     <p>
-                      No hay archivos multimedia cargados para este siniestro.
+                      No hay archivos cargados para este siniestro.
                     </p>
                     <button
-                      onClick={() => setIsUploadOpen(true)}
+                      onClick={() => { setUploadTab("media"); setIsUploadOpen(true); }}
                       className="mt-4 text-blue-600 dark:text-blue-400 font-medium hover:underline"
                     >
                       Haga clic aquí para subir el primero
@@ -817,16 +1058,16 @@ export const RoadAccidentsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Modal: Upload */}
+      {/* Modal: Upload Multimedia y Documental */}
       {isUploadOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[10000] p-4">
-          <div className="bg-white dark:bg-veltrix-card rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-6 border-b border-gray-100 dark:border-veltrix-border flex justify-between items-center bg-gray-50 dark:bg-veltrix-bg">
+          <div className="bg-white dark:bg-veltrix-card rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-5 border-b border-gray-100 dark:border-veltrix-border flex justify-between items-center bg-gray-50 dark:bg-veltrix-bg">
               <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-                Subir Archivos
+                Respaldo Multimedia y Documental
               </h3>
               <button
-                onClick={() => setIsUploadOpen(false)}
+                onClick={() => { setIsUploadOpen(false); setUploadFiles(null); setUploadDocFiles(null); }}
                 className="p-1 hover:bg-gray-200 dark:hover:bg-veltrix-card rounded-full transition-colors"
                 title="Cerrar"
                 aria-label="Cerrar"
@@ -834,69 +1075,137 @@ export const RoadAccidentsPage: React.FC = () => {
                 <X className="w-6 h-6 text-gray-500 dark:text-gray-400" />
               </button>
             </div>
-            <div className="p-8">
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 dark:text-veltrix-muted mb-2">
-                  Seleccione imágenes o videos del siniestro
-                </label>
-                <div
-                  className="border-2 border-dashed border-gray-300 dark:border-veltrix-border rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all"
-                  onClick={() =>
-                    document.getElementById("file-upload")?.click()
-                  }
-                >
-                  <Upload className="w-12 h-12 text-gray-400 dark:text-gray-500 mb-3" />
-                  <p className="text-sm text-gray-600 dark:text-veltrix-muted font-medium">
-                    {uploadFiles
-                      ? `${uploadFiles.length} archivos seleccionados`
-                      : "Arrastre archivos aquí o haga clic"}
-                  </p>
-                  <p className="text-xs text-gray-400 dark:text-gray-600 mt-1">
-                    Imágenes (JPG, PNG) o Videos (MP4)
-                  </p>
-                  <input
-                    type="file"
-                    id="file-upload"
-                    className="hidden"
-                    multiple
-                    accept="image/*,video/*"
-                    onChange={(e) => setUploadFiles(e.target.files)}
-                  />
-                </div>
-              </div>
 
-              {uploadFiles && (
-                <div className="mb-6 space-y-2 max-h-40 overflow-y-auto">
-                  {Array.from(uploadFiles).map((f, i) => (
-                    <div
-                      key={i}
-                      className="flex justify-between items-center p-2 bg-gray-50 dark:bg-veltrix-bg rounded-lg text-xs dark:text-gray-300"
-                    >
-                      <div className="flex items-center gap-2">
-                        {f.type.startsWith("video/") ? (
-                          <Film className="w-3 h-3" />
-                        ) : (
-                          <ImageIcon className="w-3 h-3" />
-                        )}
-                        <span className="truncate max-w-[200px]">{f.name}</span>
-                      </div>
-                      <span className="text-gray-400">
-                        {(f.size / 1024 / 1024).toFixed(1)} MB
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
+            {/* Tabs */}
+            <div className="flex border-b border-gray-200 dark:border-veltrix-border">
               <button
-                disabled={!uploadFiles || uploadMediaMutation.isPending}
-                onClick={handleUpload}
-                className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:dark:bg-gray-700 disabled:shadow-none transition-all active:scale-[0.98]"
+                onClick={() => setUploadTab("media")}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors border-b-2 ${
+                  uploadTab === "media"
+                    ? "border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400"
+                    : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                }`}
               >
-                {uploadMediaMutation.isPending
-                  ? "Subiendo..."
-                  : "Iniciar Carga"}
+                <ImageIcon className="w-4 h-4" />
+                Multimedia
+                {uploadFiles && <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-1.5 rounded-full">{uploadFiles.length}</span>}
               </button>
+              <button
+                onClick={() => setUploadTab("docs")}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors border-b-2 ${
+                  uploadTab === "docs"
+                    ? "border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400"
+                    : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                }`}
+              >
+                <FileText className="w-4 h-4" />
+                Documentación
+                {uploadDocFiles && <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-1.5 rounded-full">{uploadDocFiles.length}</span>}
+              </button>
+            </div>
+
+            <div className="p-6">
+              {uploadTab === "media" ? (
+                <>
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-600 dark:text-veltrix-muted mb-3">
+                      Adjunte fotos o videos como respaldo visual del siniestro.
+                    </p>
+                    <div
+                      className="border-2 border-dashed border-gray-300 dark:border-veltrix-border rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all"
+                      onClick={() => document.getElementById("file-upload-media")?.click()}
+                    >
+                      <Upload className="w-10 h-10 text-gray-400 dark:text-gray-500 mb-2" />
+                      <p className="text-sm text-gray-600 dark:text-veltrix-muted font-medium">
+                        {uploadFiles ? `${uploadFiles.length} archivos seleccionados` : "Arrastre archivos aquí o haga clic"}
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-600 mt-1">
+                        Imágenes (JPG, PNG) o Videos (MP4) — Máx. 50 MB
+                      </p>
+                      <input
+                        type="file"
+                        id="file-upload-media"
+                        className="hidden"
+                        multiple
+                        accept="image/*,video/*"
+                        onChange={(e) => setUploadFiles(e.target.files)}
+                      />
+                    </div>
+                  </div>
+
+                  {uploadFiles && (
+                    <div className="mb-4 space-y-1.5 max-h-36 overflow-y-auto">
+                      {Array.from(uploadFiles).map((f, i) => (
+                        <div key={i} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-veltrix-bg rounded-lg text-xs dark:text-gray-300">
+                          <div className="flex items-center gap-2">
+                            {f.type.startsWith("video/") ? <Film className="w-3 h-3" /> : <ImageIcon className="w-3 h-3" />}
+                            <span className="truncate max-w-[250px]">{f.name}</span>
+                          </div>
+                          <span className="text-gray-400">{(f.size / 1024 / 1024).toFixed(1)} MB</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    disabled={!uploadFiles || uploadMediaMutation.isPending}
+                    onClick={handleUpload}
+                    className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:dark:bg-gray-700 disabled:shadow-none transition-all active:scale-[0.98]"
+                  >
+                    {uploadMediaMutation.isPending ? "Subiendo..." : "Subir Multimedia"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-600 dark:text-veltrix-muted mb-3">
+                      Adjunte documentos como actas, informes o partes oficiales.
+                    </p>
+                    <div
+                      className="border-2 border-dashed border-gray-300 dark:border-veltrix-border rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all"
+                      onClick={() => document.getElementById("file-upload-docs")?.click()}
+                    >
+                      <FileText className="w-10 h-10 text-gray-400 dark:text-gray-500 mb-2" />
+                      <p className="text-sm text-gray-600 dark:text-veltrix-muted font-medium">
+                        {uploadDocFiles ? `${uploadDocFiles.length} documentos seleccionados` : "Arrastre documentos aquí o haga clic"}
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-600 mt-1">
+                        PDF, Word (DOC/DOCX) o Excel (XLS/XLSX) — Máx. 50 MB
+                      </p>
+                      <input
+                        type="file"
+                        id="file-upload-docs"
+                        className="hidden"
+                        multiple
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        onChange={(e) => setUploadDocFiles(e.target.files)}
+                      />
+                    </div>
+                  </div>
+
+                  {uploadDocFiles && (
+                    <div className="mb-4 space-y-1.5 max-h-36 overflow-y-auto">
+                      {Array.from(uploadDocFiles).map((f, i) => (
+                        <div key={i} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-veltrix-bg rounded-lg text-xs dark:text-gray-300">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-3 h-3" />
+                            <span className="truncate max-w-[250px]">{f.name}</span>
+                          </div>
+                          <span className="text-gray-400">{(f.size / 1024 / 1024).toFixed(1)} MB</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    disabled={!uploadDocFiles || uploadMediaMutation.isPending}
+                    onClick={handleUpload}
+                    className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg hover:bg-indigo-700 disabled:bg-gray-300 disabled:dark:bg-gray-700 disabled:shadow-none transition-all active:scale-[0.98]"
+                  >
+                    {uploadMediaMutation.isPending ? "Subiendo..." : "Subir Documentación"}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

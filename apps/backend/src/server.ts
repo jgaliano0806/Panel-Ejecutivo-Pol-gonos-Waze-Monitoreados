@@ -1912,14 +1912,24 @@ server.get("/api/accidents", async (request, reply) => {
       offset?: string;
     };
 
-    const accidents = await roadAccidentService.getAccidents({
+    const limitNum = limit ? parseInt(limit) : 50;
+    const offsetNum = offset ? parseInt(offset) : 0;
+    const filters = {
       from: from ? new Date(from) : undefined,
       to: to ? new Date(to) : undefined,
-      limit: limit ? parseInt(limit) : 50,
-      offset: offset ? parseInt(offset) : 0,
-    });
+      limit: limitNum,
+      offset: offsetNum,
+    };
 
-    return serializeObject(accidents);
+    const [accidents, total] = await Promise.all([
+      roadAccidentService.getAccidents(filters),
+      roadAccidentService.getAccidentsTotal({
+        from: filters.from,
+        to: filters.to,
+      }),
+    ]);
+
+    return serializeObject({ data: accidents, total });
   } catch (error) {
     server.log.error(
       {
@@ -1937,7 +1947,7 @@ server.get("/api/accidents", async (request, reply) => {
       server.log.warn(
         "Tabla road_accidents no existe. Retornando array vacío. Ejecutar: npx ts-node scripts/create-accidents-table.ts",
       );
-      return serializeObject([]);
+      return serializeObject({ data: [], total: 0 });
     }
 
     return reply.code(500).send({
@@ -2148,8 +2158,18 @@ server.post("/api/accidents/:id/media", async (request, reply) => {
         part.file,
       );
 
-      // Determinar tipo de archivo
-      const fileType = part.mimetype.startsWith("video/") ? "video" : "image";
+      const DOCUMENT_MIMES = [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ];
+      const fileType: "image" | "video" | "document" = part.mimetype.startsWith("video/")
+        ? "video"
+        : DOCUMENT_MIMES.includes(part.mimetype)
+          ? "document"
+          : "image";
 
       // Registrar en base de datos
       const mediaRecord = await roadAccidentService.addMedia({

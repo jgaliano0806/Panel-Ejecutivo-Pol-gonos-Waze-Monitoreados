@@ -40,10 +40,9 @@ export const ROUTE_PERMISSIONS = {
   /** Notificaciones - ligadas a incidentes/alertas */
   notificaciones: "incidents.view",
 
-  /** Siniestros, incidentes, historial - datos de incidentes */
+  /** Siniestros, incidentes - datos de incidentes */
   siniestros: "incidents.view",
   incidentes: "incidents.view",
-  historial: "incidents.view",
 
   /** Estadísticas y análisis de riesgos - reportes */
   estadisticas: "reports.view",
@@ -75,7 +74,6 @@ export const PATH_TO_PERMISSION: Record<string, PermissionCode> = {
   "/notificaciones": ROUTE_PERMISSIONS.notificaciones,
   "/siniestros": ROUTE_PERMISSIONS.siniestros,
   "/incidentes": ROUTE_PERMISSIONS.incidentes,
-  "/historial": ROUTE_PERMISSIONS.historial,
   "/estadisticas": ROUTE_PERMISSIONS.estadisticas,
   "/riesgos": ROUTE_PERMISSIONS.riesgos,
   "/admin": ROUTE_PERMISSIONS.admin,

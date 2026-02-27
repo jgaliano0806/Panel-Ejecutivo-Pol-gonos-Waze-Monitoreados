@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { fileURLToPath, URL } from "node:url";
 import { visualizer } from "rollup-plugin-visualizer";
 
 // https://vitejs.dev/config/
@@ -10,10 +11,9 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     cacheDir: "node_modules/.vite_fix", // Force new cache directory
-    root: process.cwd(),
     resolve: {
       alias: {
-        "@": path.resolve(__dirname, "./src"),
+        "@": fileURLToPath(new URL("./src", import.meta.url)),
       },
       // Force resolution from root node_modules for hoisted packages
       dedupe: ["react", "react-dom", "recharts"],
@@ -89,7 +89,6 @@ export default defineConfig(({ mode }) => {
       // Optimizaciones adicionales
       cssCodeSplit: true,
       reportCompressedSize: true,
-      target: "es2022",
       // Optimización de assets
       assetsInlineLimit: 4096, // Inline assets menores a 4KB
     },

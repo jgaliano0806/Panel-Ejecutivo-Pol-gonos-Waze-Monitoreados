@@ -61,6 +61,19 @@ temp
 # Docker
 .docker
 
+# Node.js caches (generados cuando hostname es IP, ej. desarrollo remoto)
+**/node-compile-cache/
+**/node-jiti/
+# Directorios con IP como nombre (hostname de la máquina)
+192.168.*/
+10.*/
+
+# Vite / build caches
+.vite
+.parcel-cache
+.eslintcache
+.prettiercache
+
 # Misc
 *.bak
 *.backup

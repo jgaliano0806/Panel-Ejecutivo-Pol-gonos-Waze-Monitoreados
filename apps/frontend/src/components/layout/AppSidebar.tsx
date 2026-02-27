@@ -2,12 +2,10 @@ import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  Home,
   Map,
   AlertTriangle,
   Layers,
   Car,
-  Calendar,
   BarChart3,
   Settings,
   ChevronRight,
@@ -48,7 +46,6 @@ export const AppSidebar: React.FC = () => {
     if (location.pathname === "/siniestros") return "accidents";
     if (location.pathname === "/notificaciones") return "notifications";
     if (location.pathname === "/incidentes") return "incidents";
-    if (location.pathname === "/historial") return "history";
     if (location.pathname === "/estadisticas") return "stats";
     if (location.pathname === "/admin") return "admin";
     return "home";
@@ -57,13 +54,6 @@ export const AppSidebar: React.FC = () => {
   const activeItem = getActiveItem();
 
   const allNavItems: NavItem[] = [
-    {
-      id: "home",
-      label: "Inicio",
-      icon: <Home size={20} />,
-      path: "/dashboard",
-      requiredPermission: ROUTE_PERMISSIONS.home,
-    },
     {
       id: "map",
       label: "Mapa y Zonas",
@@ -105,13 +95,6 @@ export const AppSidebar: React.FC = () => {
       icon: <FileSearch size={20} />,
       path: "/incidentes",
       requiredPermission: ROUTE_PERMISSIONS.incidentes,
-    },
-    {
-      id: "history",
-      label: "Historial",
-      icon: <Calendar size={20} />,
-      path: "/historial",
-      requiredPermission: ROUTE_PERMISSIONS.historial,
     },
     {
       id: "stats",

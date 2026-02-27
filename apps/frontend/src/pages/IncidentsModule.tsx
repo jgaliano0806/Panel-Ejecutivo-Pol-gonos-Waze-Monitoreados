@@ -9,6 +9,9 @@ import { IncidentFilters } from "@/components/incidents/IncidentFilters";
 import { IncidentsTable } from "@/components/incidents/IncidentsTable";
 import { IncidentDetailModal } from "@/components/incidents/IncidentDetailModal";
 import { exportIncidentToPDF } from "@/lib/pdf-export";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { usePolygonsStatus } from "@/hooks/useWazeData";
+import { realCordobaPolygons } from "@/data/mock/realCordobaPolygons";
 import {
   Download,
   AlertTriangle,
@@ -73,15 +76,31 @@ export const IncidentsModule: React.FC = () => {
     [navigate],
   );
 
-  // Exportar PDF
+  const authUser = useAuthStore((s) => s.user);
+  const { data: backendPolygons } = usePolygonsStatus();
+
   const handleExportPDF = useCallback(async (incident: Incident) => {
     try {
-      await exportIncidentToPDF(incident);
+      const userName = authUser
+        ? `${authUser.firstName} ${authUser.lastName}`.trim()
+        : undefined;
+      const bPoly = incident.polygonId && backendPolygons
+        ? backendPolygons.find((p) => p.id === incident.polygonId)
+        : null;
+      const localPoly = !bPoly && incident.polygonId
+        ? realCordobaPolygons.find((p) => p.id === incident.polygonId)
+        : null;
+      await exportIncidentToPDF(
+        incident,
+        userName,
+        bPoly?.name ?? localPoly?.name,
+        bPoly?.group ?? localPoly?.group,
+      );
     } catch (error) {
       console.error("Error exportando PDF:", error);
       alert("Error al generar el PDF. Por favor intente nuevamente.");
     }
-  }, []);
+  }, [authUser, backendPolygons]);
 
   // Cerrar modal
   const handleCloseModal = useCallback(() => {

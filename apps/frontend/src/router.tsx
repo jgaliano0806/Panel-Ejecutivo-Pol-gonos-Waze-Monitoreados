@@ -1,6 +1,5 @@
 import { createBrowserRouter } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
-import { IncidentsHistoryPage } from "./pages/IncidentsHistoryPage";
 import { StatsPage } from "./pages/StatsPage";
 import { RiskDashboard } from "./pages/RiskDashboard";
 import { RoadAccidentsPage } from "./pages/RoadAccidentsPage";
@@ -69,18 +68,6 @@ export const router = createBrowserRouter(
           <AppLayout>
             <SectionErrorBoundary sectionName="Siniestros">
               <RoadAccidentsPage />
-            </SectionErrorBoundary>
-          </AppLayout>
-        </ProtectedRoute>
-      ),
-    },
-    {
-      path: "/historial",
-      element: (
-        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.historial]}>
-          <AppLayout>
-            <SectionErrorBoundary sectionName="Historial de Incidentes">
-              <IncidentsHistoryPage />
             </SectionErrorBoundary>
           </AppLayout>
         </ProtectedRoute>

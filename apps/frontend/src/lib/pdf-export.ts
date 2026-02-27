@@ -1,5 +1,5 @@
 /**
- * Utilidad para exportar incidentes a PDF
+ * Utilidad para exportar incidentes y siniestros a PDF
  * Usa jsPDF para generar documentos PDF con branding de Caminos de las Sierras
  */
 import { jsPDF } from "jspdf";
@@ -8,6 +8,7 @@ import {
   translateIncidentType,
   translateIncidentSubtype,
 } from "../hooks/useIncidentsModule";
+import type { RoadAccident } from "../hooks/useRoadAccidents";
 
 // Colores corporativos de Caminos de las Sierras
 const BRAND_COLORS = {
@@ -200,7 +201,12 @@ async function generateMapImage(
  * Genera y descarga un PDF con el detalle de un incidente
  * Incluye branding de Caminos de las Sierras
  */
-export async function exportIncidentToPDF(incident: Incident): Promise<void> {
+export async function exportIncidentToPDF(
+  incident: Incident,
+  generatedBy?: string,
+  polygonName?: string,
+  polygonGroup?: string,
+): Promise<void> {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -238,13 +244,14 @@ export async function exportIncidentToPDF(incident: Incident): Promise<void> {
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...BRAND_COLORS.textMuted);
-  doc.text(
-    `Generado: ${new Date().toLocaleString("es-AR")}`,
-    logoBase64 ? 55 : 15,
-    yPos + 15,
-  );
+  const headerX = logoBase64 ? 55 : 15;
+  const generatedText = `Generado: ${new Date().toLocaleString("es-AR")}`;
+  doc.text(generatedText, headerX, yPos + 15);
+  if (generatedBy) {
+    doc.text(`Por: ${generatedBy}`, headerX, yPos + 20);
+  }
 
-  yPos = 45;
+  yPos = generatedBy ? 48 : 45;
 
   // === LÍNEA SEPARADORA ===
   doc.setDrawColor(...BRAND_COLORS.green);
@@ -445,7 +452,12 @@ export async function exportIncidentToPDF(incident: Incident): Promise<void> {
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
 
-  doc.text(`Polígono: ${incident.polygonId || "N/A"}`, 15, yPos);
+  const polyDisplay = polygonName || incident.polygonId || "N/A";
+  doc.text(`Polígono: ${polyDisplay}`, 15, yPos);
+  if (polygonGroup && polygonGroup !== "Sin Grupo") {
+    yPos += 5;
+    doc.text(`Grupo: ${polygonGroup}`, 15, yPos);
+  }
   yPos += 5;
   doc.text(
     `Reportado por: ${incident.reportBy || "Usuario anónimo"}`,
@@ -510,5 +522,322 @@ export async function exportIncidentToPDF(incident: Incident): Promise<void> {
 
   // Guardar PDF
   const fileName = `incidente_${incident.uuid.substring(0, 8)}_${new Date().toISOString().split("T")[0]}.pdf`;
+  doc.save(fileName);
+}
+
+/**
+ * Genera y descarga un PDF con el detalle de un siniestro vial (RoadAccident)
+ */
+export async function exportAccidentToPDF(
+  accident: RoadAccident,
+  polygonName?: string,
+  polygonGroup?: string,
+  generatedBy?: string,
+): Promise<void> {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  const [logoBase64, mapImage] = await Promise.all([
+    loadLogoAsBase64(),
+    generateMapImage(accident.location_lat, accident.location_lng, 15),
+  ]);
+
+  let yPos = 10;
+
+  // === HEADER ===
+  doc.setFillColor(...BRAND_COLORS.green);
+  doc.rect(0, 0, pageWidth, 8, "F");
+  doc.setFillColor(...BRAND_COLORS.yellow);
+  doc.rect(0, 8, pageWidth, 3, "F");
+
+  yPos = 18;
+
+  if (logoBase64) {
+    doc.addImage(logoBase64, "PNG", 12, yPos, 35, 18);
+  }
+
+  doc.setTextColor(...BRAND_COLORS.greenDark);
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text("REPORTE DE SINIESTRO VIAL", logoBase64 ? 55 : 15, yPos + 8);
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...BRAND_COLORS.textMuted);
+  const accHeaderX = logoBase64 ? 55 : 15;
+  doc.text(`Generado: ${new Date().toLocaleString("es-AR")}`, accHeaderX, yPos + 15);
+  if (generatedBy) {
+    doc.text(`Por: ${generatedBy}`, accHeaderX, yPos + 20);
+  }
+
+  yPos = generatedBy ? 48 : 45;
+  doc.setDrawColor(...BRAND_COLORS.green);
+  doc.setLineWidth(1);
+  doc.line(15, yPos, pageWidth - 15, yPos);
+  yPos += 10;
+
+  // === TIPO Y SEVERIDAD ===
+  const subtypeLabels: Record<string, string> = {
+    ACCIDENT_MINOR: "Accidente Leve",
+    ACCIDENT_MAJOR: "Accidente Grave",
+    ACCIDENT_CONSTRUCTION: "En Construcción",
+    NO_SUBTYPE: "Accidente",
+    ROAD_CLOSED_EVENT: "Calle Cerrada",
+  };
+  const typeLabel = accident.subtype
+    ? subtypeLabels[accident.subtype] || accident.subtype.replace(/_/g, " ")
+    : "Siniestro Vial";
+
+  doc.setTextColor(...BRAND_COLORS.green);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text(typeLabel, 15, yPos);
+
+  if (accident.severity) {
+    const sevColor: [number, number, number] =
+      accident.severity >= 4 ? [220, 38, 38] : accident.severity >= 3 ? [234, 88, 12] : [59, 130, 246];
+    doc.setFillColor(...sevColor);
+    doc.roundedRect(pageWidth - 45, yPos - 6, 30, 8, 2, 2, "F");
+    doc.setTextColor(...BRAND_COLORS.white);
+    doc.setFontSize(7);
+    doc.text(`Nivel ${accident.severity}`, pageWidth - 30, yPos - 1, { align: "center" });
+  }
+
+  yPos += 5;
+  doc.setTextColor(...BRAND_COLORS.textMuted);
+  doc.setFontSize(8);
+  doc.text(`ID: ${accident.id}`, 15, yPos);
+  yPos += 10;
+
+  // === MAPA ===
+  if (mapImage) {
+    doc.setTextColor(...BRAND_COLORS.greenDark);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("Ubicación en Mapa", 15, yPos);
+    yPos += 5;
+
+    const mapWidth = pageWidth - 30;
+    const mapHeight = mapWidth * (400 / 500);
+    const actualMapHeight = Math.min(mapHeight, 70);
+    const actualMapWidth = actualMapHeight * (500 / 400);
+    const mapX = (pageWidth - actualMapWidth) / 2;
+    doc.addImage(mapImage, "PNG", mapX, yPos, actualMapWidth, actualMapHeight);
+    doc.setDrawColor(...BRAND_COLORS.green);
+    doc.setLineWidth(0.5);
+    doc.rect(mapX, yPos, actualMapWidth, actualMapHeight);
+    yPos += actualMapHeight + 8;
+  }
+
+  // === DIRECCIÓN ===
+  doc.setTextColor(...BRAND_COLORS.greenDark);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("Dirección", 15, yPos);
+  yPos += 6;
+  doc.setTextColor(...BRAND_COLORS.textDark);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(accident.street || "Sin calle especificada", 15, yPos);
+  yPos += 5;
+  doc.setFontSize(8);
+  doc.setTextColor(...BRAND_COLORS.textMuted);
+  doc.text(
+    `Coordenadas: ${accident.location_lat.toFixed(6)}, ${accident.location_lng.toFixed(6)}`,
+    15,
+    yPos,
+  );
+  yPos += 10;
+
+  // === FECHA ===
+  doc.setTextColor(...BRAND_COLORS.greenDark);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("Fecha y Hora del Siniestro", 15, yPos);
+  yPos += 6;
+  doc.setTextColor(...BRAND_COLORS.textDark);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  const fecha = new Date(accident.accident_at).toLocaleString("es-AR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  doc.text(fecha, 15, yPos);
+  yPos += 10;
+
+  // === MÉTRICAS ===
+  const reliability = accident.waze_data?.reliability;
+  const confidence = accident.waze_data?.confidence;
+  const thumbsUp = accident.waze_data?.nThumbsUp || accident.waze_data?.thumbsUp || 0;
+
+  doc.setTextColor(...BRAND_COLORS.greenDark);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("Métricas de Verificación (Waze)", 15, yPos);
+  yPos += 7;
+
+  const boxWidth = 55;
+  const boxHeight = 20;
+  const boxY = yPos;
+
+  doc.setFillColor(220, 252, 231);
+  doc.roundedRect(15, boxY, boxWidth, boxHeight, 3, 3, "F");
+  doc.setDrawColor(...BRAND_COLORS.green);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(15, boxY, boxWidth, boxHeight, 3, 3, "S");
+  doc.setTextColor(...BRAND_COLORS.green);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${reliability != null ? Number(reliability).toFixed(1) : "N/A"}/10`, 15 + boxWidth / 2, boxY + 8, { align: "center" });
+  doc.setTextColor(...BRAND_COLORS.textMuted);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "normal");
+  doc.text("Exp. Reportador", 15 + boxWidth / 2, boxY + 14, { align: "center" });
+
+  doc.setFillColor(254, 249, 195);
+  doc.roundedRect(75, boxY, boxWidth, boxHeight, 3, 3, "F");
+  doc.setDrawColor(...BRAND_COLORS.yellow);
+  doc.roundedRect(75, boxY, boxWidth, boxHeight, 3, 3, "S");
+  doc.setTextColor(161, 98, 7);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${confidence != null ? Number(confidence).toFixed(1) : "N/A"}/5`, 75 + boxWidth / 2, boxY + 8, { align: "center" });
+  doc.setTextColor(...BRAND_COLORS.textMuted);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "normal");
+  doc.text("Verif. Comunidad", 75 + boxWidth / 2, boxY + 14, { align: "center" });
+
+  doc.setFillColor(209, 250, 229);
+  doc.roundedRect(135, boxY, boxWidth, boxHeight, 3, 3, "F");
+  doc.setDrawColor(...BRAND_COLORS.greenDark);
+  doc.roundedRect(135, boxY, boxWidth, boxHeight, 3, 3, "S");
+  doc.setTextColor(...BRAND_COLORS.greenDark);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${thumbsUp}`, 135 + boxWidth / 2, boxY + 8, { align: "center" });
+  doc.setTextColor(...BRAND_COLORS.textMuted);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "normal");
+  doc.text("Confirmaciones", 135 + boxWidth / 2, boxY + 14, { align: "center" });
+
+  yPos = boxY + boxHeight + 10;
+
+  // === INFORMACIÓN ADICIONAL ===
+  doc.setTextColor(...BRAND_COLORS.greenDark);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("Información Adicional", 15, yPos);
+  yPos += 6;
+  doc.setTextColor(...BRAND_COLORS.textDark);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+
+  doc.text(`Polígono: ${polygonName || accident.polygon_id || "N/A"}`, 15, yPos);
+  if (polygonGroup && polygonGroup !== "Sin Grupo") {
+    yPos += 5;
+    doc.text(`Grupo: ${polygonGroup}`, 15, yPos);
+  }
+  yPos += 5;
+  doc.text(`Reportado por: ${accident.waze_data?.reportBy || "Usuario anónimo"}`, 15, yPos);
+
+  if (accident.description) {
+    yPos += 7;
+    doc.setTextColor(...BRAND_COLORS.greenDark);
+    doc.setFont("helvetica", "bold");
+    doc.text("Descripción:", 15, yPos);
+    yPos += 5;
+    doc.setTextColor(...BRAND_COLORS.textDark);
+    doc.setFont("helvetica", "normal");
+    const splitText = doc.splitTextToSize(accident.description, pageWidth - 30);
+    doc.text(splitText, 15, yPos);
+    yPos += splitText.length * 4;
+  }
+
+  if (accident.operator_notes) {
+    yPos += 7;
+    doc.setTextColor(...BRAND_COLORS.greenDark);
+    doc.setFont("helvetica", "bold");
+    doc.text("Notas del Operador:", 15, yPos);
+    yPos += 5;
+    doc.setTextColor(...BRAND_COLORS.textDark);
+    doc.setFont("helvetica", "normal");
+    const splitNotes = doc.splitTextToSize(accident.operator_notes, pageWidth - 30);
+    doc.text(splitNotes, 15, yPos);
+    yPos += splitNotes.length * 4;
+  }
+
+  // === CLIMA ===
+  const w = accident.weather_data;
+  if (w && Object.keys(w).length > 0) {
+    yPos += 8;
+    doc.setTextColor(...BRAND_COLORS.greenDark);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("Condiciones Climáticas", 15, yPos);
+    yPos += 6;
+    doc.setTextColor(...BRAND_COLORS.textDark);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    if (w.temperature_celsius != null) {
+      doc.text(`Temperatura: ${w.temperature_celsius}°C`, 15, yPos);
+      yPos += 5;
+    }
+    if (w.precipitation_mm != null) {
+      doc.text(`Precipitación: ${w.precipitation_mm}mm`, 15, yPos);
+      yPos += 5;
+    }
+    if (w.wind_speed_kmh != null) {
+      doc.text(`Viento: ${w.wind_speed_kmh} km/h`, 15, yPos);
+      yPos += 5;
+    }
+    if (w.visibility_meters != null) {
+      doc.text(`Visibilidad: ${(w.visibility_meters / 1000).toFixed(1)} km`, 15, yPos);
+      yPos += 5;
+    }
+    if (w.weather_description) {
+      doc.text(`Condición: ${w.weather_description}`, 15, yPos);
+      yPos += 5;
+    }
+  }
+
+  // === ENLACES ===
+  yPos += 5;
+  doc.setTextColor(...BRAND_COLORS.textMuted);
+  doc.setFontSize(8);
+  doc.text("Enlaces externos:", 15, yPos);
+  yPos += 4;
+  doc.setTextColor(...BRAND_COLORS.green);
+  doc.textWithLink(
+    `Google Maps: maps.google.com/?q=${accident.location_lat},${accident.location_lng}`,
+    15, yPos,
+    { url: `https://www.google.com/maps?q=${accident.location_lat},${accident.location_lng}` },
+  );
+  yPos += 4;
+  doc.textWithLink(
+    `Waze: waze.com/ul?ll=${accident.location_lat},${accident.location_lng}`,
+    15, yPos,
+    { url: `https://www.waze.com/ul?ll=${accident.location_lat},${accident.location_lng}&navigate=yes` },
+  );
+
+  // === FOOTER ===
+  doc.setFillColor(...BRAND_COLORS.yellow);
+  doc.rect(0, pageHeight - 12, pageWidth, 3, "F");
+  doc.setFillColor(...BRAND_COLORS.green);
+  doc.rect(0, pageHeight - 9, pageWidth, 9, "F");
+  doc.setTextColor(...BRAND_COLORS.white);
+  doc.setFontSize(8);
+  doc.text(
+    "Caminos de las Sierras S.A. - Sistema de Seguridad Vial",
+    pageWidth / 2,
+    pageHeight - 4,
+    { align: "center" },
+  );
+
+  const fileName = `siniestro_${accident.id.substring(0, 8)}_${new Date().toISOString().split("T")[0]}.pdf`;
   doc.save(fileName);
 }

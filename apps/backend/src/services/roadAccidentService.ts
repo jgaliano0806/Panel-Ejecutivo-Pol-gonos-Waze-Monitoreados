@@ -27,7 +27,7 @@ export interface AccidentMedia {
   id?: string;
   accident_id: string;
   file_path: string;
-  file_type: "image" | "video";
+  file_type: "image" | "video" | "document";
   original_name?: string;
   file_size_bytes?: number;
   created_at?: Date;
@@ -100,6 +100,45 @@ export class RoadAccidentService {
         throw new Error(
           "La tabla road_accidents no existe. Ejecutar la migración 003_road_accidents_multimedia.sql",
         );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Obtiene el total de siniestros que coinciden con los filtros (sin paginación)
+   */
+  async getAccidentsTotal(
+    filters: {
+      from?: Date;
+      to?: Date;
+    } = {},
+  ): Promise<number> {
+    let query = `
+      SELECT COUNT(*)::int as total
+      FROM road_accidents a
+      WHERE 1=1
+      AND a.type = 'ACCIDENT'
+      AND (a.subtype IS NULL OR a.subtype NOT LIKE 'HAZARD%')
+    `;
+    const params: any[] = [];
+    let pIndex = 1;
+
+    if (filters.from) {
+      query += ` AND a.accident_at >= $${pIndex++}`;
+      params.push(filters.from);
+    }
+    if (filters.to) {
+      query += ` AND a.accident_at <= $${pIndex++}`;
+      params.push(filters.to);
+    }
+
+    try {
+      const result = await dbService.query(query, params);
+      return (result.rows[0]?.total as number) ?? 0;
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("does not exist")) {
+        return 0;
       }
       throw error;
     }

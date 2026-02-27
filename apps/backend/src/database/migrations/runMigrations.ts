@@ -286,6 +286,91 @@ export async function runMigrations(): Promise<void> {
       }
     }
 
+    // Migración 028: Corregir columnas decimales (avg_delay, wazers_count → NUMERIC)
+    const migration028Path = path.join(
+      migrationsDir,
+      "028_fix_decimal_columns.sql",
+    );
+    if (fs.existsSync(migration028Path)) {
+      try {
+        const sql = fs.readFileSync(migration028Path, "utf-8");
+        await dbService.query(sql);
+        console.log("✅ Migración 028 ejecutada: columnas decimales corregidas");
+      } catch (migError: any) {
+        if (
+          !migError.message?.includes("already exists") &&
+          !migError.message?.includes("ya existe")
+        ) {
+          console.warn("⚠️ Migración 028:", migError.message);
+        } else {
+          console.log("✅ Migración 028 aplicada parcialmente (ya existía)");
+        }
+      }
+    }
+
+    // Migración 029: Seed de los 66 polígonos productivos con feed URLs
+    const migration029Path = path.join(
+      migrationsDir,
+      "029_seed_polygons.sql",
+    );
+    if (fs.existsSync(migration029Path)) {
+      try {
+        const sql = fs.readFileSync(migration029Path, "utf-8");
+        await dbService.query(sql);
+        console.log("✅ Migración 029 ejecutada: 66 polígonos sembrados");
+      } catch (migError: any) {
+        console.warn("⚠️ Migración 029:", migError.message);
+      }
+    }
+
+    // Migración 030: Tablas de auth (users, roles, permissions, sessions) + admin por defecto
+    const migration030Path = path.join(
+      migrationsDir,
+      "030_users_and_admin.sql",
+    );
+    if (fs.existsSync(migration030Path)) {
+      try {
+        const sql = fs.readFileSync(migration030Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 030 ejecutada: auth tables + usuario admin creados",
+        );
+      } catch (migError: any) {
+        if (
+          !migError.message?.includes("already exists") &&
+          !migError.message?.includes("ya existe")
+        ) {
+          console.warn("⚠️ Migración 030:", migError.message);
+        } else {
+          console.log(
+            "✅ Migración 030 aplicada parcialmente (tablas ya existían)",
+          );
+        }
+      }
+    }
+
+    // Migración 031: Ampliar accident_media para soportar documentos
+    const migration031Path = path.join(
+      migrationsDir,
+      "031_accident_media_documents.sql",
+    );
+    if (fs.existsSync(migration031Path)) {
+      try {
+        const sql = fs.readFileSync(migration031Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 031 ejecutada: accident_media soporta documentos",
+        );
+      } catch (migError: any) {
+        if (
+          !migError.message?.includes("already exists") &&
+          !migError.message?.includes("ya existe")
+        ) {
+          console.warn("⚠️ Migración 031:", migError.message);
+        }
+      }
+    }
+
     console.log("✅ Migraciones completadas exitosamente");
   } catch (error: any) {
     // Si el error es por tabla/columna ya existente, es OK
