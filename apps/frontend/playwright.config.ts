@@ -18,7 +18,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run dev",
+    command: "npm run dev:all",
+    cwd: "../../", // Ejecutar desde el root del monorepo
     url: "http://localhost:5180",
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
