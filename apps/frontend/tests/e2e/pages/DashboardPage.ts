@@ -1,5 +1,112 @@
 import { type Page, type Locator, expect } from "@playwright/test";
 
+// ===== Mock Data =====
+const MOCK_USER = {
+  id: 1,
+  email: "admin@casisa.com",
+  firstName: "Admin",
+  lastName: "CASISA",
+  phone: null,
+  isActive: true,
+  emailVerified: true,
+  lastLogin: new Date().toISOString(),
+  mustChangePassword: false,
+  avatarUrl: null,
+  roles: [{ id: 1, name: "Administrador", color: "#22c55e" }],
+  permissions: ["admin"],
+};
+
+const MOCK_TOKEN = "e2e-mock-token-abc123";
+
+const MOCK_WAZE_ALERTS = [
+  {
+    uuid: "mock-alert-1",
+    type: "ACCIDENT",
+    subtype: "ACCIDENT_MAJOR",
+    street: "Colectora",
+    latitude: -31.4135,
+    longitude: -64.1811,
+    reliability: 8,
+    confidence: 7,
+    reportCount: 5,
+    polygonName: "APC",
+  },
+  {
+    uuid: "mock-alert-2",
+    type: "JAM",
+    subtype: "JAM_HEAVY_TRAFFIC",
+    street: "Autopista Córdoba-Rosario",
+    latitude: -31.42,
+    longitude: -64.19,
+    reliability: 9,
+    confidence: 8,
+    reportCount: 3,
+    polygonName: "APC",
+  },
+];
+
+/**
+ * Configura interceptores de red para mockear TODAS las llamadas a /api/*
+ * Esto permite que los tests E2E funcionen sin backend real en CI.
+ */
+async function setupApiMocks(page: Page) {
+  // Mock: POST /api/auth/login
+  await page.route("**/api/auth/login", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        data: { token: MOCK_TOKEN, user: MOCK_USER },
+      }),
+    });
+  });
+
+  // Mock: GET /api/auth/me
+  await page.route("**/api/auth/me", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: MOCK_USER }),
+    });
+  });
+
+  // Mock: GET /api/polygons/*
+  await page.route("**/api/polygons/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        data: {
+          alerts: MOCK_WAZE_ALERTS,
+          jams: [],
+          irregularities: [],
+          analyses: MOCK_WAZE_ALERTS.map((a) => ({
+            incident: { type: a.type, subtype: a.subtype, street: a.street },
+            polygonName: a.polygonName,
+            reportCount: a.reportCount,
+          })),
+        },
+      }),
+    });
+  });
+
+  // Catchall: cualquier otra ruta /api/* → respuesta vacía exitosa
+  await page.route("**/api/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: [] }),
+    });
+  });
+
+  // Mock WebSocket upgrade attempts (evitar errores de conexión)
+  await page.route("**/socket.io/**", async (route) => {
+    await route.fulfill({ status: 200, body: "" });
+  });
+}
+
 export class DashboardPage {
   readonly page: Page;
   readonly incidentsHeader: Locator;
@@ -20,23 +127,26 @@ export class DashboardPage {
   }
 
   async goto() {
+    // 1. Interceptar TODAS las llamadas a la API con mocks
+    await setupApiMocks(this.page);
+
+    // 2. Pre-setear token en localStorage para que ProtectedRoute nos deje pasar
     await this.page.goto("/login", { waitUntil: "domcontentloaded" });
+    await this.page.evaluate((token) => {
+      localStorage.setItem("panel_waze_auth_token", token);
+    }, MOCK_TOKEN);
 
-    // Realizar login
-    await this.page.getByLabel(/Correo/i).fill("admin@casisa.com");
-    await this.page.locator("#login-password").fill("Admin123!");
-    await this.page.getByRole("button", { name: /Iniciar Sesión/i }).click();
+    // 3. Navegar al dashboard/mapa
+    await this.page.goto("/mapa", { waitUntil: "domcontentloaded" });
 
-    // Esperar redirección al dashboard/mapa
-    await this.page.waitForURL("**/mapa", { timeout: 10000 });
-
-    // Esperar a que la carga inicial de red se asiente
+    // 4. Esperar a que la carga inicial de red se asiente
     try {
       await this.page.waitForLoadState("networkidle", { timeout: 5000 });
     } catch {
       // Ignorar timeout de networkidle si hay polling persistente
     }
-    // Asegurar que un elemento crítico sea visible
+
+    // 5. Asegurar que un elemento crítico sea visible
     await expect(this.chartTitle).toBeVisible({ timeout: 20000 });
   }
 
