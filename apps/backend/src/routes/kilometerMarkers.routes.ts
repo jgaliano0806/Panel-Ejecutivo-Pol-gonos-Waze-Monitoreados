@@ -13,9 +13,10 @@ export default async function kilometerMarkersRoutes(
   // Lista todos los marcadores (activos por defecto)
   fastify.get("/", async (request, reply) => {
     try {
-      const { search, active, limit, offset } = request.query as {
+      const { search, active, group_id, limit, offset } = request.query as {
         search?: string;
         active?: string;
+        group_id?: string;
         limit?: string;
         offset?: string;
       };
@@ -25,6 +26,12 @@ export default async function kilometerMarkersRoutes(
       // Búsqueda por nombre
       if (search) {
         const results = await repo.search(search);
+        return reply.send(results);
+      }
+
+      // Filtrar por grupo
+      if (group_id) {
+        const results = await repo.findByGroup(parseInt(group_id, 10));
         return reply.send(results);
       }
 
@@ -93,6 +100,7 @@ export default async function kilometerMarkersRoutes(
           latitude: number;
           longitude: number;
           route_name?: string;
+          polygon_group_id?: number | null;
           is_active?: boolean;
         };
 
@@ -108,6 +116,7 @@ export default async function kilometerMarkersRoutes(
           latitude: body.latitude,
           longitude: body.longitude,
           route_name: body.route_name?.trim() || null,
+          polygon_group_id: body.polygon_group_id ?? null,
           is_active: body.is_active ?? true,
         });
 
@@ -133,6 +142,7 @@ export default async function kilometerMarkersRoutes(
           latitude: number;
           longitude: number;
           route_name: string;
+          polygon_group_id: number | null;
           is_active: boolean;
         }>;
 
@@ -152,6 +162,8 @@ export default async function kilometerMarkersRoutes(
         if (body.longitude !== undefined) updateData.longitude = body.longitude;
         if (body.route_name !== undefined)
           updateData.route_name = body.route_name?.trim() || null;
+        if (body.polygon_group_id !== undefined)
+          updateData.polygon_group_id = body.polygon_group_id;
         if (body.is_active !== undefined) updateData.is_active = body.is_active;
 
         const updated = await repo.update(id, updateData);

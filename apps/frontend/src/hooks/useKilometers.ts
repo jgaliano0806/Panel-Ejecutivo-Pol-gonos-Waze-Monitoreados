@@ -12,6 +12,8 @@ export interface KilometerMarker {
   latitude: number;
   longitude: number;
   route_name?: string | null;
+  polygon_group_id?: number | null;
+  group_name?: string | null;
   is_active: boolean;
   created_at?: string;
   updated_at?: string;

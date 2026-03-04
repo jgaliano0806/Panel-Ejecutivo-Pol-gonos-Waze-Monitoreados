@@ -19,6 +19,20 @@ import {
   type KilometerMarker,
 } from "../../hooks/useKilometers";
 import { useAdminToast } from "../../hooks/useAdminToast";
+import { useQuery } from "@tanstack/react-query";
+
+// Fetch polygon groups para el selector
+interface PolygonGroup {
+  id: number;
+  name: string;
+  is_active: boolean;
+}
+const API_URL = import.meta.env.VITE_API_URL || "/api";
+const fetchGroups = async (): Promise<PolygonGroup[]> => {
+  const res = await fetch(`${API_URL}/polygon-groups`);
+  if (!res.ok) return [];
+  return res.json();
+};
 
 // ─── Formulario Modal ─────────────────────────────────────
 
@@ -27,6 +41,7 @@ interface KmFormData {
   latitude: string;
   longitude: string;
   route_name: string;
+  polygon_group_id: string;
   is_active: boolean;
 }
 
@@ -35,6 +50,7 @@ const emptyForm: KmFormData = {
   latitude: "",
   longitude: "",
   route_name: "",
+  polygon_group_id: "",
   is_active: true,
 };
 
@@ -58,10 +74,18 @@ const KmFormModal: React.FC<KmFormModalProps> = ({
           latitude: String(marker.latitude),
           longitude: String(marker.longitude),
           route_name: marker.route_name || "",
+          polygon_group_id: marker.polygon_group_id
+            ? String(marker.polygon_group_id)
+            : "",
           is_active: marker.is_active,
         }
       : { ...emptyForm },
   );
+
+  const { data: groups = [] } = useQuery({
+    queryKey: ["polygon-groups"],
+    queryFn: fetchGroups,
+  });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -168,6 +192,29 @@ const KmFormModal: React.FC<KmFormModalProps> = ({
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
+              Grupo de Polígonos *
+            </label>
+            <select
+              value={form.polygon_group_id}
+              onChange={(e) =>
+                setForm({ ...form, polygon_group_id: e.target.value })
+              }
+              title="Seleccionar grupo de polígonos"
+              className={fieldClass("polygon_group_id")}
+            >
+              <option value="">— Seleccionar grupo —</option>
+              {groups
+                .filter((g) => g.is_active)
+                .map((g) => (
+                  <option key={g.id} value={String(g.id)}>
+                    {g.name}
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
               Ruta (opcional)
             </label>
             <input
@@ -250,7 +297,9 @@ const KilometerManagement: React.FC = () => {
         !searchTerm ||
         m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (m.route_name &&
-          m.route_name.toLowerCase().includes(searchTerm.toLowerCase()));
+          m.route_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (m.group_name &&
+          m.group_name.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesStatus =
         filterActive === "all" ||
         (filterActive === "active" && m.is_active) ||
@@ -283,6 +332,9 @@ const KilometerManagement: React.FC = () => {
           latitude: parseFloat(formData.latitude),
           longitude: parseFloat(formData.longitude),
           route_name: formData.route_name.trim() || null,
+          polygon_group_id: formData.polygon_group_id
+            ? parseInt(formData.polygon_group_id, 10)
+            : null,
           is_active: formData.is_active,
         };
 
@@ -430,6 +482,9 @@ const KilometerManagement: React.FC = () => {
                 <th className="text-left px-4 py-3 text-gray-600 dark:text-gray-400 font-medium">
                   Ruta
                 </th>
+                <th className="text-left px-4 py-3 text-gray-600 dark:text-gray-400 font-medium">
+                  Grupo
+                </th>
                 <th className="text-center px-4 py-3 text-gray-600 dark:text-gray-400 font-medium">
                   Estado
                 </th>
@@ -457,6 +512,15 @@ const KilometerManagement: React.FC = () => {
                   </td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
                     {marker.route_name || "—"}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                    {marker.group_name ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400">
+                        {marker.group_name}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span

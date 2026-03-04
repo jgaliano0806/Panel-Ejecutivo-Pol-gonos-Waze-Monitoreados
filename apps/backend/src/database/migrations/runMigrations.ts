@@ -476,6 +476,28 @@ export async function runMigrations(): Promise<void> {
         }
       }
     }
+
+    // Migración 037: Agregar polygon_group_id a kilometer_markers
+    const migration037Path = path.join(
+      migrationsDir,
+      "037_km_markers_polygon_group.sql",
+    );
+    if (fs.existsSync(migration037Path)) {
+      try {
+        const sql = fs.readFileSync(migration037Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 037 ejecutada: polygon_group_id agregado a kilometer_markers",
+        );
+      } catch (migError: any) {
+        if (
+          !migError.message?.includes("already exists") &&
+          !migError.message?.includes("ya existe")
+        ) {
+          console.warn("⚠️ Migración 037:", migError.message);
+        }
+      }
+    }
   } catch (error: any) {
     // Si el error es por tabla/columna ya existente, es OK
     if (
