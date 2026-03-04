@@ -24,7 +24,7 @@ export class DashboardPage {
 
     // Realizar login
     await this.page.getByLabel(/Correo/i).fill("admin@casisa.com");
-    await this.page.getByLabel(/Contraseña/i).fill("Admin123!");
+    await this.page.locator("#login-password").fill("Admin123!");
     await this.page.getByRole("button", { name: /Iniciar Sesión/i }).click();
 
     // Esperar redirección al dashboard/mapa
