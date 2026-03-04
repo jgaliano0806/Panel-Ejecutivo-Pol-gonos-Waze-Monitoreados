@@ -20,7 +20,16 @@ export class DashboardPage {
   }
 
   async goto() {
-    await this.page.goto("/", { waitUntil: "domcontentloaded" });
+    await this.page.goto("/login", { waitUntil: "domcontentloaded" });
+
+    // Realizar login
+    await this.page.getByLabel(/Correo/i).fill("admin@casisa.com");
+    await this.page.getByLabel(/Contraseña/i).fill("Admin123!");
+    await this.page.getByRole("button", { name: /Iniciar Sesión/i }).click();
+
+    // Esperar redirección al dashboard/mapa
+    await this.page.waitForURL("**/mapa", { timeout: 10000 });
+
     // Esperar a que la carga inicial de red se asiente
     try {
       await this.page.waitForLoadState("networkidle", { timeout: 5000 });
