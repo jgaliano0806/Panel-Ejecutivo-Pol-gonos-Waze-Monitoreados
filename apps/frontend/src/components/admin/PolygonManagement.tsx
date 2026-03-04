@@ -12,6 +12,7 @@ import { realCordobaPolygons } from "../../data/mock/realCordobaPolygons";
 import { VirtualizedList } from "../ui/VirtualizedList";
 import { TruncatedText } from "../common/TruncatedText";
 import { PolygonMapEditorInline } from "./PolygonMapEditorInline";
+import { useAdminToast } from "../../hooks/useAdminToast";
 
 interface PolygonData {
   id: string;
@@ -438,6 +439,7 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
 
 const PolygonManagement: React.FC = () => {
   const queryClient = useQueryClient();
+  const toast = useAdminToast();
   const [polygons, setPolygons] = useState<PolygonData[]>([]);
   const [groups, setGroups] = useState<PolygonGroup[]>([]);
   const [showGroupsModal, setShowGroupsModal] = useState(false);
@@ -845,13 +847,20 @@ const PolygonManagement: React.FC = () => {
             p.id === polygonId ? { ...p, is_active: false } : p,
           ),
         );
+        toast.success(
+          "Polígono desactivado",
+          `El polígono "${polygonId}" fue desactivado. Los datos históricos se conservan.`,
+        );
       } else {
         const err = await response.json().catch(() => ({}));
-        alert(err.error || "Error al desactivar el polígono");
+        toast.error(
+          "Error al desactivar",
+          err.error || "Error al desactivar el polígono",
+        );
       }
     } catch (error) {
       console.error("Error al desactivar polígono:", error);
-      alert("Error al desactivar el polígono");
+      toast.error("Error de conexión", "No se pudo desactivar el polígono");
     }
   };
 
@@ -868,13 +877,20 @@ const PolygonManagement: React.FC = () => {
         setPolygons((prev) =>
           prev.map((p) => (p.id === polygonId ? { ...p, is_active: true } : p)),
         );
+        toast.success(
+          "Polígono reactivado",
+          `El polígono "${polygonId}" fue reactivado exitosamente`,
+        );
       } else {
         const err = await response.json().catch(() => ({}));
-        alert(err.error || "Error al reactivar el polígono");
+        toast.error(
+          "Error al reactivar",
+          err.error || "Error al reactivar el polígono",
+        );
       }
     } catch (error) {
       console.error("Error al reactivar polígono:", error);
-      alert("Error al reactivar el polígono");
+      toast.error("Error de conexión", "No se pudo reactivar el polígono");
     }
   };
 
@@ -912,12 +928,20 @@ const PolygonManagement: React.FC = () => {
         await fetchPolygons();
         setShowForm(false);
         setEditingPolygon(null);
+        toast.success(
+          isNew ? "Polígono creado" : "Polígono actualizado",
+          `El polígono "${polygonData.name}" fue ${isNew ? "creado" : "actualizado"} exitosamente`,
+        );
       } else {
-        alert("Error al guardar el polígono");
+        const errData = await response.json().catch(() => ({}));
+        toast.error(
+          "Error al guardar polígono",
+          errData.error || "Error al guardar el polígono",
+        );
       }
     } catch (error) {
       console.error("Error al guardar polígono:", error);
-      alert("Error al guardar el polígono");
+      toast.error("Error de conexión", "No se pudo guardar el polígono");
     }
   };
 
