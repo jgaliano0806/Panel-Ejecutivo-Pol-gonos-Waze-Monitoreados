@@ -7,6 +7,7 @@ export interface KilometerMarker extends IEntity {
   longitude: number;
   route_name?: string | null;
   polygon_group_id?: number | null;
+  polygon_id?: string | null;
   group_name?: string | null;
   is_active?: boolean;
   created_at?: Date;
@@ -24,6 +25,7 @@ export class KilometerMarkerRepository extends BaseRepository<KilometerMarker> {
       longitude: parseFloat(row.longitude),
       route_name: row.route_name || null,
       polygon_group_id: row.polygon_group_id || null,
+      polygon_id: row.polygon_id || null,
       group_name: row.group_name || null,
       is_active: row.is_active,
       created_at: row.created_at,
@@ -39,6 +41,7 @@ export class KilometerMarkerRepository extends BaseRepository<KilometerMarker> {
     if (entity.route_name !== undefined) row.route_name = entity.route_name;
     if (entity.polygon_group_id !== undefined)
       row.polygon_group_id = entity.polygon_group_id;
+    if (entity.polygon_id !== undefined) row.polygon_id = entity.polygon_id;
     if (entity.is_active !== undefined) row.is_active = entity.is_active;
     return row;
   }
