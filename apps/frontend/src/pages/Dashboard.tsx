@@ -11,6 +11,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import { useWazeData } from "../hooks/useWazeData";
+import { useGlobalRealtime } from "../hooks/useWazeRealtime";
 import type { GlobalKPIs } from "../types";
 import { PolygonState, IncidentType, Severity } from "../types";
 import { ModernHeader } from "../components/layout/modern-header";
@@ -99,6 +100,9 @@ const Dashboard: React.FC = () => {
   } = useWazeData();
   const historicalData = useHistoricalData(24);
   useTrends();
+  // Invalidar caches de React Query cuando el backend emite waze:data_updated
+  // Dashboard NO está envuelto en AppLayout, así que necesita su propio listener
+  useGlobalRealtime();
   // useRealtimeNotifications ya se ejecuta en AppLayout - no duplicar aquí
   const [selectedPolygon, setSelectedPolygon] = useState<string | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
