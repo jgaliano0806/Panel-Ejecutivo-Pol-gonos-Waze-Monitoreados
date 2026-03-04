@@ -19,6 +19,7 @@ import riskRoutes from "./risk.routes";
 import authRoutes from "./auth.routes";
 import usersRoutes from "./users.routes";
 import rolesRoutes from "./roles.routes";
+import kilometerMarkersRoutes from "./kilometerMarkers.routes";
 
 /**
  * Registra todos los módulos de rutas en la instancia de Fastify
@@ -61,6 +62,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
   // Risk Scoring Dashboard
   await app.register(riskRoutes, { prefix: "/api/risk" });
+
+  // Hitos Kilométricos
+  await app.register(kilometerMarkersRoutes, { prefix: "/api/kilometers" });
 }
 
 export { catalogsRoutes, healthRoutes, iconUploadRoutes };

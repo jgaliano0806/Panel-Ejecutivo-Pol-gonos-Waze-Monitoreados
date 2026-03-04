@@ -11,6 +11,8 @@ import { iconCache } from "./utils/iconCache";
 // Inicializar caché de traducciones desde catálogo BD
 import { preloadTranslationsCache } from "./hooks/useCatalogTranslations";
 
+import { KilometerStoreHydrator } from "./components/KilometerStoreHydrator";
+
 // Configurar React Query client con valores de constantes centralizadas
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -29,6 +31,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ErrorBoundary name="Aplicación" showHomeButton>
       <QueryClientProvider client={queryClient}>
+        <KilometerStoreHydrator />
         <RouterProvider router={router} />
       </QueryClientProvider>
     </ErrorBoundary>

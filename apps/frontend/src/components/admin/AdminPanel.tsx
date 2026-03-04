@@ -5,15 +5,22 @@ import {
   Database,
   Users,
   FileText,
+  MapPin,
   ChevronRight,
 } from "lucide-react";
 import PolygonManagement from "./PolygonManagement";
 import CatalogManagement from "./CatalogManagement";
 import UserManagement from "./UserManagement";
 import SystemSettings from "./SystemSettings";
+import KilometerManagement from "./KilometerManagement";
 import { AdminToastProvider } from "../../hooks/useAdminToast";
 
-type AdminSection = "polygons" | "catalogs" | "users" | "settings";
+type AdminSection =
+  | "polygons"
+  | "catalogs"
+  | "users"
+  | "kilometers"
+  | "settings";
 
 interface AdminSectionConfig {
   id: AdminSection;
@@ -46,6 +53,13 @@ const adminSections: AdminSectionConfig[] = [
     color: "from-purple-600 to-purple-700",
   },
   {
+    id: "kilometers",
+    label: "Hitos Kilométricos",
+    icon: MapPin,
+    description: "Puntos de referencia de rutas en el mapa",
+    color: "from-cyan-600 to-cyan-700",
+  },
+  {
     id: "settings",
     label: "Configuración Sistema",
     icon: Settings,
@@ -65,6 +79,8 @@ const AdminPanel: React.FC = () => {
         return <CatalogManagement />;
       case "users":
         return <UserManagement />;
+      case "kilometers":
+        return <KilometerManagement />;
       case "settings":
         return <SystemSettings />;
       default:

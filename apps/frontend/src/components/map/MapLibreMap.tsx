@@ -42,6 +42,7 @@ import { useIncidentDetail } from "../../hooks/useIncidentsModule";
 import { IncidentDetailModal } from "../incidents/IncidentDetailModal";
 import { exportIncidentToPDF } from "../../lib/pdf-export";
 import { useAuthStore } from "../../stores/useAuthStore";
+import { useKilometers } from "../../hooks/useKilometers";
 
 // Configuración inicial
 const INITIAL_VIEW_STATE = {
@@ -144,6 +145,26 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
 
   // Estado para controlar si el mapa está cargado
   const [mapLoaded, setMapLoaded] = useState(false);
+
+  // Hitos kilométricos
+  const { data: kilometerMarkers = [] } = useKilometers(true);
+  const kilometersGeoJSON = useMemo(
+    () => ({
+      type: "FeatureCollection" as const,
+      features: kilometerMarkers.map((km) => ({
+        type: "Feature" as const,
+        geometry: {
+          type: "Point" as const,
+          coordinates: [km.longitude, km.latitude],
+        },
+        properties: {
+          name: km.name,
+          route_name: km.route_name || "",
+        },
+      })),
+    }),
+    [kilometerMarkers],
+  );
 
   // DEBUG: Verificar datos de entrada
   useEffect(() => {
@@ -1422,6 +1443,47 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
               layout={{
                 "line-cap": "round",
                 "line-join": "round",
+              }}
+            />
+          </Source>
+        )}
+
+        {/* Hitos Kilométricos */}
+        {kilometersGeoJSON.features.length > 0 && (
+          <Source
+            id="kilometer-markers"
+            type="geojson"
+            data={kilometersGeoJSON}
+          >
+            <Layer
+              id="km-circles"
+              type="circle"
+              minzoom={13}
+              paint={{
+                "circle-radius": 5,
+                "circle-color": "#06b6d4",
+                "circle-stroke-width": 2,
+                "circle-stroke-color": "#ffffff",
+                "circle-opacity": 0.9,
+              }}
+            />
+            <Layer
+              id="km-labels"
+              type="symbol"
+              minzoom={14}
+              layout={{
+                "text-field": ["get", "name"],
+                "text-size": 11,
+                "text-offset": [0, 1.5],
+                "text-anchor": "top",
+                "text-allow-overlap": false,
+              }}
+              paint={{
+                "text-color": isDark ? "#67e8f9" : "#0891b2",
+                "text-halo-color": isDark
+                  ? "rgba(0,0,0,0.8)"
+                  : "rgba(255,255,255,0.9)",
+                "text-halo-width": 1.5,
               }}
             />
           </Source>

@@ -8,6 +8,8 @@ import { translateWazeMessage } from "@/lib/waze-translator";
 import { speakNotification, isAudioUnlocked } from "@/lib/tts-utils";
 import { shouldShowTTSAndSnackbar } from "@/config/notificationFilters";
 import { logger } from "@/lib/logger";
+import { getNearestKilometer } from "@/utils/geoUtils";
+import { useKilometerStore } from "@/stores/useKilometerStore";
 
 /**
  * WebSocket client singleton para conexión con el backend
@@ -296,6 +298,20 @@ const buildTTSMessage = (notification: Notification): string => {
 
   if (ubicacion) {
     mensajeCompleto += ` Ubicación: ${ubicacion}.`;
+  }
+
+  // Buscar hito kilométrico más cercano
+  const lat = notification.data?.location?.y ?? notification.data?.latitude;
+  const lng = notification.data?.location?.x ?? notification.data?.longitude;
+  if (lat != null && lng != null) {
+    const kmMarkers = useKilometerStore.getState().markers;
+    const nearest = getNearestKilometer(
+      { latitude: lat, longitude: lng },
+      kmMarkers,
+    );
+    if (nearest) {
+      mensajeCompleto += ` Cerca de ${nearest.name}.`;
+    }
   }
 
   return mensajeCompleto;

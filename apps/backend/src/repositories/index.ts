@@ -7,6 +7,7 @@ import { PolygonRepository } from "./PolygonRepository";
 import { RiskScoreRepository } from "./RiskScoreRepository";
 import { WazeIrregularityRepository } from "./WazeIrregularityRepository";
 import { KpiSnapshotRepository } from "./KpiSnapshotRepository";
+import { KilometerMarkerRepository } from "./KilometerMarkerRepository";
 
 export class RepositoryFactory {
   private static instance: RepositoryFactory;
@@ -18,6 +19,7 @@ export class RepositoryFactory {
   public readonly riskScores: RiskScoreRepository;
   public readonly wazeIrregularities: WazeIrregularityRepository;
   public readonly kpiSnapshots: KpiSnapshotRepository;
+  public readonly kilometerMarkers: KilometerMarkerRepository;
 
   private constructor(private db: Pool) {
     this.wazeAlerts = new WazeAlertRepository(db);
@@ -27,6 +29,7 @@ export class RepositoryFactory {
     this.riskScores = new RiskScoreRepository(db);
     this.wazeIrregularities = new WazeIrregularityRepository(db);
     this.kpiSnapshots = new KpiSnapshotRepository(db);
+    this.kilometerMarkers = new KilometerMarkerRepository(db);
   }
 
   static initialize(db: Pool): void {
@@ -43,7 +46,7 @@ export class RepositoryFactory {
       // Actually dbService doesn't expose pool directly publicly in the snippet I saw earlier,
       // but let's assume valid initialization flow in server.ts
       throw new Error(
-        "RepositoryFactory not initialized. Call initialize(db) first."
+        "RepositoryFactory not initialized. Call initialize(db) first.",
       );
     }
     return RepositoryFactory.instance;

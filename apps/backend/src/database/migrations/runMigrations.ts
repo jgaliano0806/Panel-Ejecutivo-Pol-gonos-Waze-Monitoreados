@@ -454,6 +454,28 @@ export async function runMigrations(): Promise<void> {
         }
       }
     }
+
+    // Migración 036: Tabla kilometer_markers (hitos kilométricos)
+    const migration036Path = path.join(
+      migrationsDir,
+      "036_create_kilometer_markers.sql",
+    );
+    if (fs.existsSync(migration036Path)) {
+      try {
+        const sql = fs.readFileSync(migration036Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 036 ejecutada: tabla kilometer_markers creada",
+        );
+      } catch (migError: any) {
+        if (
+          !migError.message?.includes("already exists") &&
+          !migError.message?.includes("ya existe")
+        ) {
+          console.warn("⚠️ Migración 036:", migError.message);
+        }
+      }
+    }
   } catch (error: any) {
     // Si el error es por tabla/columna ya existente, es OK
     if (
