@@ -287,7 +287,6 @@ const cleanTextForTTS = (text: string): string => {
       .replace(/\[Accionable\]/gi, "")
       .replace(/\[Conf:\s*\d+%?\]/gi, "")
       // Normalización fonética para Argentina
-      .replace(/RN\s*A019/gi, "Autovía A-019") // Corrección específica solicitada
       .replace(/\bRN\s*(\d+)/gi, "Ruta Nacional $1")
       .replace(/\bRP\s*([A-Z]?\d+)/gi, "Ruta Provincial $1")
       .replace(/\bAU\s*(\d+)/gi, "Autopista $1")
@@ -641,7 +640,9 @@ const VALID_VOICE_IDS = new Set(Object.values(EDGE_TTS_VOICES));
  */
 function ensureArgentineVoice(voiceId: string): string {
   if (VALID_VOICE_IDS.has(voiceId as any)) return voiceId;
-  logger.warn(`Voz "${voiceId}" no es argentina/latina, forzando es-AR-ElenaNeural`);
+  logger.warn(
+    `Voz "${voiceId}" no es argentina/latina, forzando es-AR-ElenaNeural`,
+  );
   return EDGE_TTS_VOICES.ELENA_AR;
 }
 

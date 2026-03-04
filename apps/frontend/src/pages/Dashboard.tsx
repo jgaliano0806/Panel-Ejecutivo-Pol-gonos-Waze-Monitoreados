@@ -7,24 +7,19 @@ import React, {
   useEffect,
   useRef,
 } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import { useWazeData } from "../hooks/useWazeData";
 import type { GlobalKPIs } from "../types";
 import { PolygonState, IncidentType, Severity } from "../types";
 import { ModernHeader } from "../components/layout/modern-header";
-import {
-  ModernNavigation,
-  type ViewType,
-} from "../components/layout/modern-navigation";
+import { type ViewType } from "../components/layout/modern-navigation";
 import { AppSidebar } from "../components/layout/AppSidebar";
 import { useSidebarStore } from "../stores/useSidebarStore";
 import Filters from "../components/common/Filters";
 import Footer from "../components/layout/Footer";
 import PolygonDetail from "../components/dashboard/PolygonDetail";
-import { EventsDashboard } from "../components/alerts/EventsDashboard";
-import { BlockingIncidents } from "../components/alerts/BlockingIncidents";
 import { AlertsBadge } from "../components/alerts/AlertsBadge";
 import { WazeOMeter } from "../components/dashboard/WazeOMeter";
 import { MapKPIFooter } from "../components/map/MapKPIFooter";
@@ -86,6 +81,7 @@ const LazyWrapper = ({
 
 const Dashboard: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { setExpanded: setSidebarExpandedStore } = useSidebarStore();
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
@@ -111,7 +107,6 @@ const Dashboard: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewType>(() => {
     const path = window.location.pathname;
     if (path === "/mapa") return "map";
-    if (path === "/alertas") return "events";
     if (path === "/admin") return "admin";
     return "home";
   });
@@ -132,7 +127,6 @@ const Dashboard: React.FC = () => {
     const path = location.pathname;
     let newView: ViewType = "home";
     if (path === "/mapa") newView = "map";
-    else if (path === "/alertas") newView = "events";
     else if (path === "/admin") newView = "admin";
 
     if (newView !== currentView) {
@@ -529,13 +523,6 @@ const Dashboard: React.FC = () => {
           </div>
         );
 
-      case "events":
-        return (
-          <div className="space-y-4">
-            <EventsDashboard />
-          </div>
-        );
-
       case "admin":
         return (
           <LazyWrapper
@@ -619,7 +606,6 @@ const Dashboard: React.FC = () => {
           >
             {alertStats &&
               alertStats.bySeverity.critical > 0 &&
-              currentView !== "events" &&
               currentView !== "map" && (
                 <motion.div
                   className="mb-6"
@@ -629,7 +615,7 @@ const Dashboard: React.FC = () => {
                 >
                   <AlertsBadge
                     stats={alertStats}
-                    onClick={() => setCurrentView("events")}
+                    onClick={() => navigate("/incidentes")}
                   />
                 </motion.div>
               )}

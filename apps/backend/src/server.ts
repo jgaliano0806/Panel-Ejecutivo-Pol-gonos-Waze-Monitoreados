@@ -1072,6 +1072,11 @@ function groupIncidentsByProximity(
  */
 server.get("/api/incidents/blocking-analysis", async (request, reply) => {
   try {
+    const limit = Math.min(
+      500,
+      Math.max(1, parseInt((request.query as { limit?: string })?.limit || "200", 10)),
+    );
+
     const alertsData = await repositories().wazeAlerts.findAllActive();
     const jamsData = await repositories().wazeJams.findAllActive();
     const alerts = alertsData.map(toLegacyAlert);
@@ -1204,8 +1209,8 @@ server.get("/api/incidents/blocking-analysis", async (request, reply) => {
     const totalGroupedIncidents = analyses.length;
 
     return {
-      count: analyses.length,
-      analyses: analyses.slice(0, 20), // Top 20
+      count: Math.min(analyses.length, limit),
+      analyses: analyses.slice(0, limit),
       summary: {
         totalIncidents: totalGroupedIncidents,
         totalReports: totalOriginalIncidents,

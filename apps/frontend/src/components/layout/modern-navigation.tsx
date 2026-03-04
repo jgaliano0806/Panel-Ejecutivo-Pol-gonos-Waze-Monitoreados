@@ -1,26 +1,12 @@
 import React from "react";
 import { motion } from "framer-motion";
-import {
-  Home,
-  Map,
-  AlertCircle,
-  ShieldAlert,
-  Car,
-  Settings,
-} from "lucide-react";
+import { Home, Map, Car, Settings } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Badge } from "../ui/badge";
 import { cn } from "../../lib/utils";
 import { useAuthStore } from "../../stores/useAuthStore";
 import { ROUTE_PERMISSIONS } from "../../config/routePermissions";
 
-export type ViewType =
-  | "home"
-  | "map"
-  | "events"
-  | "risks"
-  | "accidents"
-  | "admin";
+export type ViewType = "home" | "map" | "risks" | "accidents" | "admin";
 
 interface ModernNavigationProps {
   currentView: ViewType;
@@ -31,7 +17,6 @@ interface ModernNavigationProps {
 export const ModernNavigation: React.FC<ModernNavigationProps> = ({
   currentView,
   onViewChange,
-  criticalAlertsCount = 0,
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -44,7 +29,7 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
       icon: Home,
       color: "from-primary-600 to-primary-700",
       path: "/",
-      requiredPermission: ROUTE_PERMISSIONS.home,
+      requiredPermission: ROUTE_PERMISSIONS.mapa,
     },
     {
       id: "map" as ViewType,
@@ -62,15 +47,6 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
     //   path: "/riesgos",
     //   requiredPermission: ROUTE_PERMISSIONS.riesgos,
     // },
-    {
-      id: "events" as ViewType,
-      label: "Alertas y Eventos",
-      icon: AlertCircle,
-      color: "from-warning-400 to-warning-500",
-      badge: criticalAlertsCount > 0 ? criticalAlertsCount : undefined,
-      path: "/alertas",
-      requiredPermission: ROUTE_PERMISSIONS.alertas,
-    },
     {
       id: "accidents" as ViewType,
       label: "Siniestros Viales",
@@ -95,7 +71,6 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
       return "home";
     if (location.pathname === "/mapa") return "map";
     if (location.pathname === "/riesgos") return "risks";
-    if (location.pathname === "/alertas") return "events";
     if (location.pathname === "/siniestros") return "accidents";
     if (location.pathname === "/admin") return "admin";
     return currentView;
@@ -154,28 +129,6 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
                 <span className={cn("text-base", isActive && "font-black")}>
                   {tab.label}
                 </span>
-
-                {/* Badge de alertas */}
-                {tab.badge && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  >
-                    <Badge
-                      variant="critical"
-                      size="sm"
-                      className="shadow-lg shadow-red-500/30"
-                    >
-                      <motion.span
-                        animate={{ scale: [1, 1.2, 1] }}
-                        transition={{ duration: 1.5, repeat: Infinity }}
-                      >
-                        {tab.badge}
-                      </motion.span>
-                    </Badge>
-                  </motion.div>
-                )}
 
                 {/* Barra inferior animada */}
                 {isActive && (

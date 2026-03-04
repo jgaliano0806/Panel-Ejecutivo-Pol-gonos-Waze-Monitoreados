@@ -2,147 +2,153 @@
  * Script para obtener datos meteorológicos de todos los polígonos
  */
 
-import { WeatherService } from '../src/services/weatherService';
-import { REAL_POLYGONS } from '../src/config/realPolygons';
+import { WeatherService } from "../src/services/weatherService";
+import { REAL_POLYGONS } from "../src/config/realPolygons";
 
 const weatherService = new WeatherService();
 
 // Coordenadas aproximadas de centros de polígonos (puedes ajustarlas)
 const POLYGON_LOCATIONS: Record<string, { lat: number; lon: number }> = {
-    // Autovía A-019 (Villa Carlos Paz - Córdoba)
-    'P001': { lat: -31.4167, lon: -64.4833 },
-    'P002': { lat: -31.4200, lon: -64.4900 },
-    'P056': { lat: -31.4100, lon: -64.4700 },
-    'P057': { lat: -31.4250, lon: -64.4950 },
-    'P058': { lat: -31.4300, lon: -64.5000 },
-    'P060': { lat: -31.4350, lon: -64.5050 },
-    'P063': { lat: -31.4400, lon: -64.5100 },
-    'P064': { lat: -31.4450, lon: -64.5150 },
+  // Circunvalación (Villa Carlos Paz - Córdoba)
+  P001: { lat: -31.4167, lon: -64.4833 },
+  P002: { lat: -31.42, lon: -64.49 },
+  P056: { lat: -31.41, lon: -64.47 },
+  P057: { lat: -31.425, lon: -64.495 },
+  P058: { lat: -31.43, lon: -64.5 },
+  P060: { lat: -31.435, lon: -64.505 },
+  P063: { lat: -31.44, lon: -64.51 },
+  P064: { lat: -31.445, lon: -64.515 },
 
-    // Ruta Nacional 36 (Córdoba - Río Cuarto)
-    'P006': { lat: -32.4000, lon: -63.9000 },
-    'P009': { lat: -32.8000, lon: -64.1000 },
-    'P010': { lat: -32.5000, lon: -63.9500 },
-    'P011': { lat: -32.3000, lon: -63.8500 },
-    'P012': { lat: -32.2000, lon: -63.8000 },
-    'P023': { lat: -32.6000, lon: -63.9800 },
-    'P024': { lat: -32.7000, lon: -64.0500 },
-    'P025': { lat: -32.4500, lon: -63.9200 },
-    'P026': { lat: -32.8500, lon: -64.1500 },
-    'P031': { lat: -31.9500, lon: -63.7500 },
-    'P032': { lat: -31.8500, lon: -63.7000 },
-    'P033': { lat: -31.7500, lon: -63.6500 },
-    'P034': { lat: -31.6500, lon: -63.6000 },
-    'P035': { lat: -32.1500, lon: -63.7800 },
-    'P037': { lat: -33.0000, lon: -64.2000 },
-    'P038': { lat: -33.1000, lon: -64.2500 },
-    'P039': { lat: -31.6000, lon: -63.5800 },
-    'P040': { lat: -31.7000, lon: -63.6300 },
-    'P041': { lat: -31.8000, lon: -63.6800 },
-    'P042': { lat: -32.0500, lon: -63.7600 },
-    'P043': { lat: -32.1000, lon: -63.7700 },
+  // Ruta Nacional 36 (Córdoba - Río Cuarto)
+  P006: { lat: -32.4, lon: -63.9 },
+  P009: { lat: -32.8, lon: -64.1 },
+  P010: { lat: -32.5, lon: -63.95 },
+  P011: { lat: -32.3, lon: -63.85 },
+  P012: { lat: -32.2, lon: -63.8 },
+  P023: { lat: -32.6, lon: -63.98 },
+  P024: { lat: -32.7, lon: -64.05 },
+  P025: { lat: -32.45, lon: -63.92 },
+  P026: { lat: -32.85, lon: -64.15 },
+  P031: { lat: -31.95, lon: -63.75 },
+  P032: { lat: -31.85, lon: -63.7 },
+  P033: { lat: -31.75, lon: -63.65 },
+  P034: { lat: -31.65, lon: -63.6 },
+  P035: { lat: -32.15, lon: -63.78 },
+  P037: { lat: -33.0, lon: -64.2 },
+  P038: { lat: -33.1, lon: -64.25 },
+  P039: { lat: -31.6, lon: -63.58 },
+  P040: { lat: -31.7, lon: -63.63 },
+  P041: { lat: -31.8, lon: -63.68 },
+  P042: { lat: -32.05, lon: -63.76 },
+  P043: { lat: -32.1, lon: -63.77 },
 
-    // Ruta Nacional 9 (Córdoba - Rosario)
-    'P028': { lat: -31.3500, lon: -64.2500 },
-    'P029': { lat: -31.3000, lon: -64.2000 },
-    'P048': { lat: -31.4500, lon: -64.2800 },
-    'P051': { lat: -31.2500, lon: -64.1500 },
-    'P052': { lat: -31.2000, lon: -64.1000 },
-    'P053': { lat: -31.1500, lon: -64.0500 },
-    'P066': { lat: -31.1000, lon: -64.0000 },
+  // Ruta Nacional 9 (Córdoba - Rosario)
+  P028: { lat: -31.35, lon: -64.25 },
+  P029: { lat: -31.3, lon: -64.2 },
+  P048: { lat: -31.45, lon: -64.28 },
+  P051: { lat: -31.25, lon: -64.15 },
+  P052: { lat: -31.2, lon: -64.1 },
+  P053: { lat: -31.15, lon: -64.05 },
+  P066: { lat: -31.1, lon: -64.0 },
 
-    // Ruta Nacional 19
-    'P044': { lat: -31.3800, lon: -64.3500 },
-    'P045': { lat: -31.3600, lon: -64.3300 },
-    'P046': { lat: -31.3400, lon: -64.3100 },
-    'P055': { lat: -31.3200, lon: -64.2900 },
+  // Ruta Nacional 19
+  P044: { lat: -31.38, lon: -64.35 },
+  P045: { lat: -31.36, lon: -64.33 },
+  P046: { lat: -31.34, lon: -64.31 },
+  P055: { lat: -31.32, lon: -64.29 },
 
-    // Rutas Provinciales
-    'P003': { lat: -31.4600, lon: -64.3000 }, // E53
-    'P050': { lat: -31.4700, lon: -64.3100 }, // E53
-    'P004': { lat: -31.3900, lon: -64.5200 }, // E55
-    'P005': { lat: -31.3800, lon: -64.5100 }, // E55
-    'P020': { lat: -31.3700, lon: -64.5000 }, // E55
-    'P021': { lat: -31.3600, lon: -64.4900 }, // E55
-    'P022': { lat: -31.3500, lon: -64.4800 }, // E55
-    'P007': { lat: -31.5000, lon: -64.3500 }, // C45
-    'P008': { lat: -31.5100, lon: -64.3600 }, // C45
-    'P016': { lat: -31.3000, lon: -64.4500 }, // RP 5
-    'P017': { lat: -31.3100, lon: -64.4600 }, // RP 5
-    'P018': { lat: -31.3200, lon: -64.4700 }, // RP 5
-    'P019': { lat: -31.3300, lon: -64.4800 }, // RP 5
+  // Rutas Provinciales
+  P003: { lat: -31.46, lon: -64.3 }, // E53
+  P050: { lat: -31.47, lon: -64.31 }, // E53
+  P004: { lat: -31.39, lon: -64.52 }, // E55
+  P005: { lat: -31.38, lon: -64.51 }, // E55
+  P020: { lat: -31.37, lon: -64.5 }, // E55
+  P021: { lat: -31.36, lon: -64.49 }, // E55
+  P022: { lat: -31.35, lon: -64.48 }, // E55
+  P007: { lat: -31.5, lon: -64.35 }, // C45
+  P008: { lat: -31.51, lon: -64.36 }, // C45
+  P016: { lat: -31.3, lon: -64.45 }, // RP 5
+  P017: { lat: -31.31, lon: -64.46 }, // RP 5
+  P018: { lat: -31.32, lon: -64.47 }, // RP 5
+  P019: { lat: -31.33, lon: -64.48 }, // RP 5
 
-    // Área Capital y urbanas
-    'P047': { lat: -31.4200, lon: -64.1900 }, // APC
-    'P054': { lat: -31.4100, lon: -64.2000 }, // Luchesse
-    'P061': { lat: -31.4000, lon: -64.2100 }, // Luchesse
-    'P059': { lat: -31.4300, lon: -64.1800 }, // Anillo
-    'P062': { lat: -31.4400, lon: -64.1700 }, // AJC
-    'P065': { lat: -31.4500, lon: -64.1600 }, // Anillo
+  // Área Capital y urbanas
+  P047: { lat: -31.42, lon: -64.19 }, // APC
+  P054: { lat: -31.41, lon: -64.2 }, // Luchesse
+  P061: { lat: -31.4, lon: -64.21 }, // Luchesse
+  P059: { lat: -31.43, lon: -64.18 }, // Anillo
+  P062: { lat: -31.44, lon: -64.17 }, // AJC
+  P065: { lat: -31.45, lon: -64.16 }, // Anillo
 
-    // R20-38 y Alt. 38
-    'P013': { lat: -31.5200, lon: -64.2000 },
-    'P014': { lat: -31.5300, lon: -64.2100 },
-    'P015': { lat: -31.5400, lon: -64.2200 },
-    'P027': { lat: -31.5500, lon: -64.2300 },
-    'P030': { lat: -31.5600, lon: -64.2400 },
-    'P036': { lat: -31.5700, lon: -64.2500 },
-    'P049': { lat: -31.5800, lon: -64.2600 },
+  // R20-38 y Alt. 38
+  P013: { lat: -31.52, lon: -64.2 },
+  P014: { lat: -31.53, lon: -64.21 },
+  P015: { lat: -31.54, lon: -64.22 },
+  P027: { lat: -31.55, lon: -64.23 },
+  P030: { lat: -31.56, lon: -64.24 },
+  P036: { lat: -31.57, lon: -64.25 },
+  P049: { lat: -31.58, lon: -64.26 },
 };
 
 async function fetchWeatherForAllPolygons() {
-    console.log('🌤️ Obteniendo datos meteorológicos para todos los polígonos...\n');
+  console.log(
+    "🌤️ Obteniendo datos meteorológicos para todos los polígonos...\n",
+  );
 
-    let successCount = 0;
-    let errorCount = 0;
+  let successCount = 0;
+  let errorCount = 0;
 
-    for (const polygon of REAL_POLYGONS) {
-        const location = POLYGON_LOCATIONS[polygon.id];
+  for (const polygon of REAL_POLYGONS) {
+    const location = POLYGON_LOCATIONS[polygon.id];
 
-        if (!location) {
-            console.log(`⚠️ ${polygon.id} (${polygon.name}): Sin coordenadas configuradas`);
-            errorCount++;
-            continue;
-        }
-
-        try {
-            const weatherData = await weatherService.fetchWeatherForPolygon(
-                polygon.id,
-                location.lat,
-                location.lon
-            );
-
-            if (weatherData) {
-                await weatherService.saveWeatherData(weatherData);
-                console.log(`✅ ${polygon.id} (${polygon.name}): ${weatherData.temperature_celsius}°C, ${weatherData.weather_description}`);
-                successCount++;
-            } else {
-                console.log(`❌ ${polygon.id} (${polygon.name}): Error obteniendo datos`);
-                errorCount++;
-            }
-
-            // Pausa para no sobrecargar la API
-            await new Promise(resolve => setTimeout(resolve, 100));
-
-        } catch (error) {
-            console.error(`❌ ${polygon.id}: Error:`, error);
-            errorCount++;
-        }
+    if (!location) {
+      console.log(
+        `⚠️ ${polygon.id} (${polygon.name}): Sin coordenadas configuradas`,
+      );
+      errorCount++;
+      continue;
     }
 
-    console.log(`\n📊 Resumen:`);
-    console.log(`   ✅ Exitosos: ${successCount}`);
-    console.log(`   ❌ Errores: ${errorCount}`);
-    console.log(`   Total: ${REAL_POLYGONS.length}`);
+    try {
+      const weatherData = await weatherService.fetchWeatherForPolygon(
+        polygon.id,
+        location.lat,
+        location.lon,
+      );
+
+      if (weatherData) {
+        await weatherService.saveWeatherData(weatherData);
+        console.log(
+          `✅ ${polygon.id} (${polygon.name}): ${weatherData.temperature_celsius}°C, ${weatherData.weather_description}`,
+        );
+        successCount++;
+      } else {
+        console.log(
+          `❌ ${polygon.id} (${polygon.name}): Error obteniendo datos`,
+        );
+        errorCount++;
+      }
+
+      // Pausa para no sobrecargar la API
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    } catch (error) {
+      console.error(`❌ ${polygon.id}: Error:`, error);
+      errorCount++;
+    }
+  }
+
+  console.log(`\n📊 Resumen:`);
+  console.log(`   ✅ Exitosos: ${successCount}`);
+  console.log(`   ❌ Errores: ${errorCount}`);
+  console.log(`   Total: ${REAL_POLYGONS.length}`);
 }
 
 fetchWeatherForAllPolygons()
-    .then(() => {
-        console.log('\n✅ Proceso completado');
-        process.exit(0);
-    })
-    .catch((error) => {
-        console.error('❌ Error fatal:', error);
-        process.exit(1);
-    });
-
+  .then(() => {
+    console.log("\n✅ Proceso completado");
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error("❌ Error fatal:", error);
+    process.exit(1);
+  });

@@ -1,78 +1,67 @@
 /**
  * Configuración centralizada de rutas y permisos por rol.
- * Garantiza que cada módulo respete la configuración de roles (migración 004).
+ * Permisos organizados por módulo con capacidades granulares.
  *
- * Permisos del sistema:
- * - admin: Acceso completo
- * - incidents.view: Ver incidentes, mapa, alertas, historial
- * - incidents.manage: Gestionar incidentes (crear/editar)
- * - reports.view: Ver estadísticas y reportes
- * - users.view: Ver usuarios
- * - users.manage: Gestionar usuarios y roles
- * - catalogs.manage: Gestionar catálogos
- * - settings.manage: Gestionar configuración
+ * Módulos:
+ * - Mapa y Zonas: map.view (solo visualización)
+ * - Notificaciones: notifications.view (solo visualización)
+ * - Siniestros Viales: accidents.view, accidents.create, accidents.export
+ * - Incidentes: incidents.view, incidents.export
+ * - Administración: admin (acceso total)
  *
  * Roles por defecto:
  * - Administrador: todos los permisos
- * - Supervisor: users.view, reports.view, incidents.manage
- * - Operador: incidents.view, reports.view
- * - Visualizador: incidents.view
+ * - Supervisor: todo excepto admin
+ * - Operador: map.view, notifications.view, accidents.view, accidents.create, incidents.view
+ * - Visualizador: map.view, notifications.view, accidents.view, incidents.view
  */
 
 /** Códigos de permiso del sistema (type-safe) */
 export type PermissionCode =
   | "admin"
+  | "map.view"
+  | "notifications.view"
+  | "accidents.view"
+  | "accidents.create"
+  | "accidents.export"
   | "incidents.view"
-  | "incidents.manage"
-  | "reports.view"
-  | "users.view"
-  | "users.manage"
-  | "catalogs.manage"
-  | "settings.manage";
+  | "incidents.export";
 
 export const ROUTE_PERMISSIONS = {
-  /** Dashboard principal, mapa, alertas - requiere ver incidentes */
-  home: "incidents.view",
-  mapa: "incidents.view",
-  alertas: "incidents.view",
-  dashboard: "incidents.view",
+  /** Mapa y Zonas — solo visualización */
+  mapa: "map.view" as PermissionCode,
 
-  /** Notificaciones - ligadas a incidentes/alertas */
-  notificaciones: "incidents.view",
+  /** Notificaciones — solo visualización */
+  notificaciones: "notifications.view" as PermissionCode,
 
-  /** Siniestros, incidentes - datos de incidentes */
-  siniestros: "incidents.view",
-  incidentes: "incidents.view",
+  /** Siniestros Viales — ver siniestros */
+  siniestros: "accidents.view" as PermissionCode,
 
-  /** Análisis de riesgos - reportes */
-  riesgos: "reports.view",
+  /** Módulo de Incidentes — ver incidentes */
+  incidentes: "incidents.view" as PermissionCode,
 
-  /** Panel de administración - solo admin */
-  admin: "admin",
-} as const satisfies Record<string, PermissionCode>;
+  /** Administración — acceso total */
+  admin: "admin" as PermissionCode,
+} as const;
 
 export type RouteKey = keyof typeof ROUTE_PERMISSIONS;
 
 /** Rutas ordenadas por prioridad para fallback (primera accesible) */
 export const FALLBACK_ROUTES: readonly string[] = [
-  "/",
-  "/dashboard",
   "/mapa",
-  "/alertas",
+  "/siniestros",
   "/incidentes",
-  "/riesgos",
+  "/notificaciones",
 ] as const;
 
-/** Mapa path → permiso requerido (al menos uno) */
+/** Mapa path → permiso requerido */
 export const PATH_TO_PERMISSION: Record<string, PermissionCode> = {
-  "/": ROUTE_PERMISSIONS.home,
-  "/dashboard": ROUTE_PERMISSIONS.dashboard,
+  "/": ROUTE_PERMISSIONS.mapa,
+  "/dashboard": ROUTE_PERMISSIONS.mapa,
   "/mapa": ROUTE_PERMISSIONS.mapa,
-  "/alertas": ROUTE_PERMISSIONS.alertas,
   "/notificaciones": ROUTE_PERMISSIONS.notificaciones,
   "/siniestros": ROUTE_PERMISSIONS.siniestros,
   "/incidentes": ROUTE_PERMISSIONS.incidentes,
-  "/riesgos": ROUTE_PERMISSIONS.riesgos,
   "/admin": ROUTE_PERMISSIONS.admin,
 };
 
@@ -98,5 +87,5 @@ export function getFirstAccessibleRoute(
     const perm = PATH_TO_PERMISSION[path];
     if (perm && hasPermission(perm)) return path;
   }
-  return "/dashboard";
+  return "/mapa";
 }

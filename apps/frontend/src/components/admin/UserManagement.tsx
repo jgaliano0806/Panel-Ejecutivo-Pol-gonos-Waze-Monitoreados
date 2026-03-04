@@ -23,7 +23,6 @@ import {
   Loader2,
   AlertCircle,
   Map,
-  Home,
   Bell,
   Layers,
   Car,
@@ -368,34 +367,27 @@ const RoleForm = ({
 
   // Definición de rutas de la plataforma con sus permisos
   const platformRoutes = [
-    { path: "/", label: "Dashboard", icon: Home, permission: "incidents.view" },
     {
       path: "/mapa",
       label: "Mapa y Zonas",
       icon: Map,
-      permission: "incidents.view",
-    },
-    {
-      path: "/alertas",
-      label: "Alertas y Eventos",
-      icon: Layers,
-      permission: "incidents.view",
+      permission: "map.view",
     },
     {
       path: "/notificaciones",
       label: "Notificaciones",
       icon: Bell,
-      permission: "incidents.view",
+      permission: "notifications.view",
     },
     {
       path: "/siniestros",
       label: "Siniestros Viales",
       icon: Car,
-      permission: "incidents.view",
+      permission: "accidents.view",
     },
     {
       path: "/incidentes",
-      label: "Panel de Incidentes",
+      label: "Módulo Incidentes",
       icon: Layers,
       permission: "incidents.view",
     },
@@ -1001,10 +993,14 @@ const UserManagement: React.FC = () => {
 
                 // Rutas accesibles para este rol
                 const accessibleRoutes = [
-                  { label: "Dashboard", icon: Home, perm: "incidents.view" },
-                  { label: "Mapa", icon: Map, perm: "incidents.view" },
-                  { label: "Alertas", icon: Layers, perm: "incidents.view" },
-                  { label: "Siniestros", icon: Car, perm: "incidents.view" },
+                  { label: "Mapa", icon: Map, perm: "map.view" },
+                  {
+                    label: "Notificaciones",
+                    icon: Bell,
+                    perm: "notifications.view",
+                  },
+                  { label: "Siniestros", icon: Car, perm: "accidents.view" },
+                  { label: "Incidentes", icon: Layers, perm: "incidents.view" },
                   { label: "Admin", icon: Settings, perm: "admin" },
                 ].filter((r) => hasPermCode(r.perm));
 
@@ -1070,13 +1066,11 @@ const UserManagement: React.FC = () => {
                           onClick={() => handleDeleteRole(role.id)}
                           className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                           title={
-                            isSystemRole
-                              ? "No se puede eliminar un rol del sistema"
-                              : role.userCount > 0
-                                ? "No se puede eliminar con usuarios asignados"
-                                : "Eliminar"
+                            role.userCount > 0
+                              ? "No se puede eliminar con usuarios asignados"
+                              : "Eliminar"
                           }
-                          disabled={role.userCount > 0 || isSystemRole}
+                          disabled={role.userCount > 0}
                         >
                           <Trash2 size={16} />
                         </button>

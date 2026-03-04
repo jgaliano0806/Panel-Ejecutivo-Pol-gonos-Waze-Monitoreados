@@ -30,9 +30,9 @@ export const ProfilePage: React.FC = () => {
   const { user, updateProfile, uploadAvatar } = useAuthStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [firstName, setFirstName] = useState(user?.firstName || "");
-  const [lastName, setLastName] = useState(user?.lastName || "");
-  const [email, setEmail] = useState(user?.email || "");
+  const firstName = user?.firstName || "";
+  const lastName = user?.lastName || "";
+  const email = user?.email || "";
   const [phone, setPhone] = useState(user?.phone || "");
 
   const [isSaving, setIsSaving] = useState(false);
@@ -60,9 +60,6 @@ export const ProfilePage: React.FC = () => {
     setIsSaving(true);
 
     const result = await updateProfile({
-      firstName: firstName !== user.firstName ? firstName : undefined,
-      lastName: lastName !== user.lastName ? lastName : undefined,
-      email: email !== user.email ? email : undefined,
       phone: phone !== (user.phone || "") ? phone : undefined,
     });
 
@@ -203,6 +200,8 @@ export const ProfilePage: React.FC = () => {
                   accept="image/jpeg,image/png,image/webp,image/gif"
                   onChange={handleAvatarChange}
                   className="hidden"
+                  title="Seleccionar imagen de perfil"
+                  aria-label="Seleccionar imagen de perfil"
                 />
               </div>
 
@@ -251,9 +250,8 @@ export const ProfilePage: React.FC = () => {
                     id="profile-firstName"
                     type="text"
                     value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    required
-                    className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.1] text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200"
+                    disabled
+                    className="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06] text-gray-400 cursor-not-allowed"
                   />
                 </div>
                 <div>
@@ -267,9 +265,8 @@ export const ProfilePage: React.FC = () => {
                     id="profile-lastName"
                     type="text"
                     value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    required
-                    className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.1] text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200"
+                    disabled
+                    className="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06] text-gray-400 cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -286,9 +283,8 @@ export const ProfilePage: React.FC = () => {
                   id="profile-email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.1] text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200"
+                  disabled
+                  className="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06] text-gray-400 cursor-not-allowed"
                 />
               </div>
 

@@ -3,8 +3,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Map,
-  AlertTriangle,
-  Layers,
   Car,
   Settings,
   ChevronRight,
@@ -41,7 +39,6 @@ export const AppSidebar: React.FC = () => {
       return "home";
     if (location.pathname === "/mapa") return "map";
     if (location.pathname === "/riesgos") return "risk";
-    if (location.pathname === "/alertas") return "alerts";
     if (location.pathname === "/siniestros") return "accidents";
     if (location.pathname === "/notificaciones") return "notifications";
     if (location.pathname === "/incidentes") return "incidents";
@@ -66,13 +63,6 @@ export const AppSidebar: React.FC = () => {
     //   path: "/riesgos",
     //   requiredPermission: ROUTE_PERMISSIONS.riesgos,
     // },
-    {
-      id: "alerts",
-      label: "Alertas y Eventos",
-      icon: <Layers size={20} />,
-      path: "/alertas",
-      requiredPermission: ROUTE_PERMISSIONS.alertas,
-    },
     {
       id: "notifications",
       label: "Notificaciones",

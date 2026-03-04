@@ -341,21 +341,12 @@ export class RoadAccidentService {
     high: number;
   }> {
     try {
-      // Grupos de la RAC (Red de Accesos Córdoba)
-      const RAC_GROUPS = [
-        "Autovía A-019",
-        "Área Capital",
-        "Ruta Nacional 9",
-        "Ruta Nacional 19",
-        "Ruta Nacional 36",
-      ];
-
-      // Obtener IDs de polígonos RAC desde la base de datos
+      // Obtener IDs de todos los polígonos activos configurados en la base de datos
       const polygonQuery = `
                 SELECT id FROM config_polygons
-                WHERE "group" = ANY($1)
+                WHERE is_active = true
             `;
-      const polygonResult = await dbService.query(polygonQuery, [RAC_GROUPS]);
+      const polygonResult = await dbService.query(polygonQuery);
       const racPolygonIds = polygonResult.rows.map((row: any) => row.id);
 
       if (racPolygonIds.length === 0) {

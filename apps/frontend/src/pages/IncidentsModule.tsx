@@ -77,30 +77,36 @@ export const IncidentsModule: React.FC = () => {
   );
 
   const authUser = useAuthStore((s) => s.user);
+  const hasPermission = useAuthStore((s) => s.hasPermission);
   const { data: backendPolygons } = usePolygonsStatus();
 
-  const handleExportPDF = useCallback(async (incident: Incident) => {
-    try {
-      const userName = authUser
-        ? `${authUser.firstName} ${authUser.lastName}`.trim()
-        : undefined;
-      const bPoly = incident.polygonId && backendPolygons
-        ? backendPolygons.find((p) => p.id === incident.polygonId)
-        : null;
-      const localPoly = !bPoly && incident.polygonId
-        ? realCordobaPolygons.find((p) => p.id === incident.polygonId)
-        : null;
-      await exportIncidentToPDF(
-        incident,
-        userName,
-        bPoly?.name ?? localPoly?.name,
-        bPoly?.group ?? localPoly?.group,
-      );
-    } catch (error) {
-      console.error("Error exportando PDF:", error);
-      alert("Error al generar el PDF. Por favor intente nuevamente.");
-    }
-  }, [authUser, backendPolygons]);
+  const handleExportPDF = useCallback(
+    async (incident: Incident) => {
+      try {
+        const userName = authUser
+          ? `${authUser.firstName} ${authUser.lastName}`.trim()
+          : undefined;
+        const bPoly =
+          incident.polygonId && backendPolygons
+            ? backendPolygons.find((p) => p.id === incident.polygonId)
+            : null;
+        const localPoly =
+          !bPoly && incident.polygonId
+            ? realCordobaPolygons.find((p) => p.id === incident.polygonId)
+            : null;
+        await exportIncidentToPDF(
+          incident,
+          userName,
+          bPoly?.name ?? localPoly?.name,
+          bPoly?.group ?? localPoly?.group,
+        );
+      } catch (error) {
+        console.error("Error exportando PDF:", error);
+        alert("Error al generar el PDF. Por favor intente nuevamente.");
+      }
+    },
+    [authUser, backendPolygons],
+  );
 
   // Cerrar modal
   const handleCloseModal = useCallback(() => {
@@ -122,15 +128,17 @@ export const IncidentsModule: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={() =>
-              alert("Exportar todos los incidentes filtrados a CSV/Excel")
-            }
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            Exportar
-          </button>
+          {hasPermission("incidents.export") && (
+            <button
+              onClick={() =>
+                alert("Exportar todos los incidentes filtrados a CSV/Excel")
+              }
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Exportar
+            </button>
+          )}
         </div>
       </div>
 
@@ -236,7 +244,9 @@ export const IncidentsModule: React.FC = () => {
           handleCloseModal();
           handleViewOnMap(incident);
         }}
-        onExportPDF={handleExportPDF}
+        onExportPDF={
+          hasPermission("incidents.export") ? handleExportPDF : undefined
+        }
       />
     </div>
   );

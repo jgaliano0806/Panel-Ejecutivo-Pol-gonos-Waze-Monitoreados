@@ -11,8 +11,6 @@ import {
 import { expandAndJitterIncidents } from "../../utils/mapUtils";
 import { Map } from "../map/Map";
 import {
-  LayoutList,
-  LayoutGrid,
   RefreshCw,
   Search,
   X,
@@ -21,9 +19,7 @@ import {
   Activity,
 } from "lucide-react";
 import { EventsCharts } from "./EventsCharts";
-import { EventsTable } from "./EventsTable";
 import { getIncidentDescription } from "../../utils/wazeTranslations";
-import { EventCard } from "./EventCard";
 
 export type DataSourceFilter = "current" | "historical" | "all";
 export type StatusFilter = "active" | "inactive" | "all";
@@ -33,7 +29,6 @@ export const EventsDashboard: React.FC = () => {
   const { polygons, jams, incidents: allIncidents } = useWazeData();
   const navigate = useNavigate();
 
-  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [searchTerm, setSearchTerm] = useState("");
 
   // Estados para filtros interactivos (gráficos)
@@ -198,27 +193,6 @@ export const EventsDashboard: React.FC = () => {
     return items;
   }, [combinedAnalyses, dateFrom, dateTo, searchTerm]);
 
-  // 2. Filtered Data for List & KPIs: Applies specific Type/Zone selection
-  const filteredAnalyses = useMemo(() => {
-    let items = baseAnalyses;
-
-    // Filter by Type (from Chart Click)
-    if (selectedType) {
-      items = items.filter(
-        (a: any) =>
-          getIncidentDescription(a.incident.type, a.incident.subtype) ===
-          selectedType,
-      );
-    }
-
-    // Filter by Zone (from Chart Click)
-    if (selectedZone) {
-      items = items.filter((a: any) => a.polygonName === selectedZone);
-    }
-
-    return items;
-  }, [baseAnalyses, selectedType, selectedZone]);
-
   if (isLoading) {
     return (
       <div className="flex flex-col h-full items-center justify-center p-12 space-y-4">
@@ -354,23 +328,6 @@ export const EventsDashboard: React.FC = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9 pr-4 py-2 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm focus:ring-2 focus:ring-blue-500 w-64"
             />
-          </div>
-
-          <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-lg p-1 border border-gray-200 dark:border-zinc-700">
-            <button
-              onClick={() => setViewMode("cards")}
-              className={`p-2 rounded-md transition-colors ${viewMode === "cards" ? "bg-white dark:bg-zinc-700 shadow-sm" : "hover:bg-gray-200 dark:hover:bg-zinc-700"}`}
-              title="Vista Detallada"
-            >
-              <LayoutGrid size={18} />
-            </button>
-            <button
-              onClick={() => setViewMode("table")}
-              className={`p-2 rounded-md transition-colors ${viewMode === "table" ? "bg-white dark:bg-zinc-700 shadow-sm" : "hover:bg-gray-200 dark:hover:bg-zinc-700"}`}
-              title="Vista de Lista"
-            >
-              <LayoutList size={18} />
-            </button>
           </div>
 
           <button
@@ -552,90 +509,6 @@ export const EventsDashboard: React.FC = () => {
           }
         }}
       />
-
-      {/* Main Content Area */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-          {viewMode === "table" ? (
-            <LayoutList size={20} />
-          ) : (
-            <LayoutGrid size={20} />
-          )}
-          Listado de Eventos
-          <span className="bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full text-xs font-medium text-gray-500">
-            {filteredAnalyses.length}
-          </span>
-        </h2>
-
-        {viewMode === "table" ? (
-          <EventsTable
-            analyses={filteredAnalyses}
-            onViewMap={(item) =>
-              setMapModalData({
-                isOpen: true,
-                locations: item.allLocations || [
-                  {
-                    lat: item.incident.location.lat,
-                    lng: item.incident.location.lng,
-                    id: item.incident.id,
-                  },
-                ],
-                title: getIncidentDescription(
-                  item.incident.type,
-                  item.incident.subtype,
-                ),
-                description: item.incident.street || "Ubicación",
-                type: item.incident.type,
-                subtype: item.incident.subtype,
-                polygonName: item.polygonName || "",
-                feed: item.polygonGroup || "",
-              })
-            }
-          />
-        ) : (
-          <div className="grid grid-cols-1 gap-4">
-            {filteredAnalyses.map((analysis) => (
-              <EventCard
-                key={analysis.incident.id}
-                analysis={analysis}
-                onMapClick={() =>
-                  setMapModalData({
-                    isOpen: true,
-                    locations: analysis.allLocations || [
-                      {
-                        lat: analysis.incident.location.lat,
-                        lng: analysis.incident.location.lng,
-                        id: analysis.incident.id,
-                      },
-                    ],
-                    title: getIncidentDescription(
-                      analysis.incident.type,
-                      analysis.incident.subtype,
-                    ),
-                    description: analysis.incident.street || "Ubicación",
-                    type: analysis.incident.type,
-                    subtype: analysis.incident.subtype,
-                    polygonName: analysis.polygonName || "",
-                    feed: analysis.polygonGroup || "",
-                  })
-                }
-              />
-            ))}
-            {filteredAnalyses.length === 0 && (
-              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                <p className="text-lg mb-2">
-                  📭 No hay incidentes para mostrar
-                </p>
-                <p className="text-sm">
-                  {searchTerm || selectedType || selectedZone
-                    ? "Intenta ajustar los filtros de búsqueda"
-                    : "No se encontraron eventos activos en este momento"}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
 
       {/* Modal de Mapa Detallado de Tramo (Premium) */}
       {detailMapState?.isOpen &&

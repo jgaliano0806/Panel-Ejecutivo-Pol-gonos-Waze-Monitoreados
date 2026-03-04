@@ -25,7 +25,7 @@ interface IncidentDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onViewOnMap: (incident: Incident) => void;
-  onExportPDF: (incident: Incident) => void;
+  onExportPDF?: (incident: Incident) => void;
 }
 
 export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
@@ -295,13 +295,15 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
               <MapPin className="w-4 h-4" />
               Ver en el mapa
             </button>
-            <button
-              onClick={() => onExportPDF(incident)}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors"
-            >
-              <FileText className="w-4 h-4" />
-              Exportar PDF
-            </button>
+            {onExportPDF && (
+              <button
+                onClick={() => onExportPDF(incident)}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors"
+              >
+                <FileText className="w-4 h-4" />
+                Exportar PDF
+              </button>
+            )}
           </div>
         </div>
       </div>

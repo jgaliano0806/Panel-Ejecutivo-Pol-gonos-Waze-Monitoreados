@@ -39,6 +39,7 @@ import { useAuthStore } from "../stores/useAuthStore";
 
 export const RoadAccidentsPage: React.FC = () => {
   const authUser = useAuthStore((s) => s.user);
+  const hasPermission = useAuthStore((s) => s.hasPermission);
 
   const [dateRange, setDateRange] = useState<{ from: string; to: string }>({
     from: "",
@@ -261,7 +262,9 @@ export const RoadAccidentsPage: React.FC = () => {
   };
 
   const apiBase = import.meta.env.VITE_API_URL || "/api";
-  const MEDIA_BASE_URL = apiBase.endsWith("/api") ? apiBase.replace(/\/api$/, "") : apiBase;
+  const MEDIA_BASE_URL = apiBase.endsWith("/api")
+    ? apiBase.replace(/\/api$/, "")
+    : apiBase;
 
   return (
     <div className="flex h-[calc(100vh-200px)] bg-gray-50 dark:bg-veltrix-bg transition-colors">
@@ -415,7 +418,9 @@ export const RoadAccidentsPage: React.FC = () => {
             </div>
             <button
               onClick={() => setPage((p) => p + 1)}
-              disabled={page >= totalPages - 1 || listLoading || totalAccidents === 0}
+              disabled={
+                page >= totalPages - 1 || listLoading || totalAccidents === 0
+              }
               className="px-3 py-2 bg-white dark:bg-veltrix-card border border-gray-200 dark:border-veltrix-border rounded-lg font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-veltrix-bg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Siguiente
@@ -453,36 +458,46 @@ export const RoadAccidentsPage: React.FC = () => {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      if (!accident) return;
-                      const bPoly = accident.polygon_id && backendPolygons
-                        ? backendPolygons.find((p) => p.id === accident.polygon_id)
-                        : null;
-                      const localPoly = !bPoly && accident.polygon_id
-                        ? realCordobaPolygons.find((p) => p.id === accident.polygon_id)
-                        : null;
-                      const pdfUser = authUser
-                        ? `${authUser.firstName} ${authUser.lastName}`.trim()
-                        : undefined;
-                      exportAccidentToPDF(
-                        accident,
-                        bPoly?.name ?? localPoly?.name,
-                        bPoly?.group ?? localPoly?.group,
-                        pdfUser,
-                      );
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-all active:scale-95"
-                  >
-                    <FileText className="w-4 h-4" />
-                    Exportar PDF
-                  </button>
+                  {hasPermission("accidents.export") && (
+                    <button
+                      onClick={() => {
+                        if (!accident) return;
+                        const bPoly =
+                          accident.polygon_id && backendPolygons
+                            ? backendPolygons.find(
+                                (p) => p.id === accident.polygon_id,
+                              )
+                            : null;
+                        const localPoly =
+                          !bPoly && accident.polygon_id
+                            ? realCordobaPolygons.find(
+                                (p) => p.id === accident.polygon_id,
+                              )
+                            : null;
+                        const pdfUser = authUser
+                          ? `${authUser.firstName} ${authUser.lastName}`.trim()
+                          : undefined;
+                        exportAccidentToPDF(
+                          accident,
+                          bPoly?.name ?? localPoly?.name,
+                          bPoly?.group ?? localPoly?.group,
+                          pdfUser,
+                        );
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-all active:scale-95"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Exportar PDF
+                    </button>
+                  )}
                 </div>
               </div>
 
               {/* Badges de tipo y estado */}
               <div className="flex items-center gap-3">
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-white ${getSeverityColor(accident.severity)}`}>
+                <span
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-white ${getSeverityColor(accident.severity)}`}
+                >
                   <AlertTriangle className="w-4 h-4" />
                   {getAccidentSubtypeLabel(accident.subtype)}
                 </span>
@@ -497,9 +512,12 @@ export const RoadAccidentsPage: React.FC = () => {
                 <div className="flex items-start gap-3 p-3 bg-white dark:bg-veltrix-card border border-gray-100 dark:border-veltrix-border rounded-xl">
                   <MapPin className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ubicación</p>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Ubicación
+                    </p>
                     <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {accident.street || `${accident.location_lat.toFixed(5)}, ${accident.location_lng.toFixed(5)}`}
+                      {accident.street ||
+                        `${accident.location_lat.toFixed(5)}, ${accident.location_lng.toFixed(5)}`}
                     </p>
                   </div>
                 </div>
@@ -507,7 +525,9 @@ export const RoadAccidentsPage: React.FC = () => {
                 <div className="flex items-start gap-3 p-3 bg-white dark:bg-veltrix-card border border-gray-100 dark:border-veltrix-border rounded-xl">
                   <Clock className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fecha de reporte</p>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Fecha de reporte
+                    </p>
                     <p className="text-sm font-medium text-gray-900 dark:text-white">
                       {new Date(accident.accident_at).toLocaleString("es-AR", {
                         weekday: "short",
@@ -524,7 +544,9 @@ export const RoadAccidentsPage: React.FC = () => {
                 <div className="flex items-start gap-3 p-3 bg-white dark:bg-veltrix-card border border-gray-100 dark:border-veltrix-border rounded-xl">
                   <User className="w-5 h-5 text-purple-500 mt-0.5 flex-shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Reportado por</p>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Reportado por
+                    </p>
                     <p className="text-sm font-medium text-gray-900 dark:text-white">
                       {accident.waze_data?.reportBy || "Usuario anónimo"}
                     </p>
@@ -534,25 +556,39 @@ export const RoadAccidentsPage: React.FC = () => {
                 <div className="flex items-start gap-3 p-3 bg-white dark:bg-veltrix-card border border-gray-100 dark:border-veltrix-border rounded-xl">
                   <MapPin className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Polígono</p>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Polígono
+                    </p>
                     {(() => {
-                      const bPoly = accident.polygon_id && backendPolygons
-                        ? backendPolygons.find((p) => p.id === accident.polygon_id)
-                        : null;
-                      const localPoly = !bPoly && accident.polygon_id
-                        ? realCordobaPolygons.find((p) => p.id === accident.polygon_id)
-                        : null;
+                      const bPoly =
+                        accident.polygon_id && backendPolygons
+                          ? backendPolygons.find(
+                              (p) => p.id === accident.polygon_id,
+                            )
+                          : null;
+                      const localPoly =
+                        !bPoly && accident.polygon_id
+                          ? realCordobaPolygons.find(
+                              (p) => p.id === accident.polygon_id,
+                            )
+                          : null;
                       const name = bPoly?.name ?? localPoly?.name;
                       const group = bPoly?.group ?? localPoly?.group;
                       return name ? (
                         <>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{name}</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            {name}
+                          </p>
                           {group && group !== "Sin Grupo" && (
-                            <p className="text-xs text-gray-400 dark:text-gray-500">{group}</p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500">
+                              {group}
+                            </p>
                           )}
                         </>
                       ) : (
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">N/A</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          N/A
+                        </p>
                       );
                     })()}
                   </div>
@@ -568,7 +604,9 @@ export const RoadAccidentsPage: React.FC = () => {
                   <div className="flex items-center justify-center gap-1 text-green-600 dark:text-green-400 mb-1">
                     <CheckCircle className="w-4 h-4" />
                     <span className="text-lg font-bold">
-                      {accident.waze_data?.reliability != null ? Number(accident.waze_data.reliability).toFixed(1) : "N/A"}
+                      {accident.waze_data?.reliability != null
+                        ? Number(accident.waze_data.reliability).toFixed(1)
+                        : "N/A"}
                     </span>
                     <span className="text-xs opacity-70">/10</span>
                   </div>
@@ -584,7 +622,9 @@ export const RoadAccidentsPage: React.FC = () => {
                   <div className="flex items-center justify-center gap-1 text-blue-600 dark:text-blue-400 mb-1">
                     <Star className="w-4 h-4" />
                     <span className="text-lg font-bold">
-                      {accident.waze_data?.confidence != null ? Number(accident.waze_data.confidence).toFixed(1) : "N/A"}
+                      {accident.waze_data?.confidence != null
+                        ? Number(accident.waze_data.confidence).toFixed(1)
+                        : "N/A"}
                     </span>
                     <span className="text-xs opacity-70">/5</span>
                   </div>
@@ -600,7 +640,9 @@ export const RoadAccidentsPage: React.FC = () => {
                   <div className="flex items-center justify-center gap-1 text-purple-600 dark:text-purple-400 mb-1">
                     <ThumbsUp className="w-4 h-4" />
                     <span className="text-lg font-bold">
-                      {accident.waze_data?.nThumbsUp || accident.waze_data?.thumbsUp || 0}
+                      {accident.waze_data?.nThumbsUp ||
+                        accident.waze_data?.thumbsUp ||
+                        0}
                     </span>
                   </div>
                   <p className="text-xs text-gray-600 dark:text-gray-400">
@@ -816,39 +858,67 @@ export const RoadAccidentsPage: React.FC = () => {
                   </h3>
                   <div className="text-sm space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-veltrix-muted">ID Incidente:</span>
-                      <span className="font-mono text-xs dark:text-gray-400">{accident.incident_id || "N/A"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-veltrix-muted">Tipo:</span>
-                      <span className="font-medium dark:text-gray-300">{accident.type || "N/A"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-veltrix-muted">Subtipo:</span>
-                      <span className="font-medium dark:text-gray-300">{getAccidentSubtypeLabel(accident.subtype)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-veltrix-muted">Confiabilidad:</span>
-                      <span className="font-medium text-blue-600 dark:text-blue-400">
-                        {accident.waze_data?.reliability != null ? `${accident.waze_data.reliability}/10` : "N/A"}
+                      <span className="text-gray-500 dark:text-veltrix-muted">
+                        ID Incidente:
+                      </span>
+                      <span className="font-mono text-xs dark:text-gray-400">
+                        {accident.incident_id || "N/A"}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-veltrix-muted">Confirmación comunidad:</span>
+                      <span className="text-gray-500 dark:text-veltrix-muted">
+                        Tipo:
+                      </span>
+                      <span className="font-medium dark:text-gray-300">
+                        {accident.type || "N/A"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 dark:text-veltrix-muted">
+                        Subtipo:
+                      </span>
+                      <span className="font-medium dark:text-gray-300">
+                        {getAccidentSubtypeLabel(accident.subtype)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 dark:text-veltrix-muted">
+                        Confiabilidad:
+                      </span>
                       <span className="font-medium text-blue-600 dark:text-blue-400">
-                        {accident.waze_data?.confidence != null ? `${accident.waze_data.confidence}/5` : "N/A"}
+                        {accident.waze_data?.reliability != null
+                          ? `${accident.waze_data.reliability}/10`
+                          : "N/A"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 dark:text-veltrix-muted">
+                        Confirmación comunidad:
+                      </span>
+                      <span className="font-medium text-blue-600 dark:text-blue-400">
+                        {accident.waze_data?.confidence != null
+                          ? `${accident.waze_data.confidence}/5`
+                          : "N/A"}
                       </span>
                     </div>
                     {accident.waze_data?.reportBy && (
                       <div className="flex justify-between">
-                        <span className="text-gray-500 dark:text-veltrix-muted">Reportado por:</span>
-                        <span className="font-medium dark:text-gray-300">{accident.waze_data.reportBy}</span>
+                        <span className="text-gray-500 dark:text-veltrix-muted">
+                          Reportado por:
+                        </span>
+                        <span className="font-medium dark:text-gray-300">
+                          {accident.waze_data.reportBy}
+                        </span>
                       </div>
                     )}
                     {accident.description && (
                       <div className="pt-2 border-t border-gray-100 dark:border-veltrix-border mt-2">
-                        <span className="text-gray-500 dark:text-veltrix-muted block mb-1">Descripción:</span>
-                        <span className="text-gray-700 dark:text-gray-300">{accident.description}</span>
+                        <span className="text-gray-500 dark:text-veltrix-muted block mb-1">
+                          Descripción:
+                        </span>
+                        <span className="text-gray-700 dark:text-gray-300">
+                          {accident.description}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -859,7 +929,8 @@ export const RoadAccidentsPage: React.FC = () => {
               <div className="bg-white dark:bg-veltrix-card rounded-2xl shadow-sm border border-gray-100 dark:border-veltrix-border p-6">
                 <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
                   <ImageIcon className="w-5 h-5 text-indigo-500" />
-                  Respaldo Multimedia y Documental ({accident.media?.length || 0})
+                  Respaldo Multimedia y Documental (
+                  {accident.media?.length || 0})
                 </h3>
 
                 {accident.media && accident.media.length > 0 ? (
@@ -868,7 +939,9 @@ export const RoadAccidentsPage: React.FC = () => {
                       <div
                         key={idx}
                         className={`group relative rounded-xl overflow-hidden border border-gray-200 dark:border-veltrix-border shadow-sm ${
-                          item.file_type === "document" ? "bg-gray-50 dark:bg-veltrix-bg aspect-[4/3]" : "bg-black aspect-video"
+                          item.file_type === "document"
+                            ? "bg-gray-50 dark:bg-veltrix-bg aspect-[4/3]"
+                            : "bg-black aspect-video"
                         }`}
                       >
                         {item.file_type === "image" ? (
@@ -895,15 +968,19 @@ export const RoadAccidentsPage: React.FC = () => {
                               {item.original_name || "Documento"}
                             </span>
                             <span className="text-[10px] text-gray-400">
-                              {Math.round((item.file_size_bytes || 0) / 1024)} KB
+                              {Math.round((item.file_size_bytes || 0) / 1024)}{" "}
+                              KB
                             </span>
                           </a>
                         )}
                         {item.file_type !== "document" && (
                           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 p-2 text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity flex justify-between">
-                            <span className="truncate">{item.original_name}</span>
+                            <span className="truncate">
+                              {item.original_name}
+                            </span>
                             <span>
-                              {Math.round((item.file_size_bytes || 0) / 1024)} KB
+                              {Math.round((item.file_size_bytes || 0) / 1024)}{" "}
+                              KB
                             </span>
                           </div>
                         )}
@@ -913,15 +990,18 @@ export const RoadAccidentsPage: React.FC = () => {
                 ) : (
                   <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 dark:border-veltrix-border rounded-2xl text-gray-400 dark:text-veltrix-muted">
                     <Upload className="w-12 h-12 mb-3 stroke-1" />
-                    <p>
-                      No hay archivos cargados para este siniestro.
-                    </p>
-                    <button
-                      onClick={() => { setUploadTab("media"); setIsUploadOpen(true); }}
-                      className="mt-4 text-blue-600 dark:text-blue-400 font-medium hover:underline"
-                    >
-                      Haga clic aquí para subir el primero
-                    </button>
+                    <p>No hay archivos cargados para este siniestro.</p>
+                    {hasPermission("accidents.create") && (
+                      <button
+                        onClick={() => {
+                          setUploadTab("media");
+                          setIsUploadOpen(true);
+                        }}
+                        className="mt-4 text-blue-600 dark:text-blue-400 font-medium hover:underline"
+                      >
+                        Haga clic aquí para subir el primero
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -938,7 +1018,7 @@ export const RoadAccidentsPage: React.FC = () => {
       </div>
 
       {/* Modal: Crear siniestro */}
-      {isCreateOpen && (
+      {isCreateOpen && hasPermission("accidents.create") && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[10000] p-4">
           <div className="bg-white dark:bg-veltrix-card rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-6 border-b border-gray-100 dark:border-veltrix-border flex justify-between items-center bg-gray-50 dark:bg-veltrix-bg">
@@ -1067,7 +1147,11 @@ export const RoadAccidentsPage: React.FC = () => {
                 Respaldo Multimedia y Documental
               </h3>
               <button
-                onClick={() => { setIsUploadOpen(false); setUploadFiles(null); setUploadDocFiles(null); }}
+                onClick={() => {
+                  setIsUploadOpen(false);
+                  setUploadFiles(null);
+                  setUploadDocFiles(null);
+                }}
                 className="p-1 hover:bg-gray-200 dark:hover:bg-veltrix-card rounded-full transition-colors"
                 title="Cerrar"
                 aria-label="Cerrar"
@@ -1088,7 +1172,11 @@ export const RoadAccidentsPage: React.FC = () => {
               >
                 <ImageIcon className="w-4 h-4" />
                 Multimedia
-                {uploadFiles && <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-1.5 rounded-full">{uploadFiles.length}</span>}
+                {uploadFiles && (
+                  <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-1.5 rounded-full">
+                    {uploadFiles.length}
+                  </span>
+                )}
               </button>
               <button
                 onClick={() => setUploadTab("docs")}
@@ -1100,7 +1188,11 @@ export const RoadAccidentsPage: React.FC = () => {
               >
                 <FileText className="w-4 h-4" />
                 Documentación
-                {uploadDocFiles && <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-1.5 rounded-full">{uploadDocFiles.length}</span>}
+                {uploadDocFiles && (
+                  <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-1.5 rounded-full">
+                    {uploadDocFiles.length}
+                  </span>
+                )}
               </button>
             </div>
 
@@ -1113,11 +1205,15 @@ export const RoadAccidentsPage: React.FC = () => {
                     </p>
                     <div
                       className="border-2 border-dashed border-gray-300 dark:border-veltrix-border rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all"
-                      onClick={() => document.getElementById("file-upload-media")?.click()}
+                      onClick={() =>
+                        document.getElementById("file-upload-media")?.click()
+                      }
                     >
                       <Upload className="w-10 h-10 text-gray-400 dark:text-gray-500 mb-2" />
                       <p className="text-sm text-gray-600 dark:text-veltrix-muted font-medium">
-                        {uploadFiles ? `${uploadFiles.length} archivos seleccionados` : "Arrastre archivos aquí o haga clic"}
+                        {uploadFiles
+                          ? `${uploadFiles.length} archivos seleccionados`
+                          : "Arrastre archivos aquí o haga clic"}
                       </p>
                       <p className="text-xs text-gray-400 dark:text-gray-600 mt-1">
                         Imágenes (JPG, PNG) o Videos (MP4) — Máx. 50 MB
@@ -1136,12 +1232,23 @@ export const RoadAccidentsPage: React.FC = () => {
                   {uploadFiles && (
                     <div className="mb-4 space-y-1.5 max-h-36 overflow-y-auto">
                       {Array.from(uploadFiles).map((f, i) => (
-                        <div key={i} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-veltrix-bg rounded-lg text-xs dark:text-gray-300">
+                        <div
+                          key={i}
+                          className="flex justify-between items-center p-2 bg-gray-50 dark:bg-veltrix-bg rounded-lg text-xs dark:text-gray-300"
+                        >
                           <div className="flex items-center gap-2">
-                            {f.type.startsWith("video/") ? <Film className="w-3 h-3" /> : <ImageIcon className="w-3 h-3" />}
-                            <span className="truncate max-w-[250px]">{f.name}</span>
+                            {f.type.startsWith("video/") ? (
+                              <Film className="w-3 h-3" />
+                            ) : (
+                              <ImageIcon className="w-3 h-3" />
+                            )}
+                            <span className="truncate max-w-[250px]">
+                              {f.name}
+                            </span>
                           </div>
-                          <span className="text-gray-400">{(f.size / 1024 / 1024).toFixed(1)} MB</span>
+                          <span className="text-gray-400">
+                            {(f.size / 1024 / 1024).toFixed(1)} MB
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -1152,22 +1259,29 @@ export const RoadAccidentsPage: React.FC = () => {
                     onClick={handleUpload}
                     className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:dark:bg-gray-700 disabled:shadow-none transition-all active:scale-[0.98]"
                   >
-                    {uploadMediaMutation.isPending ? "Subiendo..." : "Subir Multimedia"}
+                    {uploadMediaMutation.isPending
+                      ? "Subiendo..."
+                      : "Subir Multimedia"}
                   </button>
                 </>
               ) : (
                 <>
                   <div className="mb-4">
                     <p className="text-sm text-gray-600 dark:text-veltrix-muted mb-3">
-                      Adjunte documentos como actas, informes o partes oficiales.
+                      Adjunte documentos como actas, informes o partes
+                      oficiales.
                     </p>
                     <div
                       className="border-2 border-dashed border-gray-300 dark:border-veltrix-border rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all"
-                      onClick={() => document.getElementById("file-upload-docs")?.click()}
+                      onClick={() =>
+                        document.getElementById("file-upload-docs")?.click()
+                      }
                     >
                       <FileText className="w-10 h-10 text-gray-400 dark:text-gray-500 mb-2" />
                       <p className="text-sm text-gray-600 dark:text-veltrix-muted font-medium">
-                        {uploadDocFiles ? `${uploadDocFiles.length} documentos seleccionados` : "Arrastre documentos aquí o haga clic"}
+                        {uploadDocFiles
+                          ? `${uploadDocFiles.length} documentos seleccionados`
+                          : "Arrastre documentos aquí o haga clic"}
                       </p>
                       <p className="text-xs text-gray-400 dark:text-gray-600 mt-1">
                         PDF, Word (DOC/DOCX) o Excel (XLS/XLSX) — Máx. 50 MB
@@ -1186,12 +1300,19 @@ export const RoadAccidentsPage: React.FC = () => {
                   {uploadDocFiles && (
                     <div className="mb-4 space-y-1.5 max-h-36 overflow-y-auto">
                       {Array.from(uploadDocFiles).map((f, i) => (
-                        <div key={i} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-veltrix-bg rounded-lg text-xs dark:text-gray-300">
+                        <div
+                          key={i}
+                          className="flex justify-between items-center p-2 bg-gray-50 dark:bg-veltrix-bg rounded-lg text-xs dark:text-gray-300"
+                        >
                           <div className="flex items-center gap-2">
                             <FileText className="w-3 h-3" />
-                            <span className="truncate max-w-[250px]">{f.name}</span>
+                            <span className="truncate max-w-[250px]">
+                              {f.name}
+                            </span>
                           </div>
-                          <span className="text-gray-400">{(f.size / 1024 / 1024).toFixed(1)} MB</span>
+                          <span className="text-gray-400">
+                            {(f.size / 1024 / 1024).toFixed(1)} MB
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -1202,7 +1323,9 @@ export const RoadAccidentsPage: React.FC = () => {
                     onClick={handleUpload}
                     className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg hover:bg-indigo-700 disabled:bg-gray-300 disabled:dark:bg-gray-700 disabled:shadow-none transition-all active:scale-[0.98]"
                   >
-                    {uploadMediaMutation.isPending ? "Subiendo..." : "Subir Documentación"}
+                    {uploadMediaMutation.isPending
+                      ? "Subiendo..."
+                      : "Subir Documentación"}
                   </button>
                 </>
               )}

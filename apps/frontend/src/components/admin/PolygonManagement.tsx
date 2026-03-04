@@ -89,7 +89,7 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
   onGeometryValidationError,
   onGeometryAutoAdjusted,
   onValidateForm,
-  polygons,
+  polygons: _polygons,
   otherPolygonsForMap,
   groups,
   darkMode = false,
@@ -165,10 +165,14 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label
+                htmlFor="polygon-group"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
                 Grupo
               </label>
               <select
+                id="polygon-group"
                 value={formData.group || ""}
                 onChange={(e) =>
                   onFieldChange("group", e.target.value || undefined)
@@ -759,28 +763,13 @@ const PolygonManagement: React.FC = () => {
     if (showForm && editingPolygon) {
       validateForm();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showForm, editingPolygon?.id]);
-
-  // Función para validar y parsear GeoJSON
-  const parseGeoJsonGeometry = (geoJsonText: string) => {
-    try {
-      const geometry = JSON.parse(geoJsonText);
-      if (
-        geometry.type === "Polygon" &&
-        geometry.coordinates &&
-        geometry.coordinates[0]
-      ) {
-        return geometry;
-      }
-      throw new Error("Geometría inválida");
-    } catch (error) {
-      throw new Error("JSON inválido o geometría no válida");
-    }
-  };
 
   // Cargar polígonos desde el backend
   useEffect(() => {
     fetchPolygons();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const normalizePolygon = (p: any): PolygonData => ({
@@ -877,9 +866,7 @@ const PolygonManagement: React.FC = () => {
       if (response.ok) {
         await queryClient.invalidateQueries({ queryKey: ["polygons"] });
         setPolygons((prev) =>
-          prev.map((p) =>
-            p.id === polygonId ? { ...p, is_active: true } : p,
-          ),
+          prev.map((p) => (p.id === polygonId ? { ...p, is_active: true } : p)),
         );
       } else {
         const err = await response.json().catch(() => ({}));
@@ -1095,7 +1082,9 @@ const PolygonManagement: React.FC = () => {
               items={sortedPolygons}
               estimateSize={80}
               renderItem={(polygon: PolygonData) => (
-                <div className={`grid grid-cols-[48px_minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] divide-x divide-gray-100 dark:divide-veltrix-border border-b border-gray-100 dark:border-veltrix-border hover:bg-gray-50 dark:hover:bg-veltrix-bg/30 transition-colors items-center text-sm bg-white dark:bg-veltrix-card text-gray-900 dark:text-white ${polygon.is_active === false ? "opacity-50" : ""}`}>
+                <div
+                  className={`grid grid-cols-[48px_minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] divide-x divide-gray-100 dark:divide-veltrix-border border-b border-gray-100 dark:border-veltrix-border hover:bg-gray-50 dark:hover:bg-veltrix-bg/30 transition-colors items-center text-sm bg-white dark:bg-veltrix-card text-gray-900 dark:text-white ${polygon.is_active === false ? "opacity-50" : ""}`}
+                >
                   <div className="px-2 py-3 flex items-center justify-center">
                     <input
                       type="checkbox"

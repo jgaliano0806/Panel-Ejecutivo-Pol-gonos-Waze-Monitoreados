@@ -1,3 +1,4 @@
+/* eslint-disable no-undef, no-console, @typescript-eslint/no-explicit-any */
 import { dbService } from "../dbService";
 import * as fs from "fs";
 import * as path from "path";
@@ -408,7 +409,51 @@ export async function runMigrations(): Promise<void> {
       }
     }
 
+    // Migración 034: Corregir permisos del Supervisor (agregar incidents.view)
+    const migration034Path = path.join(
+      migrationsDir,
+      "034_fix_supervisor_permissions.sql",
+    );
+    if (fs.existsSync(migration034Path)) {
+      try {
+        const sql = fs.readFileSync(migration034Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 034 ejecutada: incidents.view agregado al Supervisor",
+        );
+      } catch (migError: any) {
+        if (
+          !migError.message?.includes("already exists") &&
+          !migError.message?.includes("ya existe")
+        ) {
+          console.warn("⚠️ Migración 034:", migError.message);
+        }
+      }
+    }
+
     console.log("✅ Migraciones completadas exitosamente");
+
+    // Migración 035: Reestructurar permisos por módulo
+    const migration035Path = path.join(
+      migrationsDir,
+      "035_restructure_permissions.sql",
+    );
+    if (fs.existsSync(migration035Path)) {
+      try {
+        const sql = fs.readFileSync(migration035Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 035 ejecutada: permisos reestructurados por módulo",
+        );
+      } catch (migError: any) {
+        if (
+          !migError.message?.includes("already exists") &&
+          !migError.message?.includes("ya existe")
+        ) {
+          console.warn("⚠️ Migración 035:", migError.message);
+        }
+      }
+    }
   } catch (error: any) {
     // Si el error es por tabla/columna ya existente, es OK
     if (
