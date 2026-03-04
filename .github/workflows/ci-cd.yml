@@ -198,10 +198,6 @@ jobs:
           name: backend-build
           path: apps/backend/dist/
 
-      - name: Install backend dependencies
-        working-directory: apps/backend
-        run: npm ci --production
-
       - name: Run E2E tests
         run: npm run test:e2e --if-present
 
