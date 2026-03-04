@@ -24,14 +24,6 @@ export const NETWORK_CONFIG = {
   totalNetworkKm: 350,
   // Longitud promedio por polígono en km
   avgPolygonLengthKm: 5.3,
-  // Grupos de la Red de Accesos a Córdoba
-  racGroups: [
-    "Autovía A-019",
-    "Área Capital",
-    "Ruta Nacional 9",
-    "Ruta Nacional 19",
-    "Ruta Nacional 36",
-  ],
 };
 
 // ============================================
@@ -41,14 +33,14 @@ export const NETWORK_CONFIG = {
 // Los refetchInterval sirven SOLO como fallback si el WebSocket se desconecta.
 export const REFRESH_INTERVALS = {
   // Fallback: los datos llegan vía WS, pero si se desconecta se refetchean por polling
-  realTimeData: 120_000,           // 2 min fallback
-  globalKpis: 120_000,             // 2 min fallback
-  trafficMetrics: 120_000,         // 2 min fallback
-  alertStats: 120_000,             // 2 min fallback
+  realTimeData: 120_000, // 2 min fallback
+  globalKpis: 120_000, // 2 min fallback
+  trafficMetrics: 120_000, // 2 min fallback
+  alertStats: 120_000, // 2 min fallback
   // Datos históricos: menos urgentes, OK con polling moderado
-  historicalData: 300_000,         // 5 minutos
+  historicalData: 300_000, // 5 minutos
   // Tendencias: baja frecuencia
-  trends: 300_000,                 // 5 minutos
+  trends: 300_000, // 5 minutos
 };
 
 // ============================================

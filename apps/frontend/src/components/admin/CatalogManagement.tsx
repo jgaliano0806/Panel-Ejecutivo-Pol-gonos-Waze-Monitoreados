@@ -19,6 +19,7 @@ import {
   clearTranslationsCache,
   preloadTranslationsCache,
 } from "../../hooks/useCatalogTranslations";
+import { useAdminToast } from "../../hooks/useAdminToast";
 
 interface IncidentType {
   id: string;
@@ -142,8 +143,8 @@ const CatalogManagement: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const [stats, setStats] = useState<any>(null);
 
-  // API base URL (VITE_API_URL ya incluye /api)
   const API_URL = import.meta.env.VITE_API_URL || "/api";
+  const toast = useAdminToast();
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -228,34 +229,33 @@ const CatalogManagement: React.FC = () => {
       setSyncing(true);
       const response = await fetch(`${API_URL}/catalogs/sync`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
 
       if (response.ok) {
         const result = await response.json();
-        alert(
-          `✅ Sincronización completada!\n\n${result.data.newTypes} nuevos tipos\n${result.data.newSubtypes} nuevos subtipos\n${result.data.totalIncidents} incidentes procesados`,
+        toast.success(
+          "Sincronización completada",
+          `${result.data.newTypes} nuevos tipos · ${result.data.newSubtypes} nuevos subtipos · ${result.data.totalIncidents} incidentes procesados`,
         );
-
-        // Recargar datos
         await loadCatalogs();
         await loadStats();
-
-        // Invalidar y recargar cache de traducciones global
         clearTranslationsCache();
         await preloadTranslationsCache();
       } else {
         const error = await response.json();
-        alert(
-          `❌ Error en sincronización: ${error.message || "Error desconocido"}`,
+        toast.error(
+          "Error en sincronización",
+          error.message || "Error desconocido",
         );
       }
     } catch (error) {
       console.error("Error sincronizando:", error);
-      alert("❌ Error de conexión al sincronizar catálogos");
+      toast.error(
+        "Error de conexión",
+        "No se pudo conectar para sincronizar catálogos",
+      );
     } finally {
       setSyncing(false);
     }
@@ -305,20 +305,28 @@ const CatalogManagement: React.FC = () => {
       });
 
       if (response.ok) {
-        await loadCatalogs(); // Recargar datos
+        await loadCatalogs();
         setEditingType(null);
         setShowForm(false);
-        // Actualizar cache de traducciones global
         clearTranslationsCache();
         preloadTranslationsCache();
-        alert(`✅ Tipo ${isEditing ? "actualizado" : "creado"} exitosamente`);
+        toast.success(
+          isEditing ? "Tipo actualizado" : "Tipo creado",
+          `El tipo "${type.name}" fue ${isEditing ? "actualizado" : "creado"} exitosamente`,
+        );
       } else {
         const error = await response.json();
-        alert(`❌ Error: ${error.error || "Error desconocido"}`);
+        toast.error(
+          "Error al guardar tipo",
+          error.error || "Error desconocido",
+        );
       }
     } catch (error) {
       console.error("Error guardando tipo:", error);
-      alert("❌ Error de conexión al guardar tipo");
+      toast.error(
+        "Error de conexión",
+        "No se pudo conectar para guardar el tipo",
+      );
     }
   };
 
@@ -347,78 +355,100 @@ const CatalogManagement: React.FC = () => {
       });
 
       if (response.ok) {
-        await loadCatalogs(); // Recargar datos
+        await loadCatalogs();
         setEditingSubtype(null);
         setShowForm(false);
-        // Actualizar cache de traducciones global
         clearTranslationsCache();
         preloadTranslationsCache();
-        alert(
-          `✅ Subtipo ${isEditing ? "actualizado" : "creado"} exitosamente`,
+        toast.success(
+          isEditing ? "Subtipo actualizado" : "Subtipo creado",
+          `El subtipo "${subtype.name}" fue ${isEditing ? "actualizado" : "creado"} exitosamente`,
         );
       } else {
         const error = await response.json();
-        alert(`❌ Error: ${error.error || "Error desconocido"}`);
+        toast.error(
+          "Error al guardar subtipo",
+          error.error || "Error desconocido",
+        );
       }
     } catch (error) {
       console.error("Error guardando subtipo:", error);
-      alert("❌ Error de conexión al guardar subtipo");
+      toast.error(
+        "Error de conexión",
+        "No se pudo conectar para guardar el subtipo",
+      );
     }
   };
 
   const handleDeleteType = async (id: string) => {
+    const typeName = types.find((t) => t.id === id)?.name || id;
     if (
       !confirm(
-        "¿Estás seguro de que quieres eliminar este tipo? También se eliminarán todos sus subtipos.",
+        `¿Estás seguro de que quieres eliminar el tipo "${typeName}"? También se eliminarán todos sus subtipos.`,
       )
-    ) {
+    )
       return;
-    }
-
     try {
       const response = await fetch(`${API_URL}/catalogs/types/${id}`, {
         method: "DELETE",
       });
-
       if (response.ok) {
-        await loadCatalogs(); // Recargar datos
-        // Actualizar cache de traducciones global
+        await loadCatalogs();
         clearTranslationsCache();
         preloadTranslationsCache();
-        alert("✅ Tipo eliminado exitosamente");
+        toast.success(
+          "Tipo eliminado",
+          `El tipo "${typeName}" fue eliminado exitosamente`,
+        );
       } else {
         const error = await response.json();
-        alert(`❌ Error: ${error.error || "Error desconocido"}`);
+        toast.error(
+          "Error al eliminar tipo",
+          error.error || "Error desconocido",
+        );
       }
     } catch (error) {
       console.error("Error eliminando tipo:", error);
-      alert("❌ Error de conexión al eliminar tipo");
+      toast.error(
+        "Error de conexión",
+        "No se pudo conectar para eliminar el tipo",
+      );
     }
   };
 
   const handleDeleteSubtype = async (id: string) => {
-    if (!confirm("¿Estás seguro de que quieres eliminar este subtipo?")) {
+    const subtypeName = subtypes.find((s) => s.id === id)?.name || id;
+    if (
+      !confirm(
+        `¿Estás seguro de que quieres eliminar el subtipo "${subtypeName}"?`,
+      )
+    )
       return;
-    }
-
     try {
       const response = await fetch(`${API_URL}/catalogs/subtypes/${id}`, {
         method: "DELETE",
       });
-
       if (response.ok) {
-        await loadCatalogs(); // Recargar datos
-        // Actualizar cache de traducciones global
+        await loadCatalogs();
         clearTranslationsCache();
         preloadTranslationsCache();
-        alert("✅ Subtipo eliminado exitosamente");
+        toast.success(
+          "Subtipo eliminado",
+          `El subtipo "${subtypeName}" fue eliminado exitosamente`,
+        );
       } else {
         const error = await response.json();
-        alert(`❌ Error: ${error.error || "Error desconocido"}`);
+        toast.error(
+          "Error al eliminar subtipo",
+          error.error || "Error desconocido",
+        );
       }
     } catch (error) {
       console.error("Error eliminando subtipo:", error);
-      alert("❌ Error de conexión al eliminar subtipo");
+      toast.error(
+        "Error de conexión",
+        "No se pudo conectar para eliminar el subtipo",
+      );
     }
   };
 

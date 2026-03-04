@@ -23,7 +23,6 @@ import {
   Loader2,
   AlertCircle,
   Map,
-  Home,
   Bell,
   Layers,
   Car,
@@ -33,6 +32,7 @@ import {
   Lock,
   ShieldCheck,
 } from "lucide-react";
+import { useAdminToast } from "../../hooks/useAdminToast";
 import {
   useUsers,
   useCreateUser,
@@ -368,34 +368,27 @@ const RoleForm = ({
 
   // Definición de rutas de la plataforma con sus permisos
   const platformRoutes = [
-    { path: "/", label: "Dashboard", icon: Home, permission: "incidents.view" },
     {
       path: "/mapa",
       label: "Mapa y Zonas",
       icon: Map,
-      permission: "incidents.view",
-    },
-    {
-      path: "/alertas",
-      label: "Alertas y Eventos",
-      icon: Layers,
-      permission: "incidents.view",
+      permission: "map.view",
     },
     {
       path: "/notificaciones",
       label: "Notificaciones",
       icon: Bell,
-      permission: "incidents.view",
+      permission: "notifications.view",
     },
     {
       path: "/siniestros",
       label: "Siniestros Viales",
       icon: Car,
-      permission: "incidents.view",
+      permission: "accidents.view",
     },
     {
       path: "/incidentes",
-      label: "Panel de Incidentes",
+      label: "Módulo Incidentes",
       icon: Layers,
       permission: "incidents.view",
     },
@@ -651,6 +644,8 @@ const UserManagement: React.FC = () => {
   const [editingUser, setEditingUser] = useState<UserDTO | null>(null);
   const [editingRole, setEditingRole] = useState<RoleDTO | null>(null);
 
+  const toast = useAdminToast();
+
   // Queries
   const {
     data: users = [],
@@ -684,6 +679,10 @@ const UserManagement: React.FC = () => {
           password: data.password || undefined,
           roleIds: data.roleIds,
         });
+        toast.success(
+          "Usuario actualizado",
+          `${data.firstName} ${data.lastName} fue modificado exitosamente`,
+        );
       } else {
         await createUser.mutateAsync({
           email: data.email,
@@ -693,11 +692,18 @@ const UserManagement: React.FC = () => {
           password: data.password,
           roleIds: data.roleIds,
         });
+        toast.success(
+          "Usuario creado",
+          `${data.firstName} ${data.lastName} fue dado de alta exitosamente`,
+        );
       }
       setShowUserForm(false);
       setEditingUser(null);
-    } catch {
-      // Error manejado por la mutation
+    } catch (err: any) {
+      toast.error(
+        "Error al guardar usuario",
+        err?.message || "Ocurrió un error inesperado",
+      );
     }
   };
 
@@ -711,6 +717,10 @@ const UserManagement: React.FC = () => {
           color: data.color,
           permissionIds: data.permissionIds,
         });
+        toast.success(
+          "Rol actualizado",
+          `El rol "${data.name}" fue modificado exitosamente`,
+        );
       } else {
         await createRole.mutateAsync({
           name: data.name,
@@ -718,33 +728,83 @@ const UserManagement: React.FC = () => {
           color: data.color,
           permissionIds: data.permissionIds,
         });
+        toast.success(
+          "Rol creado",
+          `El rol "${data.name}" fue dado de alta exitosamente`,
+        );
       }
       setShowRoleForm(false);
       setEditingRole(null);
-    } catch {
-      // Error manejado por la mutation
+    } catch (err: any) {
+      toast.error(
+        "Error al guardar rol",
+        err?.message || "Ocurrió un error inesperado",
+      );
     }
   };
 
   const handleDeleteUser = async (id: number) => {
-    if (window.confirm("¿Está seguro de eliminar este usuario?")) {
+    const user = users.find((u) => u.id === id);
+    if (
+      !window.confirm(
+        `¿Está seguro de eliminar al usuario "${user?.firstName} ${user?.lastName}"?`,
+      )
+    )
+      return;
+    try {
       await deleteUser.mutateAsync(id);
+      toast.success(
+        "Usuario eliminado",
+        `El usuario fue eliminado exitosamente`,
+      );
+    } catch (err: any) {
+      toast.error(
+        "Error al eliminar usuario",
+        err?.message || "Ocurrió un error inesperado",
+      );
     }
   };
 
   const handleDeleteRole = async (id: number) => {
     const role = roles.find((r) => r.id === id);
     if (role && role.userCount > 0) {
-      alert("No se puede eliminar un rol que tiene usuarios asignados.");
+      toast.warning(
+        "No se puede eliminar el rol",
+        `El rol "${role.name}" tiene ${role.userCount} usuario(s) asignado(s)`,
+      );
       return;
     }
-    if (window.confirm("¿Está seguro de eliminar este rol?")) {
+    if (!window.confirm(`¿Está seguro de eliminar el rol "${role?.name}"?`))
+      return;
+    try {
       await deleteRole.mutateAsync(id);
+      toast.success(
+        "Rol eliminado",
+        `El rol "${role?.name}" fue eliminado exitosamente`,
+      );
+    } catch (err: any) {
+      toast.error(
+        "Error al eliminar rol",
+        err?.message || "Ocurrió un error inesperado",
+      );
     }
   };
 
   const handleToggleUserStatus = async (userId: number) => {
-    await toggleStatus.mutateAsync(userId);
+    const user = users.find((u) => u.id === userId);
+    try {
+      await toggleStatus.mutateAsync(userId);
+      const newStatus = user?.isActive ? "desactivado" : "activado";
+      toast.success(
+        `Usuario ${newStatus}`,
+        `${user?.firstName} ${user?.lastName} fue ${newStatus} exitosamente`,
+      );
+    } catch (err: any) {
+      toast.error(
+        "Error al cambiar estado",
+        err?.message || "Ocurrió un error inesperado",
+      );
+    }
   };
 
   // =====================================================
@@ -1001,10 +1061,14 @@ const UserManagement: React.FC = () => {
 
                 // Rutas accesibles para este rol
                 const accessibleRoutes = [
-                  { label: "Dashboard", icon: Home, perm: "incidents.view" },
-                  { label: "Mapa", icon: Map, perm: "incidents.view" },
-                  { label: "Alertas", icon: Layers, perm: "incidents.view" },
-                  { label: "Siniestros", icon: Car, perm: "incidents.view" },
+                  { label: "Mapa", icon: Map, perm: "map.view" },
+                  {
+                    label: "Notificaciones",
+                    icon: Bell,
+                    perm: "notifications.view",
+                  },
+                  { label: "Siniestros", icon: Car, perm: "accidents.view" },
+                  { label: "Incidentes", icon: Layers, perm: "incidents.view" },
                   { label: "Admin", icon: Settings, perm: "admin" },
                 ].filter((r) => hasPermCode(r.perm));
 
@@ -1070,13 +1134,11 @@ const UserManagement: React.FC = () => {
                           onClick={() => handleDeleteRole(role.id)}
                           className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                           title={
-                            isSystemRole
-                              ? "No se puede eliminar un rol del sistema"
-                              : role.userCount > 0
-                                ? "No se puede eliminar con usuarios asignados"
-                                : "Eliminar"
+                            role.userCount > 0
+                              ? "No se puede eliminar con usuarios asignados"
+                              : "Eliminar"
                           }
-                          disabled={role.userCount > 0 || isSystemRole}
+                          disabled={role.userCount > 0}
                         >
                           <Trash2 size={16} />
                         </button>

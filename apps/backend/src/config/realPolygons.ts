@@ -96,7 +96,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/9d7b4de5-3e05-4416-b6f0-7608008c797c?format=1",
     tvtFeedUrl:
       "https://www.waze.com/row-partnerhub-api/feeds-tvt/?id=1759846663785",
-    group: "Autovía A-019",
+    group: "Circunvalación",
     coordinates: POLYGON_COORDINATES.P001,
   },
   {
@@ -106,7 +106,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/264880ba-9904-4a52-ad4d-68a4950418be?format=1",
     tvtFeedUrl:
       "https://www.waze.com/row-partnerhub-api/feeds-tvt/?id=1759755815337",
-    group: "Autovía A-019",
+    group: "Circunvalación",
     coordinates: POLYGON_COORDINATES.P002,
   },
   {
@@ -646,7 +646,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/dd560bec-baf6-4537-84f4-705f98bd0dd1?format=1",
     tvtFeedUrl:
       "https://www.waze.com/row-partnerhub-api/feeds-tvt/?id=1758804759756",
-    group: "Autovía A-019",
+    group: "Circunvalación",
     coordinates: POLYGON_COORDINATES.P056,
   },
   {
@@ -656,7 +656,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/0536f9af-0565-48d8-b900-1e0c73db3fb7?format=1",
     tvtFeedUrl:
       "https://www.waze.com/row-partnerhub-api/feeds-tvt/?id=1758804712291",
-    group: "Autovía A-019",
+    group: "Circunvalación",
     coordinates: POLYGON_COORDINATES.P057,
   },
   {
@@ -666,7 +666,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/77364171-bc10-47b1-b342-5136a41d350f?format=1",
     tvtFeedUrl:
       "https://www.waze.com/row-partnerhub-api/feeds-tvt/?id=1758804678238",
-    group: "Autovía A-019",
+    group: "Circunvalación",
     coordinates: POLYGON_COORDINATES.P058,
   },
   {
@@ -686,7 +686,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/cdb04abf-4d77-497e-a8d9-47d93139bccc?format=1",
     tvtFeedUrl:
       "https://www.waze.com/row-partnerhub-api/feeds-tvt/?id=1758804567918",
-    group: "Autovía A-019",
+    group: "Circunvalación",
     coordinates: POLYGON_COORDINATES.P060,
   },
   {
@@ -716,7 +716,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/25a180e1-e887-4ef9-8d54-10426605cd40?format=1",
     tvtFeedUrl:
       "https://www.waze.com/row-partnerhub-api/feeds-tvt/?id=1758804616503",
-    group: "Autovía A-019",
+    group: "Circunvalación",
     coordinates: POLYGON_COORDINATES.P063,
   },
   {
@@ -726,7 +726,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
       "https://www.waze.com/row-partnerhub-api/partners/11387019565/waze-feeds/b7c4540b-50ad-48b3-addd-5cd2941215a9?format=1",
     tvtFeedUrl:
       "https://www.waze.com/row-partnerhub-api/feeds-tvt/?id=1758804297880",
-    group: "Autovía A-019",
+    group: "Circunvalación",
     coordinates: POLYGON_COORDINATES.P064,
   },
   {
@@ -753,7 +753,7 @@ export const REAL_POLYGONS: RealPolygonConfig[] = [
 
 // Helper para obtener polígono por ID
 export const getRealPolygonById = (
-  id: string
+  id: string,
 ): RealPolygonConfig | undefined => {
   return REAL_POLYGONS.find((p) => p.id === id);
 };

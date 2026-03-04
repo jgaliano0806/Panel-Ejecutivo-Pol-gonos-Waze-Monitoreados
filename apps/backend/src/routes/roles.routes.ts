@@ -46,11 +46,10 @@ export default async function rolesRoutes(app: FastifyInstance): Promise<void> {
                     ) FILTER (WHERE p.id IS NOT NULL),
                     '[]'
                   ) as permissions,
-                  COUNT(DISTINCT ur.user_id) as user_count
+                  (SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = r.id) as user_count
            FROM roles r
            LEFT JOIN role_permissions rp ON rp.role_id = r.id
            LEFT JOIN permissions p ON p.id = rp.permission_id
-           LEFT JOIN user_roles ur ON ur.role_id = r.id
            GROUP BY r.id
            ORDER BY r.created_at ASC`,
         );
@@ -341,6 +340,12 @@ export default async function rolesRoutes(app: FastifyInstance): Promise<void> {
             error: "No se puede eliminar un rol que tiene usuarios asignados",
           });
         }
+
+        // Limpiar permisos asociados al rol
+        await dbService.query(
+          `DELETE FROM role_permissions WHERE role_id = $1`,
+          [id],
+        );
 
         const result = await dbService.query(
           `DELETE FROM roles WHERE id = $1`,

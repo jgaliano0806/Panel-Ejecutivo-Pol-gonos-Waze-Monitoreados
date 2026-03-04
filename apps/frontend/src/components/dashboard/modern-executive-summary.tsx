@@ -26,8 +26,6 @@ import { EventsListModal } from "../alerts/EventsListModal";
 import { NETWORK_CONFIG } from "../../config/constants";
 import { StatCard } from "../common/StatCard";
 
-const RAC_GROUPS = NETWORK_CONFIG.racGroups;
-
 interface ModernExecutiveSummaryProps {
   kpis: GlobalKPIs;
   alertStats?: AlertStats;
@@ -87,9 +85,9 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(
     );
 
     const racAccidents = useMemo(() => {
-      const racPolygonIds = polygons
-        .filter((p) => RAC_GROUPS.includes(p.group))
-        .map((p) => p.id);
+      // Consideramos a todos los accidentes con polígono como parte de la RAC
+      // ya que la configuración viene del backend con los polígonos activos
+      const racPolygonIds = polygons.map((p) => p.id);
       return incidents.filter(
         (i) =>
           i.type === IncidentType.ACCIDENT &&

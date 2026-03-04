@@ -317,11 +317,14 @@ export interface BlockingAnalysisResponse {
 /**
  * Hook para obtener análisis de incidentes bloqueantes con cálculo mejorado de demoras
  */
-export const useBlockingAnalysis = () => {
+export const useBlockingAnalysis = (options?: { limit?: number }) => {
+  const limit = options?.limit ?? 200;
   return useQuery<BlockingAnalysisResponse>({
-    queryKey: ["blocking-analysis"],
+    queryKey: ["blocking-analysis", limit],
     queryFn: () =>
-      fetcher<BlockingAnalysisResponse>("/incidents/blocking-analysis"),
+      fetcher<BlockingAnalysisResponse>(
+        `/incidents/blocking-analysis?limit=${limit}`,
+      ),
     refetchInterval: REFRESH_INTERVALS.realTimeData,
   });
 };

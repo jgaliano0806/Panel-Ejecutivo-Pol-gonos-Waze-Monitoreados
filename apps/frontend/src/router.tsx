@@ -40,16 +40,6 @@ export const router = createBrowserRouter(
       ),
     },
     {
-      path: "/alertas",
-      element: (
-        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.alertas]}>
-          <SectionErrorBoundary sectionName="Alertas">
-            <Dashboard />
-          </SectionErrorBoundary>
-        </ProtectedRoute>
-      ),
-    },
-    {
       path: "/siniestros",
       element: (
         <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.siniestros]}>
@@ -64,7 +54,7 @@ export const router = createBrowserRouter(
     {
       path: "/riesgos",
       element: (
-        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.riesgos]}>
+        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.mapa]}>
           <AppLayout>
             <SectionErrorBoundary sectionName="Dashboard de Riesgos">
               <RiskDashboard />

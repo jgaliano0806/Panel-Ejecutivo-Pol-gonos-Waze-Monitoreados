@@ -76,5 +76,6 @@ export function getSeverityColor(severity: number | string): {
 export function formatStreetName(street: string | undefined | null): string {
   if (!street) return "Sin calle";
   // Correcciones específicas solicitadas por el usuario
-  return street.replace(/RN\s*A019/gi, "Autovía A-019");
+  // Retornamos el nombre de la calle, que ya no debe estar hardcodeado
+  return street;
 }

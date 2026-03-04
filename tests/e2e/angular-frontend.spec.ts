@@ -78,15 +78,6 @@ test.describe("Angular Frontend - Map", () => {
   });
 });
 
-test.describe("Angular Frontend - Alerts", () => {
-  test("should load alerts page with title", async ({ page }) => {
-    await page.goto(`${ANGULAR_URL}/alertas`);
-    await page.waitForLoadState("networkidle");
-
-    await expect(page.getByText("Alertas y Eventos")).toBeVisible();
-  });
-});
-
 test.describe("Angular Frontend - Risk", () => {
   test("should load risk page with title", async ({ page }) => {
     await page.goto(`${ANGULAR_URL}/riesgos`);
