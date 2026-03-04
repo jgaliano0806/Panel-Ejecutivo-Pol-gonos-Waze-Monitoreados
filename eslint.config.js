@@ -29,6 +29,7 @@ module.exports = [
       "@typescript-eslint/no-explicit-any": "warn",
 
       // General rules
+      "no-undef": "off", // TypeScript handles this natively
       "no-console": "warn",
       "no-debugger": "error",
       "prefer-const": "error",
@@ -41,6 +42,17 @@ module.exports = [
       // React specific rules
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
+    },
+  },
+  {
+    files: ["apps/backend/scripts/**/*.ts"],
+    languageOptions: {
+      parser: tsparser,
+      parserOptions: {
+        ecmaVersion: 2022,
+        sourceType: "module",
+        project: "./apps/backend/tsconfig.scripts.json",
+      },
     },
   },
   {

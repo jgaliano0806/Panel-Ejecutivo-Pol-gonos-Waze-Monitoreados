@@ -192,12 +192,13 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
           if (lat > maxLat) maxLat = lat;
         });
 
-        const bounds = new maplibregl.LngLatBounds(
-          [minLng, minLat],
-          [maxLng, maxLat],
+        map.fitBounds(
+          [
+            [minLng, minLat],
+            [maxLng, maxLat],
+          ],
+          { padding: 50, duration: 1000 },
         );
-
-        map.fitBounds(bounds, { padding: 50, duration: 1000 });
       }
     }
   }, [selectedPolygon, selectedGroup, polygons, mapLoaded]);
