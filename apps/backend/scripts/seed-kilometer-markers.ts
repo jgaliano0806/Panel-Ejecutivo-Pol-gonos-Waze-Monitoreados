@@ -13,15 +13,25 @@
 import fs from "fs";
 import path from "path";
 import { Pool } from "pg";
+import dotenv from "dotenv";
+
+// Cargar .env desde la raíz del proyecto
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
+// También intentar .env local del backend
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 const GEOJSON_PATH = path.resolve(
   __dirname,
   "../../frontend/public/data/2026_RAC_KM_points.geojson",
 );
 
-const DB_URL =
-  process.env.DATABASE_URL ||
-  "postgresql://postgres:postgres@localhost:5432/panel_waze";
+const DB_CONFIG = {
+  host: process.env.DB_HOST || "localhost",
+  port: parseInt(process.env.DB_PORT || "5432"),
+  database: process.env.DB_NAME || "panel_waze",
+  user: process.env.DB_USER || "postgres",
+  password: process.env.DB_PASSWORD || "postgres",
+};
 
 interface GeoJSONFeature {
   type: string;
@@ -46,6 +56,9 @@ async function main() {
   console.log("📍 Seed de Hitos Kilométricos");
   console.log(`   GeoJSON: ${GEOJSON_PATH}`);
   console.log(`   Grupo:   ${groupId ?? "(sin asignar)"}`);
+  console.log(
+    `   DB:      ${DB_CONFIG.host}:${DB_CONFIG.port}/${DB_CONFIG.database}`,
+  );
 
   // Leer GeoJSON
   if (!fs.existsSync(GEOJSON_PATH)) {
@@ -59,7 +72,7 @@ async function main() {
   console.log(`   Features: ${geojson.features.length}`);
 
   // Conectar a DB
-  const pool = new Pool({ connectionString: DB_URL });
+  const pool = new Pool(DB_CONFIG);
 
   try {
     let inserted = 0;
