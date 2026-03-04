@@ -1,15 +1,12 @@
 /**
- * Script para asignar automáticamente polígono y grupo a cada hito kilométrico
- * basándose en si el punto del km está dentro de la geometría del polígono.
+ * Script para asignar automáticamente polígono y grupo a cada hito kilométrico.
+ *
+ * Estrategia:
+ * 1. Si el polígono tiene geometry GeoJSON → point-in-polygon (ray-casting)
+ * 2. Si solo tiene coordinates (centroide) → asignar al centroide más cercano
  *
  * Uso:
  *   npx ts-node apps/backend/scripts/assign-km-to-polygons.ts
- *
- * El script:
- * 1. Lee todos los kilometer_markers de la DB
- * 2. Lee todos los config_polygons activos con su geometry GeoJSON
- * 3. Para cada km, verifica si el punto está dentro de algún polígono (ray-casting)
- * 4. Si encuentra un polígono contenedor, actualiza polygon_id y polygon_group_id
  */
 import path from "path";
 import { Pool } from "pg";
@@ -26,56 +23,66 @@ const DB_CONFIG = {
   password: process.env.DB_PASSWORD || "postgres",
 };
 
-/**
- * Ray-casting algorithm para point-in-polygon
- * Determina si un punto está dentro de un polígono
- */
+// Haversine en metros
+function haversine(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+// Ray-casting point-in-polygon
 function pointInPolygon(point: [number, number], polygon: number[][]): boolean {
   const [x, y] = point;
   let inside = false;
-
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const xi = polygon[i][0];
-    const yi = polygon[i][1];
-    const xj = polygon[j][0];
-    const yj = polygon[j][1];
-
-    const intersect =
-      yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
-
-    if (intersect) inside = !inside;
+    const xi = polygon[i][0],
+      yi = polygon[i][1];
+    const xj = polygon[j][0],
+      yj = polygon[j][1];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
   }
-
   return inside;
 }
 
-/**
- * Verifica si un punto está dentro de un GeoJSON geometry (Polygon o MultiPolygon)
- */
 function pointInGeoJSON(lng: number, lat: number, geometry: any): boolean {
   if (!geometry || !geometry.coordinates) return false;
-
   const point: [number, number] = [lng, lat];
-
   if (geometry.type === "Polygon") {
-    // Polygon: coordinates es un array de anillos, el primero es el exterior
     for (const ring of geometry.coordinates) {
       if (pointInPolygon(point, ring)) return true;
     }
   } else if (geometry.type === "MultiPolygon") {
-    // MultiPolygon: array de polígonos
     for (const polygon of geometry.coordinates) {
       for (const ring of polygon) {
         if (pointInPolygon(point, ring)) return true;
       }
     }
   }
-
   return false;
 }
 
+interface PolygonRow {
+  id: string;
+  name: string;
+  group: string | null;
+  geometry: any;
+  coordinates: { lat: number; lon: number } | null;
+}
+
 async function main() {
-  console.log("📍 Asignación automática de kilómetros a polígonos");
+  console.log("📍 Asignación automática de kilómetros a polígonos (v2)");
   console.log(
     `   DB: ${DB_CONFIG.host}:${DB_CONFIG.port}/${DB_CONFIG.database}`,
   );
@@ -83,21 +90,20 @@ async function main() {
   const pool = new Pool(DB_CONFIG);
 
   try {
-    // 1. Leer polígonos activos con geometría
+    // 1. Leer TODOS los polígonos activos
     const polygonsResult = await pool.query(
-      `SELECT id, name, "group", geometry
+      `SELECT id, name, "group", geometry, coordinates
        FROM config_polygons
-       WHERE is_active = true AND geometry IS NOT NULL`,
+       WHERE is_active = true`,
     );
-    const polygons = polygonsResult.rows;
-    console.log(`   Polígonos con geometría: ${polygons.length}`);
+    const polygons: PolygonRow[] = polygonsResult.rows;
+    const withGeom = polygons.filter((p) => p.geometry != null);
+    const allWithCoords = polygons.filter((p) => p.coordinates != null);
+    console.log(`   Polígonos activos: ${polygons.length}`);
+    console.log(`   Con geometry (GeoJSON): ${withGeom.length}`);
+    console.log(`   Con coordinates (centroide): ${allWithCoords.length}`);
 
-    if (polygons.length === 0) {
-      console.log("⚠️ No hay polígonos con geometría definida");
-      return;
-    }
-
-    // 2. Leer grupos para mapear nombre → id
+    // 2. Mapear grupo nombre → id
     const groupsResult = await pool.query(
       `SELECT id, name FROM polygon_groups`,
     );
@@ -105,27 +111,27 @@ async function main() {
     for (const g of groupsResult.rows) {
       groupMap.set(g.name, g.id);
     }
-    console.log(`   Grupos disponibles: ${groupMap.size}`);
 
-    // 3. Leer todos los kilómetros
+    // 3. Leer kilómetros
     const kmResult = await pool.query(
       `SELECT id, name, latitude, longitude FROM kilometer_markers`,
     );
     const markers = kmResult.rows;
     console.log(`   Kilómetros a procesar: ${markers.length}\n`);
 
-    let assigned = 0;
+    let assignedGeom = 0;
+    let assignedNearest = 0;
     let noMatch = 0;
 
     for (const km of markers) {
-      const lng = parseFloat(km.longitude);
       const lat = parseFloat(km.latitude);
+      const lng = parseFloat(km.longitude);
 
-      let foundPolygon: any = null;
+      // Paso A: Intentar point-in-polygon con geometrías reales
+      let foundPolygon: PolygonRow | null = null;
 
-      for (const poly of polygons) {
+      for (const poly of withGeom) {
         let geometry = poly.geometry;
-        // Parsear si es string
         if (typeof geometry === "string") {
           try {
             geometry = JSON.parse(geometry);
@@ -133,10 +139,35 @@ async function main() {
             continue;
           }
         }
-
         if (pointInGeoJSON(lng, lat, geometry)) {
           foundPolygon = poly;
           break;
+        }
+      }
+
+      // Paso B: Si no encontró geometría, buscar centroide más cercano (threshold 5km)
+      if (!foundPolygon) {
+        let minDist = Infinity;
+        let nearest: PolygonRow | null = null;
+
+        for (const poly of allWithCoords) {
+          const coords =
+            typeof poly.coordinates === "string"
+              ? JSON.parse(poly.coordinates)
+              : poly.coordinates;
+
+          if (!coords || coords.lat == null || coords.lon == null) continue;
+
+          const dist = haversine(lat, lng, coords.lat, coords.lon);
+          if (dist < minDist) {
+            minDist = dist;
+            nearest = poly;
+          }
+        }
+
+        // Usar umbral de 50km para asignación por cercanía (rutas largas)
+        if (nearest && minDist <= 50000) {
+          foundPolygon = nearest;
         }
       }
 
@@ -150,15 +181,24 @@ async function main() {
            WHERE id = $3`,
           [foundPolygon.id, groupId, km.id],
         );
-        assigned++;
+
+        if (withGeom.includes(foundPolygon)) {
+          assignedGeom++;
+        } else {
+          assignedNearest++;
+        }
       } else {
         noMatch++;
       }
     }
 
     console.log(`✅ Asignación completada:`);
-    console.log(`   Asignados: ${assigned}`);
-    console.log(`   Sin polígono: ${noMatch}`);
+    console.log(`   Por geometría (dentro del polígono): ${assignedGeom}`);
+    console.log(`   Por cercanía al centroide (<5km):    ${assignedNearest}`);
+    console.log(`   Sin polígono cercano:                ${noMatch}`);
+    console.log(
+      `   Total asignados:                     ${assignedGeom + assignedNearest}`,
+    );
   } finally {
     await pool.end();
   }
