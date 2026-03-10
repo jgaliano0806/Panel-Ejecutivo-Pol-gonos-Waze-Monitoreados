@@ -35,15 +35,16 @@ export class DatabaseService {
    * Inicializa el pool de conexiones
    */
   private initializePool() {
+    const poolMax = parseInt(process.env.DB_POOL_MAX || "50", 10);
     const config = {
       host: process.env.DB_HOST || "localhost",
       port: parseInt(process.env.DB_PORT || "5432"),
       database: process.env.DB_NAME || "panel_waze",
       user: process.env.DB_USER || "postgres",
       password: process.env.DB_PASSWORD || "postgres",
-      max: process.env.DB_POOL_MAX ? parseInt(process.env.DB_POOL_MAX) : 30, // Aumentado para soportar más concurrencia de Waze feeds
+      max: poolMax,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 10000, // Aumentado a 10s para evitar 500s cuando el pool está lleno por segundos
+      connectionTimeoutMillis: 15000,
     };
 
     this.pool = new Pool(config);
@@ -57,7 +58,7 @@ export class DatabaseService {
     });
 
     log.info(
-      { host: config.host, database: config.database },
+      { host: config.host, database: config.database, poolMax },
       "Pool de PostgreSQL inicializado",
     );
   }

@@ -54,7 +54,7 @@ export const Map: React.FC<MapProps> = (props) => {
         showWazeIncidents={props.showWazeIncidents}
       />
       {/* Notificaciones flotantes SOLO dentro del mapa */}
-      <GlobalNotifications className="absolute bottom-4 right-4 w-auto max-w-sm z-50" />
+      <GlobalNotifications className="absolute bottom-20 right-4 w-auto max-w-sm z-[2000]" />
     </div>
   );
 };
