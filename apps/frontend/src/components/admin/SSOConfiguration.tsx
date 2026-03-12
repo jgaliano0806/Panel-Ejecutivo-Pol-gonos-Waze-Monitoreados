@@ -420,7 +420,7 @@ const SSOConfiguration: React.FC = () => {
                       )}
                       <span className="text-sm text-gray-600">
                         Última prueba:{" "}
-                        {new Date(provider.lastTested).toLocaleString("es-AR")}
+                        {new Date(provider.lastTested).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}
                       </span>
                     </div>
                   )}

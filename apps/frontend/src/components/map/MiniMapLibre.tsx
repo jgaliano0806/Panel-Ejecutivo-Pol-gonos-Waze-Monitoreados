@@ -76,10 +76,21 @@ export const MiniMapLibre: React.FC<MiniMapLibreProps> = ({
   // Obtener tema actual
   const isDark = useThemeStore((state: { isDark: boolean }) => state.isDark);
 
-  // STYLE DINÁMICO (Carto Vector Tiles)
-  const mapStyleUrl = isDark
-    ? "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
-    : "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
+  // STYLE DINÁMICO (tiles raster via proxy interno)
+  const mapStyleUrl = {
+    version: 8 as const,
+    sources: {
+      basemap: {
+        type: "raster" as const,
+        tiles: isDark
+          ? ["/tiles/carto-dark/{z}/{x}/{y}.png"]
+          : ["/tiles/carto-light/{z}/{x}/{y}.png"],
+        tileSize: 256,
+        attribution: "&copy; CARTO",
+      },
+    },
+    layers: [{ id: "basemap", type: "raster" as const, source: "basemap" }],
+  };
 
   // Inicializar mapa
   useEffect(() => {

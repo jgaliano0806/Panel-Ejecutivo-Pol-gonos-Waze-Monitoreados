@@ -63,12 +63,13 @@ export const StatsPage: React.FC = () => {
   const fluidityChartData = {
     labels:
       currentData?.map((d) => {
-        if ("date" in d && d.date) return new Date(d.date).toLocaleDateString();
-        if ("week" in d && d.week) return new Date(d.week).toLocaleDateString();
+        if ("date" in d && d.date) return new Date(d.date).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
+        if ("week" in d && d.week) return new Date(d.week).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
         if ("month" in d && d.month)
-          return new Date(d.month).toLocaleDateString("es", {
+          return new Date(d.month).toLocaleDateString("es-AR", {
             year: "numeric",
             month: "short",
+            timeZone: "America/Argentina/Buenos_Aires",
           });
         return "";
       }) || [],
@@ -92,12 +93,13 @@ export const StatsPage: React.FC = () => {
   const speedChartData = {
     labels:
       currentData?.map((d) => {
-        if ("date" in d && d.date) return new Date(d.date).toLocaleDateString();
-        if ("week" in d && d.week) return new Date(d.week).toLocaleDateString();
+        if ("date" in d && d.date) return new Date(d.date).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
+        if ("week" in d && d.week) return new Date(d.week).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
         if ("month" in d && d.month)
-          return new Date(d.month).toLocaleDateString("es", {
+          return new Date(d.month).toLocaleDateString("es-AR", {
             year: "numeric",
             month: "short",
+            timeZone: "America/Argentina/Buenos_Aires",
           });
         return "";
       }) || [],
@@ -115,12 +117,13 @@ export const StatsPage: React.FC = () => {
   const incidentsChartData = {
     labels:
       currentData?.map((d) => {
-        if ("date" in d && d.date) return new Date(d.date).toLocaleDateString();
-        if ("week" in d && d.week) return new Date(d.week).toLocaleDateString();
+        if ("date" in d && d.date) return new Date(d.date).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
+        if ("week" in d && d.week) return new Date(d.week).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
         if ("month" in d && d.month)
-          return new Date(d.month).toLocaleDateString("es", {
+          return new Date(d.month).toLocaleDateString("es-AR", {
             year: "numeric",
             month: "short",
+            timeZone: "America/Argentina/Buenos_Aires",
           });
         return "";
       }) || [],

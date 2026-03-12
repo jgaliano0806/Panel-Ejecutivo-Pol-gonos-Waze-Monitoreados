@@ -4,23 +4,53 @@
 
 **Proyecto interno de CASISA - Caminos de las Sierras.**
 
-## 🚀 Inicio Rápido
+## Entorno del servidor
 
-1.  **Instalar dependencias**:
-    ```bash
-    npm install
-    ```
-2.  **Configurar Base de Datos**:
-    ```bash
-    npm run db:migrate
-    npm run db:seed
-    ```
-3.  **Iniciar Desarrollo**:
-    ```bash
-    npm run dev:all
-    ```
-    - Frontend: http://localhost:5180
-    - Backend: http://localhost:3002
+| Atributo | Valor |
+|----------|-------|
+| OS | Windows Server 2022 Standard |
+| IP LAN | `10.1.0.136` |
+| Ruta del proyecto | `D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados` |
+| PostgreSQL | 18.3 en `D:\postgreSQL` |
+| Backend (servicio) | NSSM → `PanelWazeBackend` (puerto 3002) |
+| Frontend | http://10.1.0.136:5180 |
+
+## Inicio Rápido
+
+### Primera instalación (o instalación limpia)
+
+1. **Instalar dependencias y compilar packages**:
+   ```powershell
+   npm install
+   npm run build
+   ```
+
+2. **Configurar variables de entorno**:
+   ```powershell
+   copy apps\backend\.env.example apps\backend\.env
+   # Editar apps\backend\.env con DB_PASSWORD, JWT_SECRET, FRONTEND_URL
+   ```
+
+3. **Restaurar BD desde backup** (si se tiene un .dump) o migrar:
+   ```powershell
+   npm run db:migrate
+   ```
+
+4. **Iniciar**:
+   ```powershell
+   npm run dev:all
+   ```
+   - Frontend: http://localhost:5180
+   - Backend: http://localhost:3002
+
+### En el servidor (servicio NSSM)
+
+```powershell
+# Como Administrador:
+nssm restart PanelWazeBackend
+```
+
+Ver [docs/INSTRUCTIVO_DESPLIEGUE.md](./docs/INSTRUCTIVO_DESPLIEGUE.md) para el procedimiento completo.
 
 ## 🏗️ Arquitectura
 
@@ -213,20 +243,40 @@ docker-compose --profile prod up -d
 
 ### Variables de Entorno
 
-```bash
-# Frontend (.env)
-VITE_API_URL=http://localhost:3002
-VITE_GOOGLE_MAPS_API_KEY=your_key
+Referencia completa en `apps/backend/.env.example`. Variables principales:
 
-# Backend (.env)
+```env
+# Backend (apps/backend/.env)
 NODE_ENV=production
 PORT=3002
+FRONTEND_URL=http://10.1.0.136:5180
+
 DB_HOST=localhost
+DB_PORT=5432
 DB_NAME=panel_waze
 DB_USER=postgres
-DB_PASSWORD=your_password
+DB_PASSWORD=           # obligatorio
+DB_POOL_MAX=50
+
+JWT_SECRET=            # cambiar en producción
+JWT_EXPIRATION=8h
+
 REDIS_HOST=localhost
 REDIS_PORT=6379
+
+WEATHER_PROVIDER=openmeteo
+LOG_LEVEL=info
+
+# Opcionales
+# ACCUWEATHER_API_KEY=
+# HERE_API_KEY=
+# TOMTOM_API_KEY=
+# WAZE_FEED_TOKEN=
+```
+
+```env
+# Frontend (apps/frontend/.env)
+VITE_API_URL=/api      # o http://10.1.0.136:3002 para acceso directo
 ```
 
 ## 📊 Monitoreo
@@ -293,4 +343,4 @@ Este proyecto es propiedad de **CASISA - Caminos de las Sierras**.
 
 **Desarrollado por el equipo de GED**
 
-_Última actualización: Febrero 2026_
+_Última actualización: Marzo 2026_

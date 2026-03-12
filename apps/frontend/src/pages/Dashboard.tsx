@@ -571,7 +571,8 @@ const Dashboard: React.FC = () => {
 
   return (
     <div
-      className="flex h-screen w-full bg-gray-50 dark:bg-[#121212] overflow-hidden"
+      className="flex w-full bg-gray-50 dark:bg-[#121212]"
+      style={{ height: "100dvh", minWidth: "360px", overflow: "auto" }}
       onClickCapture={() => initializeAudio()}
       onPointerDownCapture={() => initializeAudio()}
     >
@@ -579,9 +580,9 @@ const Dashboard: React.FC = () => {
       <AppSidebar />
 
       {/* Contenido Principal */}
-      <div className="flex-1 flex flex-col h-full relative">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0" style={{ overflow: "hidden" }}>
         <div
-          className={`h-full flex flex-col bg-gradient-to-br from-gray-50 via-blue-50/30 via-green-50/20 to-yellow-50/30 dark:from-veltrix-bg dark:via-[#1e2330] dark:to-veltrix-bg transition-colors duration-500`}
+          className={`flex-1 flex flex-col bg-gradient-to-br from-gray-50 via-blue-50/30 via-green-50/20 to-yellow-50/30 dark:from-veltrix-bg dark:via-[#1e2330] dark:to-veltrix-bg transition-colors duration-500 min-h-0`}
         >
           {/* Background Pattern */}
           <div className="fixed inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none z-0">
@@ -604,8 +605,8 @@ const Dashboard: React.FC = () => {
           <main
             className={`relative w-full flex-1 flex flex-col ${
               currentView === "map"
-                ? "p-0 h-full overflow-hidden"
-                : "px-6 py-6 overflow-y-auto"
+                ? "p-0 overflow-hidden"
+                : "px-3 sm:px-4 md:px-6 py-4 sm:py-6 overflow-y-auto"
             }`}
           >
             {alertStats &&

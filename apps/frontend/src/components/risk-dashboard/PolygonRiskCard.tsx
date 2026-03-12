@@ -423,9 +423,10 @@ const PolygonRiskCard: React.FC<PolygonRiskCardProps> = ({
 
           <p className="text-[11px] text-primary-800/70 dark:text-primary-400/70 mt-2 italic font-medium">
             Basado en patrones históricos de {score.group_name} para{" "}
-            {new Date().toLocaleTimeString([], {
+            {new Date().toLocaleTimeString("es-AR", {
               hour: "2-digit",
               minute: "2-digit",
+              timeZone: "America/Argentina/Buenos_Aires",
             })}
             .
           </p>

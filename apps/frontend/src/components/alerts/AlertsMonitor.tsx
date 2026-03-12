@@ -88,6 +88,7 @@ export const AlertsMonitor: React.FC<AlertsMonitorProps> = ({
       month: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "America/Argentina/Buenos_Aires",
     });
   };
 

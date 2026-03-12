@@ -1053,10 +1053,8 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         basemap: {
           type: "raster",
           tiles: isDark
-            ? [
-                "https://a.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png",
-              ]
-            : ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+            ? ["/tiles/carto-dark/{z}/{x}/{y}.png"]
+            : ["/tiles/osm/{z}/{x}/{y}.png"],
           tileSize: 256,
           attribution: isDark ? "© CARTO" : "© OpenStreetMap contributors",
         },
@@ -1074,6 +1072,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
       aria-label="Mapa de incidentes y tráfico"
     >
       <Map
+        mapLib={maplibregl}
         ref={mapRef}
         initialViewState={INITIAL_VIEW_STATE}
         style={{ width: "100%", height: "100%", minHeight: "500px" }}
@@ -1725,7 +1724,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                     {selectedIncident.properties.timestamp
                       ? new Date(
                           selectedIncident.properties.timestamp,
-                        ).toLocaleString("es-AR")
+                        ).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })
                       : "N/A"}
                   </span>
 

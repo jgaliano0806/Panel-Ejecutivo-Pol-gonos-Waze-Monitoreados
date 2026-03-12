@@ -281,7 +281,7 @@ const NotificationCard = ({ notification }: { notification: Notification }) => {
             </p>
             <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              {new Date(notification.created_at).toLocaleString()}
+              {new Date(notification.created_at).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}
             </p>
           </div>
         </div>

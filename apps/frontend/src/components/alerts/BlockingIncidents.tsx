@@ -259,6 +259,7 @@ export const BlockingIncidents: React.FC = () => {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
+      timeZone: "America/Argentina/Buenos_Aires",
     });
 
     return { duration, dateStr, days, isOld: days > 7 };

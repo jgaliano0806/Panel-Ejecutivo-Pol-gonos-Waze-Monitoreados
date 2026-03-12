@@ -1,123 +1,186 @@
 @echo off
 chcp 65001 >nul
-title Panel Waze - Iniciador Completo
 setlocal enabledelayedexpansion
+title Panel Waze - Iniciador
 
-echo.
-echo ===============================================
-echo   PANEL EJECUTIVO - WAZE MONITOREADOS
-echo   Iniciador Completo
-echo ===============================================
-echo.
+:: ============================================================
+:: Auto-elevacion: si no es admin, se relanza como admin
+:: ============================================================
+net session >nul 2>&1
+if !ERRORLEVEL! NEQ 0 (
+    echo Solicitando permisos de administrador...
+    powershell -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+    exit /b
+)
+
+title Panel Waze - Iniciador [ADMINISTRADOR]
 
 set "SCRIPT_DIR=%~dp0"
 pushd "%SCRIPT_DIR%.."
 set "ROOT=%CD%"
 popd
 
-:: Detectar IP de red local
-set "LOCAL_IP=localhost"
+set "NSSM=C:\ProgramData\chocolatey\lib\NSSM\tools\nssm.exe"
+set "PG_BIN=D:\postgreSQL\bin"
+set "PATH=%PG_BIN%;%PATH%"
+
+:: Detectar IP de red
+set "LOCAL_IP=10.1.0.136"
 for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /C:"IPv4"') do (
     set "temp=%%a"
     set "temp=!temp: =!"
-    if "!LOCAL_IP!"=="localhost" (
-        echo !temp! | findstr /C:"192.168" >nul 2>&1
-        if !ERRORLEVEL! EQU 0 set "LOCAL_IP=!temp!"
+    echo !temp! | findstr /C:"10.1.0" >nul 2>&1
+    if !ERRORLEVEL! EQU 0 set "LOCAL_IP=!temp!"
+)
+
+echo.
+echo ===============================================
+echo   PANEL EJECUTIVO WAZE  -  PRODUCCION
+echo ===============================================
+echo.
+
+:: ============================================================
+:: PASO 1: PostgreSQL
+:: ============================================================
+echo [1/4] Verificando PostgreSQL...
+sc query postgresql-x64-18 | findstr "RUNNING" >nul 2>&1
+if !ERRORLEVEL! EQU 0 (
+    echo    OK: PostgreSQL ya esta corriendo
+) else (
+    echo    Iniciando PostgreSQL...
+    net start postgresql-x64-18 >nul 2>&1
+    if !ERRORLEVEL! EQU 0 (
+        echo    OK: PostgreSQL iniciado
+        timeout /t 3 /nobreak >nul
+    ) else (
+        echo    ADVERTENCIA: No se pudo iniciar PostgreSQL - verificar servicio
     )
 )
-
-echo [0/5] Limpiando servicios existentes...
-
-echo    Verificando puerto 3002 (Backend)...
-for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":3002" ^| findstr "LISTENING"') do (
-    taskkill /F /PID %%a >nul 2>&1
-)
-
-echo    Verificando puerto 5180 (Frontend)...
-for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":5180" ^| findstr "LISTENING"') do (
-    taskkill /F /PID %%a >nul 2>&1
-)
-
-timeout /t 2 /nobreak >nul
 echo.
 
-echo [1/5] Verificando Servicios...
-where docker >nul 2>&1
-if %ERRORLEVEL% EQU 0 (
-    echo    Docker detectado. Iniciando entorno dev...
-    cd /d "%ROOT%"
-    call docker-compose --profile dev up -d
+:: ============================================================
+:: PASO 2: Backend (servicio NSSM)
+:: ============================================================
+echo [2/4] Iniciando Backend (PanelWazeBackend)...
+if not exist "%NSSM%" (
+    echo    ERROR: NSSM no encontrado en %NSSM%
+    goto :FALLBACK_BACKEND
+)
+
+"%NSSM%" status PanelWazeBackend 2>nul | findstr "SERVICE_RUNNING" >nul 2>&1
+if !ERRORLEVEL! EQU 0 (
+    echo    Reiniciando servicio...
+    "%NSSM%" restart PanelWazeBackend >nul 2>&1
 ) else (
-    echo    Docker no encontrado. Se asume servicios locales.
+    echo    Iniciando servicio...
+    "%NSSM%" start PanelWazeBackend >nul 2>&1
 )
-echo.
+timeout /t 6 /nobreak >nul
 
-echo [2/5] Configurando Backend...
-cd /d "%ROOT%\apps\backend"
-if not exist ".env" (
-    echo    Creando .env del backend...
-    (
-    echo # Configuracion de PostgreSQL
-    echo DB_HOST=localhost
-    echo DB_PORT=5432
-    echo DB_NAME=panel_waze
-    echo DB_USER=postgres
-    echo DB_PASSWORD=CASISA
-    echo.
-    echo # Configuracion del servidor
-    echo NODE_ENV=development
-    echo PORT=3002
-    echo REDIS_HOST=localhost
-    echo REDIS_PORT=6379
-    echo.
-    echo # Configuracion de Clima
-    echo WEATHER_PROVIDER=openmeteo
-    ) > .env
-    echo    OK: Archivo .env del backend creado
+:: Verificar que arranco
+"%NSSM%" status PanelWazeBackend 2>nul | findstr "SERVICE_RUNNING" >nul 2>&1
+if !ERRORLEVEL! EQU 0 (
+    echo    OK: Backend corriendo en puerto 3002
 ) else (
-    echo    OK: Archivo .env del backend ya existe
+    echo    ADVERTENCIA: El servicio no arranco - intentando fallback...
+    goto :FALLBACK_BACKEND
 )
+goto :BACKEND_DONE
+
+:FALLBACK_BACKEND
+echo    Iniciando backend en modo directo (fallback)...
+start "Backend Panel Waze" /D "%ROOT%" cmd /k "set PATH=%PG_BIN%;%PATH% && npm run dev:backend"
+timeout /t 8 /nobreak >nul
+echo    OK: Backend iniciado en modo fallback
+
+:BACKEND_DONE
 echo.
 
-echo [3/5] Configurando Frontend...
-cd /d "%ROOT%\apps\frontend"
-if not exist ".env" (
-    echo    Creando .env del frontend...
-    (
-    echo # Backend API URL - usa ruta relativa para red local
-    echo # Vite proxea /api hacia http://127.0.0.1:3002/api
-    echo # Vite proxea /socket.io hacia http://127.0.0.1:3002/socket.io
-    echo VITE_API_URL=/api
-    ) > .env
-    echo    OK: Archivo .env del frontend creado
+:: ============================================================
+:: PASO 3: Frontend (servicio NSSM)
+:: ============================================================
+echo [3/4] Iniciando Frontend (PanelWazeFrontend)...
+if not exist "%NSSM%" goto :FALLBACK_FRONTEND
+
+"%NSSM%" status PanelWazeFrontend 2>nul | findstr "SERVICE_RUNNING" >nul 2>&1
+if !ERRORLEVEL! EQU 0 (
+    echo    Reiniciando servicio...
+    "%NSSM%" restart PanelWazeFrontend >nul 2>&1
 ) else (
-    echo    OK: Archivo .env del frontend ya existe
+    echo    Iniciando servicio...
+    "%NSSM%" start PanelWazeFrontend >nul 2>&1
 )
-echo.
-
-echo [4/5] Iniciando Backend...
-start "Backend Panel Waze" /D "%ROOT%" cmd /k "npm run dev:backend"
-echo    Backend iniciado.
 timeout /t 5 /nobreak >nul
-echo.
 
-echo [5/5] Iniciando Frontend...
+"%NSSM%" status PanelWazeFrontend 2>nul | findstr "SERVICE_RUNNING" >nul 2>&1
+if !ERRORLEVEL! EQU 0 (
+    echo    OK: Frontend corriendo en puerto 5180
+    goto :FRONTEND_DONE
+) else (
+    echo    ADVERTENCIA: El servicio no arranco - intentando fallback...
+)
+
+:FALLBACK_FRONTEND
+echo    Iniciando frontend en modo desarrollo (fallback)...
+:: Liberar puerto 5180 si esta ocupado
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":5180 " ^| findstr "LISTENING"') do (
+    taskkill /F /PID %%a >nul 2>&1
+)
 start "Frontend Panel Waze" /D "%ROOT%" cmd /k "npm run dev"
-echo    Frontend iniciado.
+timeout /t 8 /nobreak >nul
+echo    OK: Frontend iniciado en modo fallback
+
+:FRONTEND_DONE
 echo.
 
+:: ============================================================
+:: PASO 4: Verificacion
+:: ============================================================
+echo [4/4] Verificando sistema...
+timeout /t 5 /nobreak >nul
+
+:: Health check backend
+curl -s --max-time 5 http://localhost:3002/health >nul 2>&1
+if !ERRORLEVEL! EQU 0 (
+    echo    OK: Backend responde en :3002
+) else (
+    echo    ADVERTENCIA: Backend no responde aun (puede estar iniciando)
+)
+
+:: Verificar frontend
+netstat -aon | findstr ":5180" | findstr "LISTENING" >nul 2>&1
+if !ERRORLEVEL! EQU 0 (
+    echo    OK: Frontend escuchando en :5180
+) else (
+    echo    ADVERTENCIA: Frontend no responde aun
+)
+
+:: Verificar DB
+set PGPASSWORD=CASISA
+psql -U postgres -h localhost -p 5432 -d panel_waze -c "SELECT 1;" >nul 2>&1
+if !ERRORLEVEL! EQU 0 (
+    echo    OK: Base de datos panel_waze accesible
+) else (
+    echo    ADVERTENCIA: Base de datos no accesible
+)
+set PGPASSWORD=
+
+echo.
 echo ===============================================
-echo   LISTO
+echo   SISTEMA LISTO
 echo ===============================================
 echo.
-echo   Frontend (local):    http://localhost:5180
-echo   Frontend (red):      http://!LOCAL_IP!:5180
-echo   Backend:             http://localhost:3002
-echo   API:                 http://localhost:3002/api
+echo   Panel (red local): http://!LOCAL_IP!:5180
+echo   Panel (local):     http://localhost:5180
+echo   API health:        http://localhost:3002/health
 echo.
-echo   Acceso desde celular/videowall:
-echo   http://!LOCAL_IP!:5180
+echo   Servicios Windows:
+echo     - PanelWazeBackend   (backend API)
+echo     - PanelWazeFrontend  (frontend estatico)
+echo     - postgresql-x64-18  (base de datos)
 echo.
+echo   Para gestionar: services.msc
 echo ===============================================
+echo.
 pause
 endlocal

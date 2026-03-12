@@ -13,10 +13,8 @@ import {
   type ValidationResult,
 } from "../../utils/polygonValidation";
 
-const CARTO_LIGHT =
-  "https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png";
-const CARTO_DARK =
-  "https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png";
+const CARTO_LIGHT = "/tiles/carto-light/{z}/{x}/{y}.png";
+const CARTO_DARK = "/tiles/carto-dark/{z}/{x}/{y}.png";
 const CARTO_ATTRIBUTION =
   '&copy; <a href="https://carto.com">CARTO</a>';
 

@@ -179,6 +179,7 @@ const AlertCard: React.FC<AlertCardProps> = ({ alert, onAcknowledge }) => {
               {alert.timestamp.toLocaleTimeString("es-AR", {
                 hour: "2-digit",
                 minute: "2-digit",
+                timeZone: "America/Argentina/Buenos_Aires",
               })}
             </span>
           </div>

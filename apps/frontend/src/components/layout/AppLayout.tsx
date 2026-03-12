@@ -43,7 +43,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
   return (
     <div
-      className="flex h-screen overflow-hidden bg-gradient-to-br from-gray-50 via-blue-50/30 via-green-50/20 to-yellow-50/30 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900"
+      className="flex bg-gradient-to-br from-gray-50 via-blue-50/30 via-green-50/20 to-yellow-50/30 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900"
+      style={{ height: "100dvh", minWidth: "360px", overflow: "auto" }}
       onClickCapture={() => initializeAudio()}
       onPointerDownCapture={() => initializeAudio()}
     >
@@ -60,7 +61,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       {/* Sidebar de Navegación Global */}
       <AppSidebar />
       {/* Contenido Principal */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0" style={{ overflow: "hidden" }}>
         {/* Header Moderno */}
         <ModernHeader
           lastUpdate={lastUpdate || new Date()}
@@ -68,8 +69,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         />
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto relative">
-          <div className="w-full px-4 md:px-6 lg:px-8 py-6 z-10">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden relative">
+          <div className="w-full px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 z-10">
             {children}
           </div>
         </main>

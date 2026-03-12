@@ -54,6 +54,7 @@ export const IncidentsTable: React.FC<IncidentsTableProps> = ({
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "America/Argentina/Buenos_Aires",
     });
   };
 

@@ -371,7 +371,7 @@ export const ProfilePage: React.FC = () => {
                 <span className="text-gray-400">Última conexión</span>
                 <span className="text-white">
                   {user.lastLogin
-                    ? new Date(user.lastLogin).toLocaleString("es-AR")
+                    ? new Date(user.lastLogin).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })
                     : "—"}
                 </span>
               </div>

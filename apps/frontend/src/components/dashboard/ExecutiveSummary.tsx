@@ -117,7 +117,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
           📋 Resumen Ejecutivo
         </h2>
         <div className="text-xs text-gray-600">
-          Actualizado: {new Date().toLocaleTimeString("es-AR")}
+          Actualizado: {new Date().toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}
         </div>
       </div>
 

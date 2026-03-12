@@ -245,7 +245,7 @@ export async function exportIncidentToPDF(
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...BRAND_COLORS.textMuted);
   const headerX = logoBase64 ? 55 : 15;
-  const generatedText = `Generado: ${new Date().toLocaleString("es-AR")}`;
+  const generatedText = `Generado: ${new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}`;
   doc.text(generatedText, headerX, yPos + 15);
   if (generatedBy) {
     doc.text(`Por: ${generatedBy}`, headerX, yPos + 20);
@@ -360,6 +360,7 @@ export async function exportIncidentToPDF(
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "America/Argentina/Buenos_Aires",
   });
   doc.text(fecha, 15, yPos);
 
@@ -566,7 +567,7 @@ export async function exportAccidentToPDF(
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...BRAND_COLORS.textMuted);
   const accHeaderX = logoBase64 ? 55 : 15;
-  doc.text(`Generado: ${new Date().toLocaleString("es-AR")}`, accHeaderX, yPos + 15);
+  doc.text(`Generado: ${new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}`, accHeaderX, yPos + 15);
   if (generatedBy) {
     doc.text(`Por: ${generatedBy}`, accHeaderX, yPos + 20);
   }
@@ -666,6 +667,7 @@ export async function exportAccidentToPDF(
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "America/Argentina/Buenos_Aires",
   });
   doc.text(fecha, 15, yPos);
   yPos += 10;

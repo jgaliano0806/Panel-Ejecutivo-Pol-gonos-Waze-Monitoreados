@@ -386,7 +386,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                       <p className="text-gray-900 dark:text-white font-medium text-xs">
                                         {new Date(
                                           incident.timestamp,
-                                        ).toLocaleString("es-AR")}
+                                        ).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}
                                       </p>
                                     </div>
                                   </div>
@@ -454,7 +454,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                               existingAccident?.accident_at
                                                 ? new Date(
                                                     existingAccident.accident_at,
-                                                  ).toLocaleString("es-AR")
+                                                  ).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })
                                                 : "N/A";
                                             alert(
                                               `ℹ️ Este siniestro ya está registrado en el módulo.\n\n` +
@@ -646,6 +646,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                   <span>
                                     {new Date(alert.timestamp).toLocaleString(
                                       "es-AR",
+                                      { timeZone: "America/Argentina/Buenos_Aires" },
                                     )}
                                   </span>
                                 </div>
@@ -839,7 +840,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                           <p className="text-gray-900 font-medium text-xs">
                                             {new Date(
                                               incident.timestamp,
-                                            ).toLocaleString("es-AR")}
+                                            ).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}
                                           </p>
                                         </div>
                                       </div>
@@ -919,7 +920,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                                   existingAccident?.accident_at
                                                     ? new Date(
                                                         existingAccident.accident_at,
-                                                      ).toLocaleString("es-AR")
+                                                      ).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })
                                                     : "N/A";
 
                                                 alert(
@@ -1127,7 +1128,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                       <span>
                                         {new Date(
                                           alert.timestamp,
-                                        ).toLocaleString("es-AR")}
+                                        ).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}
                                       </span>
                                     </div>
                                     {alert.data &&
@@ -1802,6 +1803,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                       ).toLocaleString("es-AR", {
                                         dateStyle: "full",
                                         timeStyle: "short",
+                                        timeZone: "America/Argentina/Buenos_Aires",
                                       })}
                                     </p>
                                   </div>
@@ -2117,6 +2119,7 @@ export const EventsListModal: React.FC<EventsListModalProps> = ({
                                                     ).toLocaleString("es-AR", {
                                                       dateStyle: "long",
                                                       timeStyle: "short",
+                                                      timeZone: "America/Argentina/Buenos_Aires",
                                                     })}
                                                   </p>
                                                 </div>

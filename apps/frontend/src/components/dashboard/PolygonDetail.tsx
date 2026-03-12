@@ -188,7 +188,7 @@ const PolygonDetail: React.FC<PolygonDetailProps> = ({
                         <span className="text-gray-900 dark:text-gray-200 font-mono">
                           {new Date(incident.timestamp).toLocaleTimeString(
                             "es-AR",
-                            { hour: "2-digit", minute: "2-digit" },
+                            { hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/Buenos_Aires" },
                           )}
                         </span>
                       </div>

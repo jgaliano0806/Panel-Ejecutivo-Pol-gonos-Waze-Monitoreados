@@ -157,7 +157,7 @@ export const IncidentsModule: React.FC = () => {
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Total de incidentes
                   {stats.summary.oldest
-                    ? ` desde el ${new Date(stats.summary.oldest).toLocaleDateString("es-AR")}`
+                    ? ` desde el ${new Date(stats.summary.oldest).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}`
                     : ""}
                 </p>
               </div>
@@ -204,7 +204,7 @@ export const IncidentsModule: React.FC = () => {
               <div>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">
                   {stats.summary.newest
-                    ? new Date(stats.summary.newest).toLocaleDateString("es-AR")
+                    ? new Date(stats.summary.newest).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })
                     : "N/A"}
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-400">

@@ -55,9 +55,10 @@ export const EventsHistoryChart: React.FC = () => {
 
   const chartData = history
     .map((snapshot) => ({
-      time: new Date(snapshot.timestamp).toLocaleTimeString([], {
+      time: new Date(snapshot.timestamp).toLocaleTimeString("es-AR", {
         hour: "2-digit",
         minute: "2-digit",
+        timeZone: "America/Argentina/Buenos_Aires",
       }),
       timestamp: new Date(snapshot.timestamp).getTime(),
       incidentes: snapshot.totalIncidents,

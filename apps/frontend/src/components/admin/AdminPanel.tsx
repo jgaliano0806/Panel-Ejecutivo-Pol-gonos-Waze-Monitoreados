@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Settings,
   Database,
@@ -7,6 +7,8 @@ import {
   FileText,
   MapPin,
   ChevronRight,
+  Menu,
+  X,
 } from "lucide-react";
 import PolygonManagement from "./PolygonManagement";
 import CatalogManagement from "./CatalogManagement";
@@ -70,6 +72,7 @@ const adminSections: AdminSectionConfig[] = [
 
 const AdminPanel: React.FC = () => {
   const [activeSection, setActiveSection] = useState<AdminSection>("polygons");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const renderActiveSection = () => {
     switch (activeSection) {
@@ -88,22 +91,74 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  const activeConfig = adminSections.find((s) => s.id === activeSection)!;
+
   return (
     <AdminToastProvider>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 via-green-50/20 to-yellow-50/30 dark:from-veltrix-bg dark:via-veltrix-bg dark:to-veltrix-bg transition-colors duration-300">
-        <div className="max-w-[1900px] mx-auto px-8 py-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              Panel de Administración
-            </h1>
-            <p className="text-gray-600 dark:text-veltrix-muted">
-              Gestión completa del sistema de monitoreo Waze
-            </p>
+        <div className="max-w-[1900px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+          {/* Header */}
+          <div className="mb-4 sm:mb-8 flex items-center justify-between gap-4">
+            <div>
+              <h1 className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                Panel de Administración
+              </h1>
+              <p className="text-sm text-gray-600 dark:text-veltrix-muted hidden sm:block">
+                Gestión completa del sistema de monitoreo Waze
+              </p>
+            </div>
+            {/* Botón hamburguesa solo en mobile */}
+            <button
+              className="lg:hidden flex items-center gap-2 px-3 py-2 rounded-lg bg-white dark:bg-veltrix-card border border-gray-200 dark:border-veltrix-border shadow-sm text-gray-700 dark:text-gray-300 text-sm font-medium"
+              onClick={() => setMobileMenuOpen((v) => !v)}
+            >
+              {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+              <span>{activeConfig.label}</span>
+            </button>
           </div>
 
-          <div className="grid grid-cols-12 gap-6">
-            {/* Sidebar de navegación */}
-            <div className="col-span-3">
+          {/* Mobile nav drawer */}
+          <AnimatePresence>
+            {mobileMenuOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="lg:hidden overflow-hidden mb-4 bg-white dark:bg-veltrix-card rounded-xl shadow-lg border border-transparent dark:border-veltrix-border/50"
+              >
+                <div className="p-3 space-y-1">
+                  {adminSections.map((section) => {
+                    const Icon = section.icon;
+                    const isActive = activeSection === section.id;
+                    return (
+                      <button
+                        key={section.id}
+                        onClick={() => {
+                          setActiveSection(section.id);
+                          setMobileMenuOpen(false);
+                        }}
+                        className={`w-full p-3 rounded-lg text-left transition-all duration-200 flex items-center gap-3 ${
+                          isActive
+                            ? `bg-gradient-to-r ${section.color} text-white shadow-md`
+                            : "bg-gray-50 dark:bg-veltrix-bg/30 hover:bg-gray-100 dark:hover:bg-veltrix-bg/50 text-gray-700 dark:text-gray-300"
+                        }`}
+                      >
+                        <Icon size={18} className={isActive ? "text-white" : "text-gray-500 dark:text-gray-400"} />
+                        <span className={`font-medium text-sm ${isActive ? "text-white" : "text-gray-900 dark:text-white"}`}>
+                          {section.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 lg:gap-6">
+            {/* Sidebar de navegación — visible solo en lg+ */}
+            <div className="hidden lg:block lg:col-span-3">
               <div className="bg-white dark:bg-veltrix-card rounded-xl shadow-lg p-6 sticky top-8 border border-transparent dark:border-veltrix-border/50">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                   Módulos
@@ -135,9 +190,9 @@ const AdminPanel: React.FC = () => {
                                 : "text-gray-600 dark:text-gray-400"
                             }
                           />
-                          <div className="flex-1">
+                          <div className="flex-1 min-w-0">
                             <div
-                              className={`font-medium ${
+                              className={`font-medium truncate ${
                                 isActive
                                   ? "text-white"
                                   : "text-gray-900 dark:text-white"
@@ -146,7 +201,7 @@ const AdminPanel: React.FC = () => {
                               {section.label}
                             </div>
                             <div
-                              className={`text-sm mt-1 ${
+                              className={`text-sm mt-1 line-clamp-2 ${
                                 isActive
                                   ? "text-blue-100"
                                   : "text-gray-500 dark:text-gray-400"
@@ -157,7 +212,7 @@ const AdminPanel: React.FC = () => {
                           </div>
                           <ChevronRight
                             size={16}
-                            className={`transition-transform ${
+                            className={`flex-shrink-0 transition-transform ${
                               isActive
                                 ? "text-white rotate-90"
                                 : "text-gray-400 group-hover:translate-x-1"
@@ -172,14 +227,14 @@ const AdminPanel: React.FC = () => {
             </div>
 
             {/* Contenido principal */}
-            <div className="col-span-9">
+            <div className="lg:col-span-9">
               <motion.div
                 key={activeSection}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.3 }}
-                className="bg-white dark:bg-veltrix-card rounded-xl shadow-lg min-h-[600px] border border-transparent dark:border-veltrix-border/50"
+                className="bg-white dark:bg-veltrix-card rounded-xl shadow-lg min-h-[400px] sm:min-h-[600px] border border-transparent dark:border-veltrix-border/50"
               >
                 {renderActiveSection()}
               </motion.div>

@@ -1,19 +1,20 @@
 # Instructivo de despliegue – Panel Ejecutivo Waze
 
-Guía de instalación y configuración para entornos productivos: **servidor Red Hat** (RHEL/Rocky/Alma) y **PC productiva** (Windows o Linux). Pensada para ejecución paso a paso por un administrador o DevOps.
+Guía de instalación y configuración para entornos productivos. Cubre el **servidor actual (Windows Server 2022)**, **servidores Red Hat** (RHEL/Rocky/Alma) y **PC productiva**.
 
 ---
 
 ## Índice
 
 1. [Opciones de despliegue](#1-opciones-de-despliegue)
-2. [Opción A: Servidor Red Hat](#2-opción-a-servidor-red-hat)
-3. [Opción B: PC productiva](#3-opción-b-pc-productiva)
-4. [Variables de entorno](#4-variables-de-entorno)
-5. [Verificación y salud](#5-verificación-y-salud)
-6. [Mantenimiento y actualización](#6-mantenimiento-y-actualización)
-7. [Resolución de problemas](#7-resolución-de-problemas)
-8. [Resumen rápido](#8-resumen-rápido)
+2. [Opción A: Windows Server 2022 (entorno actual)](#2-opción-a-windows-server-2022-entorno-actual)
+3. [Opción B: Servidor Red Hat](#3-opción-b-servidor-red-hat)
+4. [Opción C: PC productiva](#4-opción-c-pc-productiva)
+5. [Variables de entorno](#5-variables-de-entorno)
+6. [Verificación y salud](#6-verificación-y-salud)
+7. [Mantenimiento y actualización](#7-mantenimiento-y-actualización)
+8. [Resolución de problemas](#8-resolución-de-problemas)
+9. [Resumen rápido](#9-resumen-rápido)
 
 ---
 
@@ -21,16 +22,236 @@ Guía de instalación y configuración para entornos productivos: **servidor Red
 
 | Opción | Entorno | Uso típico |
 |--------|---------|------------|
-| **A** | Servidor Red Hat (RHEL / Rocky / Alma) | Producción centralizada, acceso por red, varios usuarios. |
-| **B** | PC local (Windows o Linux) | Sala de control, un equipo fijo, mismo uso productivo. |
+| **A** | Windows Server 2022 (entorno actual CASISA) | Servidor de sala de control, acceso por red LAN. |
+| **B** | Servidor Red Hat (RHEL / Rocky / Alma) | Producción centralizada Linux. |
+| **C** | PC local (Windows o Linux) | Sala de control, equipo fijo. |
 
-En ambos casos el **stack** es el mismo: Node.js, PostgreSQL, Redis (opcional), frontend estático + API. La diferencia está en dónde se instala y cómo se deja arrancando (systemd en servidor, servicio o script en PC).
+Stack en todos los casos: Node.js 18+, PostgreSQL 18, Redis (opcional), frontend Vite + API Fastify.
 
 > **Requisitos previos**: Ver [REQUISITOS_SISTEMA.md](./REQUISITOS_SISTEMA.md) para hardware, software y cargas en BD.
 
 ---
 
-## 2. Opción A: Servidor Red Hat
+## 2. Opción A: Windows Server 2022 (entorno actual)
+
+> Configuración vigente en el servidor de producción CASISA.
+>
+> | Atributo | Valor |
+> |----------|-------|
+> | OS | Windows Server 2022 Standard |
+> | IP LAN | `10.1.0.136` |
+> | Ruta del proyecto | `D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados` |
+> | PostgreSQL | 18.3 en `D:\postgreSQL` |
+> | Gestor de servicios | NSSM (Chocolatey) |
+> | Servicio backend | `PanelWazeBackend` → `apps\backend\dist\server.js` |
+> | Frontend | http://10.1.0.136:5180 |
+> | API | http://10.1.0.136:3002 |
+
+### 2.1. Prerrequisitos
+
+| Software | Versión | Notas |
+|----------|---------|-------|
+| Node.js | 18+ | [nodejs.org](https://nodejs.org) |
+| PostgreSQL | 18.3 | Instalado en `D:\postgreSQL` |
+| NSSM | latest | `choco install nssm` |
+| Redis/Memurai | 7+ | Opcional – [memurai.com](https://www.memurai.com/) |
+
+---
+
+### 2.2. Compilar packages compartidos
+
+Antes de iniciar el backend, los packages del monorepo deben estar compilados.
+Esto es necesario después de cada `git pull` o instalación limpia:
+
+```powershell
+cd "D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados"
+npm install
+npm run build --workspace=packages/types
+npm run build --workspace=packages/config
+npm run build --workspace=packages/shared
+npm run build --workspace=packages/database
+npm run build --workspace=apps/backend
+npm run build --workspace=apps/frontend
+```
+
+O simplemente:
+
+```powershell
+npm run build
+```
+
+---
+
+### 2.3. Configurar variables de entorno
+
+```powershell
+copy apps\backend\.env.example apps\backend\.env
+notepad apps\backend\.env
+```
+
+Variables mínimas a ajustar:
+
+```env
+NODE_ENV=production
+PORT=3002
+FRONTEND_URL=http://10.1.0.136:5180
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=panel_waze
+DB_USER=postgres
+DB_PASSWORD=TU_PASSWORD
+JWT_SECRET=cadena-aleatoria-larga-cambiar
+```
+
+Proteger el archivo:
+
+```powershell
+icacls "apps\backend\.env" /inheritance:r /grant:r "$env:USERNAME:(R)"
+```
+
+---
+
+### 2.4. Restaurar base de datos desde backup
+
+Si se cuenta con un backup `.dump`:
+
+```powershell
+$env:PATH = "D:\postgreSQL\bin;$env:PATH"
+$env:PGPASSWORD = "TU_PASSWORD"
+
+psql -U postgres -h localhost -p 5432 -d postgres -c "CREATE DATABASE panel_waze ENCODING='UTF8';"
+pg_restore -U postgres -h localhost -p 5432 -d panel_waze --no-owner --no-privileges "D:\panel_waze_backup.dump"
+```
+
+O ejecutar migraciones desde cero:
+
+```powershell
+npm run db:migrate
+```
+
+---
+
+### 2.5. Servicio Windows con NSSM (PanelWazeBackend)
+
+NSSM gestiona el backend como servicio de Windows con reinicio automático.
+
+#### Crear / reconfigurar el servicio
+
+```powershell
+# Detener si existe (requiere PowerShell como Administrador)
+nssm stop PanelWazeBackend
+nssm remove PanelWazeBackend confirm
+
+# Crear servicio apuntando al build compilado
+nssm install PanelWazeBackend "C:\Program Files\nodejs\node.exe"
+nssm set PanelWazeBackend AppParameters "dist\server.js"
+nssm set PanelWazeBackend AppDirectory "D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados\apps\backend"
+nssm set PanelWazeBackend AppEnvironmentExtra "NODE_ENV=production" "PORT=3002"
+nssm set PanelWazeBackend Start SERVICE_AUTO_START
+nssm set PanelWazeBackend AppStdout "D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados\logs\backend-stdout.log"
+nssm set PanelWazeBackend AppStderr "D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados\logs\backend-stderr.log"
+nssm set PanelWazeBackend AppRotateFiles 1
+nssm set PanelWazeBackend AppRotateBytes 10485760
+
+# Iniciar
+nssm start PanelWazeBackend
+```
+
+> El servicio carga el `.env` desde `apps\backend\.env` mediante dotenv al arrancar.
+
+#### Comandos de gestión del servicio
+
+```powershell
+# Requieren PowerShell como Administrador
+nssm start PanelWazeBackend
+nssm stop PanelWazeBackend
+nssm restart PanelWazeBackend
+nssm status PanelWazeBackend
+```
+
+O desde el panel de Servicios de Windows (`services.msc`): buscar `PanelWazeBackend`.
+
+---
+
+### 2.6. Frontend (modo desarrollo o producción)
+
+**Modo desarrollo** (con hot-reload, para uso interno):
+
+```powershell
+cd "D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados"
+npm run dev
+```
+
+Acceso: `http://10.1.0.136:5180`
+
+**Modo producción** (build estático):
+
+```powershell
+# Build del frontend apuntando a la API
+echo "VITE_API_URL=http://10.1.0.136:3002" > apps\frontend\.env.production
+npm run build --workspace=apps/frontend
+```
+
+Servir con `npx serve` o configurar IIS / Nginx para Windows.
+
+---
+
+### 2.7. Actualizar el servidor en producción
+
+```powershell
+cd "D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados"
+
+# 1. Obtener cambios
+git pull
+
+# 2. Instalar dependencias nuevas (si hubiera)
+npm install
+
+# 3. Recompilar (packages primero, luego apps)
+npm run build
+
+# 4. Reiniciar servicio (requiere PowerShell como Administrador)
+nssm restart PanelWazeBackend
+
+# 5. Verificar health
+Invoke-WebRequest http://localhost:3002/health -UseBasicParsing | Select-Object -ExpandProperty Content
+```
+
+Script automatizado disponible en `scripts\reconfigurar-servicio-ADMIN.ps1` (requiere Administrador).
+
+---
+
+### 2.8. Ver logs del servicio
+
+```powershell
+# Logs en tiempo real
+Get-Content "D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados\logs\backend-stdout.log" -Wait -Tail 50
+
+# Errores
+Get-Content "D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados\logs\backend-stderr.log" -Tail 50
+```
+
+---
+
+### 2.9. Backup automático de base de datos
+
+Script: `scripts\backup-bd.ps1`
+
+Configurar como **Tarea Programada** en Windows:
+
+1. `Win + R` → `taskschd.msc`
+2. Crear tarea básica → diaria, hora deseada (ej. 03:00 AM)
+3. Acción:
+   ```
+   Programa: powershell.exe
+   Argumentos: -ExecutionPolicy Bypass -File "D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados\scripts\backup-bd.ps1"
+   ```
+
+Los backups se guardan en `D:\Backups\panel_waze\` con retención de 30 días.
+
+---
+
+## 3. Opción B: Servidor Red Hat
 
 ### 2.1. Preparación del servidor
 
@@ -299,7 +520,7 @@ La renovación automática queda configurada por defecto por certbot.
 
 ---
 
-## 3. Opción B: PC productiva
+## 4. Opción C: PC productiva
 
 ### 3.1. Requisitos de la PC
 
@@ -370,81 +591,117 @@ El frontend en PC puede usar `VITE_API_URL=http://localhost:3002` (o la IP de la
 
 ---
 
-## 4. Variables de entorno
+## 5. Variables de entorno
 
-### 4.1. Backend (`apps/backend/.env`)
+El archivo de referencia completo es `apps/backend/.env.example`.
 
-| Variable | Descripción | Ejemplo |
-|----------|-------------|---------|
-| `NODE_ENV` | Entorno | `production` |
-| `PORT` | Puerto del servidor API | `3002` |
-| `DB_HOST` | Host PostgreSQL | `localhost` |
-| `DB_PORT` | Puerto PostgreSQL | `5432` |
-| `DB_NAME` | Nombre de la base | `panel_waze` |
-| `DB_USER` | Usuario de la base | `panel_waze` |
-| `DB_PASSWORD` | Contraseña | (obligatorio) |
-| `REDIS_HOST` | Host Redis (opcional) | `localhost` |
-| `REDIS_PORT` | Puerto Redis | `6379` |
-| `WAZE_PARTNER_ID` | ID Partner Waze (si aplica) | - |
+### 5.1. Backend (`apps/backend/.env`)
 
-### 4.2. Frontend (build)
+| Variable | Obligatorio | Default | Descripción |
+|----------|:-----------:|---------|-------------|
+| `NODE_ENV` | Si | `production` | Entorno (`production` / `development`) |
+| `PORT` | Si | `3002` | Puerto del servidor API |
+| `FRONTEND_URL` | No | `true` | URL del frontend para CORS (ej. `http://10.1.0.136:5180`) |
+| `DB_HOST` | Si | `localhost` | Host PostgreSQL |
+| `DB_PORT` | Si | `5432` | Puerto PostgreSQL |
+| `DB_NAME` | Si | `panel_waze` | Nombre de la base de datos |
+| `DB_USER` | Si | `postgres` | Usuario de la base |
+| `DB_PASSWORD` | Si | — | Contraseña PostgreSQL |
+| `DB_POOL_MAX` | No | `50` | Máximo de conexiones en el pool |
+| `REDIS_HOST` | No | `localhost` | Host Redis |
+| `REDIS_PORT` | No | `6379` | Puerto Redis |
+| `REDIS_PASSWORD` | No | — | Contraseña Redis (si aplica) |
+| `JWT_SECRET` | Si | — | Clave secreta JWT (cambiar en producción) |
+| `JWT_EXPIRATION` | No | `8h` | Duración del token JWT |
+| `WEATHER_PROVIDER` | No | `openmeteo` | Proveedor de clima (`openmeteo` \| `accuweather`) |
+| `ACCUWEATHER_API_KEY` | No | — | API Key AccuWeather (si se usa) |
+| `HERE_API_KEY` | No | — | API Key HERE Traffic (opcional) |
+| `TOMTOM_API_KEY` | No | — | API Key TomTom (opcional) |
+| `WAZE_FEED_TOKEN` | No | — | Token para proxy de íconos Waze |
+| `WAZE_PARTNER_ID` | No | — | ID Partner Waze |
+| `LOG_LEVEL` | No | `info` | Nivel de log (`trace`/`debug`/`info`/`warn`/`error`) |
 
-Definir **antes** de `npm run build` en `apps/frontend`:
+### 5.2. Frontend (`apps/frontend/.env` o `.env.production`)
 
-| Variable | Descripción | Ejemplo |
-|----------|-------------|---------|
-| `VITE_API_URL` | URL base del backend | `/api` (mismo dominio) o `http://localhost:3002` |
-| `VITE_GOOGLE_MAPS_API_KEY` | API Key Google Maps (opcional) | - |
+Definir **antes** de `npm run build`:
+
+| Variable | Obligatorio | Descripción |
+|----------|:-----------:|-------------|
+| `VITE_API_URL` | Si | URL base del backend. Usar `/api` si Nginx hace proxy, o `http://10.1.0.136:3002` para acceso directo |
+| `VITE_GOOGLE_MAPS_API_KEY` | No | API Key Google Maps (si se usa) |
 
 ---
 
-## 5. Verificación y salud
+## 6. Verificación y salud
 
-- **API**: `curl http://localhost:3002/health` (o la URL pública si usas Nginx).
-- **Frontend**: Abrir en navegador la URL del servidor o `http://localhost:5180` si usas `serve`/preview.
-- **Logs (Red Hat)**: `journalctl -u panel-waze-api -f` y `tail -f /var/log/nginx/error.log`.
+- **API**: `curl http://localhost:3002/health`
+- **Frontend**: `http://10.1.0.136:5180` (Windows Server) o la URL del servidor.
+- **Logs Windows (NSSM)**: Ver `logs\backend-stdout.log` en la raíz del proyecto.
+- **Logs Red Hat**: `journalctl -u panel-waze-api -f` y `tail -f /var/log/nginx/error.log`.
 
 ---
 
-## 6. Mantenimiento y actualización
+## 7. Mantenimiento y actualización
 
-1. **Backup de BD**: Realizar copias periódicas con `pg_dump panel_waze`.
-2. **Actualizar código**:
+1. **Backup de BD**:
+
+   ```powershell
+   # Windows Server
+   $env:PATH = "D:\postgreSQL\bin;$env:PATH"; $env:PGPASSWORD = "TU_PASSWORD"
+   pg_dump -U postgres -h localhost -Fc panel_waze -f "D:\backups\panel_waze_$(Get-Date -Format 'yyyyMMdd').dump"
+   ```
+
    ```bash
-   cd /opt/panel-waze/repo   # o la ruta del clone
+   # Linux
+   pg_dump -U panel_waze -Fc panel_waze > /backups/panel_waze_$(date +%Y%m%d).dump
+   ```
+
+2. **Actualizar código** (Windows Server, como Administrador):
+
+   ```powershell
+   cd "D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados"
    git pull
    npm install
    npm run build
+   nssm restart PanelWazeBackend
    ```
-3. **Reiniciar backend**: `sudo systemctl restart panel-waze-api` (Red Hat) o reiniciar el proceso en PC.
-4. Si cambian migraciones: `npm run db:migrate --workspace=apps/backend` antes de reiniciar.
+
+3. **Reiniciar backend**:
+   - Windows: `nssm restart PanelWazeBackend` (como Administrador) o desde `services.msc`.
+   - Red Hat: `sudo systemctl restart panel-waze-api`.
+
+4. Si cambian migraciones, ejecutar antes de reiniciar: `npm run db:migrate`.
 
 ---
 
-## 7. Resolución de problemas
+## 8. Resolución de problemas
 
 | Síntoma | Posible causa | Acción |
 |---------|----------------|--------|
-| Backend no arranca | BD no accesible o `.env` incorrecto | Revisar `DB_*`, probar conexión con `psql`. |
-| Frontend no carga datos | `VITE_API_URL` incorrecta o CORS | Verificar URL de API en build y proxy Nginx. |
-| 502 Bad Gateway | Backend no escucha en 3002 | Comprobar `systemctl status panel-waze-api` y logs. |
-| Polling Waze sin datos | Feeds o red | Revisar conectividad a Waze y logs del backend. |
-| Redis no conecta | Redis no instalado o mal configurado | El backend sigue sin Redis (fallback); opcional corregir `REDIS_*`. |
+| Backend no arranca | BD no accesible o `.env` incorrecto | Revisar `DB_*`, probar con `psql -U postgres -h localhost`. |
+| Puerto 3002 en uso | Servicio `PanelWazeBackend` ya corriendo | Detener desde `services.msc` o `nssm stop PanelWazeBackend` (Admin). |
+| `Cannot find module '@panel-waze/types'` | Packages no compilados | Ejecutar `npm run build --workspace=packages/types` (y demás packages). |
+| Frontend no carga datos | `VITE_API_URL` incorrecta o CORS | Verificar `VITE_API_URL` en `.env` del frontend y `FRONTEND_URL` en backend. |
+| DB health: unhealthy | Servicio corriendo con `.env` viejo o distinto | Reiniciar servicio; verificar que `DB_PASSWORD` en `.env` sea correcto. |
+| 502 Bad Gateway | Backend no escucha en 3002 | Revisar `nssm status PanelWazeBackend` y logs. |
+| Polling Waze sin datos | Feeds o red | Revisar conectividad a feeds de Waze y logs del backend. |
+| Redis no conecta | Redis no instalado | El backend opera sin Redis (cache deshabilitado). Instalar Memurai si se requiere. |
 
 ---
 
-## 8. Resumen rápido
+## 9. Resumen rápido
 
-| Paso | Red Hat (servidor) | PC productiva |
-|------|--------------------|----------------|
-| Node/PostgreSQL/Redis | dnf, postgresql-setup, redis | Instaladores o package manager |
-| Código | Clone en `/opt/panel-waze/repo` | Clone en ruta fija (ej. `C:\PanelWaze`) |
-| Build | `npm install` + `npm run build` | Igual |
-| .env | `apps/backend/.env` (DB, REDIS) | Igual |
-| Migraciones | `npm run db:migrate --workspace=apps/backend` | Igual |
-| Arranque | systemd `panel-waze-api.service` | Servicio Windows o systemd (Linux) |
-| Frontend | Nginx sirve `dist` + proxy `/api` | Servidor estático o `npm run preview` |
-| SSL | certbot + Nginx | Opcional |
+| Paso | Windows Server 2022 (actual) | Red Hat (servidor Linux) | PC productiva |
+|------|------------------------------|--------------------------|----------------|
+| PostgreSQL | 18.3 en `D:\postgreSQL` | dnf + postgresql-setup | Instalador oficial |
+| Packages | `npm run build` (types, config, shared, database, backend, frontend) | Igual | Igual |
+| .env | `apps\backend\.env` | `apps/backend/.env` | Igual |
+| BD restore | `pg_restore ... panel_waze_backup.dump` | Igual | Igual |
+| Migraciones | `npm run db:migrate` | Igual | Igual |
+| Arranque backend | NSSM `PanelWazeBackend` (servicio) | systemd `panel-waze-api.service` | Servicio Windows/Linux |
+| Frontend | `npm run dev` (5180) o build estático | Nginx sirve `dist` + proxy `/api` | `npm run dev` o preview |
+| Logs | `logs\backend-stdout.log` | `journalctl -u panel-waze-api` | Consola |
+| SSL | IIS / Nginx para Windows | certbot + Nginx | Opcional |
 
 ---
 
@@ -453,3 +710,7 @@ Definir **antes** de `npm run build` en `apps/frontend`:
 - [REQUISITOS_SISTEMA.md](./REQUISITOS_SISTEMA.md) – Requisitos físicos, lógicos y cargas en BD.
 - [DEPLOYMENT.md](./DEPLOYMENT.md) – Despliegue con Docker y desarrollo local.
 - [API.md](./API.md) – Endpoints y health checks.
+
+---
+
+_Última actualización: Marzo 2026_

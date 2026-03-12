@@ -67,7 +67,7 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({
     if (diffMins < 1) return "Ahora";
     if (diffMins < 60) return `Hace ${diffMins} min`;
     if (diffMins < 1440) return `Hace ${Math.floor(diffMins / 60)} h`;
-    return new Date(date).toLocaleDateString("es-AR");
+    return new Date(date).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
   };
 
   return (

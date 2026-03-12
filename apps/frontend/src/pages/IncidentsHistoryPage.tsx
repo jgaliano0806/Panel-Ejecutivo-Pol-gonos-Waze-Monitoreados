@@ -285,7 +285,7 @@ export const IncidentsHistoryPage: React.FC = () => {
                       </div>
                     </div>
                     <div className="text-right text-sm text-gray-500 dark:text-veltrix-muted">
-                      {new Date(incident.first_seen_at).toLocaleDateString()}
+                      {new Date(incident.first_seen_at).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}
                     </div>
                   </div>
                 </div>

@@ -66,7 +66,7 @@ const getIncidentAge = (timestamp: string) => {
   return {
     duration,
     isOld,
-    dateStr: new Date(timestamp).toLocaleString("es-AR"),
+    dateStr: new Date(timestamp).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" }),
   };
 };
 

@@ -63,7 +63,7 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
       animate={{ y: 0 }}
       transition={{ type: "spring", stiffness: 100, damping: 20 }}
     >
-      <div className="max-w-[1900px] mx-auto px-8 py-5">
+      <div className="max-w-[1900px] mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-5">
         <div className="flex items-center justify-between">
           {/* Logo y Título */}
           <motion.div
@@ -74,7 +74,7 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
           >
             {/* Logo Oficial Caminos de las Sierras */}
             <motion.div
-              className="h-20 w-auto flex items-center justify-center bg-white dark:bg-veltrix-bg rounded-xl shadow-lg p-2 transition-colors border dark:border-veltrix-border"
+              className="h-12 sm:h-16 lg:h-20 w-auto flex items-center justify-center bg-white dark:bg-veltrix-bg rounded-xl shadow-lg p-2 transition-colors border dark:border-veltrix-border"
               whileHover={{ scale: 1.05 }}
               transition={{ type: "spring", stiffness: 300 }}
             >
@@ -85,9 +85,9 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
               />
             </motion.div>
 
-            <div className="border-l-4 border-yellow-400 dark:border-veltrix-border pl-5 transition-colors">
+            <div className="border-l-4 border-yellow-400 dark:border-veltrix-border pl-3 sm:pl-5 transition-colors">
               <motion.h1
-                className="text-3xl font-black bg-gradient-to-r from-primary-700 via-primary-600 to-primary-800 dark:from-white dark:via-gray-200 dark:to-white bg-clip-text text-transparent mb-1 tracking-tight"
+                className="text-xl sm:text-2xl lg:text-3xl font-black bg-gradient-to-r from-primary-700 via-primary-600 to-primary-800 dark:from-white dark:via-gray-200 dark:to-white bg-clip-text text-transparent mb-1 tracking-tight"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4 }}
@@ -193,6 +193,7 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
                     minute: "2-digit",
                     second: "2-digit",
                     hour12: false,
+                    timeZone: "America/Argentina/Buenos_Aires",
                   })}
                 </div>
               </div>

@@ -62,31 +62,31 @@
     --ring: 224.3 76.3% 48%;
   }
 
+  html {
+    /* Evita que el layout colapse al hacer zoom en el navegador */
+    min-width: 360px;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    min-width: 360px;
+    overflow-x: auto;
   }
 }
 
-/* Responsive Scaling for Big Screens (TVs & 4K) */
+/*
+  Escalado para pantallas grandes (TV / 4K).
+  Estas reglas usan el viewport físico — el zoom del navegador reduce el
+  viewport CSS, por lo que NO interfieren con el zoom del usuario normal.
+*/
 @media (min-width: 1921px) {
-  html {
-    font-size: 18px;
-    /* Scale up ~12.5% for 2K/QHD */
-  }
+  html { font-size: 18px; }
 }
-
 @media (min-width: 2561px) {
-  html {
-    font-size: 22px;
-    /* Scale up ~37.5% for ultrawide/mid-4K */
-  }
+  html { font-size: 22px; }
 }
-
 @media (min-width: 3800px) {
-  html {
-    font-size: 26px;
-    /* Scale up ~62.5% for full 4K on large panels */
-  }
+  html { font-size: 26px; }
 }
 
 /* Custom scrollbar for modern look */

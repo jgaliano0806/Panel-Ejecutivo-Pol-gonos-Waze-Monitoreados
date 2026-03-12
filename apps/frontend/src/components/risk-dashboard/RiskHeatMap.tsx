@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useCallback } from "react";
 import Map, { Source, Layer, NavigationControl, Popup } from "react-map-gl/maplibre";
+import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useThemeStore } from "../../stores/useThemeStore";
 import type { RiskScore } from "../../hooks/useRiskScoring";
@@ -47,9 +48,20 @@ export const RiskHeatMap: React.FC<RiskHeatMapProps> = ({
     lat: number;
   } | null>(null);
 
-  const mapStyleUrl = isDark
-    ? "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
-    : "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
+  const mapStyleUrl = {
+    version: 8 as const,
+    sources: {
+      basemap: {
+        type: "raster" as const,
+        tiles: isDark
+          ? ["/tiles/carto-dark/{z}/{x}/{y}.png"]
+          : ["/tiles/carto-light/{z}/{x}/{y}.png"],
+        tileSize: 256,
+        attribution: "&copy; CARTO",
+      },
+    },
+    layers: [{ id: "basemap", type: "raster" as const, source: "basemap" }],
+  };
 
   // Datos para el heatmap (centroides)
   const heatData = useMemo(() => {
@@ -145,6 +157,7 @@ export const RiskHeatMap: React.FC<RiskHeatMapProps> = ({
   return (
     <div className="w-full h-[600px] rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-veltrix-border relative">
       <Map
+        mapLib={maplibregl}
         initialViewState={INITIAL_VIEW_STATE}
         style={{ width: "100%", height: "100%" }}
         mapStyle={mapStyleUrl}

@@ -338,6 +338,7 @@ const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
                             {
                               hour: "2-digit",
                               minute: "2-digit",
+                              timeZone: "America/Argentina/Buenos_Aires",
                             },
                           )}
                         </span>

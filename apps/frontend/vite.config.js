@@ -84,8 +84,7 @@ export default defineConfig(function (_a) {
                     chunkFileNames: "assets/js/[name]-[hash].js",
                     entryFileNames: "assets/js/[name]-[hash].js",
                 },
-                // Exclusiones para tree shaking
-                external: ["leaflet"],
+                // Leaflet se bundlea localmente (no CDN externo)
             },
             // Límite de chunk para advertencias
             chunkSizeWarningLimit: 500,

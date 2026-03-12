@@ -355,7 +355,7 @@ export const RoadAccidentsPage: React.FC = () => {
                     </span>
                     <span className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      {new Date(acc.accident_at).toLocaleString()}
+                      {new Date(acc.accident_at).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}
                     </span>
                   </div>
                   <h3 className="font-semibold text-gray-800 dark:text-white text-sm truncate">
@@ -536,6 +536,7 @@ export const RoadAccidentsPage: React.FC = () => {
                         year: "numeric",
                         hour: "2-digit",
                         minute: "2-digit",
+                        timeZone: "America/Argentina/Buenos_Aires",
                       })}
                     </p>
                   </div>

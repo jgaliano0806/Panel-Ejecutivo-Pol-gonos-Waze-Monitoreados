@@ -90,7 +90,7 @@ export const OperationalAnalyticsDashboard: React.FC = () => {
           <div className="text-right">
             <p className="text-xs text-gray-400">Última Actualización</p>
             <p className="font-mono font-bold dark:text-veltrix-text">
-              {new Date(data.feedStats.lastUpdate).toLocaleTimeString()}
+              {new Date(data.feedStats.lastUpdate).toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}
             </p>
           </div>
           <div className="flex gap-2">

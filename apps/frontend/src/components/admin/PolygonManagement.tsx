@@ -115,13 +115,13 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
         className="bg-white dark:bg-veltrix-card rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
-          <h2 className="text-xl font-bold">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-bold">
             {polygon ? "Editar Polígono" : "Nuevo Polígono"}
           </h2>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -970,16 +970,16 @@ const PolygonManagement: React.FC = () => {
 
   return (
     <div className="card">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
             Gestión de Polígonos
           </h2>
           <p className="text-sm text-gray-600 dark:text-veltrix-muted mt-1">
             Administra los feeds de Waze asociados a cada polígono
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={exportCSV}
             className="p-2 rounded-lg border border-gray-300 dark:border-veltrix-border text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-veltrix-bg/50 transition-colors"
@@ -1026,8 +1026,9 @@ const PolygonManagement: React.FC = () => {
 
       <>
         <div className="border border-gray-100 dark:border-veltrix-border rounded-xl overflow-hidden shadow-sm bg-white dark:bg-veltrix-card">
+          <div className="overflow-x-auto">
           {/* Header - Grid Layout */}
-          <div className="grid grid-cols-[48px_minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] bg-gray-50 dark:bg-veltrix-bg border-b divide-x divide-gray-200 dark:divide-veltrix-border dark:border-veltrix-border text-sm font-semibold text-gray-900 dark:text-white">
+          <div className="grid grid-cols-[48px_minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] min-w-[760px] bg-gray-50 dark:bg-veltrix-bg border-b divide-x divide-gray-200 dark:divide-veltrix-border dark:border-veltrix-border text-sm font-semibold text-gray-900 dark:text-white">
             <div className="px-2 py-3 flex items-center justify-center">
               <input
                 ref={selectAllRef}
@@ -1101,13 +1102,13 @@ const PolygonManagement: React.FC = () => {
           </div>
 
           {/* Virtualized Body */}
-          <div className="h-[600px]">
+          <div className="h-[50vh] min-h-[300px] max-h-[600px]">
             <VirtualizedList
               items={sortedPolygons}
               estimateSize={80}
               renderItem={(polygon: PolygonData) => (
                 <div
-                  className={`grid grid-cols-[48px_minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] divide-x divide-gray-100 dark:divide-veltrix-border border-b border-gray-100 dark:border-veltrix-border hover:bg-gray-50 dark:hover:bg-veltrix-bg/30 transition-colors items-center text-sm bg-white dark:bg-veltrix-card text-gray-900 dark:text-white ${polygon.is_active === false ? "opacity-50" : ""}`}
+                  className={`grid grid-cols-[48px_minmax(150px,2fr)_minmax(120px,1.5fr)_minmax(150px,2fr)_120px_120px_100px] min-w-[760px] divide-x divide-gray-100 dark:divide-veltrix-border border-b border-gray-100 dark:border-veltrix-border hover:bg-gray-50 dark:hover:bg-veltrix-bg/30 transition-colors items-center text-sm bg-white dark:bg-veltrix-card text-gray-900 dark:text-white ${polygon.is_active === false ? "opacity-50" : ""}`}
                 >
                   <div className="px-2 py-3 flex items-center justify-center">
                     <input
@@ -1270,6 +1271,7 @@ const PolygonManagement: React.FC = () => {
               )}
             />
           </div>
+          </div>{/* /overflow-x-auto */}
         </div>
 
         {visiblePolygons.length === 0 && (
