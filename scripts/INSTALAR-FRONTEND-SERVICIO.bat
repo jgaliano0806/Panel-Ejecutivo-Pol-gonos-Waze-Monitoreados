@@ -31,6 +31,11 @@ timeout /t 2 /nobreak >nul
 "%NSSM%" set PanelWazeFrontend DisplayName    "PanelWazeFrontend"
 "%NSSM%" set PanelWazeFrontend Description    "Panel Ejecutivo Waze - Frontend estatico"
 
+:: Abrir puerto 5180 en el Firewall de Windows (necesario para acceso desde la red)
+netsh advfirewall firewall delete rule name="Panel Waze Frontend - Puerto 5180" >nul 2>&1
+netsh advfirewall firewall add rule name="Panel Waze Frontend - Puerto 5180" dir=in action=allow protocol=TCP localport=5180 profile=any description="Panel Ejecutivo Waze - Frontend estatico"
+echo    OK: Puerto 5180 habilitado en Firewall
+
 echo.
 echo Iniciando servicio...
 "%NSSM%" start PanelWazeFrontend
