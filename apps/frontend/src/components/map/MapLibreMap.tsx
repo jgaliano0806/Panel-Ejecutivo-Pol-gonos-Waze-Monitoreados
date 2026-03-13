@@ -341,7 +341,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         const markersMap = incidentMarkersRef.current;
         const markerId = String(incidentUuid);
         if (!markersMap.has(markerId) && mapRef.current) {
-          const map = mapRef.current.getMap() as maplibregl.Map;
+          const map = mapRef.current.getMap() as unknown as maplibregl.Map;
           const type = incidentDetails.type || "HAZARD";
           const subtype = incidentDetails.subtype;
           const iconUrl = getWazePartnerHubIconUrl(type, subtype);
