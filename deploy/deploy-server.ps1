@@ -10,7 +10,6 @@
 
 .NOTES
     Ejecutar como Administrador en el servidor destino.
-    IP destino: 10.1.0.136
 #>
 
 param(
@@ -33,21 +32,12 @@ function Test-Command($cmd) {
     return [bool](Get-Command $cmd -ErrorAction SilentlyContinue)
 }
 
-function Invoke-Native {
-    param([string]$Command)
-    $output = cmd /c "$Command 2>&1"
-    $exitCode = $LASTEXITCODE
-    if ($output) { Write-Host $output }
-    return $exitCode
-}
-
 Write-Host "[0/7] Verificando prerrequisitos..." -ForegroundColor Yellow
-
 $os = Get-CimInstance Win32_OperatingSystem
 Write-Host "  OS: $($os.Caption) $($os.Version)"
 
 # ─────────────────────────────────────────────────────────
-# PASO 1: Instalar Chocolatey + dependencias del sistema
+# PASO 1: Instalar dependencias del sistema
 # ─────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "[1/7] Instalando dependencias del sistema..." -ForegroundColor Yellow
@@ -63,17 +53,14 @@ if (-not (Test-Command "choco")) {
     Write-Host "  OK: Chocolatey ya instalado" -ForegroundColor Green
 }
 
-# Node.js 20 LTS
 if (-not (Test-Command "node")) {
-    Write-Host "  Instalando Node.js 20 LTS..."
+    Write-Host "  Instalando Node.js LTS..."
     cmd /c "choco install nodejs-lts -y --force 2>&1"
     $env:Path = "C:\Program Files\nodejs;$env:Path"
 } else {
-    $nodeVer = node --version
-    Write-Host "  OK: Node.js $nodeVer ya instalado" -ForegroundColor Green
+    Write-Host "  OK: Node.js $(node --version) ya instalado" -ForegroundColor Green
 }
 
-# Git
 if (-not (Test-Command "git")) {
     Write-Host "  Instalando Git..."
     cmd /c "choco install git -y --force 2>&1"
@@ -82,7 +69,6 @@ if (-not (Test-Command "git")) {
     Write-Host "  OK: Git ya instalado" -ForegroundColor Green
 }
 
-# NSSM
 if (-not (Test-Command "nssm")) {
     Write-Host "  Instalando NSSM..."
     cmd /c "choco install nssm -y --force 2>&1"
@@ -90,13 +76,13 @@ if (-not (Test-Command "nssm")) {
     Write-Host "  OK: NSSM ya instalado" -ForegroundColor Green
 }
 
-# Refrescar PATH despues de instalaciones
+# Refrescar PATH
 $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 $env:Path = "$machinePath;$userPath"
 
 # ─────────────────────────────────────────────────────────
-# PASO 2: Instalar PostgreSQL
+# PASO 2: Instalar y configurar PostgreSQL
 # ─────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "[2/7] Configurando PostgreSQL..." -ForegroundColor Yellow
@@ -113,14 +99,42 @@ if (-not (Test-Path "$pgDir\bin\psql.exe")) {
     $env:Path = "$pgDir\bin;$env:Path"
 }
 
-Write-Host "  Creando base de datos panel_waze..."
-$env:PGPASSWORD = $DbPassword
-cmd /c "psql -U postgres -c `"SELECT 1`" 2>&1" | Out-Null
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "  AVISO: PostgreSQL no responde aun. Esperando 15s..." -ForegroundColor Yellow
-    Start-Sleep -Seconds 15
+# Asegurar que PostgreSQL escuche en TCP (Windows resuelve localhost a IPv6 primero)
+$pgConf = "$pgDir\data\postgresql.conf"
+$pgHba = "$pgDir\data\pg_hba.conf"
+if (Test-Path $pgConf) {
+    Write-Host "  Configurando PostgreSQL para TCP..."
+    $content = Get-Content $pgConf -Raw
+    $content = $content -replace "#?listen_addresses\s*=.*", "listen_addresses = '*'"
+    $content = $content -replace "#?port\s*=.*", "port = 5432"
+    Set-Content $pgConf $content
+
+    $hbaContent = Get-Content $pgHba -Raw
+    if ($hbaContent -notmatch "host\s+all\s+all\s+127\.0\.0\.1") {
+        Add-Content $pgHba "`nhost all all 127.0.0.1/32 md5"
+        Add-Content $pgHba "host all all ::1/128 md5"
+    }
+
+    Restart-Service postgresql-x64-16 -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 5
 }
-cmd /c "psql -U postgres -c `"CREATE DATABASE panel_waze;`" 2>&1" | Out-Null
+
+# Probar conexion (usar 127.0.0.1 explicitamente para evitar problema IPv6)
+Write-Host "  Verificando conexion..."
+$env:PGPASSWORD = $DbPassword
+cmd /c "psql -U postgres -h 127.0.0.1 -c `"SELECT 1`" 2>&1" | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "  AVISO: PostgreSQL no responde. Esperando 15s..." -ForegroundColor Yellow
+    Start-Sleep -Seconds 15
+    cmd /c "psql -U postgres -h 127.0.0.1 -c `"SELECT 1`" 2>&1" | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  ERROR: PostgreSQL no responde en 127.0.0.1:5432" -ForegroundColor Red
+        Write-Host "  Verificar: Get-Service postgresql*" -ForegroundColor Yellow
+        exit 1
+    }
+}
+
+cmd /c "psql -U postgres -h 127.0.0.1 -c `"CREATE DATABASE panel_waze;`" 2>&1" | Out-Null
 Write-Host "  OK: Base de datos lista" -ForegroundColor Green
 
 # ─────────────────────────────────────────────────────────
@@ -131,7 +145,7 @@ Write-Host "[3/7] Preparando codigo fuente..." -ForegroundColor Yellow
 
 if (-not (Test-Path "$InstallDir\package.json")) {
     Write-Host "  ERROR: No se encontro package.json en $InstallDir" -ForegroundColor Red
-    Write-Host "  Asegurate de haber clonado el repo:" -ForegroundColor Red
+    Write-Host "  Clona el repo primero:" -ForegroundColor Red
     Write-Host "    git clone -b main https://github.com/jgaliano0806/Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados.git $InstallDir" -ForegroundColor Yellow
     exit 1
 }
@@ -165,35 +179,22 @@ Write-Host "  OK: Dependencias instaladas" -ForegroundColor Green
 Write-Host "  Compilando packages/types..."
 Push-Location "$InstallDir\packages\types"
 cmd /c "npm run build 2>&1"
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "  ERROR: Build de types fallo" -ForegroundColor Red
-    Pop-Location; Pop-Location
-    exit 1
-}
+if ($LASTEXITCODE -ne 0) { Write-Host "  ERROR: Build de types fallo" -ForegroundColor Red; Pop-Location; Pop-Location; exit 1 }
 Pop-Location
 
 Write-Host "  Compilando backend (TypeScript)..."
 Push-Location "$InstallDir\apps\backend"
 cmd /c "npm run build 2>&1"
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "  ERROR: Build de backend fallo" -ForegroundColor Red
-    Pop-Location; Pop-Location
-    exit 1
-}
+if ($LASTEXITCODE -ne 0) { Write-Host "  ERROR: Build de backend fallo" -ForegroundColor Red; Pop-Location; Pop-Location; exit 1 }
 Pop-Location
 
 Write-Host "  Compilando frontend (React + Vite)..."
 Push-Location "$InstallDir\apps\frontend"
 cmd /c "npm run build 2>&1"
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "  ERROR: Build de frontend fallo" -ForegroundColor Red
-    Pop-Location; Pop-Location
-    exit 1
-}
+if ($LASTEXITCODE -ne 0) { Write-Host "  ERROR: Build de frontend fallo" -ForegroundColor Red; Pop-Location; Pop-Location; exit 1 }
 Pop-Location
 
 Pop-Location
-
 Write-Host "  OK: Build completado" -ForegroundColor Green
 
 # ─────────────────────────────────────────────────────────
@@ -203,7 +204,8 @@ Write-Host ""
 Write-Host "[5/7] Aplicando schema de base de datos..." -ForegroundColor Yellow
 
 $env:PGPASSWORD = $DbPassword
-cmd /c "psql -U postgres -d panel_waze -f `"$InstallDir\apps\backend\src\database\schema.sql`" 2>&1"
+cmd /c "psql -U postgres -h 127.0.0.1 -d panel_waze -c `"SET client_encoding TO 'UTF8';`" 2>&1" | Out-Null
+cmd /c "psql -U postgres -h 127.0.0.1 -d panel_waze -f `"$InstallDir\apps\backend\src\database\schema.sql`" 2>&1"
 Write-Host "  OK: Schema aplicado" -ForegroundColor Green
 
 # ─────────────────────────────────────────────────────────
@@ -214,8 +216,9 @@ Write-Host "[6/7] Configurando entorno de produccion..." -ForegroundColor Yellow
 
 $jwtSecret = "PanelWaze_JWT_$( Get-Random -Maximum 999999 )_Prod"
 
+# DB_HOST=127.0.0.1 (no "localhost") porque Windows resuelve localhost a ::1 (IPv6) primero
 $backendEnv = @"
-DB_HOST=localhost
+DB_HOST=127.0.0.1
 DB_PORT=5432
 DB_NAME=panel_waze
 DB_USER=postgres
@@ -233,128 +236,169 @@ JWT_SECRET=$jwtSecret
 Set-Content -Path "$InstallDir\apps\backend\.env" -Value $backendEnv -Encoding UTF8
 Write-Host "  OK: backend .env creado" -ForegroundColor Green
 
-$frontendEnv = "VITE_API_URL=/api"
-Set-Content -Path "$InstallDir\apps\frontend\.env" -Value $frontendEnv -Encoding UTF8
+Set-Content -Path "$InstallDir\apps\frontend\.env" -Value "VITE_API_URL=/api" -Encoding UTF8
 
 # ─────────────────────────────────────────────────────────
-# PASO 7: Instalar nginx y registrar servicios
+# PASO 7: Servicios Windows
 # ─────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "[7/7] Configurando servicios Windows..." -ForegroundColor Yellow
 
-# Instalar nginx
-$nginxDir = "C:\nginx"
-if (-not (Test-Path "$nginxDir\nginx.exe")) {
+# ── Detener y limpiar servicios/procesos previos ──
+Write-Host "  Limpiando servicios y procesos previos..."
+cmd /c "nssm stop PanelWazeBackend 2>&1" | Out-Null
+cmd /c "nssm remove PanelWazeBackend confirm 2>&1" | Out-Null
+cmd /c "nssm stop PanelWazeNginx 2>&1" | Out-Null
+cmd /c "nssm remove PanelWazeNginx confirm 2>&1" | Out-Null
+
+# Eliminar tareas programadas de nginx previas
+Unregister-ScheduledTask -TaskName "PanelWazeNginx" -Confirm:$false -ErrorAction SilentlyContinue
+
+# Matar todos los procesos nginx residuales
+Stop-Process -Name nginx -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+Stop-Process -Name nginx -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 1
+
+# ── Instalar nginx ──
+$nginxDir = $null
+$chocoNginx = Get-ChildItem "C:\tools\nginx*" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($chocoNginx) {
+    $nginxDir = $chocoNginx.FullName
+    Write-Host "  OK: nginx encontrado en $nginxDir" -ForegroundColor Green
+} else {
     Write-Host "  Instalando nginx..."
     cmd /c "choco install nginx -y --force 2>&1"
-
     $chocoNginx = Get-ChildItem "C:\tools\nginx*" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($chocoNginx) {
-        if (-not (Test-Path $nginxDir)) { New-Item -ItemType Directory -Path $nginxDir -Force | Out-Null }
-        Copy-Item -Path "$($chocoNginx.FullName)\*" -Destination $nginxDir -Recurse -Force
+        $nginxDir = $chocoNginx.FullName
         Write-Host "  OK: nginx instalado en $nginxDir" -ForegroundColor Green
     } else {
-        Write-Host "  AVISO: nginx no se encontro en C:\tools. Verificar manualmente." -ForegroundColor Yellow
+        Write-Host "  ERROR: nginx no se pudo instalar" -ForegroundColor Red
     }
-} else {
-    Write-Host "  OK: nginx ya instalado" -ForegroundColor Green
 }
 
-# Copiar config de nginx
-if (Test-Path "$nginxDir\nginx.exe") {
+# Copiar config personalizada al directorio real de nginx
+if ($nginxDir) {
     Copy-Item -Path "$InstallDir\deploy\nginx-prod.conf" -Destination "$nginxDir\conf\nginx.conf" -Force
-    Write-Host "  OK: nginx configurado" -ForegroundColor Green
+
+    # Verificar config
+    $testResult = cmd /c "cd /d `"$nginxDir`" && nginx.exe -t 2>&1"
+    Write-Host "  $testResult"
+
+    if ($testResult -match "test is successful") {
+        Write-Host "  OK: nginx configurado" -ForegroundColor Green
+    } else {
+        Write-Host "  AVISO: Config de nginx tiene problemas" -ForegroundColor Yellow
+    }
 }
 
 # Crear directorio de logs
 New-Item -ItemType Directory -Path "$InstallDir\logs" -Force | Out-Null
 
-# ── Registrar Backend como servicio ──
+# ── Registrar Backend como servicio NSSM ──
 Write-Host "  Registrando servicio: PanelWazeBackend..."
 $nodePath = (Get-Command node -ErrorAction SilentlyContinue).Source
-if (-not $nodePath) {
-    $nodePath = "C:\Program Files\nodejs\node.exe"
-}
-
-cmd /c "nssm stop PanelWazeBackend 2>&1" | Out-Null
-cmd /c "nssm remove PanelWazeBackend confirm 2>&1" | Out-Null
+if (-not $nodePath) { $nodePath = "C:\Program Files\nodejs\node.exe" }
 
 cmd /c "nssm install PanelWazeBackend `"$nodePath`" `"$InstallDir\apps\backend\dist\server.js`" 2>&1"
 cmd /c "nssm set PanelWazeBackend AppDirectory `"$InstallDir\apps\backend`" 2>&1"
 cmd /c "nssm set PanelWazeBackend AppEnvironmentExtra NODE_ENV=production PORT=$BackendPort 2>&1"
-cmd /c "nssm set PanelWazeBackend Description `"Panel Waze - Backend API (Fastify + Socket.IO)`" 2>&1"
+cmd /c "nssm set PanelWazeBackend Description `"Panel Waze - Backend API`" 2>&1"
 cmd /c "nssm set PanelWazeBackend Start SERVICE_AUTO_START 2>&1"
 cmd /c "nssm set PanelWazeBackend AppStdout `"$InstallDir\logs\backend-stdout.log`" 2>&1"
 cmd /c "nssm set PanelWazeBackend AppStderr `"$InstallDir\logs\backend-stderr.log`" 2>&1"
 cmd /c "nssm set PanelWazeBackend AppRotateFiles 1 2>&1"
 cmd /c "nssm set PanelWazeBackend AppRotateBytes 10485760 2>&1"
-
 Write-Host "  OK: PanelWazeBackend registrado" -ForegroundColor Green
 
-# ── Registrar nginx como servicio ──
-if (Test-Path "$nginxDir\nginx.exe") {
-    Write-Host "  Registrando servicio: PanelWazeNginx..."
-    cmd /c "nssm stop PanelWazeNginx 2>&1" | Out-Null
-    cmd /c "nssm remove PanelWazeNginx confirm 2>&1" | Out-Null
-
-    cmd /c "nssm install PanelWazeNginx `"$nginxDir\nginx.exe`" 2>&1"
-    cmd /c "nssm set PanelWazeNginx AppDirectory `"$nginxDir`" 2>&1"
-    cmd /c "nssm set PanelWazeNginx Description `"Panel Waze - Nginx Reverse Proxy`" 2>&1"
-    cmd /c "nssm set PanelWazeNginx Start SERVICE_AUTO_START 2>&1"
-
-    Write-Host "  OK: PanelWazeNginx registrado" -ForegroundColor Green
+# ── Registrar nginx como Scheduled Task (no NSSM - evita spawn de procesos zombie) ──
+if ($nginxDir) {
+    Write-Host "  Registrando nginx como tarea programada..."
+    $action = New-ScheduledTaskAction -Execute "$nginxDir\nginx.exe" -WorkingDirectory $nginxDir
+    $trigger = New-ScheduledTaskTrigger -AtStartup
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero)
+    Register-ScheduledTask -TaskName "PanelWazeNginx" -Action $action -Trigger $trigger -Settings $settings -User "SYSTEM" -RunLevel Highest -Force | Out-Null
+    Write-Host "  OK: PanelWazeNginx registrado (Scheduled Task)" -ForegroundColor Green
 }
 
 # ── Firewall ──
 Write-Host "  Configurando firewall..."
 cmd /c "netsh advfirewall firewall delete rule name=`"Panel Waze HTTP`" 2>&1" | Out-Null
 cmd /c "netsh advfirewall firewall delete rule name=`"Panel Waze Backend`" 2>&1" | Out-Null
-cmd /c "netsh advfirewall firewall add rule name=`"Panel Waze HTTP`" dir=in action=allow protocol=tcp localport=$NginxPort 2>&1"
-cmd /c "netsh advfirewall firewall add rule name=`"Panel Waze Backend`" dir=in action=allow protocol=tcp localport=$BackendPort 2>&1"
+cmd /c "netsh advfirewall firewall add rule name=`"Panel Waze HTTP`" dir=in action=allow protocol=tcp localport=$NginxPort 2>&1" | Out-Null
+cmd /c "netsh advfirewall firewall add rule name=`"Panel Waze Backend`" dir=in action=allow protocol=tcp localport=$BackendPort 2>&1" | Out-Null
 Write-Host "  OK: Firewall configurado" -ForegroundColor Green
 
 # ── Iniciar servicios ──
 Write-Host ""
 Write-Host "  Iniciando servicios..."
+
 cmd /c "nssm start PanelWazeBackend 2>&1"
 Start-Sleep -Seconds 5
 
-if (Test-Path "$nginxDir\nginx.exe") {
-    cmd /c "nssm start PanelWazeNginx 2>&1"
+if ($nginxDir) {
+    Start-Process -FilePath "$nginxDir\nginx.exe" -WorkingDirectory $nginxDir
+    Start-Sleep -Seconds 2
+    $nginxCount = (Get-Process nginx -ErrorAction SilentlyContinue).Count
+    Write-Host "  nginx: $nginxCount procesos activos"
 }
 
-Start-Sleep -Seconds 3
-
-# ── Verificar health ──
+# ── Health check ──
 Write-Host ""
 Write-Host "  Verificando health check..."
+Start-Sleep -Seconds 3
+
 try {
     $health = Invoke-RestMethod -Uri "http://localhost:$BackendPort/health" -TimeoutSec 10
-    Write-Host "  Backend: OK" -ForegroundColor Green
+    Write-Host "  Backend directo (:$BackendPort): OK - $($health.uptimeFormatted)" -ForegroundColor Green
 } catch {
-    Write-Host "  Backend: aun iniciando (verificar en unos segundos)" -ForegroundColor Yellow
+    Write-Host "  Backend directo: aun iniciando" -ForegroundColor Yellow
+}
+
+try {
+    $proxy = Invoke-WebRequest -Uri "http://localhost/health" -UseBasicParsing -TimeoutSec 10
+    Write-Host "  Nginx proxy (:$NginxPort): OK" -ForegroundColor Green
+} catch {
+    Write-Host "  Nginx proxy: verificar config" -ForegroundColor Yellow
+}
+
+try {
+    $web = Invoke-WebRequest -Uri "http://localhost/" -UseBasicParsing -TimeoutSec 10
+    if ($web.Content -match "Panel|Waze|root") {
+        Write-Host "  Frontend: OK (panel cargando)" -ForegroundColor Green
+    } elseif ($web.Content -match "Welcome to nginx") {
+        Write-Host "  Frontend: AVISO - nginx muestra pagina por defecto" -ForegroundColor Yellow
+    } else {
+        Write-Host "  Frontend: responde (verificar en navegador)" -ForegroundColor Green
+    }
+} catch {
+    Write-Host "  Frontend: no responde en puerto $NginxPort" -ForegroundColor Yellow
 }
 
 # ─────────────────────────────────────────────────────────
 # RESULTADO FINAL
 # ─────────────────────────────────────────────────────────
+$serverIP = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notmatch "^(127\.|169\.)" } | Select-Object -First 1).IPAddress
+
 Write-Host ""
 Write-Host "================================================" -ForegroundColor Green
 Write-Host "  DESPLIEGUE COMPLETADO" -ForegroundColor Green
 Write-Host "================================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Panel Web:     http://10.1.0.136" -ForegroundColor White
-Write-Host "  API Backend:   http://10.1.0.136:$BackendPort/api" -ForegroundColor White
-Write-Host "  Health Check:  http://10.1.0.136:$BackendPort/health" -ForegroundColor White
+Write-Host "  Panel Web:     http://${serverIP}" -ForegroundColor White
+Write-Host "  API Backend:   http://${serverIP}:$BackendPort/api" -ForegroundColor White
+Write-Host "  Health Check:  http://${serverIP}:$BackendPort/health" -ForegroundColor White
 Write-Host ""
-Write-Host "  Servicios Windows:" -ForegroundColor White
-Write-Host "    - PanelWazeBackend  (Node.js API)" -ForegroundColor White
-Write-Host "    - PanelWazeNginx    (Reverse Proxy)" -ForegroundColor White
+Write-Host "  Servicios:" -ForegroundColor White
+Write-Host "    - PanelWazeBackend  (NSSM - auto-start)" -ForegroundColor White
+Write-Host "    - PanelWazeNginx    (Scheduled Task - at startup)" -ForegroundColor White
 Write-Host ""
-Write-Host "  Logs en: $InstallDir\logs\" -ForegroundColor White
+Write-Host "  Logs: $InstallDir\logs\" -ForegroundColor White
 Write-Host ""
 Write-Host "  Comandos utiles:" -ForegroundColor Gray
 Write-Host "    nssm restart PanelWazeBackend" -ForegroundColor Gray
-Write-Host "    nssm restart PanelWazeNginx" -ForegroundColor Gray
 Write-Host "    nssm status PanelWazeBackend" -ForegroundColor Gray
+Write-Host "    # Reiniciar nginx:" -ForegroundColor Gray
+Write-Host "    taskkill /F /IM nginx.exe; Start-Process $nginxDir\nginx.exe -WorkingDirectory $nginxDir" -ForegroundColor Gray
 Write-Host ""

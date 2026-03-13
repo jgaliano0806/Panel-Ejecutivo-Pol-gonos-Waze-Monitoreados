@@ -146,6 +146,16 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   // Estado para controlar si el mapa está cargado
   const [mapLoaded, setMapLoaded] = useState(false);
 
+  // Inyectar CSS para animación de marcador de notificación (una sola vez)
+  useEffect(() => {
+    const styleId = "pulse-ring-style";
+    if (document.getElementById(styleId)) return;
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.textContent = `@keyframes pulse-ring { 0% { box-shadow: 0 0 0 3px rgba(59,130,246,0.6), 0 2px 8px rgba(0,0,0,0.5); } 70% { box-shadow: 0 0 0 10px rgba(59,130,246,0), 0 2px 8px rgba(0,0,0,0.3); } 100% { box-shadow: 0 0 0 3px rgba(59,130,246,0.6), 0 2px 8px rgba(0,0,0,0.5); } }`;
+    document.head.appendChild(style);
+  }, []);
+
   // Hitos kilométricos
   const { data: kilometerMarkers = [] } = useKilometers(true);
   const kilometersGeoJSON = useMemo(
@@ -299,11 +309,12 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         location &&
         isValidCoord(location.lat, location.lng)
       ) {
-        console.log("📍 Focusing incident:", incidentDetails.id, location);
+        const incidentUuid =
+          incidentDetails.uuid || incidentDetails.id || selectedIncidentId;
+        console.log("📍 Focusing incident:", incidentUuid, location);
 
-        // Reconstruir propiedades para Popup
         const properties = {
-          id: incidentDetails.id,
+          id: incidentUuid,
           description:
             incidentDetails.description ||
             incidentDetails.reportDescription ||
@@ -325,6 +336,46 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
           magvar: incidentDetails.magvar || 0,
           iconId: `waze-${(incidentDetails.type || "hazard").toLowerCase()}`,
         };
+
+        // Crear marcador temporal si el incidente no tiene icono en el mapa
+        const markersMap = incidentMarkersRef.current;
+        const markerId = String(incidentUuid);
+        if (!markersMap.has(markerId) && mapRef.current) {
+          const map = mapRef.current.getMap() as maplibregl.Map;
+          const type = incidentDetails.type || "HAZARD";
+          const subtype = incidentDetails.subtype;
+          const iconUrl = getWazePartnerHubIconUrl(type, subtype);
+          const svgContent = getWazeIconSvg(type, subtype);
+          const encodedSvg = encodeURIComponent(svgContent);
+          const dataUri = `data:image/svg+xml;utf8,${encodedSvg}`;
+          const src = iconUrl || dataUri;
+
+          const el = document.createElement("div");
+          el.style.width = "36px";
+          el.style.height = "36px";
+          el.style.cursor = "pointer";
+          el.innerHTML = `
+            <div style="
+              width:36px;height:36px;border-radius:50%;
+              background:#1e293b;display:flex;align-items:center;justify-content:center;
+              box-shadow:0 0 0 3px rgba(59,130,246,0.6), 0 2px 8px rgba(0,0,0,0.5);
+              animation: pulse-ring 1.5s ease-out infinite;
+            ">
+              <img src="${src}" alt="" style="width:30px;height:30px;object-fit:contain;pointer-events:none;"
+                onerror="this.onerror=null;this.src='${dataUri}';" />
+            </div>
+          `;
+
+          el.addEventListener("click", (e) => {
+            e.stopPropagation();
+            setSelectedIncident({ lat: location.lat, lng: location.lng, properties });
+          });
+
+          const marker = new maplibregl.Marker({ element: el, anchor: "center" })
+            .setLngLat([location.lng, location.lat])
+            .addTo(map);
+          markersMap.set(markerId, marker);
+        }
 
         setSelectedIncident({
           lat: location.lat,
