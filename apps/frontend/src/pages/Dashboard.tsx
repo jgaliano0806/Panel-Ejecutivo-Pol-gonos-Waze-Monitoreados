@@ -27,6 +27,7 @@ import { MapKPIFooter } from "../components/map/MapKPIFooter";
 import { MapSidebar } from "../components/map/MapSidebar";
 import { useHistoricalData, useTrends } from "../hooks/useWazeData";
 import { initializeAudio } from "../lib/tts-service";
+import { useRealtimeNotifications } from "../hooks/useRealtimeNotifications";
 import { Map } from "../components/map/Map";
 // GlobalNotifications ahora está dentro del componente Map
 
@@ -103,7 +104,8 @@ const Dashboard: React.FC = () => {
   // Invalidar caches de React Query cuando el backend emite waze:data_updated
   // Dashboard NO está envuelto en AppLayout, así que necesita su propio listener
   useGlobalRealtime();
-  // useRealtimeNotifications ya se ejecuta en AppLayout - no duplicar aquí
+  // Dashboard NO usa AppLayout → necesita su propio hook de TTS
+  useRealtimeNotifications();
   const [selectedPolygon, setSelectedPolygon] = useState<string | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
 
