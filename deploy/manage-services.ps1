@@ -1,10 +1,10 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    Gestión de servicios del Panel Waze
+    Gestion de servicios del Panel Waze
 
 .USAGE
-    .\manage-services.ps1 -Action start|stop|restart|status|logs
+    .\manage-services.ps1 -Action start|stop|restart|status|logs|update
 #>
 
 param(
@@ -15,56 +15,84 @@ param(
     [string]$InstallDir = "C:\PanelWaze"
 )
 
-$services = @("PanelWazeBackend", "PanelWazeNginx")
+$nginxDir = (Get-ChildItem "C:\tools\nginx*" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+
+function Start-Nginx {
+    if (-not $nginxDir) { Write-Host "  nginx no encontrado" -ForegroundColor Red; return }
+    Stop-Process -Name nginx -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 1
+    Start-Process -FilePath "$nginxDir\nginx.exe" -WorkingDirectory $nginxDir
+    Start-Sleep -Seconds 1
+    $count = (Get-Process nginx -ErrorAction SilentlyContinue).Count
+    Write-Host "  nginx: $count procesos activos" -ForegroundColor Green
+}
+
+function Stop-Nginx {
+    if ($nginxDir) { cmd /c "cd /d `"$nginxDir`" && nginx.exe -s quit 2>&1" | Out-Null }
+    Start-Sleep -Seconds 2
+    Stop-Process -Name nginx -Force -ErrorAction SilentlyContinue
+    Write-Host "  nginx detenido" -ForegroundColor Green
+}
 
 switch ($Action) {
     "start" {
-        foreach ($svc in $services) {
-            Write-Host "Iniciando $svc..." -ForegroundColor Yellow
-            nssm start $svc
-        }
+        Write-Host "Iniciando PanelWazeBackend..." -ForegroundColor Yellow
+        nssm start PanelWazeBackend
+        Start-Sleep -Seconds 3
+        Write-Host "Iniciando nginx..." -ForegroundColor Yellow
+        Start-Nginx
         Write-Host "Servicios iniciados." -ForegroundColor Green
     }
 
     "stop" {
-        foreach ($svc in $services) {
-            Write-Host "Deteniendo $svc..." -ForegroundColor Yellow
-            nssm stop $svc
-        }
+        Write-Host "Deteniendo PanelWazeBackend..." -ForegroundColor Yellow
+        nssm stop PanelWazeBackend
+        Write-Host "Deteniendo nginx..." -ForegroundColor Yellow
+        Stop-Nginx
         Write-Host "Servicios detenidos." -ForegroundColor Green
     }
 
     "restart" {
-        foreach ($svc in $services) {
-            Write-Host "Reiniciando $svc..." -ForegroundColor Yellow
-            nssm restart $svc
-        }
+        Write-Host "Reiniciando PanelWazeBackend..." -ForegroundColor Yellow
+        nssm restart PanelWazeBackend
+        Start-Sleep -Seconds 3
+        Write-Host "Reiniciando nginx..." -ForegroundColor Yellow
+        Stop-Nginx
+        Start-Sleep -Seconds 1
+        Start-Nginx
         Write-Host "Servicios reiniciados." -ForegroundColor Green
     }
 
     "status" {
         Write-Host ""
         Write-Host "Estado de servicios:" -ForegroundColor Cyan
-        foreach ($svc in $services) {
-            $state = nssm status $svc 2>$null
-            $color = if ($state -match "Running") { "Green" } else { "Red" }
-            Write-Host "  $svc : $state" -ForegroundColor $color
-        }
+        $backendState = nssm status PanelWazeBackend 2>$null
+        $bColor = if ($backendState -match "Running") { "Green" } else { "Red" }
+        Write-Host "  PanelWazeBackend: $backendState" -ForegroundColor $bColor
+
+        $nginxCount = (Get-Process nginx -ErrorAction SilentlyContinue).Count
+        $nColor = if ($nginxCount -gt 0) { "Green" } else { "Red" }
+        Write-Host "  nginx: $nginxCount procesos" -ForegroundColor $nColor
 
         Write-Host ""
-        Write-Host "Health check backend:" -ForegroundColor Cyan
+        Write-Host "Health check:" -ForegroundColor Cyan
         try {
             $health = Invoke-RestMethod -Uri "http://localhost:3002/health" -TimeoutSec 5
-            Write-Host "  Status: OK" -ForegroundColor Green
-            Write-Host "  $($health | ConvertTo-Json -Compress)" -ForegroundColor Gray
+            Write-Host "  Backend: OK ($($health.uptimeFormatted))" -ForegroundColor Green
         } catch {
-            Write-Host "  Status: NO RESPONDE" -ForegroundColor Red
+            Write-Host "  Backend: NO RESPONDE" -ForegroundColor Red
+        }
+        try {
+            $null = Invoke-WebRequest -Uri "http://localhost/health" -UseBasicParsing -TimeoutSec 5
+            Write-Host "  Nginx:   OK (proxy funciona)" -ForegroundColor Green
+        } catch {
+            Write-Host "  Nginx:   NO RESPONDE" -ForegroundColor Yellow
         }
         Write-Host ""
     }
 
     "logs" {
-        Write-Host "Ultimas 50 lineas del log del backend:" -ForegroundColor Cyan
+        Write-Host "Ultimas 50 lineas del log:" -ForegroundColor Cyan
         Write-Host ""
         if (Test-Path "$InstallDir\logs\backend-stderr.log") {
             Get-Content "$InstallDir\logs\backend-stderr.log" -Tail 50
@@ -76,39 +104,37 @@ switch ($Action) {
     "update" {
         Write-Host "Actualizando Panel Waze..." -ForegroundColor Yellow
 
-        # Detener servicios
-        foreach ($svc in $services) { nssm stop $svc 2>$null }
+        nssm stop PanelWazeBackend 2>$null
+        Stop-Nginx
 
         Push-Location $InstallDir
 
-        # Pull cambios
         Write-Host "  git pull..."
-        git pull
+        cmd /c "git pull 2>&1"
 
-        # Reinstalar dependencias
         Write-Host "  npm ci..."
-        npm ci --include=dev 2>&1 | Out-Null
+        cmd /c "npm ci --include=dev 2>&1" | Out-Null
 
-        # Rebuild
         Write-Host "  Compilando types..."
         Push-Location "$InstallDir\packages\types"
-        npm run build
+        cmd /c "npm run build 2>&1"
         Pop-Location
 
         Write-Host "  Compilando backend..."
         Push-Location "$InstallDir\apps\backend"
-        npm run build
+        cmd /c "npm run build 2>&1"
         Pop-Location
 
         Write-Host "  Compilando frontend..."
         Push-Location "$InstallDir\apps\frontend"
-        npm run build
+        cmd /c "npm run build 2>&1"
         Pop-Location
 
         Pop-Location
 
-        # Reiniciar servicios
-        foreach ($svc in $services) { nssm start $svc }
+        nssm start PanelWazeBackend
+        Start-Sleep -Seconds 3
+        Start-Nginx
 
         Write-Host ""
         Write-Host "Actualizacion completada." -ForegroundColor Green
