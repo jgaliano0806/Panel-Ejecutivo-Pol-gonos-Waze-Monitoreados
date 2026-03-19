@@ -29,7 +29,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const { getFallbackRoute } = usePermission();
 
   useEffect(() => {
-    checkSession();
+    // Solo verificar si aún no está autenticado (evita llamadas extra en navegación entre páginas)
+    if (!isAuthenticated) {
+      checkSession();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

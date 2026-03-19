@@ -78,7 +78,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: localStorage.getItem(TOKEN_KEY),
   isAuthenticated: false,
-  isLoading: true, // true al inicio para verificar sesión
+  // true solo si hay token que verificar; si no hay token, el login es inmediato
+  isLoading: !!localStorage.getItem(TOKEN_KEY),
   error: null,
 
   login: async (email: string, password: string): Promise<boolean> => {

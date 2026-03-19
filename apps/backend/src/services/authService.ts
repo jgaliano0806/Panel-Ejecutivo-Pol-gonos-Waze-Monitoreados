@@ -168,23 +168,24 @@ class AuthService {
       [user.id],
     );
 
-    // 6. Obtener roles y permisos
-    const rolesResult = await dbService.query(
-      `SELECT r.id, r.name, r.color
-       FROM roles r
-       INNER JOIN user_roles ur ON ur.role_id = r.id
-       WHERE ur.user_id = $1 AND r.is_active = true`,
-      [user.id],
-    );
-
-    const permissionsResult = await dbService.query(
-      `SELECT DISTINCT p.code
-       FROM permissions p
-       INNER JOIN role_permissions rp ON rp.permission_id = p.id
-       INNER JOIN user_roles ur ON ur.role_id = rp.role_id
-       WHERE ur.user_id = $1 AND p.is_active = true`,
-      [user.id],
-    );
+    // 6. Obtener roles y permisos en paralelo
+    const [rolesResult, permissionsResult] = await Promise.all([
+      dbService.query(
+        `SELECT r.id, r.name, r.color
+         FROM roles r
+         INNER JOIN user_roles ur ON ur.role_id = r.id
+         WHERE ur.user_id = $1 AND r.is_active = true`,
+        [user.id],
+      ),
+      dbService.query(
+        `SELECT DISTINCT p.code
+         FROM permissions p
+         INNER JOIN role_permissions rp ON rp.permission_id = p.id
+         INNER JOIN user_roles ur ON ur.role_id = rp.role_id
+         WHERE ur.user_id = $1 AND p.is_active = true`,
+        [user.id],
+      ),
+    ]);
 
     const roles = rolesResult.rows.map((r) => ({
       id: r.id,

@@ -47,7 +47,7 @@ export default defineConfig(({ mode }) => {
           target: "https://a.basemaps.cartocdn.com",
           changeOrigin: true,
           rewrite: (tilePath: string) =>
-            tilePath.replace(/^\/tiles\/carto-dark/, "/dark_matter"),
+            tilePath.replace(/^\/tiles\/carto-dark/, "/dark_all"),
         },
         "/tiles/carto-light": {
           target: "https://a.basemaps.cartocdn.com",
