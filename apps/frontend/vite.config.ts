@@ -44,14 +44,16 @@ export default defineConfig(({ mode }) => {
           rewrite: (path: string) => path.replace(/^\/tiles\/osm/, ""),
         },
         "/tiles/carto-dark": {
-          target: "https://basemaps.cartocdn.com/dark_all",
+          target: "https://a.basemaps.cartocdn.com",
           changeOrigin: true,
-          rewrite: (path: string) => path.replace(/^\/tiles\/carto-dark/, ""),
+          rewrite: (tilePath: string) =>
+            tilePath.replace(/^\/tiles\/carto-dark/, "/dark_matter"),
         },
         "/tiles/carto-light": {
-          target: "https://basemaps.cartocdn.com/light_all",
+          target: "https://a.basemaps.cartocdn.com",
           changeOrigin: true,
-          rewrite: (path: string) => path.replace(/^\/tiles\/carto-light/, ""),
+          rewrite: (tilePath: string) =>
+            tilePath.replace(/^\/tiles\/carto-light/, "/light_all"),
         },
       },
     },

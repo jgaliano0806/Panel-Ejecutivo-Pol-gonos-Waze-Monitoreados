@@ -741,10 +741,10 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   );
 
   const flowGeoJSON = useMemo(() => {
-    const flowLines =
-      trafficFlow.length > 0
-        ? trafficFlow
-        : jams.filter((j) => (j.speed || 0) > 20);
+    // Usar trafficFlow si está disponible; si no, mostrar TODOS los jams
+    // coloreados por velocidad (sin filtrar por speed) para que el gradiente
+    // de color sea visible en toda la red vial monitorizada.
+    const flowLines = trafficFlow.length > 0 ? trafficFlow : jams;
     return {
       type: "FeatureCollection",
       features: flowLines
@@ -787,11 +787,10 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   }, [trafficFlow, jams]);
 
   // Segmentos fluidos (speed >= 50): sin congestión = tráfico fluido → línea verde animada
+  // Solo disponible si se proveen datos TVT (trafficFlow). Los jams de Waze no
+  // contienen segmentos en flujo libre, por lo que esta capa queda vacía sin TVT.
   const flowFluidGeoJSON = useMemo(() => {
-    const flowLines =
-      trafficFlow.length > 0
-        ? trafficFlow
-        : jams.filter((j) => (j.speed || 0) > 20);
+    const flowLines = trafficFlow.length > 0 ? trafficFlow : jams;
     const fluid = flowLines.filter((j) => (j.speed || 0) >= 50);
     return {
       type: "FeatureCollection",
@@ -828,8 +827,11 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   }, [trafficFlow, jams]);
 
   const jamsGeoJSON = useMemo(() => {
+    // Solo congestión SEVERA recibe el efecto glow (level>=3 o speed<15 km/h).
+    // Congestión moderada (level 1-2, speed 15-50) se ve como línea de flujo
+    // coloreada por velocidad en la capa flow-line, sin glow encima.
     const congested = jams.filter(
-      (j) => (j.level || 0) >= 2 || (j.speed || 0) <= 25,
+      (j) => (j.level || 0) >= 3 || (j.speed || 0) <= 15,
     );
     return {
       type: "FeatureCollection",

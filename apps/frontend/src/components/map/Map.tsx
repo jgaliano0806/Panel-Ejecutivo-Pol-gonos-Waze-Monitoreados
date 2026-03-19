@@ -37,9 +37,9 @@ export const Map: React.FC<MapProps> = (props) => {
       <MapLibreMap
         polygons={props.polygons}
         jams={props.jams}
-        // trafficFlow no se pasa - MapLibreMap usa su lógica interna:
-        // - flowGeoJSON: muestra jams con speed > 20 km/h (flujo normal)
-        // - jamsGeoJSON: muestra jams con level >= 3 o speed <= 20 (congestión)
+        // trafficFlow no se pasa → MapLibreMap usa jams como fuente de flujo:
+        // - flowGeoJSON: TODOS los jams coloreados por velocidad (getFlowColor)
+        // - jamsGeoJSON: solo congestión severa (level>=3 o speed<=15) con efecto glow
         incidents={props.incidents}
         onPolygonClick={props.onPolygonClick}
         selectedPolygon={props.selectedPolygon}
