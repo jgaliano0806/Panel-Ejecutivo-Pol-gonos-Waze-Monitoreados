@@ -163,25 +163,34 @@ export class WazePollingService {
     let errorCount = 0;
 
     try {
-      for (const polygon of REAL_POLYGONS) {
-        try {
-          const result = await this.fetchAndStorePolygonData(polygon);
-          results.push(result);
+      // Procesar en batches paralelos de 10 polígonos
+      const BATCH_SIZE = 10;
+      for (let i = 0; i < REAL_POLYGONS.length; i += BATCH_SIZE) {
+        const batch = REAL_POLYGONS.slice(i, i + BATCH_SIZE);
+        const batchResults = await Promise.allSettled(
+          batch.map(async (polygon) => {
+            const result = await this.fetchAndStorePolygonData(polygon);
+            if (result.success) {
+              await this.emitUpdate(polygon.id);
+            }
+            return result;
+          }),
+        );
 
-          if (result.success) {
-            successCount++;
-            await this.emitUpdate(polygon.id);
+        for (const settled of batchResults) {
+          if (settled.status === "fulfilled") {
+            results.push(settled.value);
+            if (settled.value.success) successCount++;
+            else errorCount++;
           } else {
             errorCount++;
+            logger.error(`❌ Error polling batch:`, String(settled.reason));
           }
+        }
 
-          await this.sleep(this.RATE_LIMIT_DELAY_MS);
-        } catch (error) {
-          errorCount++;
-          logger.error(
-            `❌ Error polling ${polygon.name}:`,
-            error instanceof Error ? error.message : String(error),
-          );
+        // Pequeña pausa entre batches para no saturar Waze API
+        if (i + BATCH_SIZE < REAL_POLYGONS.length) {
+          await this.sleep(200);
         }
       }
 
