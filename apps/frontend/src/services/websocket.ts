@@ -4,7 +4,7 @@ import {
   Notification,
 } from "@/stores/useNotificationStore";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { translateWazeMessage } from "@/lib/waze-translator";
+import { translateWazeType, translateWazeMessage } from "@/lib/waze-translator";
 import { speakNotification, isAudioUnlocked } from "@/lib/tts-utils";
 import { shouldShowTTSAndSnackbar } from "@/config/notificationFilters";
 import { logger } from "@/lib/logger";
@@ -195,114 +195,42 @@ const playAlertBeep = (): void => {
 };
 
 /**
- * Genera mensaje descriptivo para TTS basado en tipo, subtipo y ubicación
+ * Genera un mensaje descriptivo para TTS basado en la plantilla formal solicitada:
+ * "Atención, operadores. Nuevo incidente ingresado en el sistema. Reporte: [Tipo y Subtipo]. Localización: [Ubicación Vial], a la altura del kilómetro [Número]."
  */
 const buildTTSMessage = (notification: Notification): string => {
   const subtype = notification.data?.subtype || "";
-  const street = notification.data?.street || "";
-  const city = notification.data?.city || "";
   const type = notification.type || notification.data?.incidentType || "";
   const polygonGroup = notification.data?.polygonGroup || "";
   const polygonName = notification.data?.polygonName || "";
 
-  // Limpiar street de Waze (puede venir con KM, altura, abreviaturas)
-  const streetClean = street
-    ? street
-        .replace(/\bRN\s*/gi, "Ruta Nacional ")
-        .replace(/\bRP\s*/gi, "Ruta Provincial ")
-        .replace(/\bAU\s*/gi, "Autopista ")
-        .replace(/\bAv\.?\s*/gi, "Avenida ")
-        .replace(/\bKM\s*\d+/gi, "")
-        .replace(/\baltura\s*\d*/gi, "")
-        .replace(/\//g, ", ")
-        .replace(/\s*,\s*,/g, ",")
-        .replace(/^\s*,\s*|\s*,\s*$/g, "")
-        .trim()
-    : "";
+  // 1. Obtener traducción de Tipo y Subtipo
+  const reporte = translateWazeType(type as string, subtype as string);
 
-  // Construir ubicación: grupo primero, tramo después
-  // 1. polygonGroup (ruta/vía) + polygonName (tramo) — ej: "Autovía A-019, tramo A-019-5"
-  // 2. polygonName solo — si no hay grupo
-  // 3. streetClean de Waze
-  // 4. city — último recurso
-  let ubicacion = "";
-  if (polygonGroup) {
-    ubicacion = polygonGroup;
-    if (polygonName && polygonName !== polygonGroup) {
-      ubicacion += `, tramo ${polygonName}`;
-    }
-  } else if (polygonName) {
-    ubicacion = polygonName;
-  } else if (streetClean) {
-    ubicacion = streetClean;
-  } else if (city) {
-    ubicacion = city;
-  }
+  // 2. Construir Ubicación Vial
+  // Preferimos polygonGroup si existe (ej: "Ruta Nacional 9"), si no polygonName (ej: "A-019-5")
+  let via = polygonGroup || polygonName || notification.data?.street || "vía no especificada";
 
-  // Mensajes específicos por subtipo
-  const subtypeMessages: Record<string, string> = {
-    // Vehículo detenido
-    HAZARD_ON_SHOULDER_CAR_STOPPED: "Vehículo detenido en banquina.",
-    HAZARD_ON_ROAD_CAR_STOPPED:
-      "Vehículo detenido en carril. Reducir velocidad.",
+  // REGLA ESPECIAL: En Circunvalación cambiar "Adiecinueve" por "cerodiecinueve"
+  const esCircunvalacion = 
+    via.toLowerCase().includes("circunvalacion") || 
+    via.toLowerCase().includes("a-019") || 
+    polygonGroup.toLowerCase().includes("circunvalacion");
 
-    // Accidentes
-    ACCIDENT_MAJOR:
-      "Accidente grave reportado. Posibles demoras significativas.",
-    ACCIDENT_MINOR: "Accidente menor reportado.",
-
-    // Obstáculos
-    HAZARD_ON_ROAD_OBJECT: "Obstáculo en la calzada. Circular con precaución.",
-    HAZARD_ON_ROAD_POT_HOLE: "Bache peligroso en la vía.",
-    HAZARD_ON_ROAD_CONSTRUCTION: "Zona de construcción activa.",
-    HAZARD_ON_ROAD_LANE_CLOSED: "Carril cerrado. Espere demoras.",
-    HAZARD_ON_ROAD_ICE: "Hielo en la calzada. Máxima precaución.",
-    HAZARD_ON_ROAD_OIL: "Derrame de aceite en la vía.",
-    HAZARD_ON_ROAD_ROAD_KILL: "Animal atropellado en la vía.",
-    HAZARD_ON_ROAD_TRAFFIC_LIGHT_FAULT: "Semáforo fuera de servicio.",
-
-    // Animales
-    HAZARD_ON_SHOULDER_ANIMALS:
-      "Animales sueltos cerca de la vía. Máxima precaución.",
-
-    // Clima
-    HAZARD_WEATHER_FLOOD: "Inundación en la vía. Buscar ruta alternativa.",
-    HAZARD_WEATHER_FOG: "Niebla densa. Reducir velocidad y usar luces.",
-    HAZARD_WEATHER_HEAVY_RAIN: "Lluvia intensa. Precaución al conducir.",
-    HAZARD_WEATHER_HAIL: "Granizo reportado en la zona.",
-
-    // Otros peligros
-    HAZARD_ON_SHOULDER: "Peligro en la banquina.",
-    HAZARD_ON_SHOULDER_MISSING_SIGN: "Señalización faltante o dañada.",
-  };
-
-  // Obtener mensaje del subtipo, o generar uno genérico
-  let mensaje = subtypeMessages[subtype];
-
-  if (!mensaje) {
-    // Mensaje genérico basado en tipo principal (cast to string for comparison)
-    const typeStr = String(type);
-    if (typeStr === "ACCIDENT") {
-      mensaje = "Accidente reportado en la vía.";
-    } else if (typeStr === "HAZARD") {
-      mensaje = "Peligro reportado en la vía.";
-    } else if (typeStr === "WEATHERHAZARD") {
-      mensaje = "Alerta climática en la zona.";
-    } else {
-      mensaje = "Incidente reportado.";
+  if (esCircunvalacion) {
+    via = via.replace(/adiecinueve/gi, "cerodiecinueve");
+    via = via.replace(/A-0?19/gi, "Ruta Nacional cerodiecinueve");
+    // Si el nombre es solo el tramo, asegurar que se mencione la vía
+    if (!via.toLowerCase().includes("circunvalacion")) {
+      via = `Circunvalación ${via}`;
     }
   }
 
-  // Construir mensaje completo
-  let mensajeCompleto = `Atención operador. ${mensaje}`;
-
-  if (ubicacion) {
-    mensajeCompleto += ` Ubicación: ${ubicacion}.`;
-  }
-
-  // Buscar hito kilométrico más cercano
+  // 3. Obtener Hito Kilométrico
+  let localizacionExtra = "";
   const lat = notification.data?.location?.y ?? notification.data?.latitude;
   const lng = notification.data?.location?.x ?? notification.data?.longitude;
+  
   if (lat != null && lng != null) {
     const kmMarkers = useKilometerStore.getState().markers;
     const nearest = getNearestKilometer(
@@ -310,11 +238,16 @@ const buildTTSMessage = (notification: Notification): string => {
       kmMarkers,
     );
     if (nearest) {
-      mensajeCompleto += ` Cerca de ${nearest.name}.`;
+      // Intentar extraer solo el número del nombre del hito (ej: "Km 710" -> "setecientos diez")
+      // pero por ahora usamos el nombre tal cual para seguridad
+      localizacionExtra = `, a la altura del ${nearest.name.toLowerCase()}`;
     }
   }
 
-  return mensajeCompleto;
+  // 4. Armar Mensaje Final siguiendo la plantilla
+  const mensajeFinal = `Atención, operadores. Nuevo incidente ingresado en el sistema. Reporte: ${reporte}. Localización: ${via}${localizacionExtra}.`;
+
+  return mensajeFinal;
 };
 
 /**

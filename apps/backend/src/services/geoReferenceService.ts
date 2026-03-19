@@ -286,26 +286,48 @@ export class GeoReferenceService {
 
     const parts = [
       "Atención, operadores.",
-      "Nuevo evento ingresado en el sistema.",
+      "Nuevo incidente ingresado en el sistema.",
       `Reporte: ${typeLabel}.`,
-      "Localización:"
+      "Localización:",
     ];
 
     if (nearest) {
-      const routeSpeech = routeNameToSpeech(nearest.route_name);
+      let routeSpeech = routeNameToSpeech(nearest.route_name);
       const kmSpeech = kmNumberToWords(nearest.km_label);
+
+      // REGLA ESPECIAL: En Circunvalación (A-19) cambiar "Adiecinueve" por "cerodiecinueve"
+      // También aplica a Ruta Nacional 19
+      if (
+        nearest.route_name.toLowerCase().includes("a-19") ||
+        nearest.route_name.toLowerCase().includes("circunvalacion") ||
+        nearest.route_name.includes("19")
+      ) {
+        routeSpeech = routeSpeech.replace(/Adiecinueve/gi, "cerodiecinueve");
+        routeSpeech = routeSpeech.replace(/diecinueve/gi, "cerodiecinueve");
+        
+        // Si no menciona Circunvalación, lo agregamos para claridad del operador
+        if (!routeSpeech.toLowerCase().includes("circunvalacion")) {
+          routeSpeech = `${routeSpeech} Circunvalación`;
+        }
+      }
 
       if (routeSpeech) {
         parts.push(`${routeSpeech},`);
       }
       parts.push(`a la altura del ${kmSpeech}.`);
     } else if (street) {
-      const streetClean = street
+      let streetClean = street
         .replace(/\bRN\s*/gi, "Ruta Nacional ")
         .replace(/\bRP\s*/gi, "Ruta Provincial ")
         .replace(/\bAv\.?\s*/gi, "Avenida ")
         .replace(/\bKM\s*(\d+)/gi, "kilómetro $1")
         .trim();
+
+      // Aplicar regla cerodiecinueve también en streets limpias si es la RN 19
+      if (streetClean.includes("19") || streetClean.toLowerCase().includes("a-19")) {
+        streetClean = streetClean.replace(/19/g, "cerodiecinueve");
+      }
+
       parts.push(`${streetClean}.`);
     } else {
       parts.push("Coordenadas no referenciadas.");

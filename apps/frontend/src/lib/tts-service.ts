@@ -298,6 +298,7 @@ const cleanTextForTTS = (text: string): string => {
       .replace(/\bE(\d+)\b/gi, "E $1")
       .replace(/\bT(\d+)\b/gi, "tramo $1")
       .replace(/\s+/g, " ")
+      .replace(/Adiecinueve/gi, "cerodiecinueve") // Regla fonética global para RAC
       .trim()
   );
 };
@@ -312,6 +313,7 @@ const buildNaturalMessage = (title: string, message: string): string => {
   const lowerTitle = cleanTitle.toLowerCase();
   // Si el título ya empieza con "atención", "atencion" o "alerta", no agregarlo de nuevo
   const hasPrefix = lowerTitle.startsWith("atención") || 
+                    lowerTitle.startsWith("atención,") || 
                     lowerTitle.startsWith("atencion") || 
                     lowerTitle.startsWith("alerta");
 
