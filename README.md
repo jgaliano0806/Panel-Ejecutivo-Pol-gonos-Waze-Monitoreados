@@ -43,11 +43,23 @@
    - Frontend: http://localhost:5180
    - Backend: http://localhost:3002
 
-### En el servidor (servicio NSSM)
+### En el servidor (servicios NSSM)
+
+| Script | Descripción |
+|--------|-------------|
+| `scripts\INSTALAR-NSSM.bat` | **Instalación completa**: NSSM, backend, frontend y firewall (ejecutar como Admin) |
+| `scripts\INSTALAR-BACKEND-SERVICIO.bat` | Solo instalar/reinstalar servicio backend |
+| `scripts\INSTALAR-FRONTEND-SERVICIO.bat` | Solo instalar/reinstalar servicio frontend |
+| `scripts\REINICIAR-SERVICIO.bat` | Reiniciar solo backend |
+| `scripts\REINICIAR-SERVICIOS.bat` | Reiniciar backend y frontend |
+| `scripts\start-all.bat` | Iniciar PostgreSQL + servicios (o fallback a modo dev) |
 
 ```powershell
-# Como Administrador:
-nssm restart PanelWazeBackend
+# Primera vez: instalar todo (como Administrador)
+scripts\INSTALAR-NSSM.bat
+
+# Reiniciar tras cambios
+scripts\REINICIAR-SERVICIOS.bat
 ```
 
 Ver [docs/INSTRUCTIVO_DESPLIEGUE.md](./docs/INSTRUCTIVO_DESPLIEGUE.md) para el procedimiento completo.

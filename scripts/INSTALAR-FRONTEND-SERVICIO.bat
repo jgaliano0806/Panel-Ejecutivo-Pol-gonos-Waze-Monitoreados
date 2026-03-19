@@ -2,17 +2,34 @@
 chcp 65001 >nul
 title Instalar servicio PanelWazeFrontend
 
+:: Rutas derivadas de la ubicación del script
+set "SCRIPT_DIR=%~dp0"
+pushd "%SCRIPT_DIR%.."
+set "PROJECT=%CD%"
+popd
+
 set NSSM=C:\ProgramData\chocolatey\lib\NSSM\tools\nssm.exe
 set NODE=C:\Program Files\nodejs\node.exe
-set SERVE_JS=C:\Users\waze\AppData\Roaming\npm\node_modules\serve\build\main.js
-set APP_DIR=D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados\apps\frontend
-set LOGS=D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados\logs
+set SERVE_JS=%APPDATA%\npm\node_modules\serve\build\main.js
+set APP_DIR=%PROJECT%\apps\frontend
+set LOGS=%PROJECT%\logs
 
 echo.
 echo ================================================
 echo  Instalando servicio PanelWazeFrontend...
 echo ================================================
 echo.
+
+if not exist "%SERVE_JS%" (
+    echo Instalando serve globalmente...
+    npm install -g serve
+)
+
+if not exist "%APP_DIR%\dist\index.html" (
+    echo ERROR: Frontend no compilado. Ejecute: npm run build --workspace=apps/frontend
+    pause
+    exit /b 1
+)
 
 :: Detener y eliminar si ya existe
 "%NSSM%" stop PanelWazeFrontend 2>nul
