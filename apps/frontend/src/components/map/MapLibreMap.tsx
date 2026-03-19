@@ -1105,9 +1105,9 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
           type: "raster",
           tiles: isDark
             ? ["/tiles/carto-dark/{z}/{x}/{y}.png"]
-            : ["/tiles/osm/{z}/{x}/{y}.png"],
+            : ["/tiles/carto-light/{z}/{x}/{y}.png"],
           tileSize: 256,
-          attribution: isDark ? "© CARTO" : "© OpenStreetMap contributors",
+          attribution: "© CARTO",
         },
       },
       layers: [{ id: "basemap", type: "raster", source: "basemap" }],

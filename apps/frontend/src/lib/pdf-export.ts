@@ -45,7 +45,7 @@ async function loadLogoAsBase64(): Promise<string | null> {
 }
 
 /**
- * Genera una imagen del mapa usando tiles de OpenStreetMap directamente
+ * Genera una imagen del mapa usando tiles de CARTO Light via proxy interno
  * Renderiza los tiles en un canvas local con el marcador centrado
  */
 async function generateMapImage(
@@ -145,7 +145,7 @@ async function generateMapImage(
               tileResolve();
             };
 
-            img.src = `https://tile.openstreetmap.org/${zoom}/${tileX}/${tileY}.png`;
+            img.src = `/tiles/carto-light/${zoom}/${tileX}/${tileY}.png`;
           });
 
           tileLoadPromises.push(promise);
