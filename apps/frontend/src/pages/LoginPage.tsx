@@ -107,7 +107,7 @@ export const LoginPage: React.FC = () => {
               transition={{ delay: 0.3 }}
               className="text-2xl font-bold text-white mb-1"
             >
-              Panel Ejecutivo
+              Panel Waze RAC
             </motion.h1>
             <motion.p
               initial={{ opacity: 0 }}

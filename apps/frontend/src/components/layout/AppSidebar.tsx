@@ -129,7 +129,7 @@ export const AppSidebar: React.FC = () => {
               <span className="text-white font-bold text-sm">PW</span>
             </div>
             <div>
-              <div className="font-bold text-sm">Panel Ejecutivo</div>
+              <div className="font-bold text-sm">Panel Waze RAC</div>
               <div className="text-xs text-gray-400">Waze Monitoreados</div>
             </div>
           </motion.div>

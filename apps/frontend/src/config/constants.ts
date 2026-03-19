@@ -113,7 +113,7 @@ export const MAP_CONFIG = {
 // TEXTOS DE LA INTERFAZ
 // ============================================
 export const UI_TEXTS = {
-  appTitle: "Panel Ejecutivo",
+  appTitle: "Panel Waze RAC",
   appSubtitle: "Monitoreo de Tráfico en Tiempo Real",
   dataSource: "Datos en vivo de Waze for Cities",
   footer: {
