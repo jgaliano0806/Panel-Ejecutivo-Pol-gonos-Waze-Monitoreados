@@ -252,6 +252,12 @@ export const RoadAccidentsPage: React.FC = () => {
   };
 
   const getLocationDisplay = (acc: RoadAccident) => {
+    // Priorizar ubicación vial
+    if (acc.waze_data?.nearestKmName) {
+      const route = acc.waze_data.nearestKmRoute ? `${acc.waze_data.nearestKmRoute} - ` : "";
+      const km = acc.waze_data.nearestKmName.split(" - ").pop() || acc.waze_data.nearestKmName;
+      return `${route}${km}`;
+    }
     if (acc.street) return acc.street;
     if (acc.description) return acc.description;
     if (acc.polygon_id) {
@@ -513,12 +519,26 @@ export const RoadAccidentsPage: React.FC = () => {
                   <MapPin className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Ubicación
+                      Ubicación Vial
                     </p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {accident.street ||
-                        `${accident.location_lat.toFixed(5)}, ${accident.location_lng.toFixed(5)}`}
-                    </p>
+                    {accident.waze_data?.nearestKmName ? (
+                      <>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {accident.waze_data.nearestKmRoute ? `${accident.waze_data.nearestKmRoute} - ` : ""}
+                          {accident.waze_data.nearestKmName.split(" - ").pop()}
+                        </p>
+                        {accident.street && (
+                          <p className="text-xs text-gray-400 dark:text-gray-500 truncate">
+                            {accident.street}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {accident.street ||
+                          `${accident.location_lat.toFixed(5)}, ${accident.location_lng.toFixed(5)}`}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -1036,10 +1056,12 @@ export const RoadAccidentsPage: React.FC = () => {
             </div>
             <form onSubmit={handleCreateAccident} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-veltrix-muted mb-1">
+                <label htmlFor="lat-input" className="block text-sm font-medium text-gray-700 dark:text-veltrix-muted mb-1">
                   Latitud *
                 </label>
                 <input
+                  id="lat-input"
+                  title="Latitud"
                   type="text"
                   inputMode="decimal"
                   required
@@ -1055,10 +1077,12 @@ export const RoadAccidentsPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-veltrix-muted mb-1">
+                <label htmlFor="lng-input" className="block text-sm font-medium text-gray-700 dark:text-veltrix-muted mb-1">
                   Longitud *
                 </label>
                 <input
+                  id="lng-input"
+                  title="Longitud"
                   type="text"
                   inputMode="decimal"
                   required
@@ -1074,10 +1098,12 @@ export const RoadAccidentsPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-veltrix-muted mb-1">
+                <label htmlFor="street-input" className="block text-sm font-medium text-gray-700 dark:text-veltrix-muted mb-1">
                   Calle (opcional)
                 </label>
                 <input
+                  id="street-input"
+                  title="Calle"
                   type="text"
                   value={newAccident.street}
                   onChange={(e) =>
@@ -1088,10 +1114,12 @@ export const RoadAccidentsPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-veltrix-muted mb-1">
+                <label htmlFor="polygon-select" className="block text-sm font-medium text-gray-700 dark:text-veltrix-muted mb-1">
                   Polígono (opcional)
                 </label>
                 <select
+                  id="polygon-select"
+                  title="Seleccionar polígono"
                   value={newAccident.polygon_id}
                   onChange={(e) =>
                     setNewAccident((p) => ({
@@ -1110,10 +1138,12 @@ export const RoadAccidentsPage: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-veltrix-muted mb-1">
+                <label htmlFor="datetime-input" className="block text-sm font-medium text-gray-700 dark:text-veltrix-muted mb-1">
                   Fecha y hora
                 </label>
                 <input
+                  id="datetime-input"
+                  title="Fecha y hora del accidente"
                   type="datetime-local"
                   value={newAccident.accident_at}
                   onChange={(e) =>
@@ -1222,6 +1252,7 @@ export const RoadAccidentsPage: React.FC = () => {
                       <input
                         type="file"
                         id="file-upload-media"
+                        title="Seleccionar archivos multimedia"
                         className="hidden"
                         multiple
                         accept="image/*,video/*"
@@ -1290,6 +1321,7 @@ export const RoadAccidentsPage: React.FC = () => {
                       <input
                         type="file"
                         id="file-upload-docs"
+                        title="Seleccionar documentos"
                         className="hidden"
                         multiple
                         accept=".pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -1381,10 +1413,7 @@ export const RoadAccidentsPage: React.FC = () => {
                       2 * Math.PI * 70 * (1 - backfillProgress / 100)
                     }`}
                     strokeLinecap="round"
-                    className="transition-all duration-500 ease-out drop-shadow-lg"
-                    style={{
-                      filter: "drop-shadow(0 0 8px rgba(59, 130, 246, 0.5))",
-                    }}
+                    className="transition-all duration-500 ease-out drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]"
                   />
                 </svg>
 
@@ -1399,10 +1428,7 @@ export const RoadAccidentsPage: React.FC = () => {
                 </div>
 
                 {/* Efecto de pulso */}
-                <div
-                  className="absolute inset-0 rounded-full border-4 border-blue-400 opacity-20 animate-ping"
-                  style={{ animationDuration: "2s" }}
-                ></div>
+                <div className="absolute inset-0 rounded-full border-4 border-blue-400 opacity-20 animate-ping [animation-duration:2s]"></div>
               </div>
 
               {/* Texto de estado */}
@@ -1448,18 +1474,9 @@ export const RoadAccidentsPage: React.FC = () => {
               {/* Mensaje de espera con animación */}
               <div className="flex items-center gap-2 mt-4">
                 <div className="flex gap-1">
-                  <div
-                    className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
-                    style={{ animationDelay: "0ms" }}
-                  ></div>
-                  <div
-                    className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
-                    style={{ animationDelay: "150ms" }}
-                  ></div>
-                  <div
-                    className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
-                    style={{ animationDelay: "300ms" }}
-                  ></div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0ms]"></div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:150ms]"></div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:300ms]"></div>
                 </div>
                 <p className="text-xs text-gray-400 text-center">
                   Este proceso puede tardar varios minutos

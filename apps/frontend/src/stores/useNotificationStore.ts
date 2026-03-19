@@ -14,6 +14,10 @@ export interface NotificationData {
   city?: string;
   polygonName?: string;
   polygonGroup?: string;
+  nearestKmName?: string | null;
+  nearestKmRoute?: string | null;
+  nearestKmDistance?: number | null;
+  ttsText?: string | null;
 }
 
 export interface Notification {
@@ -151,6 +155,17 @@ export const useNotificationStore = create<NotificationState>()(
             .filter((n) => n.data?.alertId)
             .map((n) => n.data!.alertId),
         );
+        const existingContentHashes = new Set(
+          notifications.map((n) => {
+            const type = n.type || n.data?.incidentType || "";
+            const subtype = n.data?.subtype || "";
+            const street = (n.data?.street || "").toLowerCase().trim();
+            const lat = n.data?.location?.y ?? n.data?.latitude ?? 0;
+            const lng = n.data?.location?.x ?? n.data?.longitude ?? 0;
+            if (!type && !street) return null;
+            return `${type}|${subtype}|${street}|${Math.round(lat * 200) / 200}|${Math.round(lng * 200) / 200}`;
+          }).filter(Boolean) as string[]
+        );
 
         const toAdd = newItems.filter((n) => {
           // Filtrar por clearedAt del usuario actual
@@ -163,6 +178,19 @@ export const useNotificationStore = create<NotificationState>()(
           if (existingIds.has(n.id)) return false;
           if (n.data?.alertId && existingAlertIds.has(n.data.alertId))
             return false;
+          
+          const type = n.type || n.data?.incidentType || "";
+          const subtype = n.data?.subtype || "";
+          const street = (n.data?.street || "").toLowerCase().trim();
+          const lat = n.data?.location?.y ?? n.data?.latitude ?? 0;
+          const lng = n.data?.location?.x ?? n.data?.longitude ?? 0;
+          
+          if (type || street) {
+            const hash = `${type}|${subtype}|${street}|${Math.round(lat * 200) / 200}|${Math.round(lng * 200) / 200}`;
+            if (existingContentHashes.has(hash)) return false;
+            existingContentHashes.add(hash);
+          }
+          
           return true;
         });
 
@@ -247,6 +275,7 @@ export const useNotificationStore = create<NotificationState>()(
       removeDuplicates: () => {
         const { notifications } = get();
         const seenAlertIds = new Set<string>();
+        const seenContentHashes = new Set<string>();
         const unique: Notification[] = [];
 
         for (const n of notifications) {
@@ -255,6 +284,22 @@ export const useNotificationStore = create<NotificationState>()(
             if (seenAlertIds.has(alertId)) continue;
             seenAlertIds.add(alertId);
           }
+          
+          const type = n.type || n.data?.incidentType || "";
+          const subtype = n.data?.subtype || "";
+          const street = (n.data?.street || "").toLowerCase().trim();
+          const lat = n.data?.location?.y ?? n.data?.latitude ?? 0;
+          const lng = n.data?.location?.x ?? n.data?.longitude ?? 0;
+          
+          if (type || street) {
+            const roundedLat = Math.round(lat * 200) / 200;
+            const roundedLng = Math.round(lng * 200) / 200;
+            const contentHash = `${type}|${subtype}|${street}|${roundedLat}|${roundedLng}`;
+            
+            if (seenContentHashes.has(contentHash)) continue;
+            seenContentHashes.add(contentHash);
+          }
+          
           unique.push(n);
         }
 

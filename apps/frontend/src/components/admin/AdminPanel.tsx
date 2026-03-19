@@ -56,7 +56,7 @@ const adminSections: AdminSectionConfig[] = [
   },
   {
     id: "kilometers",
-    label: "Hitos Kilométricos",
+    label: "Ubicación Vial",
     icon: MapPin,
     description: "Puntos de referencia de rutas en el mapa",
     color: "from-cyan-600 to-cyan-700",

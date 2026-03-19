@@ -48,7 +48,7 @@ const fetchKilometers = async (
     ? `${API_URL}/kilometers?active=true`
     : `${API_URL}/kilometers`;
   const res = await fetch(url, { headers: getAuthHeaders() });
-  if (!res.ok) throw new Error("Error al cargar hitos kilométricos");
+  if (!res.ok) throw new Error("Error al cargar ubicación vial");
   return res.json();
 };
 

@@ -125,7 +125,7 @@ const KmFormModal: React.FC<KmFormModalProps> = ({
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-semibold text-white flex items-center gap-2">
             <MapPin size={20} className="text-blue-400" />
-            {marker ? "Editar Hito" : "Nuevo Hito Kilométrico"}
+            {marker ? "Editar Ubicación" : "Nueva Ubicación Vial"}
           </h3>
           <button
             onClick={onCancel}
@@ -390,7 +390,7 @@ const KilometerManagement: React.FC = () => {
     return (
       <div className="p-8 flex items-center gap-3 text-red-400">
         <AlertCircle size={20} />
-        <span>Error al cargar hitos kilométricos</span>
+        <span>Error al cargar ubicación vial</span>
       </div>
     );
   }
@@ -402,10 +402,10 @@ const KilometerManagement: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <MapPin className="text-blue-500" size={24} />
-            Hitos Kilométricos
+            Ubicación Vial
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            {stats.total} hitos · {stats.active} activos · {stats.inactive}{" "}
+            {stats.total} ubicaciones · {stats.active} activas · {stats.inactive}{" "}
             inactivos
           </p>
         </div>
@@ -463,7 +463,7 @@ const KilometerManagement: React.FC = () => {
       ) : filteredMarkers.length === 0 ? (
         <div className="text-center py-20 text-gray-500">
           <MapPin size={48} className="mx-auto mb-3 opacity-30" />
-          <p>No se encontraron hitos kilométricos</p>
+          <p>No se encontraron ubicaciones viales</p>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-white/[0.08]">
@@ -576,7 +576,7 @@ const KilometerManagement: React.FC = () => {
       {/* Contador */}
       {filteredMarkers.length > 0 && (
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 text-right">
-          Mostrando {filteredMarkers.length} de {markers.length} hitos
+          Mostrando {filteredMarkers.length} de {markers.length} ubicaciones
         </p>
       )}
 

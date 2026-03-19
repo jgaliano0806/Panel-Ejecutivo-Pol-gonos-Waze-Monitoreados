@@ -32,6 +32,10 @@ export interface Incident {
   rating: number;
   magvar: number;
   isActive: boolean;
+  nearestKmName: string | null;
+  nearestKmRoute: string | null;
+  nearestKmDistance: number | null;
+  ttsText: string | null;
 }
 
 export interface IncidentsFilters {

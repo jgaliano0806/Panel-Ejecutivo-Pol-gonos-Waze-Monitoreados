@@ -3,18 +3,6 @@ chcp 65001 >nul
 setlocal enabledelayedexpansion
 title Panel Waze - Iniciador
 
-:: ============================================================
-:: Auto-elevacion: si no es admin, se relanza como admin
-:: ============================================================
-net session >nul 2>&1
-if !ERRORLEVEL! NEQ 0 (
-    echo Solicitando permisos de administrador...
-    powershell -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
-    exit /b
-)
-
-title Panel Waze - Iniciador [ADMINISTRADOR]
-
 set "SCRIPT_DIR=%~dp0"
 pushd "%SCRIPT_DIR%.."
 set "ROOT=%CD%"
@@ -23,6 +11,10 @@ popd
 set "NSSM=C:\ProgramData\chocolatey\lib\NSSM\tools\nssm.exe"
 set "PG_BIN=D:\postgreSQL\bin"
 set "PATH=%PG_BIN%;%PATH%"
+
+:: Puerto del backend (debe coincidir con apps/backend/.env)
+set "BACKEND_PORT=3001"
+set "FRONTEND_PORT=5180"
 
 :: Detectar IP de red
 set "LOCAL_IP=10.1.0.136"
@@ -59,11 +51,15 @@ if !ERRORLEVEL! EQU 0 (
 echo.
 
 :: ============================================================
-:: PASO 2: Backend (servicio NSSM)
+:: PASO 2: Backend
 :: ============================================================
-echo [2/4] Iniciando Backend (PanelWazeBackend)...
+echo [2/4] Iniciando Backend...
+
+:: Liberar puerto del backend si esta ocupado por un proceso anterior
+call :KILL_PORT %BACKEND_PORT%
+
 if not exist "%NSSM%" (
-    echo    ERROR: NSSM no encontrado en %NSSM%
+    echo    NSSM no encontrado, usando modo directo...
     goto :FALLBACK_BACKEND
 )
 
@@ -80,7 +76,7 @@ timeout /t 6 /nobreak >nul
 :: Verificar que arranco
 "%NSSM%" status PanelWazeBackend 2>nul | findstr "SERVICE_RUNNING" >nul 2>&1
 if !ERRORLEVEL! EQU 0 (
-    echo    OK: Backend corriendo en puerto 3002
+    echo    OK: Backend corriendo en puerto %BACKEND_PORT%
 ) else (
     echo    ADVERTENCIA: El servicio no arranco - intentando fallback...
     goto :FALLBACK_BACKEND
@@ -88,18 +84,18 @@ if !ERRORLEVEL! EQU 0 (
 goto :BACKEND_DONE
 
 :FALLBACK_BACKEND
-echo    Iniciando backend en modo directo (fallback)...
-start "Backend Panel Waze" /D "%ROOT%" cmd /k "set PATH=%PG_BIN%;%PATH% && npm run dev:backend"
-timeout /t 8 /nobreak >nul
-echo    OK: Backend iniciado en modo fallback
+echo    Iniciando backend en modo directo...
+start "Backend Panel Waze" /D "%ROOT%" cmd /k "npm run dev:backend"
+timeout /t 10 /nobreak >nul
+echo    OK: Backend iniciado
 
 :BACKEND_DONE
 echo.
 
 :: ============================================================
-:: PASO 3: Frontend (servicio NSSM)
+:: PASO 3: Frontend
 :: ============================================================
-echo [3/4] Iniciando Frontend (PanelWazeFrontend)...
+echo [3/4] Iniciando Frontend...
 if not exist "%NSSM%" goto :FALLBACK_FRONTEND
 
 "%NSSM%" status PanelWazeFrontend 2>nul | findstr "SERVICE_RUNNING" >nul 2>&1
@@ -114,21 +110,18 @@ timeout /t 5 /nobreak >nul
 
 "%NSSM%" status PanelWazeFrontend 2>nul | findstr "SERVICE_RUNNING" >nul 2>&1
 if !ERRORLEVEL! EQU 0 (
-    echo    OK: Frontend corriendo en puerto 5180
+    echo    OK: Frontend corriendo en puerto %FRONTEND_PORT%
     goto :FRONTEND_DONE
 ) else (
     echo    ADVERTENCIA: El servicio no arranco - intentando fallback...
 )
 
 :FALLBACK_FRONTEND
-echo    Iniciando frontend en modo desarrollo (fallback)...
-:: Liberar puerto 5180 si esta ocupado
-for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":5180 " ^| findstr "LISTENING"') do (
-    taskkill /F /PID %%a >nul 2>&1
-)
+echo    Iniciando frontend en modo desarrollo...
+call :KILL_PORT %FRONTEND_PORT%
 start "Frontend Panel Waze" /D "%ROOT%" cmd /k "npm run dev"
 timeout /t 8 /nobreak >nul
-echo    OK: Frontend iniciado en modo fallback
+echo    OK: Frontend iniciado
 
 :FRONTEND_DONE
 echo.
@@ -140,17 +133,17 @@ echo [4/4] Verificando sistema...
 timeout /t 5 /nobreak >nul
 
 :: Health check backend
-curl -s --max-time 5 http://localhost:3002/health >nul 2>&1
+curl -s --max-time 5 http://localhost:%BACKEND_PORT%/health >nul 2>&1
 if !ERRORLEVEL! EQU 0 (
-    echo    OK: Backend responde en :3002
+    echo    OK: Backend responde en :%BACKEND_PORT%
 ) else (
-    echo    ADVERTENCIA: Backend no responde aun (puede estar iniciando)
+    echo    ADVERTENCIA: Backend no responde aun - puede estar iniciando
 )
 
 :: Verificar frontend
-netstat -aon | findstr ":5180" | findstr "LISTENING" >nul 2>&1
+netstat -aon | findstr ":%FRONTEND_PORT%" | findstr "LISTENING" >nul 2>&1
 if !ERRORLEVEL! EQU 0 (
-    echo    OK: Frontend escuchando en :5180
+    echo    OK: Frontend escuchando en :%FRONTEND_PORT%
 ) else (
     echo    ADVERTENCIA: Frontend no responde aun
 )
@@ -170,17 +163,25 @@ echo ===============================================
 echo   SISTEMA LISTO
 echo ===============================================
 echo.
-echo   Panel (red local): http://!LOCAL_IP!:5180
-echo   Panel (local):     http://localhost:5180
-echo   API health:        http://localhost:3002/health
+echo   Panel - red local:  http://!LOCAL_IP!:%FRONTEND_PORT%
+echo   Panel - local:      http://localhost:%FRONTEND_PORT%
+echo   API health:         http://localhost:%BACKEND_PORT%/health
 echo.
-echo   Servicios Windows:
-echo     - PanelWazeBackend   (backend API)
-echo     - PanelWazeFrontend  (frontend estatico)
-echo     - postgresql-x64-18  (base de datos)
-echo.
-echo   Para gestionar: services.msc
+echo   Para gestionar servicios: services.msc
 echo ===============================================
 echo.
 pause
-endlocal
+goto :EOF
+
+:: ============================================================
+:: Subrutina: Matar proceso que ocupa un puerto
+:: Uso: call :KILL_PORT 3001
+:: ============================================================
+:KILL_PORT
+set "_PORT=%~1"
+for /f "tokens=5" %%p in ('netstat -aon 2^>nul ^| findstr ":%_PORT% " ^| findstr "LISTENING"') do (
+    echo    Liberando puerto %_PORT% - PID %%p
+    taskkill /F /PID %%p >nul 2>&1
+    timeout /t 2 /nobreak >nul
+)
+goto :EOF

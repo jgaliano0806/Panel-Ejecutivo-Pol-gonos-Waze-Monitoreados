@@ -520,6 +520,80 @@ export async function runMigrations(): Promise<void> {
         }
       }
     }
+
+    // Migración 039: Geo-referencia y TTS en waze_alerts
+    const migration039Path = path.join(
+      migrationsDir,
+      "039_waze_alerts_geo_reference.sql",
+    );
+    if (fs.existsSync(migration039Path)) {
+      try {
+        const sql = fs.readFileSync(migration039Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 039 ejecutada: columnas geo-referencia y TTS en waze_alerts",
+        );
+      } catch (migError: any) {
+        if (
+          !migError.message?.includes("already exists") &&
+          !migError.message?.includes("ya existe")
+        ) {
+          console.warn("⚠️ Migración 039:", migError.message);
+        }
+      }
+    }
+
+    // Migración 040: Seed de hitos kilométricos RAC_22_KM (822 registros)
+    // Usa tabla de control para saber si ya se aplicó esta versión del seed.
+    const migration040Path = path.join(
+      migrationsDir,
+      "040_seed_kilometer_markers_rac22.sql",
+    );
+    if (fs.existsSync(migration040Path)) {
+      try {
+        await dbService.query(
+          "CREATE TABLE IF NOT EXISTS _migrations_applied (name VARCHAR(100) PRIMARY KEY, applied_at TIMESTAMPTZ DEFAULT NOW())",
+        );
+        const applied = await dbService.query(
+          "SELECT 1 FROM _migrations_applied WHERE name = '040_seed_km_rac22'",
+        );
+        if (applied.rows.length === 0) {
+          const sql = fs.readFileSync(migration040Path, "utf-8");
+          await dbService.query(sql);
+          await dbService.query(
+            "INSERT INTO _migrations_applied (name) VALUES ('040_seed_km_rac22') ON CONFLICT DO NOTHING",
+          );
+          const newCount = await dbService.query(
+            "SELECT COUNT(*) AS cnt FROM kilometer_markers",
+          );
+          console.log(
+            `✅ Migración 040 ejecutada: ${newCount.rows[0]?.cnt} hitos kilométricos importados desde RAC_22_KM`,
+          );
+        } else {
+          console.log(
+            "✅ Migración 040 omitida: datos RAC_22_KM ya importados",
+          );
+        }
+      } catch (migError: any) {
+        console.warn("⚠️ Migración 040:", migError.message);
+      }
+    }
+    // Migración 041: Crear particiones faltantes de polygon_weather_data
+    const migration041Path = path.join(
+      migrationsDir,
+      "041_create_weather_partitions.sql",
+    );
+    if (fs.existsSync(migration041Path)) {
+      try {
+        const sql = fs.readFileSync(migration041Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 041 ejecutada: particiones de polygon_weather_data creadas",
+        );
+      } catch (migError: any) {
+        console.warn("⚠️ Migración 041:", migError.message);
+      }
+    }
   } catch (error: any) {
     // Si el error es por tabla/columna ya existente, es OK
     if (

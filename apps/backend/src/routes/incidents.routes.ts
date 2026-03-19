@@ -114,7 +114,11 @@ export default async function incidentsRoutes(fastify: FastifyInstance) {
             n_thumbs_up,
             report_rating,
             magvar,
-            is_active
+            is_active,
+            nearest_km_name,
+            nearest_km_route,
+            nearest_km_distance,
+            tts_text
           FROM waze_alerts
           ${whereClause}
           ORDER BY created_at DESC
@@ -148,6 +152,12 @@ export default async function incidentsRoutes(fastify: FastifyInstance) {
           rating: row.report_rating,
           magvar: row.magvar,
           isActive: row.is_active,
+          nearestKmName: row.nearest_km_name || null,
+          nearestKmRoute: row.nearest_km_route || null,
+          nearestKmDistance: row.nearest_km_distance
+            ? Number(row.nearest_km_distance)
+            : null,
+          ttsText: row.tts_text || null,
         }));
 
         return reply.send({
@@ -225,7 +235,11 @@ export default async function incidentsRoutes(fastify: FastifyInstance) {
           confidence,
           reliability,
           n_thumbs_up as "nThumbsUp",
-          polygon_id as "polygonId"
+          polygon_id as "polygonId",
+          nearest_km_name as "nearestKmName",
+          nearest_km_route as "nearestKmRoute",
+          nearest_km_distance as "nearestKmDistance",
+          tts_text as "ttsText"
         FROM waze_alerts
         WHERE is_active = true
         LIMIT 2000
@@ -294,6 +308,12 @@ export default async function incidentsRoutes(fastify: FastifyInstance) {
           rating: row.report_rating,
           magvar: row.magvar,
           isActive: row.is_active,
+          nearestKmName: row.nearest_km_name || null,
+          nearestKmRoute: row.nearest_km_route || null,
+          nearestKmDistance: row.nearest_km_distance
+            ? Number(row.nearest_km_distance)
+            : null,
+          ttsText: row.tts_text || null,
         });
       } catch (error) {
         fastify.log.error(error);

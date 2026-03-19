@@ -6,7 +6,8 @@ import { visualizer } from "rollup-plugin-visualizer";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), "");
+  const BACKEND_PORT = 3001;
+  const backendUrl = `http://127.0.0.1:${BACKEND_PORT}`;
 
   return {
     plugins: [react()],
@@ -21,22 +22,36 @@ export default defineConfig(({ mode }) => {
 
     // Configuración del servidor de desarrollo
     server: {
-      host: true, // Escuchar en 0.0.0.0 para mostrar IP de red en consola
+      host: true,
       port: 5180,
-      strictPort: false, // Allow fallback if 5180 is taken
-      // Habilita el fallback de historial para SPA routing
+      strictPort: false,
       fs: {
         strict: false,
       },
       proxy: {
         "/api": {
-          target: "http://127.0.0.1:3002",
+          target: backendUrl,
           changeOrigin: true,
         },
         "/socket.io": {
-          target: "ws://127.0.0.1:3002",
+          target: `ws://127.0.0.1:${BACKEND_PORT}`,
           ws: true,
-          rewriteWsOrigin: true, // Ajusta los headers Origin para WebSockets a veces rompen
+          rewriteWsOrigin: true,
+        },
+        "/tiles/osm": {
+          target: "https://tile.openstreetmap.org",
+          changeOrigin: true,
+          rewrite: (path: string) => path.replace(/^\/tiles\/osm/, ""),
+        },
+        "/tiles/carto-dark": {
+          target: "https://basemaps.cartocdn.com/dark_all",
+          changeOrigin: true,
+          rewrite: (path: string) => path.replace(/^\/tiles\/carto-dark/, ""),
+        },
+        "/tiles/carto-light": {
+          target: "https://basemaps.cartocdn.com/light_all",
+          changeOrigin: true,
+          rewrite: (path: string) => path.replace(/^\/tiles\/carto-light/, ""),
         },
       },
     },

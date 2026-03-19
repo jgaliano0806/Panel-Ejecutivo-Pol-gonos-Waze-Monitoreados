@@ -619,6 +619,25 @@ export class WeatherService {
                 weather_code, weather_description,
                 has_weather_alert, alert_severity, alert_description
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+            ON CONFLICT (polygon_id, timestamp) DO UPDATE SET
+                temperature_celsius = EXCLUDED.temperature_celsius,
+                temperature_feels_like = EXCLUDED.temperature_feels_like,
+                precipitation_mm = EXCLUDED.precipitation_mm,
+                rain_mm = EXCLUDED.rain_mm,
+                snow_mm = EXCLUDED.snow_mm,
+                precipitation_probability = EXCLUDED.precipitation_probability,
+                wind_speed_kmh = EXCLUDED.wind_speed_kmh,
+                wind_direction_degrees = EXCLUDED.wind_direction_degrees,
+                wind_gusts_kmh = EXCLUDED.wind_gusts_kmh,
+                visibility_meters = EXCLUDED.visibility_meters,
+                cloud_cover_percentage = EXCLUDED.cloud_cover_percentage,
+                road_temperature_celsius = EXCLUDED.road_temperature_celsius,
+                is_freezing_risk = EXCLUDED.is_freezing_risk,
+                weather_code = EXCLUDED.weather_code,
+                weather_description = EXCLUDED.weather_description,
+                has_weather_alert = EXCLUDED.has_weather_alert,
+                alert_severity = EXCLUDED.alert_severity,
+                alert_description = EXCLUDED.alert_description
         `;
 
     await this.db.query(query, [

@@ -7,19 +7,13 @@ import {
   getIncidentTypeColor,
 } from "@/hooks/useIncidentsModule";
 import {
-  formatRelativeTime,
-  getSeverityColor,
-  formatStreetName,
-} from "@/lib/utils";
-import {
-  MapPin,
-  FileText,
   Eye,
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
   Car,
   Construction,
+  Milestone,
 } from "lucide-react";
 
 interface IncidentsTableProps {
@@ -101,7 +95,7 @@ export const IncidentsTable: React.FC<IncidentsTableProps> = ({
                 Subtipo
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                Ubicación
+                Ubicación Vial
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
                 Fecha
@@ -140,21 +134,32 @@ export const IncidentsTable: React.FC<IncidentsTableProps> = ({
                   </span>
                 </td>
 
-                {/* Ubicación */}
+                {/* Ubicación Vial */}
                 <td className="px-4 py-3">
-                  <div className="flex items-start gap-2">
-                    <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm text-gray-900 dark:text-white font-medium">
-                        {formatStreetName(incident.street)}
-                      </p>
-                      {incident.city && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {incident.city}
+                  {incident.nearestKmName ? (
+                    <div className="flex items-start gap-2">
+                      <Milestone className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm text-gray-900 dark:text-white font-medium">
+                          {incident.nearestKmRoute || "—"}
                         </p>
-                      )}
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {incident.nearestKmName.split(" - ").pop()}
+                          {incident.nearestKmDistance != null && (
+                            <span className="ml-1 text-gray-400">
+                              ({incident.nearestKmDistance < 1000
+                                ? `${Math.round(incident.nearestKmDistance)} m`
+                                : `${(incident.nearestKmDistance / 1000).toFixed(1)} km`})
+                            </span>
+                          )}
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <span className="text-xs text-gray-400 italic">
+                      Sin hito cercano
+                    </span>
+                  )}
                 </td>
 
                 {/* Fecha */}

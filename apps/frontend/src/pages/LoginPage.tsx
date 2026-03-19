@@ -92,9 +92,13 @@ export const LoginPage: React.FC = () => {
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.2, duration: 0.5 }}
-              className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30 mb-4"
+              className="flex justify-center items-center h-16 mb-4"
             >
-              <Shield className="w-8 h-8 text-white" />
+              <img 
+                src="/logo_cs.png" 
+                alt="Caminos de las Sierras S.A." 
+                className="h-full w-auto object-contain drop-shadow-md" 
+              />
             </motion.div>
 
             <motion.h1

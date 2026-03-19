@@ -314,17 +314,31 @@ export async function exportIncidentToPDF(
     yPos += actualMapHeight + 8;
   }
 
-  // === DIRECCIÓN ===
+  // === UBICACIÓN VIAL ===
   doc.setTextColor(...BRAND_COLORS.greenDark);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("Dirección", 15, yPos);
+  doc.text("Ubicación Vial", 15, yPos);
 
   yPos += 6;
   doc.setTextColor(...BRAND_COLORS.textDark);
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text(incident.street || "Sin calle especificada", 15, yPos);
+  if (incident.nearestKmName) {
+    const route = incident.nearestKmRoute ? `${incident.nearestKmRoute} - ` : "";
+    const km = incident.nearestKmName.split(" - ").pop() || incident.nearestKmName;
+    doc.text(`${route}${km}`, 15, yPos);
+    
+    // Subtexto con la calle original si existe
+    if (incident.street) {
+      yPos += 5;
+      doc.setTextColor(...BRAND_COLORS.textMuted);
+      doc.setFontSize(9);
+      doc.text(incident.street, 15, yPos);
+    }
+  } else {
+    doc.text(incident.street || "Sin calle especificada", 15, yPos);
+  }
 
   if (incident.city) {
     yPos += 5;
@@ -631,16 +645,29 @@ export async function exportAccidentToPDF(
     yPos += actualMapHeight + 8;
   }
 
-  // === DIRECCIÓN ===
+  // === UBICACIÓN VIAL ===
   doc.setTextColor(...BRAND_COLORS.greenDark);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("Dirección", 15, yPos);
+  doc.text("Ubicación Vial", 15, yPos);
   yPos += 6;
   doc.setTextColor(...BRAND_COLORS.textDark);
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text(accident.street || "Sin calle especificada", 15, yPos);
+  
+  if (accident.waze_data?.nearestKmName) {
+    const route = accident.waze_data.nearestKmRoute ? `${accident.waze_data.nearestKmRoute} - ` : "";
+    const km = accident.waze_data.nearestKmName.split(" - ").pop() || accident.waze_data.nearestKmName;
+    doc.text(`${route}${km}`, 15, yPos);
+    if (accident.street) {
+      yPos += 5;
+      doc.setTextColor(...BRAND_COLORS.textMuted);
+      doc.setFontSize(9);
+      doc.text(accident.street, 15, yPos);
+    }
+  } else {
+    doc.text(accident.street || "Sin calle especificada", 15, yPos);
+  }
   yPos += 5;
   doc.setFontSize(8);
   doc.setTextColor(...BRAND_COLORS.textMuted);

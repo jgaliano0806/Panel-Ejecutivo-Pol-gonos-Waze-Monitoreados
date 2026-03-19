@@ -1,6 +1,10 @@
 import { FastifyInstance } from "fastify";
+import fs from "fs";
+import path from "path";
 import { repositories } from "../repositories";
 import { authenticate, requirePermission } from "../middleware/authMiddleware";
+import { geoReferenceService } from "../services/geoReferenceService";
+import { dbService } from "../database/dbService";
 
 /**
  * Rutas CRUD para Hitos Kilométricos
@@ -202,6 +206,58 @@ export default async function kilometerMarkersRoutes(
         return reply
           .status(500)
           .send({ error: "Error al eliminar hito kilométrico" });
+      }
+    },
+  );
+
+  // ─── POST /api/kilometers/seed (protegido) ─────────────
+  // Reimporta hitos kilométricos desde el Excel RAC_22_KM.
+  // Elimina todos los registros existentes y los reemplaza.
+  fastify.post(
+    "/seed",
+    { preHandler: [authenticate, requirePermission("admin.manage")] },
+    async (request, reply) => {
+      try {
+        const xlsxPath = path.resolve(
+          __dirname,
+          "../../../../RAC_22_KM (1).xlsx",
+        );
+
+        if (!fs.existsSync(xlsxPath)) {
+          return reply.status(404).send({
+            error:
+              "Archivo RAC_22_KM (1).xlsx no encontrado en la raíz del proyecto",
+          });
+        }
+
+        const { parseExcelBuffer, seedKilometerMarkers } = require(
+          "../../scripts/seed-km-from-excel",
+        );
+
+        const buffer = fs.readFileSync(xlsxPath);
+        const rows = parseExcelBuffer(buffer);
+
+        if (rows.length === 0) {
+          return reply
+            .status(400)
+            .send({ error: "No se encontraron filas válidas en el Excel" });
+        }
+
+        const pool = dbService.getPool();
+        const inserted = await seedKilometerMarkers(pool, rows);
+
+        await geoReferenceService.reloadMarkers();
+
+        return reply.send({
+          success: true,
+          message: `${inserted} hitos kilométricos importados correctamente`,
+          count: inserted,
+        });
+      } catch (error: any) {
+        request.log.error(error, "Error seeding kilometer markers");
+        return reply
+          .status(500)
+          .send({ error: "Error al importar hitos kilométricos" });
       }
     },
   );

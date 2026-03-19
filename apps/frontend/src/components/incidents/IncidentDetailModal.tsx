@@ -17,8 +17,11 @@ import {
   XCircle,
   FileText,
   ExternalLink,
+  Milestone,
+  Volume2,
 } from "lucide-react";
 import { MiniMapLibre } from "../map/MiniMapLibre";
+import { realCordobaPolygons } from "@/data/mock/realCordobaPolygons";
 
 interface IncidentDetailModalProps {
   incident: Incident | null;
@@ -163,6 +166,12 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                     <p className="text-sm font-medium text-gray-900 dark:text-white">
                       Ubicación
                     </p>
+                    {incident.nearestKmName && (
+                      <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                        {incident.nearestKmRoute} —{" "}
+                        {incident.nearestKmName.split(" - ").pop()}
+                      </p>
+                    )}
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       {incident.street ||
                         `${incident.location.lat.toFixed(5)}, ${incident.location.lng.toFixed(5)}`}
@@ -213,11 +222,57 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                       Polígono
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {incident.polygonId || "N/A"}
+                      {realCordobaPolygons.find((p) => p.id === incident.polygonId)?.name ||
+                        incident.polygonId ||
+                        "N/A"}
                     </p>
                   </div>
                 </div>
               </div>
+
+              {/* Ubicación Vial y Texto TTS */}
+              {(incident.nearestKmName || incident.ttsText) && (
+                <div className="space-y-3">
+                  {incident.nearestKmName && (
+                    <div className="flex items-start gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800/40">
+                      <Milestone className="w-5 h-5 text-emerald-600 dark:text-emerald-400 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          Ubicación Vial
+                        </p>
+                        <p className="text-sm text-emerald-700 dark:text-emerald-300 font-semibold">
+                          {incident.nearestKmRoute && (
+                            <span>{incident.nearestKmRoute} — </span>
+                          )}
+                          {incident.nearestKmName.split(" - ").pop()}
+                        </p>
+                        {incident.nearestKmDistance != null && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            Distancia:{" "}
+                            {incident.nearestKmDistance < 1000
+                              ? `${Math.round(incident.nearestKmDistance)} metros`
+                              : `${(incident.nearestKmDistance / 1000).toFixed(2)} km`}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {incident.ttsText && (
+                    <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800/40">
+                      <Volume2 className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          Texto TTS Generado
+                        </p>
+                        <p className="text-sm text-blue-700 dark:text-blue-300 italic">
+                          &ldquo;{incident.ttsText}&rdquo;
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Métricas de Waze */}
               <div className="grid grid-cols-3 gap-4">

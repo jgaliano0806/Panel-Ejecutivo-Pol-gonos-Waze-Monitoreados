@@ -384,16 +384,11 @@ socket.on("notification:new", async (notification: Notification) => {
   const contentHash = buildContentHash(notification);
   if (contentHash && processedContentHashes.has(contentHash)) {
     const age = Date.now() - (processedContentHashes.get(contentHash) || 0);
-    logger.debug("Contenido duplicado detectado", {
+    logger.debug("Contenido duplicado detectado (evitando doble notificación)", {
       contentHash,
       ageSeconds: Math.round(age / 1000),
     });
-    const translatedMsg = translateWazeMessage(notification.message);
-    useNotificationStore.getState().addNotification({
-      ...notification,
-      message: translatedMsg,
-      tts_played: true,
-    });
+    // NO agregamos al store para evitar duplicados en UI (Toast) e Historia
     processedNotificationIds.add(notifId);
     if (alertKey) processedNotificationIds.add(alertKey);
     return;
@@ -442,10 +437,12 @@ socket.on("notification:new", async (notification: Notification) => {
     return;
   }
 
-  // Generar mensaje descriptivo
-  const ttsMessage = buildTTSMessage(notification);
+  // Usar texto TTS del backend si está disponible; si no, construir localmente
+  const backendTTS = notification.data?.ttsText;
+  const ttsMessage = backendTTS || buildTTSMessage(notification);
   logger.debug("TTS mensaje generado", {
     message: ttsMessage.substring(0, 80),
+    source: backendTTS ? "backend" : "frontend",
   });
 
   if (isAudioUnlocked()) {

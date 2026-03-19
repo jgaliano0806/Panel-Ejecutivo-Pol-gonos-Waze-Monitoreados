@@ -4,14 +4,16 @@ import {
   useNotificationStore,
   Notification,
 } from "@/stores/useNotificationStore";
-import { translateWazeType, translateWazeMessage } from "@/lib/waze-translator";
+import { translateWazeMessage } from "@/lib/waze-translator";
+import { getSubtypeTranslation } from "@/utils/wazeTranslations";
 import {
   Search,
-  Filter,
   Trash2,
   CheckCircle,
   Clock,
   AlertOctagon,
+  AlertTriangle,
+  Tag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -218,7 +220,7 @@ const NotificationCard = ({ notification }: { notification: Notification }) => {
     const cleanedMessage = cleanNotificationMessage(notification.message);
 
     // Si tenemos datos estructurados, construir mensaje más descriptivo
-    if (data?.street) {
+    if (data) {
       const typeLabel =
         notification.type === "ACCIDENT"
           ? "Accidente reportado"
@@ -226,11 +228,19 @@ const NotificationCard = ({ notification }: { notification: Notification }) => {
             ? "Peligro reportado"
             : "Evento";
 
-      const location = data.city
-        ? `${data.street} - ${data.city}`
-        : data.street;
+      // Priorizar ubicación vial (nearestKmName) sobre street
+      if (data.nearestKmName) {
+        const kmLabel = data.nearestKmName.split(" - ").pop() || data.nearestKmName;
+        const routeLabel = data.nearestKmRoute ? `${data.nearestKmRoute} - ` : "";
+        return `${typeLabel} en ${routeLabel}${kmLabel}`;
+      }
 
-      return `${typeLabel} en ${location}`;
+      if (data.street) {
+        const location = data.city
+          ? `${data.street} - ${data.city}`
+          : data.street;
+        return `${typeLabel} en ${location}`;
+      }
     }
 
     // Fallback al mensaje original traducido y limpio
@@ -260,7 +270,7 @@ const NotificationCard = ({ notification }: { notification: Notification }) => {
             {notification.type === "ACCIDENT" ? (
               <AlertOctagon className="h-5 w-5" />
             ) : notification.type === "HAZARD" ? (
-              <Filter className="h-5 w-5" />
+              <AlertTriangle className="h-5 w-5" />
             ) : (
               <CheckCircle className="h-5 w-5" />
             )}
@@ -276,7 +286,28 @@ const NotificationCard = ({ notification }: { notification: Notification }) => {
             >
               {getNotificationTitle(notification)}
             </h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            
+            <div className="flex flex-wrap items-center gap-2 mt-2 mb-1.5">
+              <span className={cn(
+                "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border",
+                notification.type === "ACCIDENT"
+                  ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-900/50"
+                  : notification.type === "HAZARD"
+                    ? "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-900/50"
+                    : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-900/50",
+              )}>
+                {notification.type === "ACCIDENT" ? "Accidente" : notification.type === "HAZARD" ? "Peligro" : "Evento"}
+              </span>
+              
+              {notification.data?.subtype && (
+                <span className="flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 px-2.5 py-0.5 rounded-md border border-gray-200 dark:border-gray-700">
+                  <Tag className="h-3 w-3 text-gray-500" />
+                  {getSubtypeTranslation(notification.data?.incidentType || notification.type || "HAZARD", notification.data.subtype) || notification.data.subtype}
+                </span>
+              )}
+            </div>
+
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
               {displayMessage}
             </p>
             <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">

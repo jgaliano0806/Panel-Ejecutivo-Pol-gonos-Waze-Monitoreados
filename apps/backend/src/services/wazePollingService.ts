@@ -16,6 +16,7 @@ import {
 import { eventBus, SystemEvents } from "../events";
 import { logger } from "../utils/logger";
 import { notificationService } from "./notificationService";
+import { geoReferenceService } from "./geoReferenceService";
 
 /**
  * Servicio de Polling de Waze con persistencia PostgreSQL
@@ -72,6 +73,7 @@ export class WazePollingService {
 
     await this.ensureTables();
     await this.warmPolygonNameCache();
+    await geoReferenceService.loadMarkers();
 
     logger.info(
       `🚀 Starting Waze polling (feeds: ${this.POLLING_INTERVAL_MS / 1000}s, TVT: ${this.TVT_INTERVAL_MS / 1000}s)`,
@@ -372,6 +374,9 @@ export class WazePollingService {
 
       await repositories().wazeAlerts.bulkUpsert(entities as any);
 
+      // 1b. Enriquecer alertas con geo-referencia (hito más cercano + TTS)
+      await this.enrichAlertsWithGeoData(alerts);
+
       // 2. Marcar como INACTIVOS los que ya no están en el feed
       const currentUuids = alerts.map((a) => a.uuid);
       if (currentUuids.length > 0) {
@@ -492,15 +497,13 @@ export class WazePollingService {
           `SELECT 1 FROM notifications
            WHERE type = $1
              AND COALESCE(data->>'subtype', '') = $2
-             AND COALESCE(data->>'street', '') = $3
              AND created_at > NOW() - INTERVAL '10 minutes'
-             AND ABS(COALESCE(CAST(data->>'latitude' AS FLOAT), 0) - $4) < 0.003
-             AND ABS(COALESCE(CAST(data->>'longitude' AS FLOAT), 0) - $5) < 0.003
+             AND ABS(COALESCE(CAST(data->>'latitude' AS FLOAT), 0) - $3) < 0.001
+             AND ABS(COALESCE(CAST(data->>'longitude' AS FLOAT), 0) - $4) < 0.001
            LIMIT 1`,
           [
             alert.type === "ACCIDENT" ? "ACCIDENT" : "HAZARD",
             alert.subtype || "",
-            alert.street || "",
             lat,
             lng,
           ],
@@ -516,6 +519,14 @@ export class WazePollingService {
         const title = this.getNotificationTitle(alert);
         const message = this.getNotificationMessage(alert);
 
+        const nearest = geoReferenceService.findNearestMarker(lat, lng);
+        const ttsText = geoReferenceService.generateTTSText(
+          alert.type,
+          alert.subtype,
+          nearest,
+          alert.street,
+        );
+
         await notificationService.create(
           alert.type === "ACCIDENT" ? "ACCIDENT" : "HAZARD",
           title,
@@ -527,6 +538,10 @@ export class WazePollingService {
             polygonGroup: polygonInfo.group,
             latitude: lat,
             longitude: lng,
+            nearestKmName: nearest?.name || null,
+            nearestKmRoute: nearest?.route_name || null,
+            nearestKmDistance: nearest ? Math.round(nearest.distance) : null,
+            ttsText,
           },
         );
         logger.info(`🔔 Notificación enviada para alerta ${alert.uuid}`);
@@ -841,6 +856,18 @@ export class WazePollingService {
       await dbService.query(
         `ALTER TABLE waze_alerts ADD COLUMN IF NOT EXISTS magvar INTEGER`,
       );
+      await dbService.query(
+        `ALTER TABLE waze_alerts ADD COLUMN IF NOT EXISTS nearest_km_name VARCHAR(150)`,
+      );
+      await dbService.query(
+        `ALTER TABLE waze_alerts ADD COLUMN IF NOT EXISTS nearest_km_route VARCHAR(255)`,
+      );
+      await dbService.query(
+        `ALTER TABLE waze_alerts ADD COLUMN IF NOT EXISTS nearest_km_distance DECIMAL(10,2)`,
+      );
+      await dbService.query(
+        `ALTER TABLE waze_alerts ADD COLUMN IF NOT EXISTS tts_text TEXT`,
+      );
 
       await dbService.query(`
                 CREATE TABLE IF NOT EXISTS waze_irregularities (
@@ -900,6 +927,81 @@ export class WazePollingService {
         error instanceof Error ? error.message : String(error),
       );
       throw error;
+    }
+  }
+
+  // ─── GEO-REFERENCIA DE ALERTAS ────────────────────────────────────
+
+  /**
+   * Enriquece alertas recién insertadas con el hito kilométrico más cercano
+   * y un texto TTS optimizado. Usa un batch UPDATE para eficiencia.
+   */
+  private async enrichAlertsWithGeoData(alerts: WazeAlert[]): Promise<void> {
+    await geoReferenceService.ensureLoaded();
+    if (geoReferenceService.getMarkerCount() === 0) return;
+
+    const updates: Array<{
+      uuid: string;
+      km_name: string;
+      km_route: string;
+      km_dist: number;
+      tts: string;
+    }> = [];
+
+    for (const alert of alerts) {
+      const lat = alert.location?.y ?? 0;
+      const lng = alert.location?.x ?? 0;
+      if (!lat || !lng) continue;
+
+      const nearest = geoReferenceService.findNearestMarker(lat, lng);
+      if (!nearest) continue;
+
+      const ttsText = geoReferenceService.generateTTSText(
+        alert.type,
+        alert.subtype,
+        nearest,
+        alert.street,
+      );
+
+      updates.push({
+        uuid: alert.uuid,
+        km_name: nearest.name,
+        km_route: nearest.route_name,
+        km_dist: Math.round(nearest.distance * 100) / 100,
+        tts: ttsText,
+      });
+    }
+
+    if (updates.length === 0) return;
+
+    try {
+      const values: any[] = [];
+      const rows: string[] = [];
+
+      updates.forEach((u, i) => {
+        const off = i * 5;
+        rows.push(
+          `($${off + 1}, $${off + 2}, $${off + 3}, $${off + 4}::decimal, $${off + 5})`,
+        );
+        values.push(u.uuid, u.km_name, u.km_route, u.km_dist, u.tts);
+      });
+
+      await dbService.query(
+        `UPDATE waze_alerts AS wa SET
+           nearest_km_name = v.km_name,
+           nearest_km_route = v.km_route,
+           nearest_km_distance = v.km_dist,
+           tts_text = v.tts
+         FROM (VALUES ${rows.join(", ")})
+           AS v(uuid, km_name, km_route, km_dist, tts)
+         WHERE wa.uuid = v.uuid`,
+        values,
+      );
+    } catch (err) {
+      logger.error(
+        "Error enriching alerts with geo data:",
+        err instanceof Error ? err.message : String(err),
+      );
     }
   }
 

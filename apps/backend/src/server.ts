@@ -2329,9 +2329,12 @@ const start = async () => {
     }
 
     // Iniciar servicio de clima Open-Meteo
+    // Retrasar 45s para evitar competencia con Waze poll por conexiones del pool DB
     try {
-      openMeteoService.startPolling();
-      console.log("✓ OpenMeteoService iniciado (clima cada hora)");
+      setTimeout(() => {
+        openMeteoService.startPolling();
+        console.log("✓ OpenMeteoService iniciado (clima cada hora, delay 45s)");
+      }, 45000);
     } catch (weatherError) {
       console.error(
         "⚠️ Error al iniciar OpenMeteoService (continuando):",
@@ -2369,8 +2372,7 @@ const start = async () => {
       console.error("⚠️ Error al iniciar WebSocket (continuando):", wsError);
     }
 
-    // const port = process.env.PORT ? parseInt(process.env.PORT) : 3002;
-    const port = 3002; // Force 3002 to avoid EADDRINUSE on 3001
+    const port = process.env.PORT ? parseInt(process.env.PORT) : 3002;
     await server.listen({ port, host: "0.0.0.0" });
 
     console.log("Backend server running on http://localhost:" + port);

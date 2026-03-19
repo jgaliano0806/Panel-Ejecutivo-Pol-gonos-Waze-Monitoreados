@@ -309,22 +309,35 @@ const buildNaturalMessage = (title: string, message: string): string => {
   const cleanTitle = cleanTextForTTS(title);
   const cleanMessage = cleanTextForTTS(message);
 
-  // Si el título ya tiene "Atención operador", no agregarlo de nuevo
-  const hasPrefix = cleanTitle.toLowerCase().startsWith("atención operador");
+  const lowerTitle = cleanTitle.toLowerCase();
+  // Si el título ya empieza con "atención", "atencion" o "alerta", no agregarlo de nuevo
+  const hasPrefix = lowerTitle.startsWith("atención") || 
+                    lowerTitle.startsWith("atencion") || 
+                    lowerTitle.startsWith("alerta");
+
+  let baseMessage = "";
 
   if (hasPrefix) {
     // El mensaje ya tiene el prefijo, usar directamente
     if (cleanMessage && cleanMessage !== cleanTitle) {
-      return `${cleanTitle}. ${cleanMessage}.`;
+      baseMessage = `${cleanTitle} ${cleanMessage}`;
+    } else {
+      baseMessage = cleanTitle;
     }
-    return `${cleanTitle}.`;
+  } else {
+    // Agregar prefijo si no lo tiene
+    if (cleanMessage && cleanMessage !== cleanTitle) {
+      baseMessage = `Atención operadores. ${cleanTitle}. ${cleanMessage}`;
+    } else {
+      baseMessage = `Atención operadores. ${cleanTitle}`;
+    }
   }
 
-  // Agregar prefijo si no lo tiene
-  if (cleanMessage && cleanMessage !== cleanTitle) {
-    return `Atención operador. ${cleanTitle}. ${cleanMessage}.`;
-  }
-  return `Atención operador. ${cleanTitle}.`;
+  // Limpiar punto final repetido si existiera para que la pausa no sea anormal
+  const cleanedBase = baseMessage.trim().replace(/\.+$/, "") + ".";
+
+  // Repetir el mensaje para mayor claridad en sala de operaciones
+  return `${cleanedBase} Repito. ${cleanedBase}`;
 };
 
 /**
