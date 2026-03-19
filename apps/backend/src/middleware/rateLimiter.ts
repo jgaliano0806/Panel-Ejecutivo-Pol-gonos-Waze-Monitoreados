@@ -99,6 +99,7 @@ export const rateLimitExclusions = [
     '/health/live',
     '/health/ready',
     '/api/health',
+    '/tiles', // Tiles del mapa: muchas peticiones simultáneas, no deben contar contra el límite
 ];
 
 /**

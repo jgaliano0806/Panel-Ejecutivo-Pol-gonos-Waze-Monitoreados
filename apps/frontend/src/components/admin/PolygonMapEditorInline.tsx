@@ -8,10 +8,10 @@ import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 import "leaflet-draw";
 import { validatePolygon, tryAutoAdjustOverlap } from "../../utils/polygonValidation";
+import { API_CONFIG } from "../../config/constants";
 
-const CARTO_LIGHT =
-  "/tiles/carto-light/{z}/{x}/{y}.png";
-const CARTO_DARK = "/tiles/carto-dark/{z}/{x}/{y}.png";
+const getCartoLight = () => `${API_CONFIG.tilesBase || ""}/tiles/carto-light/{z}/{x}/{y}.png`;
+const getCartoDark = () => `${API_CONFIG.tilesBase || ""}/tiles/carto-dark/{z}/{x}/{y}.png`;
 const CARTO_ATTRIBUTION = '&copy; <a href="https://carto.com">CARTO</a>';
 
 const REF_STYLE = {
@@ -61,7 +61,7 @@ export const PolygonMapEditorInline: React.FC<PolygonMapEditorInlineProps> = ({
   onValidationErrorRef.current = onValidationError;
   onGeometryAutoAdjustedRef.current = onGeometryAutoAdjusted;
 
-  const tileUrl = darkMode ? CARTO_DARK : CARTO_LIGHT;
+  const tileUrl = darkMode ? getCartoDark() : getCartoLight();
 
   const geoJsonToLeafletLatLngs = (coords: number[][][]): L.LatLng[][] =>
     coords.map((ring) => ring.map(([lng, lat]) => L.latLng(lat, lng)));

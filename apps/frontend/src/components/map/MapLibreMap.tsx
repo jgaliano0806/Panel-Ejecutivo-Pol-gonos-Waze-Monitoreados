@@ -43,6 +43,7 @@ import { IncidentDetailModal } from "../incidents/IncidentDetailModal";
 import { exportIncidentToPDF } from "../../lib/pdf-export";
 import { useAuthStore } from "../../stores/useAuthStore";
 import { useKilometers } from "../../hooks/useKilometers";
+import { API_CONFIG } from "../../config/constants";
 
 // Configuración inicial
 const INITIAL_VIEW_STATE = {
@@ -773,12 +774,12 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
           },
           properties: {
             id: jam.id,
-            speed: jam.speed || 0,
-            delay: jam.delay || 0,
-            length: jam.length || 0,
+            speed: Number(jam.speed) || 0,
+            delay: Number(jam.delay) || 0,
+            length: Number(jam.length) || 0,
             street: jam.street || "Vía sin nombre",
-            level: jam.level || 0,
-            color: getFlowColor(jam.speed || 0),
+            level: Number(jam.level) || 0,
+            color: getFlowColor(Number(jam.speed) || 0),
             // Para flechas de dirección
             bearing: calculateBearing(jam.line),
           },
@@ -867,21 +868,21 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             },
             properties: {
               id: jam.id,
-              level: jam.level || 0,
-              speed: jam.speed || 0,
-              delay: jam.delay || 0,
-              length: jam.length || 0,
+              level: Number(jam.level) || 0,
+              speed: Number(jam.speed) || 0,
+              delay: Number(jam.delay) || 0,
+              length: Number(jam.length) || 0,
               street: jam.street || "Vía sin nombre",
               city: jam.city || "",
-              roadType: jam.roadType || 0,
-              color: getJamColor(jam.level || 0, jam.speed || 0),
+              roadType: Number(jam.roadType) || 0,
+              color: getJamColor(Number(jam.level) || 0, Number(jam.speed) || 0),
               // Punto medio para labels/popups
               midLng: midPoint?.x || 0,
               midLat: midPoint?.y || 0,
               // Label de velocidad
               speedLabel: `${Math.round(jam.speed || 0)} km/h`,
               // Severidad textual
-              severityText: getJamSeverityText(jam.level || 0, jam.speed || 0),
+              severityText: getJamSeverityText(Number(jam.level) || 0, Number(jam.speed) || 0),
             },
           };
         }),
@@ -922,14 +923,14 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             },
             properties: {
               id: jam.id,
-              speed: jam.speed || 0,
-              level: jam.level || 0,
-              delay: jam.delay || 0,
-              length: jam.length || 0,
+              speed: Number(jam.speed) || 0,
+              level: Number(jam.level) || 0,
+              delay: Number(jam.delay) || 0,
+              length: Number(jam.length) || 0,
               street: jam.street || "Vía sin nombre",
-              speedLabel: `${Math.round(jam.speed || 0)}`,
+              speedLabel: `${Math.round(Number(jam.speed) || 0)}`,
               delayLabel:
-                jam.delay > 60 ? `+${Math.round(jam.delay / 60)}min` : "",
+                (Number(jam.delay) || 0) > 60 ? `+${Math.round((Number(jam.delay) || 0) / 60)}min` : "",
             },
           };
         }),
@@ -1099,6 +1100,8 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   // La capa jams-animated usa un dasharray estático que es más estable.
 
   // Basemap raster evita "unknown feature value" en tiles vectoriales del basemap Carto
+  // tilesBase: en prod con serve usa backend (API_CONFIG.tilesBase); en dev usa "" (proxy Vite)
+  const tilesBase = API_CONFIG.tilesBase || "";
   const mapStyle = useMemo(
     (): maplibregl.StyleSpecification => ({
       version: 8,
@@ -1106,15 +1109,15 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         basemap: {
           type: "raster",
           tiles: isDark
-            ? ["/tiles/carto-dark/{z}/{x}/{y}.png"]
-            : ["/tiles/carto-light/{z}/{x}/{y}.png"],
+            ? [`${tilesBase}/tiles/carto-dark/{z}/{x}/{y}.png`]
+            : [`${tilesBase}/tiles/carto-light/{z}/{x}/{y}.png`],
           tileSize: 256,
           attribution: "© CARTO",
         },
       },
       layers: [{ id: "basemap", type: "raster", source: "basemap" }],
     }),
-    [isDark],
+    [isDark, tilesBase],
   );
 
   return (

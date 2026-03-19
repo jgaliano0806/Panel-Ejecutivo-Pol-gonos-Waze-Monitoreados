@@ -20,6 +20,7 @@ import authRoutes from "./auth.routes";
 import usersRoutes from "./users.routes";
 import rolesRoutes from "./roles.routes";
 import kilometerMarkersRoutes from "./kilometerMarkers.routes";
+import tileProxyRoutes from "./tileProxy.routes";
 
 /**
  * Registra todos los módulos de rutas en la instancia de Fastify
@@ -27,6 +28,9 @@ import kilometerMarkersRoutes from "./kilometerMarkers.routes";
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
   // Health checks (sin prefijo para compatibilidad con orquestadores)
   await app.register(healthRoutes);
+
+  // Proxy de tiles (CARTO, OSM) - para producción cuando serve no tiene proxy
+  await app.register(tileProxyRoutes);
 
   // Autenticación (login, logout, sesiones)
   await app.register(authRoutes, { prefix: "/api/auth" });

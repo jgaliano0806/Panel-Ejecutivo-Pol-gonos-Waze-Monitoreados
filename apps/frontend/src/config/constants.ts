@@ -46,9 +46,15 @@ export const REFRESH_INTERVALS = {
 // ============================================
 // CONFIGURACIÓN DE LA API
 // ============================================
+const apiUrl = import.meta.env.VITE_API_URL || "/api";
 export const API_CONFIG = {
   // URL base de la API (se puede sobrescribir con variable de entorno)
-  baseUrl: import.meta.env.VITE_API_URL || "/api",
+  baseUrl: apiUrl,
+  // Base para tiles: en producción con serve, los tiles van por el backend (proxy)
+  // Si API es URL absoluta (ej. http://10.1.0.136:3002), tiles = mismo origen
+  // Si API es /api (mismo origen), tiles = /tiles (vite proxy o nginx)
+  tilesBase:
+    apiUrl.startsWith("http") ? apiUrl.replace(/\/api\/?$/, "") : "",
   // Tiempo de espera para queries (ms)
   staleTime: 30000,
   // Tiempo de caché (ms)

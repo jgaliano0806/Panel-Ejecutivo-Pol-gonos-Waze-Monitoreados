@@ -6,7 +6,7 @@ import { visualizer } from "rollup-plugin-visualizer";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  const BACKEND_PORT = 3001;
+  const BACKEND_PORT = 3002;
   const backendUrl = `http://127.0.0.1:${BACKEND_PORT}`;
 
   return {
@@ -47,13 +47,13 @@ export default defineConfig(({ mode }) => {
           target: "https://a.basemaps.cartocdn.com",
           changeOrigin: true,
           rewrite: (tilePath: string) =>
-            tilePath.replace(/^\/tiles\/carto-dark/, "/dark_all"),
+            tilePath.replace(/^\/tiles\/carto-dark/, "/rastertiles/dark_all"),
         },
         "/tiles/carto-light": {
           target: "https://a.basemaps.cartocdn.com",
           changeOrigin: true,
           rewrite: (tilePath: string) =>
-            tilePath.replace(/^\/tiles\/carto-light/, "/light_all"),
+            tilePath.replace(/^\/tiles\/carto-light/, "/rastertiles/light_all"),
         },
       },
     },

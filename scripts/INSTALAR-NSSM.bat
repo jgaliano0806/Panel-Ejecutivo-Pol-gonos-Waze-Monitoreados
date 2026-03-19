@@ -127,7 +127,7 @@ echo [4/5] Instalando servicio PanelWazeFrontend...
 timeout /t 2 /nobreak >nul
 
 "%NSSM%" install PanelWazeFrontend "%NODE%"
-"%NSSM%" set PanelWazeFrontend AppParameters "%SERVE_JS% -s dist -l 5180"
+"%NSSM%" set PanelWazeFrontend AppParameters "%SERVE_JS% -s dist -l tcp://0.0.0.0:5180"
 "%NSSM%" set PanelWazeFrontend AppDirectory "%FRONTEND%"
 "%NSSM%" set PanelWazeFrontend AppStdout "%LOGS%\frontend-stdout.log"
 "%NSSM%" set PanelWazeFrontend AppStderr "%LOGS%\frontend-stderr.log"

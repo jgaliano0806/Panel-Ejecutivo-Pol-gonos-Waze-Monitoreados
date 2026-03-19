@@ -187,12 +187,15 @@ Acceso: `http://10.1.0.136:5180`
 **Modo producción** (build estático):
 
 ```powershell
-# Build del frontend apuntando a la API
+# Build del frontend: VITE_API_URL debe ser la URL completa del backend
+# para que la API y el proxy de tiles (mapas) funcionen con serve
 echo "VITE_API_URL=http://10.1.0.136:3002" > apps\frontend\.env.production
 npm run build --workspace=apps/frontend
 ```
 
 Servir con `npx serve` o configurar IIS / Nginx para Windows.
+
+> **Importante**: Si usas `serve` en el puerto 5180, `VITE_API_URL` debe ser la URL completa del backend (ej. `http://10.1.0.136:3002`) para que tanto las llamadas a la API como los tiles del mapa (proxy en el backend) funcionen correctamente.
 
 ---
 

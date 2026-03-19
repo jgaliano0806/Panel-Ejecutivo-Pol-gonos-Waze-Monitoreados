@@ -12,9 +12,10 @@ import {
   validatePolygon,
   type ValidationResult,
 } from "../../utils/polygonValidation";
+import { API_CONFIG } from "../../config/constants";
 
-const CARTO_LIGHT = "/tiles/carto-light/{z}/{x}/{y}.png";
-const CARTO_DARK = "/tiles/carto-dark/{z}/{x}/{y}.png";
+const getCartoLight = () => `${API_CONFIG.tilesBase || ""}/tiles/carto-light/{z}/{x}/{y}.png`;
+const getCartoDark = () => `${API_CONFIG.tilesBase || ""}/tiles/carto-dark/{z}/{x}/{y}.png`;
 const CARTO_ATTRIBUTION =
   '&copy; <a href="https://carto.com">CARTO</a>';
 
@@ -88,7 +89,7 @@ export const PolygonMapEditor: React.FC<PolygonMapEditorProps> = ({
 
   const [drawMode, setDrawMode] = useState(false);
 
-  const tileUrl = darkMode ? CARTO_DARK : CARTO_LIGHT;
+  const tileUrl = darkMode ? getCartoDark() : getCartoLight();
 
   const geoJsonToLeafletLatLngs = useCallback(
     (coords: number[][][]): L.LatLng[][] => {

@@ -54,7 +54,7 @@ timeout /t 2 /nobreak >nul
 :: Crear el servicio
 "%NSSM%" install PanelWazeBackend "%NODE%" "dist\server.js"
 "%NSSM%" set PanelWazeBackend AppDirectory "%BACKEND%"
-"%NSSM%" set PanelWazeBackend AppEnvironmentExtra "NODE_ENV=production" "PORT=3001"
+"%NSSM%" set PanelWazeBackend AppEnvironmentExtra "NODE_ENV=production" "PORT=3002"
 "%NSSM%" set PanelWazeBackend AppStdout "%LOGS%\backend-stdout.log"
 "%NSSM%" set PanelWazeBackend AppStderr "%LOGS%\backend-stderr.log"
 "%NSSM%" set PanelWazeBackend AppRotateFiles 1
@@ -65,9 +65,9 @@ timeout /t 2 /nobreak >nul
 "%NSSM%" set PanelWazeBackend Description "Panel Ejecutivo Waze - Backend API"
 
 :: Firewall
-netsh advfirewall firewall delete rule name="Panel Waze Backend - Puerto 3001" >nul 2>&1
-netsh advfirewall firewall add rule name="Panel Waze Backend - Puerto 3001" dir=in action=allow protocol=TCP localport=3001 profile=any description="Panel Ejecutivo Waze - Backend API"
-echo    OK: Puerto 3001 habilitado en Firewall
+netsh advfirewall firewall delete rule name="Panel Waze Backend - Puerto 3002" >nul 2>&1
+netsh advfirewall firewall add rule name="Panel Waze Backend - Puerto 3002" dir=in action=allow protocol=TCP localport=3002 profile=any description="Panel Ejecutivo Waze - Backend API"
+echo    OK: Puerto 3002 habilitado en Firewall
 
 echo.
 echo Iniciando servicio...
@@ -79,7 +79,7 @@ echo Estado:
 "%NSSM%" status PanelWazeBackend
 echo.
 echo ================================================
-echo  Backend: http://10.1.0.136:3001/health
+echo  Backend: http://10.1.0.136:3002/health
 echo ================================================
 echo.
 pause

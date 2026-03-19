@@ -46,7 +46,7 @@ export class WazePollingService {
   private readonly MAX_RETRIES = 3;
   private readonly INACTIVE_THRESHOLD_MINUTES = 30;
   private readonly RATE_LIMIT_DELAY_MS = 100;
-  private readonly TVT_CONCURRENCY = 5; // TVT feeds en paralelo
+  private readonly TVT_CONCURRENCY = 1; // TVT secuencial para no saturar pool DB
 
   // Cache de polygon names para evitar queries repetitivas
   private polygonNameCache = new Map<

@@ -22,6 +22,7 @@ export const TTL = {
 class CacheService {
     private redis: Redis | null = null;
     private isConnected: boolean = false;
+    private memoryCache = new Map<string, { value: any, expiresAt: number }>();
 
     constructor() {
         this.initialize();
@@ -96,29 +97,40 @@ class CacheService {
      * Obtiene un valor del cache
      */
     public async get<T>(key: string): Promise<T | null> {
-        if (!this.redis || !this.isConnected) return null;
-
-        try {
-            const data = await this.redis.get(key);
-            if (!data) return null;
-            return JSON.parse(data) as T;
-        } catch (error) {
-            console.error(`Cache get error for ${key}:`, error instanceof Error ? error.message : error);
-            return null;
+        if (this.redis && this.isConnected) {
+            try {
+                const data = await this.redis.get(key);
+                if (data) return JSON.parse(data) as T;
+            } catch (error) {
+                console.error(`Cache get error for ${key}:`, error instanceof Error ? error.message : error);
+            }
         }
+        
+        const entry = this.memoryCache.get(key);
+        if (entry) {
+            if (Date.now() < entry.expiresAt) {
+                return entry.value as T;
+            } else {
+                this.memoryCache.delete(key);
+            }
+        }
+        return null;
     }
 
     /**
      * Guarda un valor en el cache con TTL
      */
     public async set(key: string, value: any, ttl: number = TTL.DEFAULT): Promise<void> {
-        if (!this.redis || !this.isConnected) return;
-
-        try {
-            await this.redis.setex(key, ttl, JSON.stringify(value));
-        } catch (error) {
-            console.error(`Cache set error for ${key}:`, error instanceof Error ? error.message : error);
+        if (this.redis && this.isConnected) {
+            try {
+                await this.redis.setex(key, ttl, JSON.stringify(value));
+            } catch (error) {}
         }
+        
+        this.memoryCache.set(key, {
+            value,
+            expiresAt: Date.now() + (ttl * 1000)
+        });
     }
 
     /**
@@ -126,31 +138,35 @@ class CacheService {
      * Ejemplo: invalidate('waze:alerts:*') borra waze:alerts:P001, waze:alerts:P002, etc.
      */
     public async invalidate(pattern: string): Promise<number> {
-        if (!this.redis || !this.isConnected) return 0;
-
-        try {
-            const keys = await this.redis.keys(pattern);
-            if (keys.length > 0) {
-                await this.redis.del(...keys);
-                console.log(`🗑️ Cache invalidated: ${pattern} (${keys.length} keys)`);
+        let count = 0;
+        const regexPattern = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+        for (const key of this.memoryCache.keys()) {
+            if (regexPattern.test(key)) {
+                this.memoryCache.delete(key);
+                count++;
             }
-            return keys.length;
-        } catch (error) {
-            console.error(`Cache invalidate error for ${pattern}:`, error instanceof Error ? error.message : error);
-            return 0;
         }
+
+        if (this.redis && this.isConnected) {
+            try {
+                const keys = await this.redis.keys(pattern);
+                if (keys.length > 0) {
+                    await this.redis.del(...keys);
+                    count += keys.length;
+                    console.log(`🗑️ Cache invalidated: ${pattern} (${keys.length} keys)`);
+                }
+            } catch (error) {}
+        }
+        return count;
     }
 
     /**
      * Invalida una key específica
      */
     public async del(key: string): Promise<void> {
-        if (!this.redis || !this.isConnected) return;
-
-        try {
-            await this.redis.del(key);
-        } catch (error) {
-            console.error(`Cache del error for ${key}:`, error instanceof Error ? error.message : error);
+        this.memoryCache.delete(key);
+        if (this.redis && this.isConnected) {
+            try { await this.redis.del(key); } catch (error) {}
         }
     }
 
@@ -171,13 +187,9 @@ class CacheService {
      * Limpia todo el cache (usar con precaución)
      */
     public async clear(): Promise<void> {
-        if (!this.redis || !this.isConnected) return;
-
-        try {
-            await this.redis.flushdb();
-            console.warn('⚠️ Cache cleared completely');
-        } catch (error) {
-            console.error('Cache clear error:', error instanceof Error ? error.message : error);
+        this.memoryCache.clear();
+        if (this.redis && this.isConnected) {
+            try { await this.redis.flushdb(); } catch (error) {}
         }
     }
 

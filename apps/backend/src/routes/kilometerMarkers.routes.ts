@@ -54,7 +54,7 @@ export default async function kilometerMarkersRoutes(
       });
       return reply.send(results);
     } catch (error: any) {
-      request.log.error(error, "Error listing kilometer markers");
+      request.log.error({ err: error }, "Error listing kilometer markers");
       return reply
         .status(500)
         .send({ error: "Error al listar hitos kilométricos" });

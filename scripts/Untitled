@@ -1,0 +1,5 @@
+# 1. Compilar backend y frontend
+npm run build
+
+# 2. Reiniciar servicios NSSM
+scripts\REINICIAR-SERVICIOS.bat

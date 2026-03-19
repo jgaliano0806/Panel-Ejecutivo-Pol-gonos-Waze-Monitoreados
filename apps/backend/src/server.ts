@@ -76,11 +76,21 @@ const server = Fastify({
   trustProxy: true,
 });
 
-// Configurar CORS
+// Configurar CORS - permitir FRONTEND_URL, mismo host sin puerto (nginx :80) y variantes
+const frontendUrl = process.env.FRONTEND_URL;
+const corsOrigin = frontendUrl
+  ? [
+      frontendUrl,
+      frontendUrl.replace(/:\d+$/, ""), // http://10.1.0.136
+      /^https?:\/\/10\.1\.0\.136(:\d+)?$/, // cualquier puerto en 10.1.0.136
+    ]
+  : true;
+
 server.register(cors, {
-  origin: process.env.FRONTEND_URL || true,
+  origin: corsOrigin,
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 });
 
 // Registrar multipart para subida de archivos
@@ -2317,29 +2327,39 @@ const start = async () => {
       console.warn("⚠️ Error en migraciones (continuando):", migrationError);
     }
 
-    // Iniciar polling de Waze (una sola vez)
-    try {
-      wazePollingService.startPolling();
-      console.log("✓ WazePollingService iniciado (ingesta + persistencia)");
-    } catch (pollingError) {
-      console.error(
-        "⚠️ Error al iniciar WazePollingService (continuando):",
-        pollingError,
-      );
+    // Iniciar polling de Waze con delay para no competir con API (login, km) por conexiones DB
+    // DISABLE_WAZE_POLLING=1 desactiva polling si el pool DB se satura
+    const disableWazePoll = process.env.DISABLE_WAZE_POLLING === "1" || process.env.DISABLE_WAZE_POLLING === "true";
+    if (!disableWazePoll) {
+      try {
+        setTimeout(() => {
+          wazePollingService.startPolling();
+          console.log("✓ WazePollingService iniciado (delay 60s para priorizar API)");
+        }, 60000);
+      } catch (pollingError) {
+        console.error(
+          "⚠️ Error al iniciar WazePollingService (continuando):",
+          pollingError,
+        );
+      }
+    } else {
+      console.log("⏭️ WazePollingService deshabilitado (DISABLE_WAZE_POLLING=1)");
     }
 
     // Iniciar servicio de clima Open-Meteo
-    // Retrasar 45s para evitar competencia con Waze poll por conexiones del pool DB
-    try {
-      setTimeout(() => {
-        openMeteoService.startPolling();
-        console.log("✓ OpenMeteoService iniciado (clima cada hora, delay 45s)");
-      }, 45000);
-    } catch (weatherError) {
-      console.error(
-        "⚠️ Error al iniciar OpenMeteoService (continuando):",
-        weatherError,
-      );
+    // Retrasar 90s para evitar competencia con Waze poll por conexiones del pool DB
+    if (!disableWazePoll) {
+      try {
+        setTimeout(() => {
+          openMeteoService.startPolling();
+          console.log("✓ OpenMeteoService iniciado (clima cada hora, delay 90s)");
+        }, 90000);
+      } catch (weatherError) {
+        console.error(
+          "⚠️ Error al iniciar OpenMeteoService (continuando):",
+          weatherError,
+        );
+      }
     }
 
     // Inicializar Socket.IO ANTES de listen para que el evento 'upgrade' del

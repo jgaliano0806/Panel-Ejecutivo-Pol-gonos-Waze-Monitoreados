@@ -6,6 +6,7 @@ import { useThemeStore } from "../../stores/useThemeStore";
 import type { RiskScore } from "../../hooks/useRiskScoring";
 import type { Polygon } from "../../types";
 import * as turf from "@turf/turf";
+import { API_CONFIG } from "../../config/constants";
 
 interface RiskHeatMapProps {
   scores: RiskScore[];
@@ -48,14 +49,15 @@ export const RiskHeatMap: React.FC<RiskHeatMapProps> = ({
     lat: number;
   } | null>(null);
 
+  const tilesBase = API_CONFIG.tilesBase || "";
   const mapStyleUrl = {
     version: 8 as const,
     sources: {
       basemap: {
         type: "raster" as const,
         tiles: isDark
-          ? ["/tiles/carto-dark/{z}/{x}/{y}.png"]
-          : ["/tiles/carto-light/{z}/{x}/{y}.png"],
+          ? [`${tilesBase}/tiles/carto-dark/{z}/{x}/{y}.png`]
+          : [`${tilesBase}/tiles/carto-light/{z}/{x}/{y}.png`],
         tileSize: 256,
         attribution: "&copy; CARTO",
       },

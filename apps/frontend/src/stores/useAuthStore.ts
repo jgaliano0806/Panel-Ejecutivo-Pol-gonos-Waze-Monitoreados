@@ -139,6 +139,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await fetch(getApiUrl("/auth/logout"), {
           method: "POST",
           headers: getAuthHeaders(token),
+          body: JSON.stringify({}),
         }).catch(() => {
           // Ignorar errores de logout (puede que el token ya haya expirado)
         });

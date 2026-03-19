@@ -13,7 +13,7 @@ set "PG_BIN=D:\postgreSQL\bin"
 set "PATH=%PG_BIN%;%PATH%"
 
 :: Puerto del backend (debe coincidir con apps/backend/.env)
-set "BACKEND_PORT=3001"
+set "BACKEND_PORT=3002"
 set "FRONTEND_PORT=5180"
 
 :: Detectar IP de red
@@ -175,7 +175,7 @@ goto :EOF
 
 :: ============================================================
 :: Subrutina: Matar proceso que ocupa un puerto
-:: Uso: call :KILL_PORT 3001
+:: Uso: call :KILL_PORT 3002
 :: ============================================================
 :KILL_PORT
 set "_PORT=%~1"

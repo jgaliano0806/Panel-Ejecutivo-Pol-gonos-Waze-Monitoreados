@@ -9,6 +9,7 @@ import {
   translateIncidentSubtype,
 } from "../hooks/useIncidentsModule";
 import type { RoadAccident } from "../hooks/useRoadAccidents";
+import { API_CONFIG } from "../config/constants";
 
 // Colores corporativos de Caminos de las Sierras
 const BRAND_COLORS = {
@@ -145,7 +146,8 @@ async function generateMapImage(
               tileResolve();
             };
 
-            img.src = `/tiles/carto-light/${zoom}/${tileX}/${tileY}.png`;
+            const tilesBase = API_CONFIG.tilesBase || "";
+            img.src = `${tilesBase}/tiles/carto-light/${zoom}/${tileX}/${tileY}.png`;
           });
 
           tileLoadPromises.push(promise);

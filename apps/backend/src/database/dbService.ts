@@ -35,7 +35,9 @@ export class DatabaseService {
    * Inicializa el pool de conexiones
    */
   private initializePool() {
-    const poolMax = parseInt(process.env.DB_POOL_MAX || "50", 10);
+    // Reducir pool para evitar "timeout exceeded when trying to connect"
+    // Con 66 polígonos + clima + TVT, 50+ conexiones saturan. 25 prioriza API (login, km, etc.)
+    const poolMax = parseInt(process.env.DB_POOL_MAX || "25", 10);
     const config = {
       host: process.env.DB_HOST || "localhost",
       port: parseInt(process.env.DB_PORT || "5432"),
@@ -43,8 +45,8 @@ export class DatabaseService {
       user: process.env.DB_USER || "postgres",
       password: process.env.DB_PASSWORD || "postgres",
       max: poolMax,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 15000,
+      idleTimeoutMillis: 20000, // Liberar conexiones idle más rápido
+      connectionTimeoutMillis: 30000, // 30s - balance entre espera y liberación de cola
     };
 
     this.pool = new Pool(config);

@@ -12,8 +12,19 @@ param(
     [ValidateSet("start", "stop", "restart", "status", "logs", "update")]
     [string]$Action,
 
-    [string]$InstallDir = "C:\PanelWaze"
+    [string]$InstallDir
 )
+
+# Auto-detectar directorio del proyecto (raíz del repo = padre de deploy/)
+# Producción: D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados
+if (-not $InstallDir) {
+    $scriptProjectRoot = Split-Path -Parent $PSScriptRoot
+    if (Test-Path "$scriptProjectRoot\package.json") {
+        $InstallDir = $scriptProjectRoot
+    } else {
+        $InstallDir = "D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados"
+    }
+}
 
 $nginxDir = (Get-ChildItem "C:\tools\nginx*" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
 
@@ -77,7 +88,7 @@ switch ($Action) {
         Write-Host ""
         Write-Host "Health check:" -ForegroundColor Cyan
         try {
-            $health = Invoke-RestMethod -Uri "http://localhost:3001/health" -TimeoutSec 5
+            $health = Invoke-RestMethod -Uri "http://localhost:3002/health" -TimeoutSec 5
             Write-Host "  Backend: OK ($($health.uptimeFormatted))" -ForegroundColor Green
         } catch {
             Write-Host "  Backend: NO RESPONDE" -ForegroundColor Red
@@ -103,37 +114,42 @@ switch ($Action) {
 
     "update" {
         Write-Host "Actualizando Panel Waze..." -ForegroundColor Yellow
+        Write-Host "  InstallDir: $InstallDir" -ForegroundColor Gray
 
         nssm stop PanelWazeBackend 2>$null
+        net stop PanelWazeFrontend 2>$null
         Stop-Nginx
 
-        Push-Location $InstallDir
-
         Write-Host "  git pull..."
-        cmd /c "git pull 2>&1"
+        cmd /c "cd /d `"$InstallDir`" && git pull 2>&1"
 
         Write-Host "  npm ci..."
-        cmd /c "npm ci --include=dev 2>&1" | Out-Null
+        cmd /c "cd /d `"$InstallDir`" && npm ci --include=dev 2>&1"
 
-        Write-Host "  Compilando types..."
-        Push-Location "$InstallDir\packages\types"
-        cmd /c "npm run build 2>&1"
-        Pop-Location
+        if (Test-Path "$InstallDir\packages\types") {
+            Write-Host "  Compilando types..."
+            cmd /c "cd /d `"$InstallDir\packages\types`" && npm run build 2>&1"
+        }
 
         Write-Host "  Compilando backend..."
-        Push-Location "$InstallDir\apps\backend"
-        cmd /c "npm run build 2>&1"
-        Pop-Location
+        cmd /c "cd /d `"$InstallDir\apps\backend`" && npm run build 2>&1"
 
         Write-Host "  Compilando frontend..."
-        Push-Location "$InstallDir\apps\frontend"
-        cmd /c "npm run build 2>&1"
-        Pop-Location
+        cmd /c "cd /d `"$InstallDir\apps\frontend`" && set NODE_OPTIONS=--max-old-space-size=4096 && npm run build 2>&1"
 
-        Pop-Location
+        # Actualizar config nginx con ruta correcta
+        if ($nginxDir -and (Test-Path "$InstallDir\deploy\nginx-prod.conf")) {
+            $nginxConf = Get-Content "$InstallDir\deploy\nginx-prod.conf" -Raw
+            $nginxRoot = $InstallDir -replace '\\', '/'
+            $nginxConf = $nginxConf -replace 'INSTALL_DIR', $nginxRoot
+            Set-Content -Path "$nginxDir\conf\nginx.conf" -Value $nginxConf -Encoding UTF8
+            Write-Host "  nginx config actualizado" -ForegroundColor Gray
+        }
 
         nssm start PanelWazeBackend
         Start-Sleep -Seconds 3
+        net start PanelWazeFrontend 2>$null
+        Start-Sleep -Seconds 2
         Start-Nginx
 
         Write-Host ""

@@ -7,6 +7,7 @@ import {
   getWazeIconSvg,
   getWazePartnerHubIconUrl,
 } from "../../utils/wazeIcons";
+import { API_CONFIG } from "../../config/constants";
 
 interface MarkerData {
   lat: number;
@@ -76,15 +77,16 @@ export const MiniMapLibre: React.FC<MiniMapLibreProps> = ({
   // Obtener tema actual
   const isDark = useThemeStore((state: { isDark: boolean }) => state.isDark);
 
-  // STYLE DINÁMICO (tiles raster via proxy interno)
+  // STYLE DINÁMICO (tiles raster via proxy interno o backend en producción)
+  const tilesBase = API_CONFIG.tilesBase || "";
   const mapStyleUrl = {
     version: 8 as const,
     sources: {
       basemap: {
         type: "raster" as const,
         tiles: isDark
-          ? ["/tiles/carto-dark/{z}/{x}/{y}.png"]
-          : ["/tiles/carto-light/{z}/{x}/{y}.png"],
+          ? [`${tilesBase}/tiles/carto-dark/{z}/{x}/{y}.png`]
+          : [`${tilesBase}/tiles/carto-light/{z}/{x}/{y}.png`],
         tileSize: 256,
         attribution: "&copy; CARTO",
       },

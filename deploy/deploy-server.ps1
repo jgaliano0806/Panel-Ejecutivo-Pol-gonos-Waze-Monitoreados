@@ -13,9 +13,9 @@
 #>
 
 param(
-    [string]$InstallDir = "C:\PanelWaze",
+    [string]$InstallDir = "D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados",
     [string]$DbPassword = "CASISA_Prod_2026!",
-    [int]$BackendPort = 3001,
+    [int]$BackendPort = 3002,
     [int]$NginxPort = 80
 )
 
@@ -223,7 +223,7 @@ DB_PORT=5432
 DB_NAME=panel_waze
 DB_USER=postgres
 DB_PASSWORD=$DbPassword
-DB_POOL_MAX=50
+DB_POOL_MAX=80
 
 NODE_ENV=production
 PORT=$BackendPort
@@ -280,7 +280,10 @@ if ($chocoNginx) {
 
 # Copiar config personalizada al directorio real de nginx
 if ($nginxDir) {
-    Copy-Item -Path "$InstallDir\deploy\nginx-prod.conf" -Destination "$nginxDir\conf\nginx.conf" -Force
+    $nginxConf = Get-Content "$InstallDir\deploy\nginx-prod.conf" -Raw
+    $nginxRoot = $InstallDir -replace '\\', '/'
+    $nginxConf = $nginxConf -replace 'INSTALL_DIR', $nginxRoot
+    Set-Content -Path "$nginxDir\conf\nginx.conf" -Value $nginxConf -Encoding UTF8
 
     # Verificar config
     $testResult = cmd /c "cd /d `"$nginxDir`" && nginx.exe -t 2>&1"

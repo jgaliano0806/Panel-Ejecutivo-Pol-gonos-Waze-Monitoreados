@@ -48,31 +48,54 @@ export class KilometerMarkerRepository extends BaseRepository<KilometerMarker> {
 
   /**
    * Obtener todos los marcadores activos (sin límite, para el mapa)
+   * Usa LEFT JOIN con polygon_groups si existe; fallback a query simple si falla.
    */
   async findAllActive(): Promise<KilometerMarker[]> {
-    const result = await this.query(
-      `SELECT km.*, pg.name as group_name
-       FROM ${this.tableName} km
-       LEFT JOIN polygon_groups pg ON km.polygon_group_id = pg.id
-       WHERE km.is_active = true
-       ORDER BY km.name ASC`,
-    );
-    return result.rows.map((row) => this.mapRowToEntity(row));
+    try {
+      const result = await this.query(
+        `SELECT km.*, pg.name as group_name
+         FROM ${this.tableName} km
+         LEFT JOIN polygon_groups pg ON km.polygon_group_id = pg.id
+         WHERE km.is_active = true
+         ORDER BY km.name ASC`,
+      );
+      return result.rows.map((row) => this.mapRowToEntity(row));
+    } catch (err: any) {
+      // Fallback si polygon_groups no existe (migraciones incompletas)
+      if (err?.code === "42P01" || err?.message?.includes("polygon_groups")) {
+        const result = await this.query(
+          `SELECT * FROM ${this.tableName} WHERE is_active = true ORDER BY name ASC`,
+        );
+        return result.rows.map((row) => this.mapRowToEntity(row));
+      }
+      throw err;
+    }
   }
 
   /**
    * Búsqueda por nombre (ILIKE)
    */
   async search(term: string): Promise<KilometerMarker[]> {
-    const result = await this.query(
-      `SELECT km.*, pg.name as group_name
-       FROM ${this.tableName} km
-       LEFT JOIN polygon_groups pg ON km.polygon_group_id = pg.id
-       WHERE km.name ILIKE $1 OR pg.name ILIKE $1
-       ORDER BY km.name ASC LIMIT 100`,
-      [`%${term}%`],
-    );
-    return result.rows.map((row) => this.mapRowToEntity(row));
+    try {
+      const result = await this.query(
+        `SELECT km.*, pg.name as group_name
+         FROM ${this.tableName} km
+         LEFT JOIN polygon_groups pg ON km.polygon_group_id = pg.id
+         WHERE km.name ILIKE $1 OR pg.name ILIKE $1
+         ORDER BY km.name ASC LIMIT 100`,
+        [`%${term}%`],
+      );
+      return result.rows.map((row) => this.mapRowToEntity(row));
+    } catch (err: any) {
+      if (err?.code === "42P01" || err?.message?.includes("polygon_groups")) {
+        const result = await this.query(
+          `SELECT * FROM ${this.tableName} WHERE name ILIKE $1 AND is_active = true ORDER BY name ASC LIMIT 100`,
+          [`%${term}%`],
+        );
+        return result.rows.map((row) => this.mapRowToEntity(row));
+      }
+      throw err;
+    }
   }
 
   /**
@@ -80,11 +103,7 @@ export class KilometerMarkerRepository extends BaseRepository<KilometerMarker> {
    */
   async findByGroup(groupId: number): Promise<KilometerMarker[]> {
     const result = await this.query(
-      `SELECT km.*, pg.name as group_name
-       FROM ${this.tableName} km
-       LEFT JOIN polygon_groups pg ON km.polygon_group_id = pg.id
-       WHERE km.polygon_group_id = $1
-       ORDER BY km.name ASC`,
+      `SELECT * FROM ${this.tableName} WHERE polygon_group_id = $1 ORDER BY name ASC`,
       [groupId],
     );
     return result.rows.map((row) => this.mapRowToEntity(row));
