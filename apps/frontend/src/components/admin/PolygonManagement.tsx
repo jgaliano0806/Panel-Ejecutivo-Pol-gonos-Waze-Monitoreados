@@ -124,10 +124,11 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
         <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="polygon-id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 ID <span className="text-red-500">*</span>
               </label>
               <input
+                id="polygon-id"
                 type="text"
                 value={formData.id}
                 onChange={(e) => onFieldChange("id", e.target.value)}
@@ -145,10 +146,11 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="polygon-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Nombre <span className="text-red-500">*</span>
               </label>
               <input
+                id="polygon-name"
                 type="text"
                 value={formData.name}
                 onChange={(e) => onFieldChange("name", e.target.value)}
@@ -217,10 +219,11 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="polygon-feed-url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Feed URL (Incidentes) <span className="text-red-500">*</span>
               </label>
               <input
+                id="polygon-feed-url"
                 type="url"
                 value={formData.feedUrl}
                 onChange={(e) => onFieldChange("feedUrl", e.target.value)}
@@ -238,10 +241,11 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="polygon-tvt-feed-url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 TVT Feed URL (Opcional)
               </label>
               <input
+                id="polygon-tvt-feed-url"
                 type="url"
                 value={formData.tvtFeedUrl || ""}
                 onChange={(e) =>
@@ -260,10 +264,11 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="polygon-geometry" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Geometría GeoJSON (Opcional)
               </label>
               <textarea
+                id="polygon-geometry"
                 value={
                   typeof formData.geometry === "string"
                     ? formData.geometry
@@ -330,10 +335,11 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="polygon-lat" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Latitud Centro {formData.geometry ? "(Calculada)" : ""}
               </label>
               <input
+                id="polygon-lat"
                 type="number"
                 step="0.0001"
                 value={formData.coordinates?.lat?.toFixed(4) || ""}
@@ -364,10 +370,11 @@ const PolygonFormModal: React.FC<PolygonFormProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="polygon-lon" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Longitud Centro {formData.geometry ? "(Calculada)" : ""}
               </label>
               <input
+                id="polygon-lon"
                 type="number"
                 step="0.0001"
                 value={formData.coordinates?.lon?.toFixed(4) || ""}
@@ -1117,6 +1124,8 @@ const PolygonManagement: React.FC = () => {
                       onChange={() => toggleSelect(polygon.id)}
                       className="rounded border-gray-300 dark:border-veltrix-border"
                       onClick={(e) => e.stopPropagation()}
+                      title={`Seleccionar polígono ${polygon.name}`}
+                      aria-label={`Seleccionar polígono ${polygon.name}`}
                     />
                   </div>
                   <div className="px-4 py-3 font-medium text-gray-900 dark:text-white truncate">
@@ -1622,6 +1631,8 @@ function GroupsCatalogModal({
                       onChange={(e) => setEditName(e.target.value)}
                       className="flex-1 px-2 py-1 border rounded dark:bg-veltrix-card dark:border-veltrix-border dark:text-white min-w-0"
                       autoFocus
+                      title="Editar nombre de grupo"
+                      placeholder="Nombre del grupo"
                     />
                     <label className="flex items-center gap-1 shrink-0 cursor-pointer">
                       <input
