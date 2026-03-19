@@ -15,7 +15,7 @@
 param(
     [string]$InstallDir = "C:\PanelWaze",
     [string]$DbPassword = "CASISA_Prod_2026!",
-    [int]$BackendPort = 3002,
+    [int]$BackendPort = 3001,
     [int]$NginxPort = 80
 )
 

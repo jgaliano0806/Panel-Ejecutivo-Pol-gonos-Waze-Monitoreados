@@ -48,7 +48,7 @@ Write-Host "Actualizando configuración NSSM..."
 & $NSSM set $SERVICE Application        $NODE
 & $NSSM set $SERVICE AppParameters      "dist\server.js"
 & $NSSM set $SERVICE AppDirectory       $BACKEND
-& $NSSM set $SERVICE AppEnvironmentExtra "NODE_ENV=production" "PORT=3002"
+& $NSSM set $SERVICE AppEnvironmentExtra "NODE_ENV=production" "PORT=3001"
 & $NSSM set $SERVICE AppStdout          "$LOGS\backend-stdout.log"
 & $NSSM set $SERVICE AppStderr          "$LOGS\backend-stderr.log"
 & $NSSM set $SERVICE AppRotateFiles     1
@@ -70,7 +70,7 @@ Write-Host ""
 Write-Host "Verificando health endpoint..."
 Start-Sleep -Seconds 8
 try {
-    $response = Invoke-WebRequest -Uri "http://localhost:3002/health" -UseBasicParsing -TimeoutSec 10 -ErrorAction SilentlyContinue
+    $response = Invoke-WebRequest -Uri "http://localhost:3001/health" -UseBasicParsing -TimeoutSec 10 -ErrorAction SilentlyContinue
     Write-Host "HTTP $($response.StatusCode): $($response.Content)"
 } catch {
     $body = $_.ErrorDetails.Message
@@ -82,5 +82,5 @@ Write-Host ""
 Write-Host "============================================="
 Write-Host "  Logs: $LOGS"
 Write-Host "  Frontend: http://10.1.0.136:5180"
-Write-Host "  Backend:  http://10.1.0.136:3002/health"
+Write-Host "  Backend:  http://10.1.0.136:3001/health"
 Write-Host "============================================="

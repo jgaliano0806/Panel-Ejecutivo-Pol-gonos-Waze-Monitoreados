@@ -77,7 +77,7 @@ switch ($Action) {
         Write-Host ""
         Write-Host "Health check:" -ForegroundColor Cyan
         try {
-            $health = Invoke-RestMethod -Uri "http://localhost:3002/health" -TimeoutSec 5
+            $health = Invoke-RestMethod -Uri "http://localhost:3001/health" -TimeoutSec 5
             Write-Host "  Backend: OK ($($health.uptimeFormatted))" -ForegroundColor Green
         } catch {
             Write-Host "  Backend: NO RESPONDE" -ForegroundColor Red
