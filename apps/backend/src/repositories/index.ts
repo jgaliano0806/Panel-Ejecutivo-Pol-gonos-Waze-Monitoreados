@@ -9,6 +9,7 @@ import { WazeIrregularityRepository } from "./WazeIrregularityRepository";
 import { KpiSnapshotRepository } from "./KpiSnapshotRepository";
 import { KilometerMarkerRepository } from "./KilometerMarkerRepository";
 import { DangerZoneRepository } from "./DangerZoneRepository";
+import { ZonaPeligrosaRepository } from "./ZonaPeligrosaRepository";
 
 export class RepositoryFactory {
   private static instance: RepositoryFactory;
@@ -22,6 +23,7 @@ export class RepositoryFactory {
   public readonly kpiSnapshots: KpiSnapshotRepository;
   public readonly kilometerMarkers: KilometerMarkerRepository;
   public readonly dangerZones: DangerZoneRepository;
+  public readonly zonasPeligrosas: ZonaPeligrosaRepository;
 
   private constructor(private db: Pool) {
     this.wazeAlerts = new WazeAlertRepository(db);
@@ -33,6 +35,7 @@ export class RepositoryFactory {
     this.kpiSnapshots = new KpiSnapshotRepository(db);
     this.kilometerMarkers = new KilometerMarkerRepository(db);
     this.dangerZones = new DangerZoneRepository(db);
+    this.zonasPeligrosas = new ZonaPeligrosaRepository(db);
   }
 
   static initialize(db: Pool): void {

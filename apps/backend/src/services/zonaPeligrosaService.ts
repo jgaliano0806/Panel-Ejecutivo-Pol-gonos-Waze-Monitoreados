@@ -1,0 +1,67 @@
+import { repositories } from "../repositories";
+import { invalidateZonasPeligrosasCache } from "./wazeService";
+import { logger } from "../utils/logger";
+import type { ZonaPeligrosaRow } from "../repositories/ZonaPeligrosaRepository";
+
+export interface ZonaPeligrosaCreateInput {
+  nombre: string;
+  geometria: GeoJSON.Polygon;
+  nivel_severidad: 1 | 2;
+  protocolo_accion: string;
+}
+
+class ZonaPeligrosaService {
+  private static instance: ZonaPeligrosaService;
+
+  static getInstance(): ZonaPeligrosaService {
+    if (!ZonaPeligrosaService.instance) {
+      ZonaPeligrosaService.instance = new ZonaPeligrosaService();
+    }
+    return ZonaPeligrosaService.instance;
+  }
+
+  async listAll(): Promise<ZonaPeligrosaRow[]> {
+    return repositories().zonasPeligrosas.findAll();
+  }
+
+  async listActive(): Promise<ZonaPeligrosaRow[]> {
+    return repositories().zonasPeligrosas.findActive();
+  }
+
+  async create(input: ZonaPeligrosaCreateInput): Promise<ZonaPeligrosaRow> {
+    const row = await repositories().zonasPeligrosas.create({
+      nombre: input.nombre,
+      geometria: input.geometria as any,
+      nivel_severidad: input.nivel_severidad,
+      protocolo_accion: input.protocolo_accion,
+      activa: true,
+    } as any);
+    invalidateZonasPeligrosasCache();
+    logger.info(`Zona peligrosa RAC creada: ${input.nombre}`);
+    return row;
+  }
+
+  async update(
+    id: string,
+    input: Partial<ZonaPeligrosaCreateInput>,
+  ): Promise<ZonaPeligrosaRow | null> {
+    const patch: Record<string, unknown> = {};
+    if (input.nombre !== undefined) patch.nombre = input.nombre;
+    if (input.geometria !== undefined) patch.geometria = input.geometria;
+    if (input.nivel_severidad !== undefined)
+      patch.nivel_severidad = input.nivel_severidad;
+    if (input.protocolo_accion !== undefined)
+      patch.protocolo_accion = input.protocolo_accion;
+    const row = await repositories().zonasPeligrosas.update(id, patch as any);
+    if (row) invalidateZonasPeligrosasCache();
+    return row;
+  }
+
+  async remove(id: string): Promise<boolean> {
+    const ok = await repositories().zonasPeligrosas.delete(id);
+    if (ok) invalidateZonasPeligrosasCache();
+    return ok;
+  }
+}
+
+export const zonaPeligrosaService = ZonaPeligrosaService.getInstance();

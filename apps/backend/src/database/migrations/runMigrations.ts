@@ -616,6 +616,28 @@ export async function runMigrations(): Promise<void> {
         }
       }
     }
+
+    // Migración 043: RAC — zonas_peligrosas (geofencing JSONB + Turf)
+    const migration043Path = path.join(
+      migrationsDir,
+      "043_create_zonas_peligrosas.sql",
+    );
+    if (fs.existsSync(migration043Path)) {
+      try {
+        const sql = fs.readFileSync(migration043Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 043 ejecutada: tabla zonas_peligrosas creada",
+        );
+      } catch (migError: any) {
+        if (
+          !migError.message?.includes("already exists") &&
+          !migError.message?.includes("ya existe")
+        ) {
+          console.warn("⚠️ Migración 043:", migError.message);
+        }
+      }
+    }
     console.log("✅ Migraciones completadas exitosamente");
   } catch (error: any) {
     // Si el error es por tabla/columna ya existente, es OK

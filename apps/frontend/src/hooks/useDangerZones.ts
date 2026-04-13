@@ -1,8 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { DangerZone, DangerZoneCreateInput, DangerZoneUpdateInput, ApiResponse } from "@panel-waze/types";
+import {
+  DangerZone,
+  DangerZoneCreateInput,
+  DangerZoneUpdateInput,
+  ApiResponse,
+} from "@panel-waze/types";
 import { API_CONFIG } from "../config/constants";
 
-const BASE = `${API_CONFIG.baseUrl}/danger-zones`;
+/** API RAC: zonas_peligrosas (respuesta mapeada al tipo DangerZone del panel) */
+const BASE = `${API_CONFIG.baseUrl}/zonas-peligrosas`;
+
+function severityToNivel(
+  s: DangerZoneCreateInput["severity"] | DangerZoneUpdateInput["severity"],
+): 1 | 2 {
+  if (s === "critical" || s === "extreme") return 2;
+  return 1;
+}
 
 async function fetchDangerZones(): Promise<DangerZone[]> {
   const res = await fetch(BASE);
@@ -20,17 +33,31 @@ async function createDangerZone(input: DangerZoneCreateInput): Promise<DangerZon
   const res = await fetch(BASE, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      nombre: input.name,
+      geometria: input.geometry,
+      nivel_severidad: severityToNivel(input.severity),
+      protocolo_accion: input.protocol,
+    }),
   });
   const json: ApiResponse<DangerZone> = await res.json();
   return json.data!;
 }
 
-async function updateDangerZone(id: string, input: DangerZoneUpdateInput): Promise<DangerZone> {
+async function updateDangerZone(
+  id: string,
+  input: DangerZoneUpdateInput,
+): Promise<DangerZone> {
+  const body: Record<string, unknown> = {};
+  if (input.name !== undefined) body.nombre = input.name;
+  if (input.geometry !== undefined) body.geometria = input.geometry;
+  if (input.protocol !== undefined) body.protocolo_accion = input.protocol;
+  if (input.severity !== undefined)
+    body.nivel_severidad = severityToNivel(input.severity);
   const res = await fetch(`${BASE}/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    body: JSON.stringify(body),
   });
   const json: ApiResponse<DangerZone> = await res.json();
   return json.data!;
@@ -39,8 +66,6 @@ async function updateDangerZone(id: string, input: DangerZoneUpdateInput): Promi
 async function deleteDangerZone(id: string): Promise<void> {
   await fetch(`${BASE}/${id}`, { method: "DELETE" });
 }
-
-// ─── Hooks ──────────────────────────────────────────────
 
 export function useDangerZones() {
   return useQuery({

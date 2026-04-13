@@ -8,6 +8,11 @@ import { GlobalNotifications } from "../notifications/GlobalNotifications";
 // ==========================================
 // Este componente actúa como adaptador para reemplazar el mapa Leaflet legacy
 // por el nuevo mapa de alto rendimiento WebGL (MapLibre).
+//
+// RAC — Zonas peligrosas (geofencing): el dibujo de polígonos se implementa en
+// MapLibreMap (react-map-gl + capas GeoJSON + DangerZoneEditor), no con
+// leaflet-draw, para un solo motor de mapa y mejor rendimiento. Los polígonos
+// se persisten vía POST /api/zonas-peligrosas (tabla zonas_peligrosas).
 
 interface MapProps {
   polygons: Polygon[];

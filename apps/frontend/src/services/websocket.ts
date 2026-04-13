@@ -10,6 +10,7 @@ import { shouldShowTTSAndSnackbar } from "@/config/notificationFilters";
 import { logger } from "@/lib/logger";
 import { getNearestKilometer } from "@/utils/geoUtils";
 import { useKilometerStore } from "@/stores/useKilometerStore";
+import { useRedZoneCriticalStore } from "@/stores/useRedZoneCriticalStore";
 
 /**
  * WebSocket client singleton para conexión con el backend
@@ -104,6 +105,7 @@ const cleanExpiredContentHashes = (): void => {
 socket.removeAllListeners("notification:new");
 socket.removeAllListeners("waze:data_updated");
 socket.removeAllListeners("play_audio_alert");
+socket.removeAllListeners("red_zone_critical_alert");
 socket.removeAllListeners("connect");
 socket.removeAllListeners("disconnect");
 socket.removeAllListeners("connect_error");
@@ -150,6 +152,58 @@ socket.on("play_audio_alert", (data: { count: number; timestamp: string }) => {
     "play_audio_alert recibido (sonido delegado a notification:new)",
     data,
   );
+});
+
+const RED_ZONE_DEDUP = "__waze_red_zone_uuid_ts__";
+function shouldProcessRedZoneAlert(uuid: string | undefined): boolean {
+  if (!uuid) return true;
+  const m = ((window as any)[RED_ZONE_DEDUP] ??= new Map<string, number>());
+  const last = m.get(uuid) ?? 0;
+  const now = Date.now();
+  if (now - last < 45_000) return false;
+  m.set(uuid, now);
+  return true;
+}
+
+/** Sirena RAC — distinta al beep de notification:new */
+const playRedZoneSiren = (): void => {
+  if (!isAudioUnlocked()) return;
+  try {
+    const audioContext = new (
+      window.AudioContext || (window as any).webkitAudioContext
+    )();
+    const now = audioContext.currentTime;
+    for (let i = 0; i < 6; i++) {
+      const o = audioContext.createOscillator();
+      const g = audioContext.createGain();
+      o.connect(g);
+      g.connect(audioContext.destination);
+      o.type = "sawtooth";
+      o.frequency.value = i % 2 === 0 ? 620 : 920;
+      const t0 = now + i * 0.12;
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(0.22, t0 + 0.02);
+      g.gain.linearRampToValueAtTime(0, t0 + 0.1);
+      o.start(t0);
+      o.stop(t0 + 0.11);
+    }
+  } catch (e) {
+    logger.warn("playRedZoneSiren falló", { e });
+  }
+};
+
+socket.on("red_zone_critical_alert", (payload: Record<string, unknown>) => {
+  const uuid = payload.uuid as string | undefined;
+  if (!shouldProcessRedZoneAlert(uuid)) {
+    logger.debug("red_zone_critical_alert deduplicado", { uuid });
+    return;
+  }
+  logger.info("🚨 red_zone_critical_alert", {
+    uuid,
+    zona: payload.redZonaNombre,
+  });
+  useRedZoneCriticalStore.getState().push(payload);
+  playRedZoneSiren();
 });
 
 /**
@@ -499,6 +553,7 @@ if (import.meta.hot) {
     socket.removeAllListeners("notification:new");
     socket.removeAllListeners("waze:data_updated");
     socket.removeAllListeners("play_audio_alert");
+    socket.removeAllListeners("red_zone_critical_alert");
     socket.removeAllListeners("connect");
     socket.removeAllListeners("disconnect");
     socket.removeAllListeners("connect_error");

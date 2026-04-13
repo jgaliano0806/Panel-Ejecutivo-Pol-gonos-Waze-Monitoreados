@@ -7,6 +7,8 @@ export enum SystemEvents {
   RISK_SCORE_CALCULATED = 'risk:calculated',
   SOCKET_BROADCAST = 'socket:broadcast',
   DANGER_ZONE_ALERT = 'danger_zone:alert',
+  /** RAC geofencing: incidente crítico dentro de zonas_peligrosas (WebSocket dedicado) */
+  RED_ZONE_CRITICAL_ALERT = 'red_zone_critical_alert',
 }
 
 export interface WazePollCompletePayload {

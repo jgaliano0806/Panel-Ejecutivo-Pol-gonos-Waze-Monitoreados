@@ -36,6 +36,21 @@ export class SocketSubscriber {
       SystemEvents.DANGER_ZONE_ALERT,
       this.handleDangerZoneAlert.bind(this),
     );
+    eventBus.on(
+      SystemEvents.RED_ZONE_CRITICAL_ALERT,
+      this.handleRedZoneCriticalAlert.bind(this),
+    );
+  }
+
+  private handleRedZoneCriticalAlert(payload: any): void {
+    try {
+      this.io.emit("red_zone_critical_alert", payload);
+      logger.info(
+        `🚨 red_zone_critical_alert emitido (uuid=${payload?.uuid ?? "?"})`,
+      );
+    } catch (error) {
+      logger.error(`Error broadcasting red_zone_critical_alert: ${error}`);
+    }
   }
 
   private handleDangerZoneAlert(payload: any): void {
