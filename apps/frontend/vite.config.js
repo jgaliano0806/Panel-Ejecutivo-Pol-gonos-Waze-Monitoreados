@@ -16,7 +16,7 @@ import { visualizer } from "rollup-plugin-visualizer";
 // https://vitejs.dev/config/
 export default defineConfig(function (_a) {
     var mode = _a.mode;
-    var BACKEND_PORT = 3002;
+    var BACKEND_PORT = 3001;
     var backendUrl = "http://127.0.0.1:".concat(BACKEND_PORT);
     return __assign(__assign({ plugins: [react()], cacheDir: "node_modules/.vite_fix", resolve: {
             alias: {

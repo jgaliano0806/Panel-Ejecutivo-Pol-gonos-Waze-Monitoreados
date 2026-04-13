@@ -6,7 +6,7 @@ import { visualizer } from "rollup-plugin-visualizer";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  const BACKEND_PORT = 3002;
+  const BACKEND_PORT = 3001;
   const backendUrl = `http://127.0.0.1:${BACKEND_PORT}`;
 
   return {
