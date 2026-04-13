@@ -431,7 +431,7 @@ export async function runMigrations(): Promise<void> {
       }
     }
 
-    console.log("✅ Migraciones completadas exitosamente");
+
 
     // Migración 035: Reestructurar permisos por módulo
     const migration035Path = path.join(
@@ -594,6 +594,29 @@ export async function runMigrations(): Promise<void> {
         console.warn("⚠️ Migración 041:", migError.message);
       }
     }
+
+    // Migración 042: Crear tabla de zonas peligrosas (danger_zones)
+    const migration042Path = path.join(
+      migrationsDir,
+      "042_create_danger_zones.sql",
+    );
+    if (fs.existsSync(migration042Path)) {
+      try {
+        const sql = fs.readFileSync(migration042Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 042 ejecutada: tabla danger_zones creada",
+        );
+      } catch (migError: any) {
+        if (
+          !migError.message?.includes("already exists") &&
+          !migError.message?.includes("ya existe")
+        ) {
+          console.warn("⚠️ Migración 042:", migError.message);
+        }
+      }
+    }
+    console.log("✅ Migraciones completadas exitosamente");
   } catch (error: any) {
     // Si el error es por tabla/columna ya existente, es OK
     if (

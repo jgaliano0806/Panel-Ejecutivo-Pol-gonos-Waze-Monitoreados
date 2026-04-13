@@ -381,16 +381,22 @@ const RoleForm = ({
       permission: "notifications.view",
     },
     {
-      path: "/siniestros",
-      label: "Siniestros Viales",
-      icon: Car,
-      permission: "accidents.view",
+      path: "/zonas-peligrosas",
+      label: "Módulo de zonas peligrosas",
+      icon: Shield,
+      permission: "map.view",
     },
     {
       path: "/incidentes",
       label: "Módulo Incidentes",
       icon: Layers,
       permission: "incidents.view",
+    },
+    {
+      path: "/siniestros",
+      label: "Siniestros Viales",
+      icon: Car,
+      permission: "accidents.view",
     },
     {
       path: "/admin",

@@ -6,6 +6,7 @@ export enum SystemEvents {
   WEATHER_UPDATED = 'weather:updated',
   RISK_SCORE_CALCULATED = 'risk:calculated',
   SOCKET_BROADCAST = 'socket:broadcast',
+  DANGER_ZONE_ALERT = 'danger_zone:alert',
 }
 
 export interface WazePollCompletePayload {

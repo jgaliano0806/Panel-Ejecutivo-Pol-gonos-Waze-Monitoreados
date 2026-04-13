@@ -8,6 +8,7 @@ import {
   Info,
   MapPin,
   Tag,
+  ShieldAlert,
 } from "lucide-react";
 import {
   useNotificationStore,
@@ -147,6 +148,9 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
 
   // Icono basado en el tipo
   const getIcon = () => {
+    if (notification.data?.isDangerZone) {
+      return <ShieldAlert className="h-6 w-6 text-red-600 dark:text-red-500 animate-pulse drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]" />;
+    }
     switch (notification.type) {
       case "ACCIDENT":
         return <AlertOctagon className="h-6 w-6 text-red-500" />;
@@ -158,6 +162,9 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
   };
 
   const getBorderColor = () => {
+    if (notification.data?.isDangerZone) {
+      return "border-l-red-600 bg-red-100/90 dark:bg-red-950/80 shadow-[0_0_15px_rgba(239,68,68,0.5)] border-y border-r border-red-500 ring-1 ring-red-500";
+    }
     switch (notification.type) {
       case "ACCIDENT":
         return "border-l-red-500 bg-red-50/50 dark:bg-red-950/20";
@@ -224,10 +231,17 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
       <div className="flex-1 min-w-0 space-y-1.5">
         {/* Tipo de incidente */}
         <div className="flex items-center gap-2">
+          {notification.data?.isDangerZone && (
+            <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-600 text-white animate-pulse shadow-md border border-red-400">
+              🔴 Zona peligrosa
+            </span>
+          )}
           <span
             className={cn(
               "text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full",
-              notification.type === "ACCIDENT"
+              notification.data?.isDangerZone
+                ? "bg-red-200 text-red-800 dark:bg-red-900/60 dark:text-red-200"
+                : notification.type === "ACCIDENT"
                 ? "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300"
                 : notification.type === "HAZARD"
                   ? "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"
@@ -236,7 +250,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
           >
             {getTypeLabel()}
           </span>
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
             {formatNotificationTime(notification.created_at)}
           </span>
         </div>

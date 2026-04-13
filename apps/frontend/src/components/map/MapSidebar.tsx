@@ -8,7 +8,10 @@ import {
   Menu,
   X,
   Filter,
+  Eye,
+  EyeOff,
 } from "lucide-react";
+import { useDangerZoneStore } from "../../stores/useDangerZoneStore";
 import { WazeOMeter } from "../dashboard/WazeOMeter";
 import type { Polygon } from "../../types";
 import { getPolygonGroups } from "../../utils/polygonHelpers";
@@ -51,6 +54,8 @@ export const MapSidebar = ({
 }: MapSidebarProps) => {
   const [internalExpanded, setInternalExpanded] = useState(true);
   const isExpanded = expanded ?? internalExpanded;
+  const showZones = useDangerZoneStore((s) => s.showZones);
+  const toggleZonesVisibility = useDangerZoneStore((s) => s.toggleZonesVisibility);
 
   const toggleExpanded = () => {
     const newValue = !isExpanded;
@@ -92,6 +97,13 @@ export const MapSidebar = ({
           icon: <Map size={18} />,
           action: () => onLayerToggle("waze", !showWazeIncidents),
           color: "green",
+        },
+        {
+          id: "danger-zones-layer",
+          label: "Zonas peligrosas",
+          icon: showZones ? <Eye size={18} /> : <EyeOff size={18} />,
+          action: () => toggleZonesVisibility(),
+          color: "red",
         },
       ],
     },
@@ -221,6 +233,17 @@ export const MapSidebar = ({
                         {child.id === "waze" && (
                           <div
                             className={`ml-auto w-8 h-4 rounded-full flex items-center padding-0.5 transition-colors ${showWazeIncidents ? "bg-blue-500 justify-end" : "bg-gray-700 justify-start"}`}
+                            aria-hidden
+                          >
+                            <motion.div
+                              layout
+                              className="w-3 h-3 bg-white rounded-full mx-0.5"
+                            />
+                          </div>
+                        )}
+                        {child.id === "danger-zones-layer" && (
+                          <div
+                            className={`ml-auto w-8 h-4 rounded-full flex items-center padding-0.5 transition-colors ${showZones ? "bg-red-500 justify-end" : "bg-gray-700 justify-start"}`}
                             aria-hidden
                           >
                             <motion.div

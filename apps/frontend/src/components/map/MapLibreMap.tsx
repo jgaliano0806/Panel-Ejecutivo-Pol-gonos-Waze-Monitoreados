@@ -42,8 +42,13 @@ import { useIncidentDetail } from "../../hooks/useIncidentsModule";
 import { IncidentDetailModal } from "../incidents/IncidentDetailModal";
 import { exportIncidentToPDF } from "../../lib/pdf-export";
 import { useAuthStore } from "../../stores/useAuthStore";
+import { useDangerZoneStore } from "../../stores/useDangerZoneStore";
 import { useKilometers } from "../../hooks/useKilometers";
 import { API_CONFIG } from "../../config/constants";
+import { MapContextMenu } from "./MapContextMenu";
+import { DangerZoneEditor } from "./DangerZoneEditor";
+import { DangerZoneLayer } from "./DangerZoneLayer";
+import { DangerZonePanel } from "./DangerZonePanel";
 
 // Configuración inicial
 const INITIAL_VIEW_STATE = {
@@ -132,6 +137,25 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   const [selectedJam, setSelectedJam] = useState<any>(null);
   const [detailIncidentId, setDetailIncidentId] = useState<string | null>(null);
   const { data: detailIncident } = useIncidentDetail(detailIncidentId);
+
+  // Danger Zones
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; lngLat: { lng: number; lat: number } } | null>(null);
+  const setDrawing = useDangerZoneStore((state) => state.setDrawing);
+  const addDrawingPoint = useDangerZoneStore((state) => state.addDrawingPoint);
+
+  // Listener para flyTo desde DangerZoneListPanel
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { geometry } = (e as CustomEvent).detail;
+      if (!geometry?.coordinates?.[0] || !mapRef.current) return;
+      const ring: [number, number][] = geometry.coordinates[0];
+      const bounds = new maplibregl.LngLatBounds(ring[0], ring[0]);
+      ring.forEach((c: [number, number]) => bounds.extend(c));
+      mapRef.current.getMap().fitBounds(bounds as any, { padding: 80, maxZoom: 15, duration: 1200 });
+    };
+    window.addEventListener("dangerzone:flyto", handler);
+    return () => window.removeEventListener("dangerzone:flyto", handler);
+  }, []);
 
   // Estado para capas (Tráfico sigue siendo interno por ahora, a menos que el sidebar lo quiera controlar también)
   const [showTraffic] = useState(true);
@@ -1135,6 +1159,15 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         mapStyle={mapStyle}
         attributionControl={false}
         clickTolerance={20}
+        onContextMenu={(e: any) => {
+          e.originalEvent.preventDefault();
+          setContextMenu({
+            x: e.originalEvent.clientX,
+            y: e.originalEvent.clientY,
+            lngLat: { lng: e.lngLat.lng, lat: e.lngLat.lat }
+          });
+        }}
+        
         onLoad={(e: any) => {
           startTransition(() => {
             setMapLoaded(true);
@@ -1142,6 +1175,10 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
           });
         }}
       >
+        <DangerZoneLayer />
+        {mapRef.current && (
+          <DangerZoneEditor map={mapRef.current.getMap() as unknown as maplibregl.Map} />
+        )}
         <NavigationControl position="top-right" showCompass showZoom />
 
         {/* Polígonos */}
@@ -1901,6 +1938,20 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
           />,
           document.body,
         )}
+
+      {contextMenu && (
+        <MapContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          onCreateZone={() => {
+            setDrawing(true);
+            addDrawingPoint([contextMenu.lngLat.lng, contextMenu.lngLat.lat]);
+          }}
+        />
+      )}
+
+      <DangerZonePanel />
     </div>
   );
 };

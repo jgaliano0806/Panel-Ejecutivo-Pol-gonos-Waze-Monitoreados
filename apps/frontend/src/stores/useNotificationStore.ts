@@ -18,6 +18,8 @@ export interface NotificationData {
   nearestKmRoute?: string | null;
   nearestKmDistance?: number | null;
   ttsText?: string | null;
+  isDangerZone?: boolean;
+  dangerZoneName?: string;
 }
 
 export interface Notification {

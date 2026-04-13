@@ -21,6 +21,7 @@ import usersRoutes from "./users.routes";
 import rolesRoutes from "./roles.routes";
 import kilometerMarkersRoutes from "./kilometerMarkers.routes";
 import tileProxyRoutes from "./tileProxy.routes";
+import dangerZonesRoutes from "./dangerZones.routes";
 
 /**
  * Registra todos los módulos de rutas en la instancia de Fastify
@@ -69,6 +70,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
   // Hitos Kilométricos
   await app.register(kilometerMarkersRoutes, { prefix: "/api/kilometers" });
+
+  // Zonas Peligrosas
+  await app.register(dangerZonesRoutes, { prefix: "/api/danger-zones" });
 }
 
 export { catalogsRoutes, healthRoutes, iconUploadRoutes };

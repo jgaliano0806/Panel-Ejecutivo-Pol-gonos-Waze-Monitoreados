@@ -17,6 +17,7 @@ import { eventBus, SystemEvents } from "../events";
 import { logger } from "../utils/logger";
 import { notificationService } from "./notificationService";
 import { geoReferenceService } from "./geoReferenceService";
+import { dangerZoneCheckService } from "./dangerZoneCheckService";
 
 /**
  * Servicio de Polling de Waze con persistencia PostgreSQL
@@ -536,6 +537,11 @@ export class WazePollingService {
           alert.street,
         );
 
+        const dangerZoneFlag = await dangerZoneCheckService.checkAlert(lat, lng);
+        if (dangerZoneFlag) {
+          eventBus.emit(SystemEvents.DANGER_ZONE_ALERT, { ...alert, ...dangerZoneFlag, polygonId });
+        }
+
         await notificationService.create(
           alert.type === "ACCIDENT" ? "ACCIDENT" : "HAZARD",
           title,
@@ -551,9 +557,12 @@ export class WazePollingService {
             nearestKmRoute: nearest?.route_name || null,
             nearestKmDistance: nearest ? Math.round(nearest.distance) : null,
             ttsText,
+            isDangerZone: dangerZoneFlag ? true : undefined,
+            dangerZoneId: dangerZoneFlag?.dangerZoneId,
+            dangerZoneName: dangerZoneFlag?.dangerZoneName,
           },
         );
-        logger.info(`🔔 Notificación enviada para alerta ${alert.uuid}`);
+        logger.info(`🔔 Notificación enviada para alerta ${alert.uuid}${dangerZoneFlag ? ' (🔴 ZONA ROJA)' : ''}`);
       }
     } catch (error) {
       logger.error(

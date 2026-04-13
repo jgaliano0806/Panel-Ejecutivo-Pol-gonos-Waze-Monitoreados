@@ -25,6 +25,7 @@ import { AlertsBadge } from "../components/alerts/AlertsBadge";
 import { WazeOMeter } from "../components/dashboard/WazeOMeter";
 import { MapKPIFooter } from "../components/map/MapKPIFooter";
 import { MapSidebar } from "../components/map/MapSidebar";
+import { DangerZoneListPanel } from "../components/map/DangerZoneListPanel";
 import { useHistoricalData, useTrends } from "../hooks/useWazeData";
 import { initializeAudio } from "../lib/tts-service";
 import { useRealtimeNotifications } from "../hooks/useRealtimeNotifications";
@@ -112,7 +113,7 @@ const Dashboard: React.FC = () => {
   // Inicializar vista basada en la ruta actual para evitar renderizados innecesarios de 'home'
   const [currentView, setCurrentView] = useState<ViewType>(() => {
     const path = window.location.pathname;
-    if (path === "/mapa") return "map";
+    if (path === "/mapa" || path === "/zonas-peligrosas") return "map";
     if (path === "/admin") return "admin";
     return "home";
   });
@@ -132,7 +133,7 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     const path = location.pathname;
     let newView: ViewType = "home";
-    if (path === "/mapa") newView = "map";
+    if (path === "/mapa" || path === "/zonas-peligrosas") newView = "map";
     else if (path === "/admin") newView = "admin";
 
     if (newView !== currentView) {
@@ -141,12 +142,13 @@ const Dashboard: React.FC = () => {
       });
     }
 
-    // Colapsar sidebar al entrar a la vista de mapa (solo una vez por sesión de navegación)
-    if (path === "/mapa" && !hasCollapsedForMap.current) {
+    if (
+      (path === "/mapa" || path === "/zonas-peligrosas") &&
+      !hasCollapsedForMap.current
+    ) {
       setIsSidebarExpanded(false);
       hasCollapsedForMap.current = true;
-    } else if (path !== "/mapa") {
-      // Resetear el flag cuando salimos del mapa
+    } else if (path !== "/mapa" && path !== "/zonas-peligrosas") {
       hasCollapsedForMap.current = false;
     }
   }, [location.pathname, currentView]);
@@ -459,19 +461,24 @@ const Dashboard: React.FC = () => {
             <div className="flex h-full overflow-hidden relative">
               {/* Sidebar de filtros y capas - Overlay Flotante */}
               <div className="absolute left-4 top-4 bottom-4 z-[1002] pointer-events-none flex flex-col justify-center">
-                <div className="pointer-events-auto h-auto max-h-full shadow-2xl rounded-2xl overflow-hidden">
-                  <MapSidebar
-                    onLayerToggle={handleLayerToggle}
-                    showWazeIncidents={showWazeIncidents}
-                    jams={jams}
-                    polygons={polygons}
-                    selectedPolygon={selectedPolygon}
-                    selectedGroup={selectedGroup}
-                    onPolygonChange={handlePolygonChange}
-                    onGroupChange={handleGroupChange}
-                    expanded={isSidebarExpanded}
-                    onExpandedChange={setIsSidebarExpanded}
-                  />
+                <div className="pointer-events-auto h-auto max-h-full flex flex-row gap-3 items-start shadow-2xl rounded-2xl overflow-visible">
+                  <div className="rounded-2xl overflow-hidden shadow-2xl shrink-0">
+                    <MapSidebar
+                      onLayerToggle={handleLayerToggle}
+                      showWazeIncidents={showWazeIncidents}
+                      jams={jams}
+                      polygons={polygons}
+                      selectedPolygon={selectedPolygon}
+                      selectedGroup={selectedGroup}
+                      onPolygonChange={handlePolygonChange}
+                      onGroupChange={handleGroupChange}
+                      expanded={isSidebarExpanded}
+                      onExpandedChange={setIsSidebarExpanded}
+                    />
+                  </div>
+                  {location.pathname === "/zonas-peligrosas" && (
+                    <DangerZoneListPanel />
+                  )}
                 </div>
               </div>
 

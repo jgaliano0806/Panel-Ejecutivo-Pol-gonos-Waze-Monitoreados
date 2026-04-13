@@ -156,7 +156,7 @@ socket.on("play_audio_alert", (data: { count: number; timestamp: string }) => {
  * Genera beep de alerta.
  * Solo funciona despues de interaccion del usuario (autoplay policy).
  */
-const playAlertBeep = (): void => {
+const playAlertBeep = (isCritical = false): void => {
   if (!isAudioUnlocked()) return; // No intentar si audio bloqueado
 
   try {
@@ -186,9 +186,19 @@ const playAlertBeep = (): void => {
     };
 
     const now = audioContext.currentTime;
-    playTone(523.25, now, 0.15);
-    playTone(659.25, now + 0.15, 0.2);
-    logger.debug("Beep reproducido");
+    
+    if (isCritical) {
+      // Tono de Sirena más agresivo para Zonas Rojas
+      playTone(880, now, 0.15); 
+      playTone(1108.73, now + 0.2, 0.15); 
+      playTone(880, now + 0.4, 0.15);
+      playTone(1108.73, now + 0.6, 0.15);
+    } else {
+      // Tono normal
+      playTone(523.25, now, 0.15);
+      playTone(659.25, now + 0.15, 0.2);
+    }
+    logger.debug("Beep reproducido", { isCritical });
   } catch (error) {
     logger.warn("Error en beep", { error });
   }
@@ -245,7 +255,12 @@ const buildTTSMessage = (notification: Notification): string => {
   }
 
   // 4. Armar Mensaje Final siguiendo la plantilla
-  const mensajeFinal = `Atención, operadores. Nuevo incidente ingresado en el sistema. Reporte: ${reporte}. Localización: ${via}${localizacionExtra}.`;
+  let prefix = "Atención, operadores. Nuevo incidente ingresado en el sistema.";
+  if (notification.data?.isDangerZone) {
+    prefix = `¡ALERTA CRÍTICA! Incidente reportado dentro de zona peligrosa en ${notification.data?.dangerZoneName || 'área protegida'}. Repito, alerta en zona peligrosa.`;
+  }
+  
+  const mensajeFinal = `${prefix} Reporte: ${reporte}. Localización: ${via}${localizacionExtra}.`;
 
   return mensajeFinal;
 };
@@ -380,8 +395,8 @@ socket.on("notification:new", async (notification: Notification) => {
 
   if (isAudioUnlocked()) {
     useNotificationStore.getState().markTTSPlayed(notification.id);
-    playAlertBeep();
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    playAlertBeep(!!notification.data?.isDangerZone);
+    await new Promise((resolve) => setTimeout(resolve, notification.data?.isDangerZone ? 800 : 400));
 
     try {
       await speakNotification(ttsMessage, "");

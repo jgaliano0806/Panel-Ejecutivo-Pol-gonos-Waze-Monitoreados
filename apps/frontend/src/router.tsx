@@ -79,6 +79,16 @@ export const router = createBrowserRouter(
       ),
     },
     {
+      path: "/zonas-peligrosas",
+      element: (
+        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.mapa]}>
+          <SectionErrorBoundary sectionName="Zonas peligrosas">
+            <Dashboard />
+          </SectionErrorBoundary>
+        </ProtectedRoute>
+      ),
+    },
+    {
       path: "/incidentes",
       element: (
         <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.incidentes]}>

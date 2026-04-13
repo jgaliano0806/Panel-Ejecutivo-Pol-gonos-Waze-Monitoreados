@@ -12,7 +12,7 @@ import { logger } from "@/lib/logger";
  * Genera un sonido de alerta usando Web Audio API.
  * Solo funciona despues de interaccion del usuario (autoplay policy).
  */
-const playAlertBeep = (): void => {
+const playAlertBeep = (isCritical = false): void => {
   if (!isAudioUnlocked()) return; // No intentar si audio esta bloqueado
 
   try {
@@ -42,8 +42,16 @@ const playAlertBeep = (): void => {
     };
 
     const now = audioContext.currentTime;
-    playTone(523.25, now, 0.15);
-    playTone(659.25, now + 0.15, 0.2);
+    
+    if (isCritical) {
+      playTone(880, now, 0.15); 
+      playTone(1108.73, now + 0.2, 0.15); 
+      playTone(880, now + 0.4, 0.15);
+      playTone(1108.73, now + 0.6, 0.15);
+    } else {
+      playTone(523.25, now, 0.15);
+      playTone(659.25, now + 0.15, 0.2);
+    }
   } catch (error) {
     // Silencioso - beep no es critico
   }
@@ -72,8 +80,8 @@ const executeTTS = async (
 
   try {
     // Beep primero
-    playAlertBeep();
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    playAlertBeep(!!notification.data?.isDangerZone);
+    await new Promise((resolve) => setTimeout(resolve, notification.data?.isDangerZone ? 800 : 400));
 
     // Ejecutar TTS (incluye polygonName para coincidir con la UI)
     await speakNotification(notification.title, message);
