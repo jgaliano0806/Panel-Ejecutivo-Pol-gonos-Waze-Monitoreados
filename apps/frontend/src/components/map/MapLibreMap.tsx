@@ -142,6 +142,8 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; lngLat: { lng: number; lat: number } } | null>(null);
   const setDrawing = useDangerZoneStore((state) => state.setDrawing);
   const addDrawingPoint = useDangerZoneStore((state) => state.addDrawingPoint);
+  const selectZone = useDangerZoneStore((state) => state.selectZone);
+  const setTempGeometry = useDangerZoneStore((state) => state.setTempGeometry);
 
   // Listener para flyTo desde DangerZoneListPanel
   useEffect(() => {
@@ -1945,6 +1947,8 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
           y={contextMenu.y}
           onClose={() => setContextMenu(null)}
           onCreateZone={() => {
+            selectZone(null);
+            setTempGeometry(null);
             setDrawing(true);
             addDrawingPoint([contextMenu.lngLat.lng, contextMenu.lngLat.lat]);
           }}

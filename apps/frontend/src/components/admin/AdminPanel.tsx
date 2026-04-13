@@ -15,8 +15,6 @@ import CatalogManagement from "./CatalogManagement";
 import UserManagement from "./UserManagement";
 import SystemSettings from "./SystemSettings";
 import KilometerManagement from "./KilometerManagement";
-import { AdminToastProvider } from "../../hooks/useAdminToast";
-
 type AdminSection =
   | "polygons"
   | "catalogs"
@@ -94,8 +92,7 @@ const AdminPanel: React.FC = () => {
   const activeConfig = adminSections.find((s) => s.id === activeSection)!;
 
   return (
-    <AdminToastProvider>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 via-green-50/20 to-yellow-50/30 dark:from-veltrix-bg dark:via-veltrix-bg dark:to-veltrix-bg transition-colors duration-300">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 via-green-50/20 to-yellow-50/30 dark:from-veltrix-bg dark:via-veltrix-bg dark:to-veltrix-bg transition-colors duration-300">
         <div className="max-w-[1900px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
           {/* Header */}
           <div className="mb-4 sm:mb-8 flex items-center justify-between gap-4">
@@ -242,7 +239,6 @@ const AdminPanel: React.FC = () => {
           </div>
         </div>
       </div>
-    </AdminToastProvider>
   );
 };
 

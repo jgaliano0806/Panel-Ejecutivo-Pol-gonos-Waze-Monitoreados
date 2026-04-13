@@ -40,8 +40,14 @@ async function createDangerZone(input: DangerZoneCreateInput): Promise<DangerZon
       protocolo_accion: input.protocol,
     }),
   });
-  const json: ApiResponse<DangerZone> = await res.json();
-  return json.data!;
+  const json = (await res.json()) as ApiResponse<DangerZone> & { error?: string };
+  if (!res.ok) {
+    throw new Error(json.error || res.statusText || `HTTP ${res.status}`);
+  }
+  if (!json.data) {
+    throw new Error("Respuesta inválida del servidor al crear la zona.");
+  }
+  return json.data;
 }
 
 async function updateDangerZone(
@@ -59,12 +65,22 @@ async function updateDangerZone(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const json: ApiResponse<DangerZone> = await res.json();
-  return json.data!;
+  const json = (await res.json()) as ApiResponse<DangerZone> & { error?: string };
+  if (!res.ok) {
+    throw new Error(json.error || res.statusText || `HTTP ${res.status}`);
+  }
+  if (!json.data) {
+    throw new Error("Respuesta inválida del servidor al actualizar la zona.");
+  }
+  return json.data;
 }
 
 async function deleteDangerZone(id: string): Promise<void> {
-  await fetch(`${BASE}/${id}`, { method: "DELETE" });
+  const res = await fetch(`${BASE}/${id}`, { method: "DELETE" });
+  const json = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) {
+    throw new Error(json.error || res.statusText || `HTTP ${res.status}`);
+  }
 }
 
 export function useDangerZones() {

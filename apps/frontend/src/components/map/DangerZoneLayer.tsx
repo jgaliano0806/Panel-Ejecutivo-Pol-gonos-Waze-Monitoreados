@@ -20,6 +20,8 @@ export const DangerZoneLayer: React.FC = () => {
   const { current: map } = useMap();
   const { data: zones = [] } = useDangerZones();
   const showZones = useDangerZoneStore((s) => s.showZones);
+  const isDrawing = useDangerZoneStore((s) => s.isDrawing);
+  const selectedZone = useDangerZoneStore((s) => s.selectedZone);
   const hiddenZoneIds = useDangerZoneStore((s) => s.hiddenZoneIds);
   const hoveredZoneId = useDangerZoneStore((s) => s.hoveredZoneId);
   const selectZone = useDangerZoneStore((s) => s.selectZone);
@@ -30,6 +32,10 @@ export const DangerZoneLayer: React.FC = () => {
     type: "FeatureCollection",
     features: zones
       .filter((z) => z.geometry?.coordinates && !hiddenZoneIds.has(z.id))
+      .filter(
+        (z) =>
+          !(isDrawing && selectedZone && z.id === selectedZone.id),
+      )
       .map((z) => ({
         type: "Feature" as const,
         geometry: z.geometry as GeoJSON.Polygon,
@@ -40,7 +46,7 @@ export const DangerZoneLayer: React.FC = () => {
           color: z.color || "#ef4444",
         },
       })),
-  }), [zones, hiddenZoneIds]);
+  }), [zones, hiddenZoneIds, isDrawing, selectedZone?.id]);
 
   const highlightFilter = useMemo(
     () => ["==", ["get", "id"], hoveredZoneId || ""],

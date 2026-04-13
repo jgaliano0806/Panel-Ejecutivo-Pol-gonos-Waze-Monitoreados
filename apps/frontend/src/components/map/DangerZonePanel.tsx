@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { X, Save, Trash2, AlertTriangle, Shield, ShieldAlert, ShieldOff, Palette } from "lucide-react";
-import { useDangerZoneStore } from "@/stores/useDangerZoneStore";
+import { X, Save, Trash2, AlertTriangle, Shield, ShieldAlert, ShieldOff, Palette, Pencil } from "lucide-react";
+import {
+  useDangerZoneStore,
+  polygonRingToOpenDrawingPoints,
+} from "@/stores/useDangerZoneStore";
 import { useCreateDangerZone, useUpdateDangerZone, useDeleteDangerZone } from "@/hooks/useDangerZones";
-import { DangerZoneSeverity } from "@panel-waze/types";
+import { useAdminToast } from "@/hooks/useAdminToast";
+import type { DangerZoneSeverity, DangerZoneUpdateInput } from "@panel-waze/types";
 import { cn } from "@/lib/utils";
 
 const SEVERITY_OPTIONS: { value: DangerZoneSeverity; label: string; icon: React.ReactNode; color: string }[] = [
@@ -26,7 +30,11 @@ export const DangerZonePanel: React.FC = () => {
   const tempGeometry = useDangerZoneStore((s) => s.tempGeometry);
   const reset = useDangerZoneStore((s) => s.reset);
   const setShowPanel = useDangerZoneStore((s) => s.setShowPanel);
+  const setDrawing = useDangerZoneStore((s) => s.setDrawing);
+  const clearDrawingPoints = useDangerZoneStore((s) => s.clearDrawingPoints);
+  const setTempGeometryStore = useDangerZoneStore((s) => s.setTempGeometry);
 
+  const toast = useAdminToast();
   const createMutation = useCreateDangerZone();
   const updateMutation = useUpdateDangerZone();
   const deleteMutation = useDeleteDangerZone();
@@ -59,19 +67,85 @@ export const DangerZonePanel: React.FC = () => {
 
   const handleSave = async () => {
     if (!name.trim()) return;
-    if (isEditing && selectedZone) {
-      await updateMutation.mutateAsync({ id: selectedZone.id, input: { name, description, severity, protocol, color } });
-    } else if (tempGeometry) {
-      await createMutation.mutateAsync({ name, description, severity, protocol, color, geometry: tempGeometry as any });
+    try {
+      if (isEditing && selectedZone) {
+        const input: DangerZoneUpdateInput = {
+          name,
+          description,
+          severity,
+          protocol,
+          color,
+        };
+        if (tempGeometry) {
+          input.geometry = tempGeometry as GeoJSON.Polygon;
+        }
+        await updateMutation.mutateAsync({ id: selectedZone.id, input });
+        toast.success(
+          "Modificación registrada",
+          `La zona «${name.trim()}» se actualizó correctamente.`,
+        );
+      } else if (tempGeometry) {
+        await createMutation.mutateAsync({
+          name,
+          description,
+          severity,
+          protocol,
+          color,
+          geometry: tempGeometry as GeoJSON.Polygon,
+        });
+        toast.success(
+          "Alta registrada",
+          `La zona «${name.trim()}» se creó correctamente.`,
+        );
+      } else {
+        toast.warning(
+          "Falta el perímetro",
+          "Dibuja el polígono en el mapa (clic derecho → crear zona) antes de guardar.",
+        );
+        return;
+      }
+      reset();
+    } catch (e) {
+      toast.error(
+        "No se pudo guardar",
+        e instanceof Error ? e.message : "Error desconocido",
+      );
     }
-    reset();
   };
 
   const handleDelete = async () => {
     if (!selectedZone) return;
-    if (!confirm("¿Desactivar esta zona peligrosa?")) return;
-    await deleteMutation.mutateAsync(selectedZone.id);
-    reset();
+    if (
+      !confirm(
+        "¿Eliminar definitivamente esta zona peligrosa? Esta acción no se puede deshacer.",
+      )
+    ) {
+      return;
+    }
+    const zoneName = selectedZone.name;
+    try {
+      await deleteMutation.mutateAsync(selectedZone.id);
+      toast.success("Baja registrada", `La zona «${zoneName}» se eliminó correctamente.`);
+      reset();
+    } catch (e) {
+      toast.error(
+        "No se pudo eliminar",
+        e instanceof Error ? e.message : "Error desconocido",
+      );
+    }
+  };
+
+  const handleStartRedraw = () => {
+    setTempGeometryStore(null);
+    if (selectedZone?.geometry) {
+      const ring = polygonRingToOpenDrawingPoints(selectedZone.geometry);
+      if (ring.length >= 3) {
+        setDrawing(true, ring);
+        return;
+      }
+    }
+    clearDrawingPoints();
+    setDrawing(true);
   };
 
   const handleClose = () => { reset(); setShowPanel(false); };
@@ -89,6 +163,18 @@ export const DangerZonePanel: React.FC = () => {
       </div>
 
       <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
+        {isEditing && (
+          <button
+            type="button"
+            onClick={handleStartRedraw}
+            disabled={createMutation.isPending || updateMutation.isPending}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors disabled:opacity-50"
+          >
+            <Pencil className="h-3.5 w-3.5 shrink-0" />
+            Redibujar perímetro en el mapa
+          </button>
+        )}
+
         <div>
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Nombre de la zona *</label>
           <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Villa la Tela" className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition" />
@@ -129,9 +215,15 @@ export const DangerZonePanel: React.FC = () => {
         </div>
       </div>
 
+      {tempGeometry && (
+        <div className="px-4 py-2 text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border-t border-amber-100 dark:border-amber-900/50">
+          Perímetro listo en el mapa. Pulsa <strong>Guardar</strong> para enviarlo al servidor.
+        </div>
+      )}
+
       <div className="px-4 py-3 border-t border-gray-200 dark:border-slate-700 flex gap-2">
         {isEditing && (
-          <button type="button" onClick={handleDelete} disabled={deleteMutation.isPending} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors" title="Desactivar zona">
+          <button type="button" onClick={handleDelete} disabled={deleteMutation.isPending} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors" title="Eliminar zona">
             <Trash2 className="h-4 w-4" />
           </button>
         )}

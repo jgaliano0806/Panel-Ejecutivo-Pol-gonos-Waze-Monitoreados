@@ -60,4 +60,26 @@ export class ZonaPeligrosaRepository extends BaseRepository<ZonaPeligrosaRow> {
     );
     return result.rows.map((r) => this.mapRowToEntity(r));
   }
+
+  /** Esta tabla no tiene `updated_at`; BaseRepository.update fallaría en SQL. */
+  async update(
+    id: string | number,
+    entity: Partial<ZonaPeligrosaRow>,
+  ): Promise<ZonaPeligrosaRow | null> {
+    const data = this.mapEntityToRow(entity);
+    const columns = Object.keys(data);
+    if (columns.length === 0) {
+      return this.findById(id);
+    }
+    const values = Object.values(data);
+    const setClause = columns.map((col, i) => `${col} = $${i + 2}`).join(", ");
+    const result = await this.db.query(
+      `UPDATE ${this.tableName}
+       SET ${setClause}
+       WHERE ${this.getIdColumn()} = $1
+       RETURNING *`,
+      [id, ...values],
+    );
+    return result.rows[0] ? this.mapRowToEntity(result.rows[0]) : null;
+  }
 }

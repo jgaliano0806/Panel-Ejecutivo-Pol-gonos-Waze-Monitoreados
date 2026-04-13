@@ -11,6 +11,10 @@ import { logger } from "@/lib/logger";
 import { getNearestKilometer } from "@/utils/geoUtils";
 import { useKilometerStore } from "@/stores/useKilometerStore";
 import { useRedZoneCriticalStore } from "@/stores/useRedZoneCriticalStore";
+import {
+  playCriticalAlert,
+  type RedZoneIncidentAudioData,
+} from "@/utils/audioAlerts";
 
 /**
  * WebSocket client singleton para conexión con el backend
@@ -155,6 +159,35 @@ socket.on("play_audio_alert", (data: { count: number; timestamp: string }) => {
 });
 
 const RED_ZONE_DEDUP = "__waze_red_zone_uuid_ts__";
+/** UUIDs ya anunciados por `red_zone_critical_alert` (sirena + TTS prioridad) — no repetir lectura en `notification:new`. */
+const RED_ZONE_SKIP_INCIDENT_TTS_UUIDS =
+  "__waze_red_zone_skip_incident_tts_uuids__";
+
+function rememberRedZoneAnnouncedUuid(uuid: string | undefined): void {
+  if (!uuid) return;
+  const s = ((window as any)[RED_ZONE_SKIP_INCIDENT_TTS_UUIDS] ??=
+    new Set<string>()) as Set<string>;
+  s.add(uuid);
+  if (s.size > 400) {
+    const toDrop = [...s].slice(0, 200);
+    toDrop.forEach((u) => s.delete(u));
+  }
+}
+
+function shouldSkipIncidentTtsForRedZone(
+  notification: Notification,
+  alertUuid: string | undefined,
+): boolean {
+  const flagged =
+    !!notification.data?.isRedZone || !!notification.data?.isDangerZone;
+  const set = (window as any)[RED_ZONE_SKIP_INCIDENT_TTS_UUIDS] as
+    | Set<string>
+    | undefined;
+  const fromSocket =
+    typeof alertUuid === "string" && !!set?.has(alertUuid);
+  return flagged || fromSocket;
+}
+
 function shouldProcessRedZoneAlert(uuid: string | undefined): boolean {
   if (!uuid) return true;
   const m = ((window as any)[RED_ZONE_DEDUP] ??= new Map<string, number>());
@@ -164,33 +197,6 @@ function shouldProcessRedZoneAlert(uuid: string | undefined): boolean {
   m.set(uuid, now);
   return true;
 }
-
-/** Sirena RAC — distinta al beep de notification:new */
-const playRedZoneSiren = (): void => {
-  if (!isAudioUnlocked()) return;
-  try {
-    const audioContext = new (
-      window.AudioContext || (window as any).webkitAudioContext
-    )();
-    const now = audioContext.currentTime;
-    for (let i = 0; i < 6; i++) {
-      const o = audioContext.createOscillator();
-      const g = audioContext.createGain();
-      o.connect(g);
-      g.connect(audioContext.destination);
-      o.type = "sawtooth";
-      o.frequency.value = i % 2 === 0 ? 620 : 920;
-      const t0 = now + i * 0.12;
-      g.gain.setValueAtTime(0, t0);
-      g.gain.linearRampToValueAtTime(0.22, t0 + 0.02);
-      g.gain.linearRampToValueAtTime(0, t0 + 0.1);
-      o.start(t0);
-      o.stop(t0 + 0.11);
-    }
-  } catch (e) {
-    logger.warn("playRedZoneSiren falló", { e });
-  }
-};
 
 socket.on("red_zone_critical_alert", (payload: Record<string, unknown>) => {
   const uuid = payload.uuid as string | undefined;
@@ -202,8 +208,24 @@ socket.on("red_zone_critical_alert", (payload: Record<string, unknown>) => {
     uuid,
     zona: payload.redZonaNombre,
   });
+  rememberRedZoneAnnouncedUuid(uuid);
   useRedZoneCriticalStore.getState().push(payload);
-  playRedZoneSiren();
+
+  const incidentFromPayload = payload.incident as RedZoneIncidentAudioData | undefined;
+  const incident: RedZoneIncidentAudioData =
+    incidentFromPayload ??
+    ({
+      type: payload.type as string | undefined,
+      subtype: payload.subtype as string | undefined,
+    } satisfies RedZoneIncidentAudioData);
+  const zoneName =
+    (payload.zoneName as string | undefined) ||
+    (payload.redZonaNombre as string | undefined) ||
+    "Zona de riesgo";
+
+  void playCriticalAlert(incident, zoneName).catch((e) =>
+    logger.warn("playCriticalAlert rechazada", { e }),
+  );
 });
 
 /**
@@ -435,6 +457,15 @@ socket.on("notification:new", async (notification: Notification) => {
   useNotificationStore.getState().addNotification(updatedNotification);
 
   if (!shouldNotify) {
+    useNotificationStore.getState().markTTSPlayed(notification.id);
+    return;
+  }
+
+  if (shouldSkipIncidentTtsForRedZone(notification, alertUuid)) {
+    logger.info(
+      "TTS de incidente omitido: zona roja (audio vía red_zone_critical_alert o flags isRedZone/isDangerZone)",
+      { notifId: notification.id, alertUuid: alertUuid || "N/A" },
+    );
     useNotificationStore.getState().markTTSPlayed(notification.id);
     return;
   }

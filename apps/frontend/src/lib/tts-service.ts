@@ -569,6 +569,37 @@ export const speakNotification = async (
   processQueue();
 };
 
+export type SpeakUsingIncidentVoiceOptions = {
+  /**
+   * Si es true (p. ej. zona roja), el mensaje pasa al frente de la cola y se reproduce
+   * en cuanto termine el TTS en curso; el resto de mensajes conserva su orden detrás.
+   */
+  priority?: boolean;
+};
+
+/**
+ * Misma vía de audio que las notificaciones de incidentes: cola → Edge TTS
+ * (`currentConfig.voice` / rate / pitch) y, si falla el backend, `playWebSpeechFallback`
+ * con la misma selección de voz (`_pickAndSpeak`).
+ * No aplica la plantilla ni el "Repito" de `buildNaturalMessage`.
+ */
+export const speakUsingIncidentVoice = (
+  text: string,
+  options?: SpeakUsingIncidentVoiceOptions,
+): void => {
+  if (_muted) {
+    logger.debug("TTS silenciado — mensaje descartado (voz incidentes)");
+    return;
+  }
+  const cleaned = cleanTextForTTS(text);
+  if (options?.priority) {
+    audioQueue.unshift(cleaned);
+  } else {
+    audioQueue.push(cleaned);
+  }
+  processQueue();
+};
+
 /**
  * Detener toda reproducción
  */

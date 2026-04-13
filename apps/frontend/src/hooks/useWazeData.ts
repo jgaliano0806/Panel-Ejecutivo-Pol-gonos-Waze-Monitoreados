@@ -15,6 +15,10 @@ import { REFRESH_INTERVALS, API_CONFIG } from "../config/constants";
 
 /**
  * Hook para consumir la API del Backend
+ *
+ * Las alertas en tiempo real (Socket.IO), p. ej. `red_zone_critical_alert`
+ * con sirena + TTS, se registran en el singleton `src/services/websocket.ts`
+ * al importar ese módulo desde `useWazeRealtime` / `useRealtimeNotifications`.
  */
 
 const API_BASE = API_CONFIG.baseUrl;
