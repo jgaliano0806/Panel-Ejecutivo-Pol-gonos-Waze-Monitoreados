@@ -9,8 +9,14 @@ export default defineConfig(({ mode }) => {
   const BACKEND_PORT = 3002;
   const backendUrl = `http://127.0.0.1:${BACKEND_PORT}`;
 
+  // Permite compilar con un base path personalizado para ambientes como /preprod/.
+  // En producción normal se omite (queda "/"). En pre-producción se pasa
+  // VITE_BASE_URL=/preprod/ como ARG en el Dockerfile.
+  const base = process.env.VITE_BASE_URL || "/";
+
   return {
     plugins: [react()],
+    base,
     cacheDir: "node_modules/.vite_fix", // Force new cache directory
     resolve: {
       alias: {

@@ -1,0 +1,90 @@
+# ===========================================
+# DOCKERFILE PRE-PRODUCCIÓN — BASE /preprod/
+# Idéntico al Dockerfile de prod pero:
+#   · VITE_BASE_URL=/preprod/  → Vite genera assets con ese prefijo
+#   · VITE_API_URL=/preprod/api → el frontend llama a la API bajo /preprod/
+#   · nginx sirve desde el alias /preprod/ (nginx.preprod.conf)
+# ===========================================
+
+# -------------------------------------------
+# Stage 1: Build Frontend
+# -------------------------------------------
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY apps/frontend/package*.json ./apps/frontend/
+COPY apps/backend/package*.json  ./apps/backend/
+
+RUN npm ci --include=dev
+
+COPY . .
+
+WORKDIR /app/apps/frontend
+
+ARG VITE_GOOGLE_MAPS_API_KEY
+ARG VITE_BASE_URL=/preprod/
+ARG VITE_API_URL=/preprod/api
+
+ENV VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY
+ENV VITE_BASE_URL=$VITE_BASE_URL
+ENV VITE_API_URL=$VITE_API_URL
+
+RUN npm run build
+
+# -------------------------------------------
+# Stage 2: Build Backend
+# -------------------------------------------
+FROM node:20-alpine AS backend-builder
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY apps/frontend/package*.json ./apps/frontend/
+COPY apps/backend/package*.json  ./apps/backend/
+
+RUN npm ci
+
+COPY . .
+
+WORKDIR /app/apps/backend
+RUN npm run build
+
+# -------------------------------------------
+# Stage 3: Imagen de Pre-Producción
+# -------------------------------------------
+FROM node:20-alpine AS preprod
+
+RUN apk add --no-cache nginx curl
+
+WORKDIR /app
+
+COPY --from=backend-builder /app/apps/backend/dist           ./backend/dist
+COPY --from=backend-builder /app/apps/backend/node_modules   ./backend/node_modules
+COPY --from=backend-builder /app/apps/backend/package.json   ./backend/
+COPY                         apps/backend/data               ./backend/data
+
+COPY --from=frontend-builder /app/apps/frontend/dist ./frontend/dist
+
+# Configuración nginx específica para /preprod/
+COPY docker/nginx.preprod.conf /etc/nginx/nginx.conf
+
+COPY docker/start.sh /start.sh
+RUN chmod +x /start.sh
+
+RUN addgroup -g 1001 -S nodejs && \
+    adduser  -S nodejs -u 1001 -G nodejs && \
+    chown -R nodejs:nodejs /app && \
+    chown -R nginx:nginx /var/lib/nginx /var/log/nginx && \
+    chown nginx:nginx /etc/nginx/nginx.conf
+
+ENV NODE_ENV=production
+ENV PORT=3001
+
+EXPOSE 80 3001
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:3001/health || exit 1
+
+CMD ["/start.sh"]
