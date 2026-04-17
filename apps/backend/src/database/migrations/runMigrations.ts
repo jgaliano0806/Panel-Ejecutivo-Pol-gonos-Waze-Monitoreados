@@ -594,6 +594,23 @@ export async function runMigrations(): Promise<void> {
         console.warn("⚠️ Migración 041:", migError.message);
       }
     }
+
+    // Migración 042: Función ensure_weather_partitions() para auto-crear particiones mensuales
+    const migration042Path = path.join(
+      migrationsDir,
+      "042_auto_weather_partitions.sql",
+    );
+    if (fs.existsSync(migration042Path)) {
+      try {
+        const sql = fs.readFileSync(migration042Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 042 ejecutada: función ensure_weather_partitions() instalada",
+        );
+      } catch (migError: any) {
+        console.warn("⚠️ Migración 042:", migError.message);
+      }
+    }
   } catch (error: any) {
     // Si el error es por tabla/columna ya existente, es OK
     if (

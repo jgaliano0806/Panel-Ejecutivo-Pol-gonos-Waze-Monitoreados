@@ -561,7 +561,7 @@ export const WAZE_ICONS_SVG: Record<string, string> = {
   </g>
 </svg>`,
 
-  default: `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  default: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
         <circle cx="24" cy="24" r="20" fill="#374151" stroke="#1F2937" stroke-width="2"/>
         <path d="M24 14v12" stroke="white" stroke-width="4" stroke-linecap="round"/>
         <circle cx="24" cy="32" r="3" fill="white"/>
