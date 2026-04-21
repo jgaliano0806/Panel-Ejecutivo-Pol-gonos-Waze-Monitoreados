@@ -3,6 +3,7 @@ import Dashboard from "./pages/Dashboard";
 import { RiskDashboard } from "./pages/RiskDashboard";
 import { RoadAccidentsPage } from "./pages/RoadAccidentsPage";
 import { IncidentsModule } from "./pages/IncidentsModule";
+import { InboxOperativoPage } from "./pages/InboxOperativoPage";
 import { AppLayout } from "./components/layout/AppLayout";
 import { SectionErrorBoundary } from "./components/common/ErrorBoundary";
 import { NotificationsPage } from "./pages/NotificationsPage";
@@ -95,6 +96,18 @@ export const router = createBrowserRouter(
           <AppLayout>
             <SectionErrorBoundary sectionName="Módulo de Incidentes">
               <IncidentsModule />
+            </SectionErrorBoundary>
+          </AppLayout>
+        </ProtectedRoute>
+      ),
+    },
+    {
+      path: "/inbox-operativo",
+      element: (
+        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.siniestros]}>
+          <AppLayout>
+            <SectionErrorBoundary sectionName="Inbox Operativo">
+              <InboxOperativoPage />
             </SectionErrorBoundary>
           </AppLayout>
         </ProtectedRoute>

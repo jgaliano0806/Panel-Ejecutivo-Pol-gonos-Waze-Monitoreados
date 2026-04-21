@@ -10,6 +10,7 @@ import {
   Filter,
   Eye,
   EyeOff,
+  ShieldCheck,
 } from "lucide-react";
 import { useDangerZoneStore } from "../../stores/useDangerZoneStore";
 import { WazeOMeter } from "../dashboard/WazeOMeter";
@@ -28,6 +29,7 @@ interface MenuItem {
 interface MapSidebarProps {
   onLayerToggle: (layer: string, enabled: boolean) => void;
   showWazeIncidents: boolean;
+  showOfficialIncidents?: boolean;
   jams: any[]; // TrafficJam array for WazeOMeter
   // Props para filtros de polígonos
   polygons?: Polygon[];
@@ -42,6 +44,7 @@ interface MapSidebarProps {
 export const MapSidebar = ({
   onLayerToggle,
   showWazeIncidents,
+  showOfficialIncidents = true,
   jams,
   // Props de filtros de polígonos
   polygons = [],
@@ -97,6 +100,13 @@ export const MapSidebar = ({
           icon: <Map size={18} />,
           action: () => onLayerToggle("waze", !showWazeIncidents),
           color: "green",
+        },
+        {
+          id: "official",
+          label: "Libro Oficial (Base)",
+          icon: <ShieldCheck size={18} />,
+          action: () => onLayerToggle("official", !showOfficialIncidents),
+          color: "blue",
         },
         {
           id: "danger-zones-layer",
@@ -233,6 +243,17 @@ export const MapSidebar = ({
                         {child.id === "waze" && (
                           <div
                             className={`ml-auto w-8 h-4 rounded-full flex items-center padding-0.5 transition-colors ${showWazeIncidents ? "bg-blue-500 justify-end" : "bg-gray-700 justify-start"}`}
+                            aria-hidden
+                          >
+                            <motion.div
+                              layout
+                              className="w-3 h-3 bg-white rounded-full mx-0.5"
+                            />
+                          </div>
+                        )}
+                        {child.id === "official" && (
+                          <div
+                            className={`ml-auto w-8 h-4 rounded-full flex items-center padding-0.5 transition-colors ${showOfficialIncidents ? "bg-blue-500 justify-end" : "bg-gray-700 justify-start"}`}
                             aria-hidden
                           >
                             <motion.div

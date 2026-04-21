@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useDangerZones, useDeleteDangerZone } from "@/hooks/useDangerZones";
 import { useDangerZoneStore } from "@/stores/useDangerZoneStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { DangerZone } from "@panel-waze/types";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +29,7 @@ export const DangerZoneListPanel: React.FC = () => {
   const hoveredZoneId = useDangerZoneStore((s) => s.hoveredZoneId);
   const setHoveredZone = useDangerZoneStore((s) => s.setHoveredZone);
   const selectedZone = useDangerZoneStore((s) => s.selectedZone);
+  const canEdit = useAuthStore((s) => s.hasPermission("danger_zones.edit"));
 
   const handleFlyTo = useCallback(
     (zone: DangerZone) => {
@@ -53,9 +55,11 @@ export const DangerZoneListPanel: React.FC = () => {
         <Shield className="text-red-500 shrink-0" size={20} />
         <div className="min-w-0 flex-1">
           <h2 className="font-bold text-sm tracking-tight">Zonas peligrosas</h2>
-          <p className="text-[10px] text-gray-500 leading-tight">
-            Clic derecho en el mapa para crear
-          </p>
+          {canEdit && (
+            <p className="text-[10px] text-gray-500 leading-tight">
+              Clic derecho en el mapa para crear
+            </p>
+          )}
         </div>
         <span className="text-[10px] text-gray-600 bg-white/5 px-2 py-0.5 rounded-full">
           {dangerZones.length}
@@ -68,8 +72,9 @@ export const DangerZoneListPanel: React.FC = () => {
           <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
             <Shield className="text-gray-600 mb-2" size={32} />
             <p className="text-[11px] text-gray-500 italic leading-relaxed">
-              No hay zonas peligrosas. Usa clic derecho en el mapa para crear
-              una.
+              {canEdit
+                ? "No hay zonas peligrosas. Usa clic derecho en el mapa para crear una."
+                : "No hay zonas peligrosas configuradas."}
             </p>
           </div>
         ) : (
@@ -147,7 +152,8 @@ export const DangerZoneListPanel: React.FC = () => {
                     Ir a zona
                   </button>
 
-                  {/* Editar */}
+                  {/* Editar — solo con permiso */}
+                  {canEdit && (
                   <button
                     type="button"
                     onClick={() => selectZone(zone)}
@@ -156,8 +162,10 @@ export const DangerZoneListPanel: React.FC = () => {
                   >
                     <Edit3 size={12} />
                   </button>
+                  )}
 
-                  {/* Eliminar */}
+                  {/* Eliminar — solo con permiso */}
+                  {canEdit && (
                   <button
                     type="button"
                     onClick={async () => {
@@ -169,6 +177,7 @@ export const DangerZoneListPanel: React.FC = () => {
                   >
                     <Trash2 size={12} />
                   </button>
+                  )}
                 </div>
               </div>
             );

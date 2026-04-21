@@ -3,6 +3,7 @@ import React, {
   useRef,
   useMemo,
   useState,
+  useCallback,
   startTransition,
 } from "react";
 import { createPortal } from "react-dom";
@@ -104,11 +105,17 @@ interface MapLibreMapProps {
   selectedGroup?: string | null;
   selectedIncidentId?: string | null;
   forcedIncident?: any | null;
+  /** Tras volar y abrir popup por notificación o deep-link; limpia estado en el padre para no re-enfocar en cada refresh de incidentes. */
+  onExternalIncidentFocusConsumed?: () => void;
+  /** Habilitar creación/edición de zonas peligrosas. Debe ser true solo en /zonas-peligrosas. */
+  allowDangerZoneEdit?: boolean;
   // Props para filtros de polígonos en el sidebar del mapa
   allPolygons?: Polygon[];
   onPolygonChange?: (polygonId: string | null) => void;
   onGroupChange?: (groupId: string, active: boolean) => void;
   showWazeIncidents?: boolean; // Controlar visibilidad de iconos Waze
+  showOfficialIncidents?: boolean;
+  officialIncidents?: any[];
 }
 
 export const MapLibreMap: React.FC<MapLibreMapProps> = ({
@@ -122,21 +129,39 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   selectedGroup,
   selectedIncidentId,
   forcedIncident,
+  onExternalIncidentFocusConsumed,
+  allowDangerZoneEdit = false,
   allPolygons: _allPolygons,
   onPolygonChange: _onPolygonChange,
   onGroupChange: _onGroupChange,
   showWazeIncidents = true,
+  showOfficialIncidents = true,
+  officialIncidents = [],
 }) => {
   const mapRef = useRef<MapRef>(null);
   const incidentMarkersRef = useRef(
     new window.Map<string, maplibregl.Marker>(),
   );
+  const officialMarkersRef = useRef(
+    new window.Map<string, maplibregl.Marker>(),
+  );
+  /** ID del marcador que actualmente muestra la animación pulse. */
+  const pulsedMarkerIdRef = useRef<string | null>(null);
   const navigate = useNavigate();
   const isDark = useThemeStore((state) => state.isDark);
   const [selectedIncident, setSelectedIncident] = useState<any>(null);
   const [selectedJam, setSelectedJam] = useState<any>(null);
   const [detailIncidentId, setDetailIncidentId] = useState<string | null>(null);
   const { data: detailIncident } = useIncidentDetail(detailIncidentId);
+
+  const hasDangerZonePermission = useAuthStore((s) =>
+    s.hasPermission("danger_zones.edit"),
+  );
+  /**
+   * Edición de zonas: requiere que la ruta lo habilite (allowDangerZoneEdit=true,
+   * solo en /zonas-peligrosas) Y que el usuario tenga el permiso danger_zones.edit.
+   */
+  const canEditDangerZones = allowDangerZoneEdit && hasDangerZonePermission;
 
   // Danger Zones
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; lngLat: { lng: number; lat: number } } | null>(null);
@@ -181,6 +206,41 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     style.id = styleId;
     style.textContent = `@keyframes pulse-ring { 0% { box-shadow: 0 0 0 3px rgba(59,130,246,0.6), 0 2px 8px rgba(0,0,0,0.5); } 70% { box-shadow: 0 0 0 10px rgba(59,130,246,0), 0 2px 8px rgba(0,0,0,0.3); } 100% { box-shadow: 0 0 0 3px rgba(59,130,246,0.6), 0 2px 8px rgba(0,0,0,0.5); } }`;
     document.head.appendChild(style);
+  }, []);
+
+  /**
+   * Aplica la animación pulse al marcador con el ID indicado y la quita del anterior.
+   * Funciona tanto para marcadores del feed activo como para marcadores temporales de notificación.
+   */
+  const applyPulseToMarker = useCallback((markerId: string | null) => {
+    const markersMap = incidentMarkersRef.current;
+
+    // Quitar pulse del marcador anterior
+    const prevId = pulsedMarkerIdRef.current;
+    if (prevId && prevId !== markerId) {
+      const prevMarker = markersMap.get(prevId);
+      if (prevMarker) {
+        const innerDiv = prevMarker.getElement().firstElementChild as HTMLElement | null;
+        if (innerDiv) {
+          innerDiv.style.animation = "";
+          innerDiv.style.boxShadow = "0 2px 6px rgba(0,0,0,0.4)";
+        }
+      }
+    }
+
+    // Aplicar pulse al nuevo marcador
+    if (markerId) {
+      const marker = markersMap.get(markerId);
+      if (marker) {
+        const innerDiv = marker.getElement().firstElementChild as HTMLElement | null;
+        if (innerDiv) {
+          innerDiv.style.animation = "pulse-ring 1.5s ease-out infinite";
+          innerDiv.style.boxShadow = "0 0 0 3px rgba(59,130,246,0.6), 0 2px 8px rgba(0,0,0,0.5)";
+        }
+      }
+    }
+
+    pulsedMarkerIdRef.current = markerId;
   }, []);
 
   // Hitos kilométricos
@@ -270,6 +330,8 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
       (!selectedIncidentId && !forcedIncident)
     )
       return;
+
+    const hadExternalFocus = Boolean(selectedIncidentId || forcedIncident);
 
     // Pequeño delay para asegurar que el mapa esté estable
     const timer = setTimeout(() => {
@@ -381,12 +443,13 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
           el.style.width = "36px";
           el.style.height = "36px";
           el.style.cursor = "pointer";
+          // Mismo estilo base que el feed; el pulse se aplica via applyPulseToMarker
           el.innerHTML = `
             <div style="
               width:36px;height:36px;border-radius:50%;
               background:#1e293b;display:flex;align-items:center;justify-content:center;
-              box-shadow:0 0 0 3px rgba(59,130,246,0.6), 0 2px 8px rgba(0,0,0,0.5);
-              animation: pulse-ring 1.5s ease-out infinite;
+              box-shadow:0 2px 6px rgba(0,0,0,0.4);
+              transition:transform 0.15s ease;
             ">
               <img src="${src}" alt="" style="width:30px;height:30px;object-fit:contain;pointer-events:none;"
                 onerror="this.onerror=null;this.src='${dataUri}';" />
@@ -395,6 +458,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
 
           el.addEventListener("click", (e) => {
             e.stopPropagation();
+            applyPulseToMarker(markerId);
             setSelectedIncident({ lat: location.lat, lng: location.lng, properties });
           });
 
@@ -403,6 +467,9 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             .addTo(map);
           markersMap.set(markerId, marker);
         }
+
+        // Aplicar pulse al marcador (nuevo o ya existente en el feed)
+        applyPulseToMarker(markerId);
 
         setSelectedIncident({
           lat: location.lat,
@@ -423,6 +490,10 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             console.error("❌ Error flying to location:", err);
           }
         }
+
+        if (hadExternalFocus) {
+          onExternalIncidentFocusConsumed?.();
+        }
       } else {
         console.warn(
           "⚠️ Incident found but invalid location:",
@@ -433,7 +504,14 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     }, 500); // Delay aumentado a 500ms para mayor seguridad
 
     return () => clearTimeout(timer);
-  }, [selectedIncidentId, forcedIncident, incidents, mapLoaded]);
+  }, [
+    selectedIncidentId,
+    forcedIncident,
+    incidents,
+    mapLoaded,
+    onExternalIncidentFocusConsumed,
+    applyPulseToMarker,
+  ]);
 
   const loadWazeIcon = (map: maplibregl.Map, iconId: string) => {
     if (map.hasImage(iconId)) return;
@@ -693,6 +771,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
           inc.timestamp instanceof Date
             ? inc.timestamp.getTime()
             : new Date(inc.timestamp).getTime();
+        applyPulseToMarker(inc.id);
         setSelectedJam(null);
         setSelectedIncident({
           lng: inc.location.lng,
@@ -744,7 +823,73 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
 
       markersMap.set(inc.id, marker);
     });
-  }, [mapLoaded, showWazeIncidents, incidents, isDark]);
+  }, [mapLoaded, showWazeIncidents, incidents, isDark, applyPulseToMarker]);
+
+  // Renderizar Incidentes Oficiales (Libro de Base)
+  useEffect(() => {
+    const markersMap = officialMarkersRef.current;
+
+    if (!mapLoaded || !showOfficialIncidents) {
+      markersMap.forEach((m) => m.remove());
+      markersMap.clear();
+      return;
+    }
+    const map = mapRef.current?.getMap?.() as maplibregl.Map | undefined;
+    if (!map) return;
+
+    // IDs actuales
+    const currentIds = new Set(officialIncidents.map((i) => String(i.id)));
+
+    // Quitar markers que ya no existen
+    markersMap.forEach((m, id) => {
+      if (!currentIds.has(id)) {
+        m.remove();
+        markersMap.delete(id);
+      }
+    });
+
+    // Agregar solo markers nuevos
+    officialIncidents.forEach((inc) => {
+      const idStr = String(inc.id);
+      if (markersMap.has(idStr)) return;
+      if (!inc.lat || !inc.lng) return; // Coords seguras
+
+      const el = document.createElement("div");
+      el.style.width = "40px";
+      el.style.height = "40px";
+      el.style.cursor = "pointer";
+      el.innerHTML = `
+        <div style="
+          width:40px;height:40px;
+          border-radius:8px;
+          background:#2563eb;
+          border: 2px solid white;
+          display:flex;align-items:center;justify-content:center;
+          box-shadow:0 2px 6px rgba(0,0,0,0.5);
+        ">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+      `;
+
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const msg = [
+          "Incidente Oficial Nro " + inc.id,
+          "Codigo: " + (inc.codigo_situacion || "-"),
+          "Ruta/KM: " + (inc.ruta || "-") + " " + (inc.kilometro || ""),
+        ].join("\n");
+        alert(msg);
+      });
+
+      const marker = new maplibregl.Marker({ element: el, anchor: "center", color: "blue" })
+        .setLngLat([inc.lng, inc.lat])
+        .addTo(map);
+
+      markersMap.set(idStr, marker);
+    });
+  }, [mapLoaded, showOfficialIncidents, officialIncidents, isDark, applyPulseToMarker]);
 
   // GeoJSON Memos (Polygons, Flow, Jams, Incidents)
   const polygonsGeoJSON = useMemo(
@@ -1163,6 +1308,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         clickTolerance={20}
         onContextMenu={(e: any) => {
           e.originalEvent.preventDefault();
+          if (!canEditDangerZones) return;
           setContextMenu({
             x: e.originalEvent.clientX,
             y: e.originalEvent.clientY,
@@ -1178,7 +1324,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         }}
       >
         <DangerZoneLayer />
-        {mapRef.current && (
+        {canEditDangerZones && mapRef.current && (
           <DangerZoneEditor map={mapRef.current.getMap() as unknown as maplibregl.Map} />
         )}
         <NavigationControl position="top-right" showCompass showZoom />
@@ -1755,7 +1901,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             longitude={selectedIncident.lng}
             latitude={selectedIncident.lat}
             anchor="bottom"
-            onClose={() => setSelectedIncident(null)}
+            onClose={() => { applyPulseToMarker(null); setSelectedIncident(null); }}
             closeButton={false}
             className="incident-popup"
             maxWidth="350px"
@@ -1792,7 +1938,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                   </div>
                 </div>
                 <button
-                  onClick={() => setSelectedIncident(null)}
+                  onClick={() => { applyPulseToMarker(null); setSelectedIncident(null); }}
                   className="p-1.5 hover:bg-gray-200 dark:hover:bg-zinc-800 rounded-full transition-colors text-gray-500"
                   aria-label="Cerrar detalle"
                   title="Cerrar detalle"
@@ -1897,6 +2043,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
                 <button
                   onClick={() => {
                     const incId = selectedIncident.properties.id;
+                    applyPulseToMarker(null);
                     setSelectedIncident(null);
                     setDetailIncidentId(incId);
                   }}
@@ -1941,7 +2088,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
           document.body,
         )}
 
-      {contextMenu && (
+      {canEditDangerZones && contextMenu && (
         <MapContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
@@ -1955,7 +2102,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         />
       )}
 
-      <DangerZonePanel />
+      {canEditDangerZones && <DangerZonePanel />}
     </div>
   );
 };

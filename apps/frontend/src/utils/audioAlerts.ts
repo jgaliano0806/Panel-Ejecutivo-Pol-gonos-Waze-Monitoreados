@@ -8,6 +8,7 @@ import {
   isAudioUnlocked,
   speakUsingIncidentVoice,
 } from "@/lib/tts-utils";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 const SIREN_URL = "/police-siren-repeat-it-wow.mp3";
 
@@ -32,6 +33,9 @@ export async function playCriticalAlert(
   incidentData: RedZoneIncidentAudioData,
   zoneName: string,
 ): Promise<void> {
+  if (!useAuthStore.getState().isAuthenticated) {
+    return;
+  }
   try {
     const type = normalizeType(incidentData?.type);
     const subtype = incidentData?.subtype;

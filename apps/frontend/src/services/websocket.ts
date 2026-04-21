@@ -5,7 +5,11 @@ import {
 } from "@/stores/useNotificationStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { translateWazeType, translateWazeMessage } from "@/lib/waze-translator";
-import { speakNotification, isAudioUnlocked } from "@/lib/tts-utils";
+import {
+  speakNotification,
+  speakUsingIncidentVoice,
+  isAudioUnlocked,
+} from "@/lib/tts-utils";
 import { shouldShowTTSAndSnackbar } from "@/config/notificationFilters";
 import { logger } from "@/lib/logger";
 import { getNearestKilometer } from "@/utils/geoUtils";
@@ -199,6 +203,10 @@ function shouldProcessRedZoneAlert(uuid: string | undefined): boolean {
 }
 
 socket.on("red_zone_critical_alert", (payload: Record<string, unknown>) => {
+  if (!useAuthStore.getState().isAuthenticated) {
+    logger.debug("red_zone_critical_alert ignorado — sin sesión");
+    return;
+  }
   const uuid = payload.uuid as string | undefined;
   if (!shouldProcessRedZoneAlert(uuid)) {
     logger.debug("red_zone_critical_alert deduplicado", { uuid });
@@ -478,24 +486,18 @@ socket.on("notification:new", async (notification: Notification) => {
     source: backendTTS ? "backend" : "frontend",
   });
 
+  // speakUsingIncidentVoice encola el ttsMessage tal cual (ya formateado por buildTTSMessage),
+  // sin añadir el wrapper "Atención operadores. Repito." de buildNaturalMessage.
   if (isAudioUnlocked()) {
-    useNotificationStore.getState().markTTSPlayed(notification.id);
     playAlertBeep(!!notification.data?.isDangerZone);
-    await new Promise((resolve) => setTimeout(resolve, notification.data?.isDangerZone ? 800 : 400));
-
-    try {
-      await speakNotification(ttsMessage, "");
-    } catch (error) {
-      logger.error("Error en TTS", { error, notifId: notification.id });
-      const { notifications } = useNotificationStore.getState();
-      const updated = notifications.map((n) =>
-        n.id === notification.id ? { ...n, tts_played: false } : n,
-      );
-      useNotificationStore.getState().setNotifications(updated);
-    }
+    await new Promise((resolve) =>
+      setTimeout(resolve, notification.data?.isDangerZone ? 800 : 400),
+    );
+    speakUsingIncidentVoice(ttsMessage);
+    useNotificationStore.getState().markTTSPlayed(notification.id);
   } else {
     logger.debug("Audio bloqueado — mensaje encolado en TTS service");
-    await speakNotification(ttsMessage, "");
+    speakUsingIncidentVoice(ttsMessage);
     useNotificationStore.getState().markTTSPlayed(notification.id);
   }
 });
