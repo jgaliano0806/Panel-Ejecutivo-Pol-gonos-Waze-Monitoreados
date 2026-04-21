@@ -13,10 +13,25 @@ import { useDangerZoneStore } from "@/stores/useDangerZoneStore";
 import { DangerZone } from "@panel-waze/types";
 import { cn } from "@/lib/utils";
 
-const SEVERITY_BADGES: Record<string, { label: string; cls: string }> = {
-  high: { label: "Alta", cls: "bg-orange-500/20 text-orange-300" },
-  critical: { label: "Crítica", cls: "bg-red-500/20 text-red-300" },
-  extreme: { label: "Extrema", cls: "bg-red-700/20 text-red-200" },
+const SEVERITY_BADGES: Record<
+  string,
+  { label: string; cls: string; hex: string }
+> = {
+  high: {
+    label: "Alta",
+    cls: "bg-yellow-400/15 text-yellow-300 ring-1 ring-yellow-400/40",
+    hex: "#FACC15",
+  },
+  critical: {
+    label: "Crítica",
+    cls: "bg-orange-500/20 text-orange-300 ring-1 ring-orange-500/50",
+    hex: "#F97316",
+  },
+  extreme: {
+    label: "Extrema",
+    cls: "bg-red-500/25 text-red-200 ring-1 ring-red-500/60 font-bold",
+    hex: "#EF4444",
+  },
 };
 
 export const DangerZoneListPanel: React.FC = () => {
@@ -99,8 +114,8 @@ export const DangerZoneListPanel: React.FC = () => {
                   <span
                     className="w-3 h-3 rounded-full shrink-0 ring-2 ring-white/10"
                     style={{
-                      backgroundColor: zone.color || "#ef4444",
-                      boxShadow: `0 0 8px ${zone.color || "#ef4444"}40`,
+                      backgroundColor: badge.hex,
+                      boxShadow: `0 0 8px ${badge.hex}55`,
                     }}
                   />
                   <span className="text-xs font-semibold truncate flex-1">

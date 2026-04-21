@@ -78,11 +78,19 @@ const server = Fastify({
 
 // Configurar CORS - permitir FRONTEND_URL, mismo host sin puerto (nginx :80) y variantes
 const frontendUrl = process.env.FRONTEND_URL;
-const corsOrigin = frontendUrl
+const isDev = process.env.NODE_ENV !== "production";
+const corsOrigin: (string | RegExp)[] | true = frontendUrl
   ? [
       frontendUrl,
       frontendUrl.replace(/:\d+$/, ""), // http://10.1.0.136
       /^https?:\/\/10\.1\.0\.136(:\d+)?$/, // cualquier puerto en 10.1.0.136
+      // En desarrollo también permitir localhost / 127.0.0.1
+      ...(isDev
+        ? [
+            /^https?:\/\/localhost(:\d+)?$/,
+            /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
+          ]
+        : []),
     ]
   : true;
 

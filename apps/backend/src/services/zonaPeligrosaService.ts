@@ -5,8 +5,10 @@ import type { ZonaPeligrosaRow } from "../repositories/ZonaPeligrosaRepository";
 
 export interface ZonaPeligrosaCreateInput {
   nombre: string;
+  descripcion?: string;
   geometria: GeoJSON.Polygon;
-  nivel_severidad: 1 | 2;
+  /** 1 = alta, 2 = crítica, 3 = extrema */
+  nivel_severidad: 1 | 2 | 3;
   protocolo_accion: string;
 }
 
@@ -31,6 +33,7 @@ class ZonaPeligrosaService {
   async create(input: ZonaPeligrosaCreateInput): Promise<ZonaPeligrosaRow> {
     const row = await repositories().zonasPeligrosas.create({
       nombre: input.nombre,
+      descripcion: (input.descripcion ?? "").trim(),
       geometria: input.geometria as any,
       nivel_severidad: input.nivel_severidad,
       protocolo_accion: input.protocolo_accion,
@@ -47,6 +50,12 @@ class ZonaPeligrosaService {
   ): Promise<ZonaPeligrosaRow | null> {
     const patch: Record<string, unknown> = {};
     if (input.nombre !== undefined) patch.nombre = input.nombre;
+    if (input.descripcion !== undefined) {
+      patch.descripcion =
+        typeof input.descripcion === "string"
+          ? input.descripcion.trim()
+          : String(input.descripcion ?? "");
+    }
     if (input.geometria !== undefined) patch.geometria = input.geometria;
     if (input.nivel_severidad !== undefined)
       patch.nivel_severidad = input.nivel_severidad;

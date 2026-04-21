@@ -655,6 +655,50 @@ export async function runMigrations(): Promise<void> {
         }
       }
     }
+
+    // Migración 044: descripción en zonas_peligrosas (panel)
+    const migration044Path = path.join(
+      migrationsDir,
+      "044_zonas_peligrosas_descripcion.sql",
+    );
+    if (fs.existsSync(migration044Path)) {
+      try {
+        const sql = fs.readFileSync(migration044Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 044 ejecutada: columna descripcion en zonas_peligrosas",
+        );
+      } catch (migError: any) {
+        if (
+          !migError.message?.includes("already exists") &&
+          !migError.message?.includes("ya existe")
+        ) {
+          console.warn("⚠️ Migración 044:", migError.message);
+        }
+      }
+    }
+
+    // Migración 045: admitir nivel_severidad=3 (Extrema) en zonas_peligrosas
+    const migration045Path = path.join(
+      migrationsDir,
+      "045_zonas_peligrosas_extrema.sql",
+    );
+    if (fs.existsSync(migration045Path)) {
+      try {
+        const sql = fs.readFileSync(migration045Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 045 ejecutada: nivel_severidad acepta 3 (Extrema)",
+        );
+      } catch (migError: any) {
+        if (
+          !migError.message?.includes("already exists") &&
+          !migError.message?.includes("ya existe")
+        ) {
+          console.warn("⚠️ Migración 045:", migError.message);
+        }
+      }
+    }
     console.log("✅ Migraciones completadas exitosamente");
   } catch (error: any) {
     // Si el error es por tabla/columna ya existente, es OK

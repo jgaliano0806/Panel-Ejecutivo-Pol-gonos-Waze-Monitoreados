@@ -2,14 +2,27 @@ import { FastifyInstance } from "fastify";
 import { zonaPeligrosaService } from "../services/zonaPeligrosaService";
 import type { ZonaPeligrosaRow } from "../repositories/ZonaPeligrosaRepository";
 
+function severityLabelFromNivel(n: number): "high" | "critical" | "extreme" {
+  if (n === 3) return "extreme";
+  if (n === 2) return "critical";
+  return "high";
+}
+
+function colorFromNivel(n: number): string {
+  if (n === 3) return "#EF4444"; // extrema  -> rojo
+  if (n === 2) return "#F97316"; // crítica  -> naranja
+  return "#FACC15"; // alta    -> amarillo
+}
+
 function toApiShape(row: ZonaPeligrosaRow) {
   return {
     id: row.id,
     name: row.nombre,
+    description: row.descripcion ?? "",
     geometry: row.geometria,
-    severity: row.nivel_severidad === 2 ? "critical" : "high",
+    severity: severityLabelFromNivel(row.nivel_severidad),
     protocol: row.protocolo_accion,
-    color: row.nivel_severidad === 2 ? "#ef4444" : "#f97316",
+    color: colorFromNivel(row.nivel_severidad),
     is_active: row.activa,
     created_at: row.fecha_creacion
       ? new Date(row.fecha_creacion).toISOString()
@@ -19,8 +32,9 @@ function toApiShape(row: ZonaPeligrosaRow) {
 
 interface CreateBody {
   nombre: string;
+  descripcion?: string;
   geometria: GeoJSON.Polygon;
-  nivel_severidad: 1 | 2;
+  nivel_severidad: 1 | 2 | 3;
   protocolo_accion: string;
 }
 
@@ -47,7 +61,13 @@ export default async function zonasPeligrosasRoutes(
 
   app.post<{ Body: CreateBody }>("/", async (req, reply) => {
     try {
-      const { nombre, geometria, nivel_severidad, protocolo_accion } = req.body;
+      const {
+        nombre,
+        descripcion,
+        geometria,
+        nivel_severidad,
+        protocolo_accion,
+      } = req.body;
       if (!nombre?.trim() || !geometria || !nivel_severidad) {
         return reply.status(400).send({
           success: false,
@@ -56,6 +76,7 @@ export default async function zonasPeligrosasRoutes(
       }
       const row = await zonaPeligrosaService.create({
         nombre: nombre.trim(),
+        descripcion: descripcion?.trim() ?? "",
         geometria,
         nivel_severidad,
         protocolo_accion: protocolo_accion?.trim() || "",
@@ -72,6 +93,7 @@ export default async function zonasPeligrosasRoutes(
       try {
         const row = await zonaPeligrosaService.update(req.params.id, {
           nombre: req.body.nombre,
+          descripcion: req.body.descripcion,
           geometria: req.body.geometria,
           nivel_severidad: req.body.nivel_severidad,
           protocolo_accion: req.body.protocolo_accion,

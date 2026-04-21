@@ -204,9 +204,30 @@ socket.on("red_zone_critical_alert", (payload: Record<string, unknown>) => {
     logger.debug("red_zone_critical_alert deduplicado", { uuid });
     return;
   }
+
+  // Aplicar los mismos filtros de tipo/subtipo que usa el TTS de incidentes normales.
+  // Solo disparar sirena+TTS si el tipo de incidente está habilitado en notificationFilters.
+  const incidentType =
+    (payload.type as string | undefined) ||
+    ((payload.incident as any)?.type as string | undefined);
+  const incidentSubtype =
+    (payload.subtype as string | undefined) ||
+    ((payload.incident as any)?.subtype as string | undefined);
+
+  if (!shouldShowTTSAndSnackbar(incidentType, incidentSubtype)) {
+    logger.debug("red_zone_critical_alert ignorado — tipo no notificable", {
+      uuid,
+      incidentType,
+      incidentSubtype,
+    });
+    return;
+  }
+
   logger.info("🚨 red_zone_critical_alert", {
     uuid,
     zona: payload.redZonaNombre,
+    incidentType,
+    incidentSubtype,
   });
   rememberRedZoneAnnouncedUuid(uuid);
   useRedZoneCriticalStore.getState().push(payload);
@@ -215,8 +236,8 @@ socket.on("red_zone_critical_alert", (payload: Record<string, unknown>) => {
   const incident: RedZoneIncidentAudioData =
     incidentFromPayload ??
     ({
-      type: payload.type as string | undefined,
-      subtype: payload.subtype as string | undefined,
+      type: incidentType,
+      subtype: incidentSubtype,
     } satisfies RedZoneIncidentAudioData);
   const zoneName =
     (payload.zoneName as string | undefined) ||
