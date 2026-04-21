@@ -4,15 +4,17 @@ import {
   useNotificationStore,
   Notification,
 } from "@/stores/useNotificationStore";
-import { speakNotification, isAudioUnlocked } from "@/lib/tts-utils";
+import { speakUsingIncidentVoice, isAudioUnlocked } from "@/lib/tts-utils";
 import { shouldShowTTSAndSnackbar } from "@/config/notificationFilters";
 import { logger } from "@/lib/logger";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 /**
  * Genera un sonido de alerta usando Web Audio API.
  * Solo funciona despues de interaccion del usuario (autoplay policy).
  */
-const playAlertBeep = (): void => {
+const playAlertBeep = (isCritical = false): void => {
+  if (!useAuthStore.getState().isAuthenticated) return;
   if (!isAudioUnlocked()) return; // No intentar si audio esta bloqueado
 
   try {
@@ -42,8 +44,16 @@ const playAlertBeep = (): void => {
     };
 
     const now = audioContext.currentTime;
-    playTone(523.25, now, 0.15);
-    playTone(659.25, now + 0.15, 0.2);
+    
+    if (isCritical) {
+      playTone(880, now, 0.15); 
+      playTone(1108.73, now + 0.2, 0.15); 
+      playTone(880, now + 0.4, 0.15);
+      playTone(1108.73, now + 0.6, 0.15);
+    } else {
+      playTone(523.25, now, 0.15);
+      playTone(659.25, now + 0.15, 0.2);
+    }
   } catch (error) {
     // Silencioso - beep no es critico
   }
@@ -59,31 +69,44 @@ const executeTTS = async (
   notification: Notification,
   markTTSPlayed: (id: string) => void,
 ): Promise<void> => {
-  const polygonName = notification.data?.polygonName || "";
-  const prefix = polygonName ? `En ${polygonName}. ` : "";
-  const message = prefix ? `${prefix}${notification.message}` : notification.message;
+  if (!useAuthStore.getState().isAuthenticated) return;
 
-  // Si audio no esta desbloqueado, speakNotification solo encola.
-  // No marcar como played para que el retry lo intente despues.
+  const polygonName = notification.data?.polygonName || "";
+  const via = polygonGroup(notification) || polygonName;
+  const ttsText = notification.data?.ttsText ||
+    buildRetryTTSMessage(notification, via);
+
   if (!isAudioUnlocked()) {
-    await speakNotification(notification.title, message);
+    // Encolar sin marcar como played; el unlock automático o el usuario drenará la cola
+    speakUsingIncidentVoice(ttsText);
     return;
   }
 
   try {
-    // Beep primero
-    playAlertBeep();
-    await new Promise((resolve) => setTimeout(resolve, 400));
-
-    // Ejecutar TTS (incluye polygonName para coincidir con la UI)
-    await speakNotification(notification.title, message);
-
-    // Marcar como reproducido solo si el audio esta desbloqueado
+    playAlertBeep(!!notification.data?.isDangerZone);
+    await new Promise((resolve) =>
+      setTimeout(resolve, notification.data?.isDangerZone ? 800 : 400),
+    );
+    speakUsingIncidentVoice(ttsText);
     markTTSPlayed(notification.id);
   } catch (error) {
     logger.error("Error en TTS retry", { error, notifId: notification.id });
   }
 };
+
+function polygonGroup(notification: Notification): string {
+  return notification.data?.polygonGroup || notification.data?.polygonName || "";
+}
+
+function buildRetryTTSMessage(notification: Notification, via: string): string {
+  const type = notification.type || notification.data?.incidentType || "";
+  const subtype = notification.data?.subtype || "";
+  const street = notification.data?.street || "";
+  const location = via || street || "vía no especificada";
+  const typeLabel = type === "ACCIDENT" ? "Accidente" : type === "HAZARD" ? "Peligro" : type;
+  const subtypeLabel = subtype ? ` (${subtype.toLowerCase().replace(/_/g, " ")})` : "";
+  return `Atención, operadores. Reporte de ${typeLabel}${subtypeLabel} en ${location}.`;
+}
 
 /**
  * Hook para gestionar notificaciones en tiempo real con TTS

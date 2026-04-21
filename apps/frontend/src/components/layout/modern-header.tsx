@@ -1,14 +1,33 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Clock, Wifi, WifiOff, RefreshCw, Moon, Sun, Bell, Volume2, VolumeX } from "lucide-react";
+import {
+  Clock,
+  Wifi,
+  WifiOff,
+  RefreshCw,
+  Moon,
+  Sun,
+  Bell,
+  Volume2,
+  VolumeX,
+  Megaphone,
+} from "lucide-react";
 import { Badge } from "../ui/badge";
 import { formatRelativeTime } from "../../lib/utils";
 import { COMPANY_INFO, UI_TEXTS } from "../../config/constants";
 import { useThemeStore } from "../../stores/useThemeStore";
 import { useNotificationStore } from "@/stores/useNotificationStore";
 import { useNavigate } from "react-router-dom";
-import { initializeAudio, isTTSMuted, toggleTTSMuted } from "@/lib/tts-utils";
+import {
+  initializeAudio,
+  isTTSMuted,
+  toggleTTSMuted,
+  isAudioUnlocked,
+} from "@/lib/tts-utils";
+import { activateSoundAlertsFromUserGesture } from "@/utils/audioAlerts";
 import { useWebSocketStatus } from "@/hooks/useWazeRealtime";
+
+const SOUND_ALERTS_LS = "panel_sound_alerts_unlocked";
 
 interface ModernHeaderProps {
   lastUpdate?: Date;
@@ -22,6 +41,13 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
   const [currentTime, setCurrentTime] = React.useState(new Date());
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [ttsMuted, setTtsMuted] = React.useState(() => isTTSMuted());
+  const [soundAlertsActive, setSoundAlertsActive] = React.useState(() => {
+    if (typeof window === "undefined") return false;
+    return (
+      isAudioUnlocked() ||
+      window.localStorage.getItem(SOUND_ALERTS_LS) === "true"
+    );
+  });
   const { isDark, toggleTheme } = useThemeStore();
   const { isConnected: wsConnected } = useWebSocketStatus();
 
@@ -32,11 +58,32 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
     return () => window.removeEventListener("tts-mute-change", onMuteChange);
   }, []);
 
+  React.useEffect(() => {
+    const sync = () => {
+      const on =
+        isAudioUnlocked() ||
+        (typeof window !== "undefined" &&
+          window.localStorage.getItem(SOUND_ALERTS_LS) === "true");
+      setSoundAlertsActive(on);
+    };
+    window.addEventListener("tts-unlocked", sync);
+    sync();
+    return () => window.removeEventListener("tts-unlocked", sync);
+  }, []);
+
   const handleTTSToggle = async () => {
     // Asegurar que el audio del navegador esté desbloqueado al primer uso
     await initializeAudio();
     const nowMuted = toggleTTSMuted();
     setTtsMuted(nowMuted);
+  };
+
+  const handleActivateSoundAlerts = async () => {
+    const ok = await activateSoundAlertsFromUserGesture();
+    if (ok && typeof window !== "undefined") {
+      window.localStorage.setItem(SOUND_ALERTS_LS, "true");
+    }
+    setSoundAlertsActive(ok || isAudioUnlocked());
   };
   const unreadCount = useNotificationStore((state) => state.unreadCount);
   const navigate = useNavigate();
@@ -137,6 +184,26 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
               ) : (
                 <Sun className="w-5 h-5" />
               )}
+            </motion.button>
+
+            <motion.button
+              type="button"
+              onClick={handleActivateSoundAlerts}
+              className={`hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl border-2 text-xs font-bold transition-all duration-300 shadow-lg ${
+                soundAlertsActive
+                  ? "bg-green-50 dark:bg-green-950/40 border-green-500 text-green-800 dark:text-green-200"
+                  : "bg-amber-50 dark:bg-amber-950/30 border-amber-400 text-amber-900 dark:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+              }`}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              title="Desbloquea sirena y voz para alertas de zona roja (autoplay del navegador)"
+            >
+              <Megaphone className="w-4 h-4 shrink-0" />
+              <span className="max-w-[140px] lg:max-w-none leading-tight text-left">
+                {soundAlertsActive
+                  ? "Alertas sonoras activas"
+                  : "Activar Alertas Sonoras"}
+              </span>
             </motion.button>
 
             {/* Botón TTS — toggle mute/unmute */}

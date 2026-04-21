@@ -5,11 +5,20 @@ import {
 } from "@/stores/useNotificationStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { translateWazeType, translateWazeMessage } from "@/lib/waze-translator";
-import { speakNotification, isAudioUnlocked } from "@/lib/tts-utils";
+import {
+  speakNotification,
+  speakUsingIncidentVoice,
+  isAudioUnlocked,
+} from "@/lib/tts-utils";
 import { shouldShowTTSAndSnackbar } from "@/config/notificationFilters";
 import { logger } from "@/lib/logger";
 import { getNearestKilometer } from "@/utils/geoUtils";
 import { useKilometerStore } from "@/stores/useKilometerStore";
+import { useRedZoneCriticalStore } from "@/stores/useRedZoneCriticalStore";
+import {
+  playCriticalAlert,
+  type RedZoneIncidentAudioData,
+} from "@/utils/audioAlerts";
 
 /**
  * WebSocket client singleton para conexión con el backend
@@ -104,6 +113,7 @@ const cleanExpiredContentHashes = (): void => {
 socket.removeAllListeners("notification:new");
 socket.removeAllListeners("waze:data_updated");
 socket.removeAllListeners("play_audio_alert");
+socket.removeAllListeners("red_zone_critical_alert");
 socket.removeAllListeners("connect");
 socket.removeAllListeners("disconnect");
 socket.removeAllListeners("connect_error");
@@ -152,11 +162,85 @@ socket.on("play_audio_alert", (data: { count: number; timestamp: string }) => {
   );
 });
 
+const RED_ZONE_DEDUP = "__waze_red_zone_uuid_ts__";
+/** UUIDs ya anunciados por `red_zone_critical_alert` (sirena + TTS prioridad) — no repetir lectura en `notification:new`. */
+const RED_ZONE_SKIP_INCIDENT_TTS_UUIDS =
+  "__waze_red_zone_skip_incident_tts_uuids__";
+
+function rememberRedZoneAnnouncedUuid(uuid: string | undefined): void {
+  if (!uuid) return;
+  const s = ((window as any)[RED_ZONE_SKIP_INCIDENT_TTS_UUIDS] ??=
+    new Set<string>()) as Set<string>;
+  s.add(uuid);
+  if (s.size > 400) {
+    const toDrop = [...s].slice(0, 200);
+    toDrop.forEach((u) => s.delete(u));
+  }
+}
+
+function shouldSkipIncidentTtsForRedZone(
+  notification: Notification,
+  alertUuid: string | undefined,
+): boolean {
+  const flagged =
+    !!notification.data?.isRedZone || !!notification.data?.isDangerZone;
+  const set = (window as any)[RED_ZONE_SKIP_INCIDENT_TTS_UUIDS] as
+    | Set<string>
+    | undefined;
+  const fromSocket =
+    typeof alertUuid === "string" && !!set?.has(alertUuid);
+  return flagged || fromSocket;
+}
+
+function shouldProcessRedZoneAlert(uuid: string | undefined): boolean {
+  if (!uuid) return true;
+  const m = ((window as any)[RED_ZONE_DEDUP] ??= new Map<string, number>());
+  const last = m.get(uuid) ?? 0;
+  const now = Date.now();
+  if (now - last < 45_000) return false;
+  m.set(uuid, now);
+  return true;
+}
+
+socket.on("red_zone_critical_alert", (payload: Record<string, unknown>) => {
+  if (!useAuthStore.getState().isAuthenticated) {
+    logger.debug("red_zone_critical_alert ignorado — sin sesión");
+    return;
+  }
+  const uuid = payload.uuid as string | undefined;
+  if (!shouldProcessRedZoneAlert(uuid)) {
+    logger.debug("red_zone_critical_alert deduplicado", { uuid });
+    return;
+  }
+  logger.info("🚨 red_zone_critical_alert", {
+    uuid,
+    zona: payload.redZonaNombre,
+  });
+  rememberRedZoneAnnouncedUuid(uuid);
+  useRedZoneCriticalStore.getState().push(payload);
+
+  const incidentFromPayload = payload.incident as RedZoneIncidentAudioData | undefined;
+  const incident: RedZoneIncidentAudioData =
+    incidentFromPayload ??
+    ({
+      type: payload.type as string | undefined,
+      subtype: payload.subtype as string | undefined,
+    } satisfies RedZoneIncidentAudioData);
+  const zoneName =
+    (payload.zoneName as string | undefined) ||
+    (payload.redZonaNombre as string | undefined) ||
+    "Zona de riesgo";
+
+  void playCriticalAlert(incident, zoneName).catch((e) =>
+    logger.warn("playCriticalAlert rechazada", { e }),
+  );
+});
+
 /**
  * Genera beep de alerta.
  * Solo funciona despues de interaccion del usuario (autoplay policy).
  */
-const playAlertBeep = (): void => {
+const playAlertBeep = (isCritical = false): void => {
   if (!isAudioUnlocked()) return; // No intentar si audio bloqueado
 
   try {
@@ -186,9 +270,19 @@ const playAlertBeep = (): void => {
     };
 
     const now = audioContext.currentTime;
-    playTone(523.25, now, 0.15);
-    playTone(659.25, now + 0.15, 0.2);
-    logger.debug("Beep reproducido");
+    
+    if (isCritical) {
+      // Tono de Sirena más agresivo para Zonas Rojas
+      playTone(880, now, 0.15); 
+      playTone(1108.73, now + 0.2, 0.15); 
+      playTone(880, now + 0.4, 0.15);
+      playTone(1108.73, now + 0.6, 0.15);
+    } else {
+      // Tono normal
+      playTone(523.25, now, 0.15);
+      playTone(659.25, now + 0.15, 0.2);
+    }
+    logger.debug("Beep reproducido", { isCritical });
   } catch (error) {
     logger.warn("Error en beep", { error });
   }
@@ -245,7 +339,12 @@ const buildTTSMessage = (notification: Notification): string => {
   }
 
   // 4. Armar Mensaje Final siguiendo la plantilla
-  const mensajeFinal = `Atención, operadores. Nuevo incidente ingresado en el sistema. Reporte: ${reporte}. Localización: ${via}${localizacionExtra}.`;
+  let prefix = "Atención, operadores. Nuevo incidente ingresado en el sistema.";
+  if (notification.data?.isDangerZone) {
+    prefix = `¡ALERTA CRÍTICA! Incidente reportado dentro de zona peligrosa en ${notification.data?.dangerZoneName || 'área protegida'}. Repito, alerta en zona peligrosa.`;
+  }
+  
+  const mensajeFinal = `${prefix} Reporte: ${reporte}. Localización: ${via}${localizacionExtra}.`;
 
   return mensajeFinal;
 };
@@ -370,6 +469,15 @@ socket.on("notification:new", async (notification: Notification) => {
     return;
   }
 
+  if (shouldSkipIncidentTtsForRedZone(notification, alertUuid)) {
+    logger.info(
+      "TTS de incidente omitido: zona roja (audio vía red_zone_critical_alert o flags isRedZone/isDangerZone)",
+      { notifId: notification.id, alertUuid: alertUuid || "N/A" },
+    );
+    useNotificationStore.getState().markTTSPlayed(notification.id);
+    return;
+  }
+
   // Usar texto TTS del backend si está disponible; si no, construir localmente
   const backendTTS = notification.data?.ttsText;
   const ttsMessage = backendTTS || buildTTSMessage(notification);
@@ -378,24 +486,18 @@ socket.on("notification:new", async (notification: Notification) => {
     source: backendTTS ? "backend" : "frontend",
   });
 
+  // speakUsingIncidentVoice encola el ttsMessage tal cual (ya formateado por buildTTSMessage),
+  // sin añadir el wrapper "Atención operadores. Repito." de buildNaturalMessage.
   if (isAudioUnlocked()) {
+    playAlertBeep(!!notification.data?.isDangerZone);
+    await new Promise((resolve) =>
+      setTimeout(resolve, notification.data?.isDangerZone ? 800 : 400),
+    );
+    speakUsingIncidentVoice(ttsMessage);
     useNotificationStore.getState().markTTSPlayed(notification.id);
-    playAlertBeep();
-    await new Promise((resolve) => setTimeout(resolve, 400));
-
-    try {
-      await speakNotification(ttsMessage, "");
-    } catch (error) {
-      logger.error("Error en TTS", { error, notifId: notification.id });
-      const { notifications } = useNotificationStore.getState();
-      const updated = notifications.map((n) =>
-        n.id === notification.id ? { ...n, tts_played: false } : n,
-      );
-      useNotificationStore.getState().setNotifications(updated);
-    }
   } else {
     logger.debug("Audio bloqueado — mensaje encolado en TTS service");
-    await speakNotification(ttsMessage, "");
+    speakUsingIncidentVoice(ttsMessage);
     useNotificationStore.getState().markTTSPlayed(notification.id);
   }
 });
@@ -484,6 +586,7 @@ if (import.meta.hot) {
     socket.removeAllListeners("notification:new");
     socket.removeAllListeners("waze:data_updated");
     socket.removeAllListeners("play_audio_alert");
+    socket.removeAllListeners("red_zone_critical_alert");
     socket.removeAllListeners("connect");
     socket.removeAllListeners("disconnect");
     socket.removeAllListeners("connect_error");

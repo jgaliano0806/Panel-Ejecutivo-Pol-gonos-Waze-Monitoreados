@@ -20,6 +20,7 @@
 export type PermissionCode =
   | "admin"
   | "map.view"
+  | "danger_zones.edit"
   | "notifications.view"
   | "accidents.view"
   | "accidents.create"
@@ -49,6 +50,7 @@ export type RouteKey = keyof typeof ROUTE_PERMISSIONS;
 /** Rutas ordenadas por prioridad para fallback (primera accesible) */
 export const FALLBACK_ROUTES: readonly string[] = [
   "/mapa",
+  "/zonas-peligrosas",
   "/siniestros",
   "/incidentes",
   "/notificaciones",
@@ -59,6 +61,7 @@ export const PATH_TO_PERMISSION: Record<string, PermissionCode> = {
   "/": ROUTE_PERMISSIONS.mapa,
   "/dashboard": ROUTE_PERMISSIONS.mapa,
   "/mapa": ROUTE_PERMISSIONS.mapa,
+  "/zonas-peligrosas": ROUTE_PERMISSIONS.mapa,
   "/notificaciones": ROUTE_PERMISSIONS.notificaciones,
   "/siniestros": ROUTE_PERMISSIONS.siniestros,
   "/incidentes": ROUTE_PERMISSIONS.incidentes,

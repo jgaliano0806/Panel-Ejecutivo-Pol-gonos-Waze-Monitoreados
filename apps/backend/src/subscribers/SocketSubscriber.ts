@@ -31,6 +31,35 @@ export class SocketSubscriber {
       this.handleRiskScoreCalculated.bind(this),
     );
     eventBus.on("notification:new", this.handleNewNotification.bind(this));
+
+    eventBus.on(
+      SystemEvents.DANGER_ZONE_ALERT,
+      this.handleDangerZoneAlert.bind(this),
+    );
+    eventBus.on(
+      SystemEvents.RED_ZONE_CRITICAL_ALERT,
+      this.handleRedZoneCriticalAlert.bind(this),
+    );
+  }
+
+  private handleRedZoneCriticalAlert(payload: any): void {
+    try {
+      this.io.emit("red_zone_critical_alert", payload);
+      logger.info(
+        `🚨 red_zone_critical_alert emitido (uuid=${payload?.uuid ?? "?"})`,
+      );
+    } catch (error) {
+      logger.error(`Error broadcasting red_zone_critical_alert: ${error}`);
+    }
+  }
+
+  private handleDangerZoneAlert(payload: any): void {
+    try {
+      this.io.emit("danger_zone:alert", payload);
+      logger.info(`🚨 Danger Zone alert broadcasted for ${payload.uuid}`);
+    } catch (error) {
+      logger.error(`Error broadcasting danger zone alert: ${error}`);
+    }
   }
 
   private handleNewNotification(notification: any): void {

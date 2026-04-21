@@ -5,6 +5,8 @@ import { getPolygonById } from "../../utils/polygonHelpers";
 import { getIncidentDescription } from "../../utils/wazeTranslations";
 import { WazeIcon } from "../ui/WazeIcon";
 import { calculateTrustScore } from "../../utils/incidentScoring";
+import { useRedZoneCriticalStore } from "../../stores/useRedZoneCriticalStore";
+import { ShieldAlert, X } from "lucide-react";
 
 interface AlertsPanelProps {
   incidents: Incident[];
@@ -17,6 +19,9 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({
   polygons,
   limit = 10,
 }) => {
+  const redZoneItems = useRedZoneCriticalStore((s) => s.items);
+  const dismissRedZone = useRedZoneCriticalStore((s) => s.dismiss);
+
   // Ordenar por severidad y timestamp
   const sortedIncidents = [...incidents]
     .sort((a, b) => {
@@ -82,7 +87,46 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({
       </div>
 
       <div className="space-y-3 max-h-[800px] overflow-y-auto pr-2">
-        {sortedIncidents.length === 0 ? (
+        {redZoneItems.length > 0 && (
+          <div className="space-y-2 mb-4 pb-3 border-b border-red-200 dark:border-red-900/40">
+            <p className="text-xs font-bold uppercase tracking-wider text-red-600 dark:text-red-400">
+              Prioridad RAC — zona peligrosa
+            </p>
+            {redZoneItems.map((rz) => (
+              <div
+                key={rz.id}
+                className="relative rounded-lg border-2 border-red-600 bg-red-50/90 dark:bg-red-950/40 dark:border-red-500 p-3 shadow-[0_0_12px_rgba(239,68,68,0.35)] animate-pulse"
+              >
+                <button
+                  type="button"
+                  onClick={() => dismissRedZone(rz.id)}
+                  className="absolute top-2 right-2 p-1 rounded-md text-red-700 hover:bg-red-100 dark:text-red-300 dark:hover:bg-red-900/50"
+                  aria-label="Cerrar alerta de zona"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <div className="flex items-start gap-2 pr-8">
+                  <ShieldAlert className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-red-800 dark:text-red-200 leading-snug">
+                      🚨 ZONA PELIGROSA: {rz.protocolo_accion || rz.redZonaNombre}
+                    </p>
+                    <p className="text-xs text-red-700/90 dark:text-red-300/90 mt-1">
+                      Zona: <strong>{rz.redZonaNombre}</strong>
+                      {rz.street ? ` · ${rz.street}` : ""}
+                    </p>
+                    <p className="text-[10px] text-red-600/70 dark:text-red-400/70 mt-1">
+                      Nivel {rz.nivel_severidad === 2 ? "Rojo" : "Naranja"} · hace{" "}
+                      {Math.max(0, Math.floor((Date.now() - rz.receivedAt) / 1000))} s
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {sortedIncidents.length === 0 && redZoneItems.length === 0 ? (
           <div className="text-center py-8 text-gray-500 dark:text-veltrix-muted">
             <svg
               className="w-12 h-12 mx-auto mb-2 text-gray-300 dark:text-gray-600"

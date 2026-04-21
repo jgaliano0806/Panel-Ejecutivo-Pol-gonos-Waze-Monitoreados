@@ -2,8 +2,10 @@
  * Re-exporta el servicio de TTS unificado
  * Mantiene compatibilidad con código existente
  */
+export type { SpeakUsingIncidentVoiceOptions } from "./tts-service";
 export {
   speakNotification,
+  speakUsingIncidentVoice,
   stopSpeaking,
   getTTSQueueStatus,
   testVoice,

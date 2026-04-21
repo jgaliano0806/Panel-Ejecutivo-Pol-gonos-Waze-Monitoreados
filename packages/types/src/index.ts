@@ -92,3 +92,6 @@ export * from './waze';
 
 // Weather Types
 export * from './weather';
+
+// Danger Zones
+export * from './dangerZone';

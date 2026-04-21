@@ -11,6 +11,7 @@ import {
   Bell,
   FileSearch,
   LogOut,
+  Shield,
 } from "lucide-react";
 
 import { useNotificationStore } from "@/stores/useNotificationStore";
@@ -41,7 +42,9 @@ export const AppSidebar: React.FC = () => {
     if (location.pathname === "/riesgos") return "risk";
     if (location.pathname === "/siniestros") return "accidents";
     if (location.pathname === "/notificaciones") return "notifications";
+    if (location.pathname === "/zonas-peligrosas") return "danger-zones";
     if (location.pathname === "/incidentes") return "incidents";
+    if (location.pathname === "/inbox-operativo") return "inbox-operativo";
     if (location.pathname === "/admin") return "admin";
     return "home";
   };
@@ -71,11 +74,11 @@ export const AppSidebar: React.FC = () => {
       requiredPermission: ROUTE_PERMISSIONS.notificaciones,
     },
     {
-      id: "accidents",
-      label: "Siniestros Viales",
-      icon: <Car size={20} />,
-      path: "/siniestros",
-      requiredPermission: ROUTE_PERMISSIONS.siniestros,
+      id: "danger-zones",
+      label: "Módulo de zonas peligrosas",
+      icon: <Shield size={20} />,
+      path: "/zonas-peligrosas",
+      requiredPermission: ROUTE_PERMISSIONS.mapa,
     },
     {
       id: "incidents",
@@ -83,6 +86,20 @@ export const AppSidebar: React.FC = () => {
       icon: <FileSearch size={20} />,
       path: "/incidentes",
       requiredPermission: ROUTE_PERMISSIONS.incidentes,
+    },
+    {
+      id: "accidents",
+      label: "Siniestros Viales",
+      icon: <Car size={20} />,
+      path: "/siniestros",
+      requiredPermission: ROUTE_PERMISSIONS.siniestros,
+    },
+    {
+      id: "inbox-operativo",
+      label: "Inbox Base",
+      icon: <FileSearch size={20} />,
+      path: "/inbox-operativo",
+      requiredPermission: ROUTE_PERMISSIONS.siniestros,
     },
     {
       id: "admin",

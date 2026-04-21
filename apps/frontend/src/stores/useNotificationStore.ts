@@ -18,6 +18,10 @@ export interface NotificationData {
   nearestKmRoute?: string | null;
   nearestKmDistance?: number | null;
   ttsText?: string | null;
+  /** Incidente dentro de zona peligrosa RAC (mismo ciclo que `red_zone_critical_alert`). */
+  isRedZone?: boolean;
+  isDangerZone?: boolean;
+  dangerZoneName?: string;
 }
 
 export interface Notification {

@@ -105,6 +105,8 @@ export const RiskHeatMap: React.FC<RiskHeatMapProps> = ({
     };
   }, [scores, polygons]);
 
+  const heatFeatureCount = heatData.features.length;
+
   // Datos para los polígonos (geometría completa)
   const polygonsData = useMemo(() => {
     const features = polygons
@@ -157,17 +159,20 @@ export const RiskHeatMap: React.FC<RiskHeatMapProps> = ({
   }, []);
 
   return (
-    <div className="w-full h-[600px] rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-veltrix-border relative">
-      <Map
-        mapLib={maplibregl}
-        initialViewState={INITIAL_VIEW_STATE}
-        style={{ width: "100%", height: "100%" }}
-        mapStyle={mapStyleUrl}
-        attributionControl={false}
-        interactiveLayerIds={["polygon-fill-layer"]}
-        onMouseMove={onMouseMove}
-        onMouseLeave={onMouseLeave}
-      >
+    <div className="relative w-full h-[600px] min-h-[600px] rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-veltrix-border">
+      {/* absolute inset-0: evita altura 0 con % dentro de grid/flex; mapLib + reuseMaps: Vite + React StrictMode */}
+      <div className="absolute inset-0 z-0">
+        <Map
+          mapLib={maplibregl}
+          reuseMaps
+          initialViewState={INITIAL_VIEW_STATE}
+          style={{ width: "100%", height: "100%", minHeight: 600 }}
+          mapStyle={mapStyleUrl}
+          attributionControl={false}
+          interactiveLayerIds={["polygon-fill-layer"]}
+          onMouseMove={onMouseMove}
+          onMouseLeave={onMouseLeave}
+        >
         <NavigationControl position="top-right" showCompass={false} />
 
         {/* Capa de Polígonos - Debajo del heatmap */}
@@ -272,11 +277,13 @@ export const RiskHeatMap: React.FC<RiskHeatMapProps> = ({
                 ["linear"],
                 ["zoom"],
                 0,
-                2,
+                12,
                 9,
-                20,
+                40,
+                14,
+                60,
               ],
-              "heatmap-opacity": 0.6,
+              "heatmap-opacity": 0.78,
             }}
           />
           {/* Circle Layer for High Zoom */}
@@ -352,10 +359,21 @@ export const RiskHeatMap: React.FC<RiskHeatMapProps> = ({
             </div>
           </Popup>
         )}
-      </Map>
+        </Map>
+      </div>
+
+      {heatFeatureCount === 0 && (
+        <div className="pointer-events-none absolute inset-x-0 top-4 z-[5] flex justify-center px-4">
+          <div className="rounded-lg bg-amber-500/90 px-3 py-2 text-center text-xs font-medium text-white shadow-md dark:bg-amber-600/90">
+            Sin datos para el mapa de calor (sin tramos con geometría o scores
+            coincidentes). Prueba ver todos los grupos, quita filtros de riesgo o
+            pulsa Recalcular.
+          </div>
+        </div>
+      )}
 
       {/* Leyenda */}
-      <div className="absolute bottom-4 left-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-lg p-3 shadow-lg">
+      <div className="absolute bottom-4 left-4 z-[5] bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-lg p-3 shadow-lg">
         <div className="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-2">
           Nivel de Riesgo
         </div>

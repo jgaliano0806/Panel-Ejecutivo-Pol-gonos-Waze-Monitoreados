@@ -17,6 +17,8 @@ import { eventBus, SystemEvents } from "../events";
 import { logger } from "../utils/logger";
 import { notificationService } from "./notificationService";
 import { geoReferenceService } from "./geoReferenceService";
+import { enrichAlertsWithRedZoneFlags } from "./wazeService";
+import type { RedZoneMatch } from "./wazeService";
 
 /**
  * Servicio de Polling de Waze con persistencia PostgreSQL
@@ -386,6 +388,9 @@ export class WazePollingService {
       // 1b. Enriquecer alertas con geo-referencia (hito más cercano + TTS)
       await this.enrichAlertsWithGeoData(alerts);
 
+      // 1c. RAC geofencing: marcar isRedZone si caen en zonas_peligrosas (Turf)
+      await enrichAlertsWithRedZoneFlags(alerts);
+
       // 2. Marcar como INACTIVOS los que ya no están en el feed
       const currentUuids = alerts.map((a) => a.uuid);
       if (currentUuids.length > 0) {
@@ -536,6 +541,19 @@ export class WazePollingService {
           alert.street,
         );
 
+        const redZone = (alert as WazeAlert & { redZoneMatch?: RedZoneMatch })
+          .redZoneMatch;
+        if (redZone) {
+          eventBus.emit(SystemEvents.RED_ZONE_CRITICAL_ALERT, {
+            ...alert,
+            polygonId,
+            redZonaId: redZone.redZonaId,
+            redZonaNombre: redZone.redZonaNombre,
+            protocolo_accion: redZone.protocolo_accion,
+            nivel_severidad: redZone.nivel_severidad,
+          });
+        }
+
         await notificationService.create(
           alert.type === "ACCIDENT" ? "ACCIDENT" : "HAZARD",
           title,
@@ -551,9 +569,16 @@ export class WazePollingService {
             nearestKmRoute: nearest?.route_name || null,
             nearestKmDistance: nearest ? Math.round(nearest.distance) : null,
             ttsText,
+            isRedZone: redZone ? true : undefined,
+            isDangerZone: redZone ? true : undefined,
+            dangerZoneId: redZone?.redZonaId,
+            dangerZoneName: redZone?.redZonaNombre,
+            redZoneProtocol: redZone?.protocolo_accion,
           },
         );
-        logger.info(`🔔 Notificación enviada para alerta ${alert.uuid}`);
+        logger.info(
+          `🔔 Notificación enviada para alerta ${alert.uuid}${redZone ? " (🚨 ZONA PELIGROSA RAC)" : ""}`,
+        );
       }
     } catch (error) {
       logger.error(

@@ -10,6 +10,16 @@
 
 import { API_CONFIG } from "../config/constants";
 import { logger } from "./logger";
+import { useAuthStore } from "../stores/useAuthStore";
+
+/** TTS y cola de voz solo con sesión iniciada (no en login u otras rutas públicas). */
+function isAudioAllowedForCurrentUser(): boolean {
+  try {
+    return useAuthStore.getState().isAuthenticated === true;
+  } catch {
+    return false;
+  }
+}
 
 // Voces disponibles (argentinas y mexicanas)
 export const EDGE_TTS_VOICES = {
@@ -486,6 +496,22 @@ function _pickAndSpeak(
  * y se procesaran automaticamente al primer click/tecla del usuario.
  */
 const processQueue = async () => {
+  if (!isAudioAllowedForCurrentUser()) {
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
+    }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    if (audioQueue.length > 0) {
+      audioQueue = [];
+      logger.debug("Cola TTS descartada — usuario no autenticado");
+    }
+    isPlaying = false;
+    return;
+  }
+
   if (isPlaying) return;
   if (audioQueue.length === 0) return;
 
@@ -558,6 +584,10 @@ export const speakNotification = async (
     logger.debug("TTS silenciado — mensaje descartado");
     return;
   }
+  if (!isAudioAllowedForCurrentUser()) {
+    logger.debug("TTS omitido — usuario no autenticado");
+    return;
+  }
 
   const text = buildNaturalMessage(title, message);
 
@@ -566,6 +596,41 @@ export const speakNotification = async (
 
   // MODO VIDEOWALL: Siempre intentar procesar la cola.
   // processQueue() manejará el caso de autoplay bloqueado internamente.
+  processQueue();
+};
+
+export type SpeakUsingIncidentVoiceOptions = {
+  /**
+   * Si es true (p. ej. zona roja), el mensaje pasa al frente de la cola y se reproduce
+   * en cuanto termine el TTS en curso; el resto de mensajes conserva su orden detrás.
+   */
+  priority?: boolean;
+};
+
+/**
+ * Misma vía de audio que las notificaciones de incidentes: cola → Edge TTS
+ * (`currentConfig.voice` / rate / pitch) y, si falla el backend, `playWebSpeechFallback`
+ * con la misma selección de voz (`_pickAndSpeak`).
+ * No aplica la plantilla ni el "Repito" de `buildNaturalMessage`.
+ */
+export const speakUsingIncidentVoice = (
+  text: string,
+  options?: SpeakUsingIncidentVoiceOptions,
+): void => {
+  if (_muted) {
+    logger.debug("TTS silenciado — mensaje descartado (voz incidentes)");
+    return;
+  }
+  if (!isAudioAllowedForCurrentUser()) {
+    logger.debug("TTS omitido (voz incidentes) — usuario no autenticado");
+    return;
+  }
+  const cleaned = cleanTextForTTS(text);
+  if (options?.priority) {
+    audioQueue.unshift(cleaned);
+  } else {
+    audioQueue.push(cleaned);
+  }
   processQueue();
 };
 

@@ -12,6 +12,7 @@ import { iconCache } from "./utils/iconCache";
 import { preloadTranslationsCache } from "./hooks/useCatalogTranslations";
 
 import { KilometerStoreHydrator } from "./components/KilometerStoreHydrator";
+import { AdminToastProvider } from "./hooks/useAdminToast";
 
 // Configurar React Query client con valores de constantes centralizadas
 const queryClient = new QueryClient({
@@ -31,8 +32,10 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ErrorBoundary name="Aplicación" showHomeButton>
       <QueryClientProvider client={queryClient}>
-        <KilometerStoreHydrator />
-        <RouterProvider router={router} />
+        <AdminToastProvider>
+          <KilometerStoreHydrator />
+          <RouterProvider router={router} />
+        </AdminToastProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   </StrictMode>,
