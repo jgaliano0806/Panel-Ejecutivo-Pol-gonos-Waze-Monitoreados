@@ -595,24 +595,41 @@ export async function runMigrations(): Promise<void> {
       }
     }
 
-    // Migración 042: Crear tabla de zonas peligrosas (danger_zones)
-    const migration042Path = path.join(
+    // Migración 042a: Función ensure_weather_partitions() para auto-crear particiones mensuales
+    const migration042AutoPath = path.join(
+      migrationsDir,
+      "042_auto_weather_partitions.sql",
+    );
+    if (fs.existsSync(migration042AutoPath)) {
+      try {
+        const sql = fs.readFileSync(migration042AutoPath, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 042a ejecutada: función ensure_weather_partitions() instalada",
+        );
+      } catch (migError: any) {
+        console.warn("⚠️ Migración 042a:", migError.message);
+      }
+    }
+
+    // Migración 042b: Crear tabla de zonas peligrosas (danger_zones)
+    const migration042DangerPath = path.join(
       migrationsDir,
       "042_create_danger_zones.sql",
     );
-    if (fs.existsSync(migration042Path)) {
+    if (fs.existsSync(migration042DangerPath)) {
       try {
-        const sql = fs.readFileSync(migration042Path, "utf-8");
+        const sql = fs.readFileSync(migration042DangerPath, "utf-8");
         await dbService.query(sql);
         console.log(
-          "✅ Migración 042 ejecutada: tabla danger_zones creada",
+          "✅ Migración 042b ejecutada: tabla danger_zones creada",
         );
       } catch (migError: any) {
         if (
           !migError.message?.includes("already exists") &&
           !migError.message?.includes("ya existe")
         ) {
-          console.warn("⚠️ Migración 042:", migError.message);
+          console.warn("⚠️ Migración 042b:", migError.message);
         }
       }
     }

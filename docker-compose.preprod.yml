@@ -1,0 +1,167 @@
+# =============================================================
+# DOCKER COMPOSE — AMBIENTE PRE-PRODUCCIÓN
+# Servidor: waze  (10.1.0.136)  |  8 GB RAM / 16 vCPUs
+#
+# Acceso:  http://10.1.0.136/preprod    (vía nginx del host)
+#          http://10.1.0.136:8181       (directo, para diagnóstico)
+#
+# Puertos del host usados por PRE:
+#   8181 → app (nginx+backend)
+#   5433 → PostgreSQL pre-prod
+#
+# Límites de recursos (protegen PROD):
+#   app  → 1.5 GB RAM / 2 vCPUs
+#   db   → 1.0 GB RAM
+# =============================================================
+
+services:
+
+  # -----------------------------------------------------------
+  # APP: Frontend (Vite/React) + Backend (Node.js) + nginx
+  # base path compilado: /preprod/
+  # -----------------------------------------------------------
+  preprod-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.preprod
+      args:
+        VITE_BASE_URL: /preprod/
+        VITE_API_URL: /preprod/api
+        VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:-}
+    container_name: panel-waze-preprod-app
+    ports:
+      - "8181:80"
+      - "8182:3001"   # acceso directo al backend (diagnóstico)
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      TZ: America/Argentina/Buenos_Aires
+      DB_HOST: preprod-postgres
+      DB_PORT: 5432
+      DB_NAME: panel_waze_preprod
+      DB_USER: postgres
+      DB_PASSWORD: ${PREPROD_DB_PASSWORD:-preprod_changeme}
+      DB_POOL_MAX: 15
+      FRONTEND_URL: http://10.1.0.136/preprod
+      JWT_SECRET: ${PREPROD_JWT_SECRET:-preprod-jwt-secret-CAMBIA-EN-PRODUCCION}
+      JWT_EXPIRATION: 8h
+      WEATHER_PROVIDER: openmeteo
+      LOG_LEVEL: info
+      REDIS_HOST: preprod-redis
+      REDIS_PORT: 6379
+    depends_on:
+      preprod-postgres:
+        condition: service_healthy
+      preprod-redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    # --- Límites estrictos: 1.5 GB RAM / 2 vCPUs ---
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1536M
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    networks:
+      - preprod-network
+
+  # -----------------------------------------------------------
+  # POSTGRESQL — PRE-PRODUCCIÓN
+  # Puerto host 5433 (prod usa 5432)
+  # Volumen independiente: preprod-postgres-data
+  # -----------------------------------------------------------
+  preprod-postgres:
+    image: postgres:16-alpine
+    container_name: panel-waze-preprod-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: panel_waze_preprod
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PREPROD_DB_PASSWORD:-preprod_changeme}
+      PGDATA: /var/lib/postgresql/data/pgdata
+      # Tuning de memoria acorde al límite de 1 GB
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=es_AR.UTF-8"
+    command: >
+      postgres
+        -c shared_buffers=256MB
+        -c effective_cache_size=768MB
+        -c work_mem=8MB
+        -c maintenance_work_mem=64MB
+        -c max_connections=50
+        -c wal_buffers=16MB
+        -c checkpoint_completion_target=0.9
+        -c log_min_duration_statement=500
+    volumes:
+      - preprod-postgres-data:/var/lib/postgresql/data
+      - ./apps/backend/src/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d panel_waze_preprod"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    # --- Límite: 1 GB RAM ---
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+        reservations:
+          memory: 256M
+    networks:
+      - preprod-network
+
+  # -----------------------------------------------------------
+  # REDIS — PRE-PRODUCCIÓN (cache compartido para preprod-app)
+  # Puerto host 6380 (prod usa 6379)
+  # -----------------------------------------------------------
+  preprod-redis:
+    image: redis:7-alpine
+    container_name: panel-waze-preprod-redis
+    ports:
+      - "6380:6379"
+    command: >
+      redis-server
+        --appendonly yes
+        --maxmemory 128mb
+        --maxmemory-policy allkeys-lru
+    volumes:
+      - preprod-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 160M
+    networks:
+      - preprod-network
+
+# ---------------------------------------------------------------
+# VOLÚMENES — nombres distintos a prod para no colisionar
+# ---------------------------------------------------------------
+volumes:
+  preprod-postgres-data:
+    name: panel-waze-preprod-postgres-data
+  preprod-redis-data:
+    name: panel-waze-preprod-redis-data
+
+# ---------------------------------------------------------------
+# RED AISLADA — no comparte bridge con la red de producción
+# ---------------------------------------------------------------
+networks:
+  preprod-network:
+    name: panel-waze-preprod-network
+    driver: bridge

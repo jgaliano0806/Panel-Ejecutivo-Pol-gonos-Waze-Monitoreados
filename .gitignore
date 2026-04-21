@@ -12,6 +12,7 @@ node_modules
 
 # Build outputs
 dist
+dist-preprod
 dist-ssr
 build
 *.local

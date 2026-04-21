@@ -35,7 +35,7 @@ interface MapProps {
 export const Map: React.FC<MapProps> = (props) => {
   return (
     <div
-      className={`overflow-hidden bg-slate-900 relative w-full h-full min-h-[400px] shadow-inner ${
+      className={`overflow-hidden bg-slate-900 relative w-full h-full shadow-inner ${
         props.className || "rounded-xl"
       }`}
     >

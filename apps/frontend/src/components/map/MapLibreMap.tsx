@@ -128,6 +128,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   showWazeIncidents = true,
 }) => {
   const mapRef = useRef<MapRef>(null);
+  const mapWrapperRef = useRef<HTMLDivElement>(null);
   const incidentMarkersRef = useRef(
     new window.Map<string, maplibregl.Marker>(),
   );
@@ -172,6 +173,23 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
 
   // Estado para controlar si el mapa está cargado
   const [mapLoaded, setMapLoaded] = useState(false);
+
+  // ResizeObserver: ante cualquier cambio del contenedor (abrir/cerrar panel
+  // lateral, toggle sidebar, resize de ventana) forzamos map.resize() para
+  // evitar que el canvas WebGL quede con dimensiones viejas y deje asomar
+  // el fondo gris del wrapper por debajo o a los costados.
+  useEffect(() => {
+    if (!mapLoaded) return;
+    const wrapper = mapWrapperRef.current;
+    if (!wrapper) return;
+
+    const ro = new ResizeObserver(() => {
+      const map = mapRef.current?.getMap?.();
+      if (map) map.resize();
+    });
+    ro.observe(wrapper);
+    return () => ro.disconnect();
+  }, [mapLoaded]);
 
   // Inyectar CSS para animación de marcador de notificación (una sola vez)
   useEffect(() => {
@@ -443,17 +461,75 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
       firstDashIndex === -1 ? cleanId : cleanId.substring(0, firstDashIndex);
     const subtype =
       firstDashIndex === -1 ? undefined : cleanId.substring(firstDashIndex + 1);
-    const svgString = getWazeIconSvg(type, subtype);
+    let svgString = getWazeIconSvg(type, subtype);
     if (!svgString) return;
-    const img = new Image(64, 64);
-    img.onload = () => {
-      if (!map.hasImage(iconId)) {
-        map.addImage(iconId, img, { sdf: false });
-        map.triggerRepaint();
+
+    // Si el SVG no trae width/height explícitos Chrome falla al decodificarlo
+    // con InvalidStateError. Los inyectamos en el <svg raíz> antes de rasterizar.
+    const size = 64;
+    if (!/<svg[^>]*\swidth=/i.test(svgString)) {
+      svgString = svgString.replace(/<svg\b/i, `<svg width="${size}" height="${size}"`);
+    }
+
+    // Rasterizamos a ImageBitmap/Canvas para evitar que MapLibre intente
+    // decodificar un HTMLImageElement con data-URI de SVG (InvalidStateError).
+    const rasterize = async () => {
+      if (map.hasImage(iconId)) return;
+      const blob = new Blob([svgString], { type: "image/svg+xml" });
+
+      try {
+        if (typeof createImageBitmap === "function") {
+          const bitmap = await createImageBitmap(blob, {
+            resizeWidth: size,
+            resizeHeight: size,
+            resizeQuality: "high",
+          });
+          const canvas = document.createElement("canvas");
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return;
+          ctx.drawImage(bitmap, 0, 0, size, size);
+          bitmap.close?.();
+          const imageData = ctx.getImageData(0, 0, size, size);
+          if (!map.hasImage(iconId)) {
+            map.addImage(iconId, imageData, { pixelRatio: 2, sdf: false });
+            map.triggerRepaint();
+          }
+          return;
+        }
+      } catch {
+        // Fallback a <img> más abajo
       }
+
+      const url = URL.createObjectURL(blob);
+      const img = new Image(size, size);
+      img.decoding = "sync";
+      img.onload = () => {
+        try {
+          if (map.hasImage(iconId)) return;
+          const canvas = document.createElement("canvas");
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return;
+          ctx.drawImage(img, 0, 0, size, size);
+          const imageData = ctx.getImageData(0, 0, size, size);
+          map.addImage(iconId, imageData, { pixelRatio: 2, sdf: false });
+          map.triggerRepaint();
+        } catch {
+          /* icono omitido: no se pudo decodificar */
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+      };
+      img.src = url;
     };
-    img.src =
-      "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgString);
+
+    void rasterize();
   };
 
   const COMMON_ICONS = [
@@ -1148,8 +1224,8 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
 
   return (
     <div
-      className={`h-full w-full min-h-[500px] ${isDark ? "bg-[#222736]" : "bg-gray-100"} relative`}
-      style={{ minHeight: "500px" }}
+      ref={mapWrapperRef}
+      className={`h-full w-full ${isDark ? "bg-[#222736]" : "bg-gray-100"} relative`}
       role="region"
       aria-label="Mapa de incidentes y tráfico"
     >
@@ -1157,7 +1233,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         mapLib={maplibregl}
         ref={mapRef}
         initialViewState={INITIAL_VIEW_STATE}
-        style={{ width: "100%", height: "100%", minHeight: "500px" }}
+        style={{ width: "100%", height: "100%" }}
         mapStyle={mapStyle}
         attributionControl={false}
         clickTolerance={20}
