@@ -1,18 +1,49 @@
 import React, { useState, useEffect } from "react";
-import { X, Save, Trash2, AlertTriangle, Shield, ShieldAlert, ShieldOff, Palette, Pencil } from "lucide-react";
+import { X, Save, Trash2, AlertTriangle, Shield, ShieldAlert, ShieldOff, Pencil } from "lucide-react";
 import {
   useDangerZoneStore,
   polygonRingToOpenDrawingPoints,
 } from "@/stores/useDangerZoneStore";
+import { isClosedRingSimple } from "@/utils/dangerZonePolygon";
 import { useCreateDangerZone, useUpdateDangerZone, useDeleteDangerZone } from "@/hooks/useDangerZones";
 import { useAdminToast } from "@/hooks/useAdminToast";
 import type { DangerZoneSeverity, DangerZoneUpdateInput } from "@panel-waze/types";
 import { cn } from "@/lib/utils";
 
-const SEVERITY_OPTIONS: { value: DangerZoneSeverity; label: string; icon: React.ReactNode; color: string }[] = [
-  { value: "high", label: "Alta", icon: <Shield className="h-4 w-4" />, color: "text-orange-500" },
-  { value: "critical", label: "Crítica", icon: <ShieldAlert className="h-4 w-4" />, color: "text-red-500" },
-  { value: "extreme", label: "Extrema", icon: <ShieldOff className="h-4 w-4" />, color: "text-red-700" },
+type SeverityStyle = {
+  value: DangerZoneSeverity;
+  label: string;
+  icon: React.ReactNode;
+  iconColor: string;
+  selectedBorder: string;
+  selectedBg: string;
+};
+
+const SEVERITY_OPTIONS: SeverityStyle[] = [
+  {
+    value: "high",
+    label: "Alta",
+    icon: <Shield className="h-4 w-4" />,
+    iconColor: "text-yellow-400",
+    selectedBorder: "border-yellow-400 ring-2 ring-yellow-400/40",
+    selectedBg: "bg-yellow-400/10",
+  },
+  {
+    value: "critical",
+    label: "Crítica",
+    icon: <ShieldAlert className="h-4 w-4" />,
+    iconColor: "text-orange-500",
+    selectedBorder: "border-orange-500 ring-2 ring-orange-500/50",
+    selectedBg: "bg-orange-500/10",
+  },
+  {
+    value: "extreme",
+    label: "Extrema",
+    icon: <ShieldOff className="h-4 w-4" />,
+    iconColor: "text-red-500",
+    selectedBorder: "border-red-500 ring-2 ring-red-500/60",
+    selectedBg: "bg-red-500/10",
+  },
 ];
 
 const PROTOCOL_PRESETS = [
@@ -28,11 +59,16 @@ export const DangerZonePanel: React.FC = () => {
   const selectedZone = useDangerZoneStore((s) => s.selectedZone);
   const showPanel = useDangerZoneStore((s) => s.showPanel);
   const tempGeometry = useDangerZoneStore((s) => s.tempGeometry);
+  const isDrawing = useDangerZoneStore((s) => s.isDrawing);
+  const drawingPoints = useDangerZoneStore((s) => s.drawingPoints);
   const reset = useDangerZoneStore((s) => s.reset);
   const setShowPanel = useDangerZoneStore((s) => s.setShowPanel);
   const setDrawing = useDangerZoneStore((s) => s.setDrawing);
   const clearDrawingPoints = useDangerZoneStore((s) => s.clearDrawingPoints);
   const setTempGeometryStore = useDangerZoneStore((s) => s.setTempGeometry);
+  const finishDangerZoneDrawing = useDangerZoneStore(
+    (s) => s.finishDangerZoneDrawing,
+  );
 
   const toast = useAdminToast();
   const createMutation = useCreateDangerZone();
@@ -43,7 +79,16 @@ export const DangerZonePanel: React.FC = () => {
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState<DangerZoneSeverity>("high");
   const [protocol, setProtocol] = useState("");
-  const [color, setColor] = useState("#FF0000");
+
+  // El color ya no lo elige el usuario; se deriva de la severidad
+  // (amarillo / naranja / rojo) para que la criticidad sea consistente
+  // en panel, listado y mapa.
+  const SEVERITY_HEX: Record<DangerZoneSeverity, string> = {
+    high: "#FACC15",
+    critical: "#F97316",
+    extreme: "#EF4444",
+  };
+  const color = SEVERITY_HEX[severity];
 
   const isEditing = !!selectedZone;
 
@@ -53,20 +98,54 @@ export const DangerZonePanel: React.FC = () => {
       setDescription(selectedZone.description || "");
       setSeverity(selectedZone.severity);
       setProtocol(selectedZone.protocol);
-      setColor(selectedZone.color || "#FF0000");
     } else {
       setName("");
       setDescription("");
       setSeverity("high");
       setProtocol("");
-      setColor("#FF0000");
     }
   }, [selectedZone]);
 
   if (!showPanel) return null;
 
+  /**
+   * Si el usuario quedó con el editor abierto (Redibujar perímetro) y olvidó
+   * pulsar "Finalizar", cerramos el polígono por él antes de guardar. Así el
+   * PUT incluye `geometria` y la forma se persiste.
+   */
+  const ensureTempGeometryFromDrawing = (): GeoJSON.Polygon | null => {
+    if (tempGeometry) return tempGeometry as GeoJSON.Polygon;
+    if (!isDrawing) return null;
+    if (drawingPoints.length < 3) return null;
+    if (!isClosedRingSimple(drawingPoints)) return null;
+    const ok = finishDangerZoneDrawing();
+    if (!ok) return null;
+    return useDangerZoneStore.getState().tempGeometry;
+  };
+
   const handleSave = async () => {
     if (!name.trim()) return;
+
+    // Editor abierto sin polígono válido → avisar y no enviar
+    if (isDrawing && !tempGeometry) {
+      if (drawingPoints.length < 3) {
+        toast.warning(
+          "Polígono incompleto",
+          "Coloca al menos 3 vértices antes de guardar.",
+        );
+        return;
+      }
+      if (!isClosedRingSimple(drawingPoints)) {
+        toast.warning(
+          "Polígono inválido",
+          "El perímetro se cruza a sí mismo. Ajusta los vértices antes de guardar.",
+        );
+        return;
+      }
+    }
+
+    const effectiveGeometry = ensureTempGeometryFromDrawing();
+
     try {
       if (isEditing && selectedZone) {
         const input: DangerZoneUpdateInput = {
@@ -76,22 +155,24 @@ export const DangerZonePanel: React.FC = () => {
           protocol,
           color,
         };
-        if (tempGeometry) {
-          input.geometry = tempGeometry as GeoJSON.Polygon;
+        if (effectiveGeometry) {
+          input.geometry = effectiveGeometry;
         }
         await updateMutation.mutateAsync({ id: selectedZone.id, input });
         toast.success(
           "Modificación registrada",
-          `La zona «${name.trim()}» se actualizó correctamente.`,
+          effectiveGeometry
+            ? `La zona «${name.trim()}» y su perímetro se actualizaron.`
+            : `La zona «${name.trim()}» se actualizó correctamente.`,
         );
-      } else if (tempGeometry) {
+      } else if (effectiveGeometry) {
         await createMutation.mutateAsync({
           name,
           description,
           severity,
           protocol,
           color,
-          geometry: tempGeometry as GeoJSON.Polygon,
+          geometry: effectiveGeometry,
         });
         toast.success(
           "Alta registrada",
@@ -188,12 +269,25 @@ export const DangerZonePanel: React.FC = () => {
         <div>
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Severidad *</label>
           <div className="flex gap-2">
-            {SEVERITY_OPTIONS.map((opt) => (
-              <button key={opt.value} type="button" onClick={() => setSeverity(opt.value)} className={cn("flex-1 flex flex-col items-center gap-1 p-2 rounded-lg border text-xs font-medium transition-all", severity === opt.value ? "border-red-500 bg-red-50 dark:bg-red-950/30" : "border-gray-200 dark:border-slate-600 hover:border-gray-300")}>
-                <span className={opt.color}>{opt.icon}</span>
-                {opt.label}
-              </button>
-            ))}
+            {SEVERITY_OPTIONS.map((opt) => {
+              const isSel = severity === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setSeverity(opt.value)}
+                  className={cn(
+                    "flex-1 flex flex-col items-center gap-1 p-2 rounded-lg border text-xs font-medium transition-all",
+                    isSel
+                      ? cn(opt.selectedBorder, opt.selectedBg)
+                      : "border-gray-200 dark:border-slate-600 hover:border-gray-300",
+                  )}
+                >
+                  <span className={opt.iconColor}>{opt.icon}</span>
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -207,17 +301,18 @@ export const DangerZonePanel: React.FC = () => {
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-            <Palette className="inline h-3 w-3 mr-1" />Color
-          </label>
-          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-full h-8 rounded-lg border border-gray-200 dark:border-slate-600 cursor-pointer" />
-        </div>
       </div>
 
-      {tempGeometry && (
+      {tempGeometry && !isDrawing && (
         <div className="px-4 py-2 text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border-t border-amber-100 dark:border-amber-900/50">
           Perímetro listo en el mapa. Pulsa <strong>Guardar</strong> para enviarlo al servidor.
+        </div>
+      )}
+      {isDrawing && (
+        <div className="px-4 py-2 text-xs text-blue-800 dark:text-blue-200 bg-blue-50 dark:bg-blue-950/40 border-t border-blue-100 dark:border-blue-900/50">
+          Editando perímetro en el mapa ({drawingPoints.length}{" "}
+          {drawingPoints.length === 1 ? "vértice" : "vértices"}). Al pulsar{" "}
+          <strong>Guardar</strong> se cierra y envía automáticamente.
         </div>
       )}
 

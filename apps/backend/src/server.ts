@@ -78,11 +78,19 @@ const server = Fastify({
 
 // Configurar CORS - permitir FRONTEND_URL, mismo host sin puerto (nginx :80) y variantes
 const frontendUrl = process.env.FRONTEND_URL;
-const corsOrigin = frontendUrl
+const isDev = process.env.NODE_ENV !== "production";
+const corsOrigin: (string | RegExp)[] | true = frontendUrl
   ? [
       frontendUrl,
       frontendUrl.replace(/:\d+$/, ""), // http://10.1.0.136
       /^https?:\/\/10\.1\.0\.136(:\d+)?$/, // cualquier puerto en 10.1.0.136
+      // En desarrollo también permitir localhost / 127.0.0.1
+      ...(isDev
+        ? [
+            /^https?:\/\/localhost(:\d+)?$/,
+            /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
+          ]
+        : []),
     ]
   : true;
 
@@ -2327,15 +2335,18 @@ const start = async () => {
       console.warn("⚠️ Error en migraciones (continuando):", migrationError);
     }
 
-    // Iniciar polling de Waze con delay para no competir con API (login, km) por conexiones DB
-    // DISABLE_WAZE_POLLING=1 desactiva polling si el pool DB se satura
+    // Iniciar polling de Waze con delay para no competir con API (login, km) por conexiones DB.
+    // Delays escalonados para que cada servicio tome su cuota del pool sin saturarlo:
+    //   - Waze   → 90 s  (66 feeds, mayor consumo de pool)
+    //   - OpenMeteo → 180 s (66 polígonos, arranca cuando Waze ya se estabilizó)
+    // DISABLE_WAZE_POLLING=1 desactiva polling si el pool DB se satura.
     const disableWazePoll = process.env.DISABLE_WAZE_POLLING === "1" || process.env.DISABLE_WAZE_POLLING === "true";
     if (!disableWazePoll) {
       try {
         setTimeout(() => {
           wazePollingService.startPolling();
-          console.log("✓ WazePollingService iniciado (delay 60s para priorizar API)");
-        }, 60000);
+          console.log("✓ WazePollingService iniciado (delay 90s para priorizar API)");
+        }, 90000);
       } catch (pollingError) {
         console.error(
           "⚠️ Error al iniciar WazePollingService (continuando):",
@@ -2347,13 +2358,14 @@ const start = async () => {
     }
 
     // Iniciar servicio de clima Open-Meteo
-    // Retrasar 90s para evitar competencia con Waze poll por conexiones del pool DB
+    // 180 s después del arranque: da tiempo a que WazePolling complete su primera
+    // tanda y libere conexiones antes de pedir clima para los 66 polígonos.
     if (!disableWazePoll) {
       try {
         setTimeout(() => {
           openMeteoService.startPolling();
-          console.log("✓ OpenMeteoService iniciado (clima cada hora, delay 90s)");
-        }, 90000);
+          console.log("✓ OpenMeteoService iniciado (clima cada hora, delay 180s)");
+        }, 180000);
       } catch (weatherError) {
         console.error(
           "⚠️ Error al iniciar OpenMeteoService (continuando):",

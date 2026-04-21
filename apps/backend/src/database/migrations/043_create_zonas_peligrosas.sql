@@ -2,9 +2,10 @@
 CREATE TABLE IF NOT EXISTS zonas_peligrosas (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nombre VARCHAR(255) NOT NULL,
+  descripcion TEXT NOT NULL DEFAULT '',
   geometria JSONB NOT NULL,
   nivel_severidad INTEGER NOT NULL DEFAULT 1
-    CHECK (nivel_severidad IN (1, 2)),
+    CHECK (nivel_severidad IN (1, 2, 3)),
   protocolo_accion TEXT NOT NULL DEFAULT '',
   fecha_creacion TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   activa BOOLEAN NOT NULL DEFAULT true

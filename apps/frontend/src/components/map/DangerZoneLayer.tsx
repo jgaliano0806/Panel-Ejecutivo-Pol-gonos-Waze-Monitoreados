@@ -16,6 +16,13 @@ const SEVERITY_LABELS: Record<string, string> = {
   extreme: "Extrema",
 };
 
+/** Paleta exclusiva por severidad (Amarillo -> Naranja -> Rojo). */
+const SEVERITY_HEX: Record<string, string> = {
+  high: "#FACC15",      // yellow-400
+  critical: "#F97316",  // orange-500
+  extreme: "#EF4444",   // red-500
+};
+
 export const DangerZoneLayer: React.FC = () => {
   const { current: map } = useMap();
   const { data: zones = [] } = useDangerZones();
@@ -43,7 +50,9 @@ export const DangerZoneLayer: React.FC = () => {
           id: z.id,
           name: z.name,
           severity: z.severity,
-          color: z.color || "#ef4444",
+          // Color fijo por severidad: ignoramos zone.color para que la criticidad
+          // sea siempre reconocible a simple vista (amarillo/naranja/rojo).
+          color: SEVERITY_HEX[z.severity] || SEVERITY_HEX.high,
         },
       })),
   }), [zones, hiddenZoneIds, isDrawing, selectedZone?.id]);
@@ -54,6 +63,17 @@ export const DangerZoneLayer: React.FC = () => {
   );
 
   const visibility = showZones ? "visible" : "none";
+
+  /** MapLibre a veces no repinta etiquetas/colores solo con el prop `data` del <Source>. */
+  useEffect(() => {
+    if (!map) return;
+    const raw = map.getMap().getSource("danger-zones-src") as unknown as
+      | maplibregl.GeoJSONSource
+      | undefined;
+    if (raw && typeof raw.setData === "function") {
+      raw.setData(geojson);
+    }
+  }, [map, geojson]);
 
   // Eventos de hover y clic sobre la capa fill
   const onFillEnter = useCallback((e: any) => {
@@ -81,6 +101,7 @@ export const DangerZoneLayer: React.FC = () => {
 
     if (popupRef.current) popupRef.current.remove();
     const severity = SEVERITY_LABELS[zone.severity] || zone.severity;
+    const sevHex = SEVERITY_HEX[zone.severity] || SEVERITY_HEX.high;
     popupRef.current = new maplibregl.Popup({
       closeButton: true,
       closeOnClick: true,
@@ -90,11 +111,11 @@ export const DangerZoneLayer: React.FC = () => {
       .setHTML(`
         <div style="font-family:system-ui,sans-serif;">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${zone.color || "#ef4444"};box-shadow:0 0 6px ${zone.color || "#ef4444"};"></span>
+            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${sevHex};box-shadow:0 0 6px ${sevHex};"></span>
             <strong style="font-size:13px;color:#1e293b;">${zone.name}</strong>
           </div>
           <div style="font-size:11px;color:#64748b;margin-bottom:4px;">
-            Severidad: <span style="font-weight:600;color:#dc2626;">${severity}</span>
+            Severidad: <span style="font-weight:700;color:${sevHex};">${severity}</span>
           </div>
           ${zone.description ? `<div style="font-size:11px;color:#475569;margin-bottom:4px;">${zone.description}</div>` : ""}
           ${zone.protocol ? `<div style="font-size:10px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:4px;margin-top:4px;"><strong>Protocolo:</strong> ${zone.protocol}</div>` : ""}
@@ -128,7 +149,7 @@ export const DangerZoneLayer: React.FC = () => {
 
   return (
     <Source id="danger-zones-src" type="geojson" data={geojson}>
-      {/* Relleno base */}
+      {/* Relleno base: color y opacidad por severidad */}
       <Layer
         id={FILL_ID}
         type="fill"
@@ -136,10 +157,10 @@ export const DangerZoneLayer: React.FC = () => {
           "fill-color": ["get", "color"],
           "fill-opacity": [
             "match", ["get", "severity"],
-            "extreme", 0.3,
-            "critical", 0.22,
-            "high", 0.15,
-            0.15,
+            "extreme", 0.42,
+            "critical", 0.3,
+            "high", 0.18,
+            0.18,
           ],
         }}
         layout={{ visibility }}
@@ -151,22 +172,34 @@ export const DangerZoneLayer: React.FC = () => {
         filter={highlightFilter as any}
         paint={{
           "fill-color": ["get", "color"],
-          "fill-opacity": 0.45,
+          "fill-opacity": 0.55,
         }}
         layout={{ visibility }}
       />
-      {/* Borde */}
+      {/* Borde: grosor y patron por severidad para distinguir sin depender del color */}
       <Layer
         id={LINE_ID}
         type="line"
         paint={{
           "line-color": ["get", "color"],
-          "line-width": 2.5,
-          "line-dasharray": [2, 1],
+          "line-width": [
+            "match", ["get", "severity"],
+            "extreme", 4,
+            "critical", 3,
+            "high", 2,
+            2,
+          ],
+          "line-dasharray": [
+            "match", ["get", "severity"],
+            "extreme", ["literal", [1, 0]],
+            "critical", ["literal", [1, 0]],
+            "high", ["literal", [2, 1]],
+            ["literal", [2, 1]],
+          ],
         }}
         layout={{ visibility }}
       />
-      {/* Etiqueta */}
+      {/* Etiqueta: color por severidad, halo oscuro para legibilidad */}
       <Layer
         id={LABEL_ID}
         type="symbol"
@@ -178,9 +211,9 @@ export const DangerZoneLayer: React.FC = () => {
           visibility,
         }}
         paint={{
-          "text-color": "#DC2626",
-          "text-halo-color": "#FFFFFF",
-          "text-halo-width": 1.5,
+          "text-color": ["get", "color"],
+          "text-halo-color": "#0B0B12",
+          "text-halo-width": 1.6,
         }}
       />
     </Source>

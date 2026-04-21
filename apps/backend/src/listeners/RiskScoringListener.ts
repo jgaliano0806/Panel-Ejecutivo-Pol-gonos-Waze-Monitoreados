@@ -4,6 +4,14 @@ import { dbService } from "../database/dbService";
 import { riskScoringService } from "../services/riskScoringService";
 
 export class RiskScoringListener {
+  // Debounce del refresh de la vista materializada:
+  // handleWazePollComplete se dispara 1 vez por polígono (66×). Si cada uno
+  // ejecutara refresh_risk_scores_view() se lanzarían 66 copias en paralelo
+  // cada 30 s, saturando el pool PG. En su lugar agendamos UN solo refresh
+  // N ms después del último evento de la tanda.
+  private refreshTimer: NodeJS.Timeout | null = null;
+  private readonly REFRESH_DEBOUNCE_MS = 3000;
+
   constructor() {
     this.setupListeners();
   }
@@ -14,6 +22,21 @@ export class RiskScoringListener {
       this.handleWazePollComplete.bind(this),
     );
     logger.info("🎧 RiskScoringListener listening for WAZE_POLL_COMPLETE");
+  }
+
+  private scheduleViewRefresh() {
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+    }
+    this.refreshTimer = setTimeout(async () => {
+      this.refreshTimer = null;
+      try {
+        await dbService.query("SELECT refresh_risk_scores_view()");
+        logger.debug("🔄 risk_scores_view refrescada (debounced)");
+      } catch (viewError) {
+        logger.debug(`Vista no refrescada (puede no existir): ${viewError}`);
+      }
+    }, this.REFRESH_DEBOUNCE_MS);
   }
 
   private async handleWazePollComplete(data: any) {
@@ -74,13 +97,8 @@ export class RiskScoringListener {
       // 3. Disparar recálculo de Risk Score
       await riskScoringService.calculatePolygonRiskScore(polygonId);
 
-      // 4. Refrescar vista materializada para que el frontend vea los cambios
-      try {
-        await dbService.query("SELECT refresh_risk_scores_view()");
-      } catch (viewError) {
-        // La vista puede no existir, en ese caso ignorar
-        logger.debug(`Vista no refrescada (puede no existir): ${viewError}`);
-      }
+      // 4. Agendar refresh de vista materializada (debounced, ver REFRESH_DEBOUNCE_MS)
+      this.scheduleViewRefresh();
 
       logger.info(`✅ Risk Score recalculado para ${polygonId}`);
     } catch (error) {

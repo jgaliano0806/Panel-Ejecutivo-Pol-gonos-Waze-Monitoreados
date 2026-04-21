@@ -57,6 +57,7 @@ export const usePolygonsStatus = () => {
     queryKey: ["polygons"],
     queryFn: () => fetcher<BackendPolygonStatus[]>("/polygons"),
     refetchInterval: REFRESH_INTERVALS.realTimeData,
+    structuralSharing: false,
   });
 };
 
@@ -73,6 +74,7 @@ export const useAllIncidents = () => {
     queryKey: ["incidents"],
     queryFn: () => fetcher<Incident[]>("/incidents/all"),
     refetchInterval: REFRESH_INTERVALS.realTimeData,
+    structuralSharing: false,
   });
 };
 
@@ -102,6 +104,7 @@ export const useAllJams = () => {
       }));
     },
     refetchInterval: REFRESH_INTERVALS.realTimeData,
+    structuralSharing: false,
   });
 };
 

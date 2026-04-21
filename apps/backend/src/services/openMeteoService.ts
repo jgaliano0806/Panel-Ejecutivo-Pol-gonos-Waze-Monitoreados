@@ -21,6 +21,7 @@ let io: any = null;
 export class OpenMeteoService {
   private static instance: OpenMeteoService;
   private pollingInterval: NodeJS.Timeout | null = null;
+  private partitionCheckInterval: NodeJS.Timeout | null = null;
   private isPolling: boolean = false;
   private lastPollTime: Date = new Date(0);
 
@@ -30,6 +31,8 @@ export class OpenMeteoService {
   private readonly POLLING_INTERVAL_MS = 3600000; // 1 hora
   private readonly REQUEST_TIMEOUT_MS = 10000; // 10 segundos
   private readonly CACHE_TTL_MS = 300000; // 5 minutos
+  private readonly PARTITION_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 horas
+  private readonly PARTITION_MONTHS_AHEAD = 24; // buffer de 2 años
 
   // Cache simple en memoria
   private cache: Map<string, { data: WeatherDataDB; timestamp: number }> =
@@ -69,6 +72,9 @@ export class OpenMeteoService {
     // Asegurar que la tabla existe
     await this.ensureTable();
 
+    // Asegurar que existan particiones futuras antes de empezar a insertar
+    await this.ensurePartitions();
+
     console.log(
       `🌤️ Starting weather polling (every ${this.POLLING_INTERVAL_MS / 60000} min)`,
     );
@@ -82,6 +88,12 @@ export class OpenMeteoService {
       () => this.fetchAllPolygons(),
       this.POLLING_INTERVAL_MS,
     );
+
+    // Verificación diaria de particiones futuras
+    this.partitionCheckInterval = setInterval(
+      () => this.ensurePartitions(),
+      this.PARTITION_CHECK_INTERVAL_MS,
+    );
   }
 
   /**
@@ -92,8 +104,37 @@ export class OpenMeteoService {
       clearInterval(this.pollingInterval);
       this.pollingInterval = null;
     }
+    if (this.partitionCheckInterval) {
+      clearInterval(this.partitionCheckInterval);
+      this.partitionCheckInterval = null;
+    }
     this.isPolling = false;
     console.log("🛑 Weather polling stopped");
+  }
+
+  /**
+   * Garantiza que existan particiones mensuales futuras en polygon_weather_data.
+   * Llama a la función SQL idempotente ensure_weather_partitions(months_ahead)
+   * creada en la migración 042. Se invoca al arrancar y cada 24 h.
+   */
+  private async ensurePartitions(): Promise<void> {
+    try {
+      const result = await dbService.query(
+        "SELECT created FROM ensure_weather_partitions($1)",
+        [this.PARTITION_MONTHS_AHEAD],
+      );
+      const created: string[] = result.rows.map((r: any) => r.created);
+      if (created.length > 0) {
+        console.log(
+          `🗂️ Particiones de clima creadas (${created.length}): ${created.join(", ")}`,
+        );
+      }
+    } catch (error) {
+      console.error(
+        "❌ ensure_weather_partitions falló:",
+        error instanceof Error ? error.message : error,
+      );
+    }
   }
 
   /**

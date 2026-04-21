@@ -12,180 +12,177 @@ set "NSSM=C:\ProgramData\chocolatey\lib\NSSM\tools\nssm.exe"
 set "PG_BIN=D:\postgreSQL\bin"
 set "PATH=%PG_BIN%;%PATH%"
 
-:: Leer variables clave desde apps/backend/.env (evita duplicar secretos en el script)
-set "BACKEND_ENV=%ROOT%\apps\backend\.env"
-set "DB_PASSWORD_ENV=CASISA"
-set "DB_PORT_ENV=5432"
-set "DB_NAME_ENV=panel_waze"
-set "DB_USER_ENV=postgres"
-set "BACKEND_PORT=3002"
+:: Puerto del frontend (debe coincidir con Vite / servicio serve)
 set "FRONTEND_PORT=5180"
 
-if exist "!BACKEND_ENV!" (
-    for /f "usebackq tokens=1,* delims==" %%k in ("!BACKEND_ENV!") do (
-        set "_k=%%k"
-        set "_k=!_k: =!"
-        if "!_k!"=="PORT"        set "BACKEND_PORT=%%l"
-        if "!_k!"=="DB_PASSWORD" set "DB_PASSWORD_ENV=%%l"
-        if "!_k!"=="DB_PORT"     set "DB_PORT_ENV=%%l"
-        if "!_k!"=="DB_NAME"     set "DB_NAME_ENV=%%l"
-        if "!_k!"=="DB_USER"     set "DB_USER_ENV=%%l"
-    )
-    echo    Variables leidas desde apps/backend/.env
-) else (
-    echo    ADVERTENCIA: apps/backend/.env no encontrado - usando valores por defecto
-)
+:: BACKEND_PORT se resuelve en :RESOLVE_BACKEND_PORT (apps/backend/.env PORT=, si no existe: 3002 como en NSSM)
 
-:: Detectar IP de red (fallback: IP hardcodeada del servidor)
-set "LOCAL_IP="
+:: Detectar IP de red
+set "LOCAL_IP=10.1.0.136"
 for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /C:"IPv4"') do (
     set "temp=%%a"
     set "temp=!temp: =!"
     echo !temp! | findstr /C:"10.1.0" >nul 2>&1
     if !ERRORLEVEL! EQU 0 set "LOCAL_IP=!temp!"
 )
-if "!LOCAL_IP!"=="" (
-    set "LOCAL_IP=10.1.0.136"
-    echo    AVISO: IP local no detectada automaticamente, usando !LOCAL_IP!
-)
 
 echo.
 echo ===============================================
-echo   PANEL EJECUTIVO WAZE  -  PRODUCCION
+echo   PANEL EJECUTIVO WAZE  -  DESARROLLO LOCAL
 echo ===============================================
 echo.
 
-:: ============================================================
-:: VALIDACIONES PREVIAS
-:: ============================================================
-
-:: Validar que npm esta disponible (necesario para modo fallback)
-where npm >nul 2>&1
-if !ERRORLEVEL! NEQ 0 (
-    echo    ADVERTENCIA: npm no encontrado en PATH - el modo fallback no funcionara
-)
-
-:: Validar que curl esta disponible (necesario para health check)
-where curl >nul 2>&1
-set "CURL_OK=!ERRORLEVEL!"
-
-:: Validar que psql / PG_BIN existe (necesario para verificacion de BD)
-if not exist "%PG_BIN%\psql.exe" (
-    echo    ADVERTENCIA: psql no encontrado en %PG_BIN% - verificacion de BD omitida
-    set "PSQL_OK=0"
-) else (
-    set "PSQL_OK=1"
-)
-
+call :RESOLVE_BACKEND_PORT
+echo    Puerto API detectado: !BACKEND_PORT! ^(.env o predeterminado 3002^)
 echo.
 
 :: ============================================================
-:: PASO 1: PostgreSQL
+:: PASO 1: PostgreSQL (dev local: si ya esta corriendo, NO lo reiniciamos
+:: para evitar interrumpir otras apps. Solo se levanta si esta STOPPED.)
 :: ============================================================
-echo [1/4] Verificando PostgreSQL...
+echo [1/4] Verificando PostgreSQL ^(local^)...
+set "PG_SERVICE=postgresql-x64-18"
 
-:: Autodetectar nombre del servicio PostgreSQL (evita hardcodear la version)
-set "PG_SERVICE="
-for /f "tokens=1" %%s in ('sc query type^= all state^= all 2^>nul ^| findstr /I "SERVICE_NAME.*postgresql"') do (
-    if "!PG_SERVICE!"=="" (
-        for /f "tokens=2 delims=: " %%n in ("%%s") do set "PG_SERVICE=%%n"
-    )
+sc query !PG_SERVICE! >nul 2>&1
+if errorlevel 1 (
+    echo    ADVERTENCIA: Servicio !PG_SERVICE! no encontrado - revisar nombre en services.msc
+    goto :PG_DONE
 )
-:: Fallback al nombre conocido si la autodeteccion falla
-if "!PG_SERVICE!"=="" set "PG_SERVICE=postgresql-x64-18"
-
-echo    Servicio PostgreSQL detectado: !PG_SERVICE!
 
 sc query !PG_SERVICE! | findstr "RUNNING" >nul 2>&1
 if !ERRORLEVEL! EQU 0 (
-    echo    OK: PostgreSQL ya esta corriendo
-) else (
-    echo    Iniciando PostgreSQL ^(!PG_SERVICE!^)...
-    net start !PG_SERVICE! >nul 2>&1
-    if !ERRORLEVEL! EQU 0 (
-        echo    OK: PostgreSQL iniciado
-        timeout /t 3 /nobreak >nul
-    ) else (
-        echo    ADVERTENCIA: No se pudo iniciar PostgreSQL - verificar servicio "!PG_SERVICE!"
-    )
+    echo    OK: !PG_SERVICE! ya esta en RUNNING ^(no se reinicia en local^)
+    goto :PG_DONE
 )
+
+echo    Detectar privilegios de administrador...
+net session >nul 2>&1
+if errorlevel 1 (
+    echo    AVISO: no se detectan privilegios de administrador - net start puede fallar.
+    echo    Ejecute la ventana ^(PowerShell/CMD^) como administrador si hace falta.
+)
+
+echo    Iniciando !PG_SERVICE!...
+net start !PG_SERVICE! >nul 2>&1
+sc query !PG_SERVICE! | findstr "RUNNING" >nul 2>&1
+if !ERRORLEVEL! EQU 0 (
+    echo    OK: PostgreSQL iniciado
+    timeout /t 3 /nobreak >nul
+) else (
+    echo    ADVERTENCIA: No se pudo iniciar PostgreSQL - revise services.msc
+)
+
+:PG_DONE
 echo.
 
 :: ============================================================
-:: PASO 2: Backend
+:: PASO 2: Backend (una sola instancia: NSSM o una ventana dev)
 :: ============================================================
 echo [2/4] Iniciando Backend...
 
-:: BUG CORREGIDO: No matar el puerto aqui si NSSM lo gestiona.
-:: KILL_PORT se llama solo en el fallback directo (ver :FALLBACK_BACKEND).
-
-if not exist "%NSSM%" (
-    echo    NSSM no encontrado, usando modo directo...
-    goto :FALLBACK_BACKEND
+set "HAS_NSSM_BACKEND=0"
+if exist "%NSSM%" (
+    sc query PanelWazeBackend >nul 2>&1
+    if not errorlevel 1 set "HAS_NSSM_BACKEND=1"
 )
 
-"%NSSM%" status PanelWazeBackend 2>nul | findstr "SERVICE_RUNNING" >nul 2>&1
-if !ERRORLEVEL! EQU 0 (
-    echo    Reiniciando servicio...
-    "%NSSM%" restart PanelWazeBackend >nul 2>&1
+if "!HAS_NSSM_BACKEND!"=="1" (
+    echo    Servicio PanelWazeBackend instalado: no se mata el puerto antes ^(NSSM reinicia el proceso^).
+    "%NSSM%" status PanelWazeBackend 2>nul | findstr "SERVICE_RUNNING" >nul 2>&1
+    if not errorlevel 1 (
+        echo    Reiniciando servicio...
+        "%NSSM%" restart PanelWazeBackend >nul 2>&1
+    ) else (
+        echo    Iniciando servicio...
+        "%NSSM%" start PanelWazeBackend >nul 2>&1
+    )
+    timeout /t 6 /nobreak >nul
+
+    "%NSSM%" status PanelWazeBackend 2>nul | findstr "SERVICE_RUNNING" >nul 2>&1
+    if not errorlevel 1 (
+        echo    OK: Backend NSSM en puerto !BACKEND_PORT!
+        goto :BACKEND_DONE
+    )
+    echo    ADVERTENCIA: El servicio no quedo en RUNNING - modo desarrollo sin duplicar NSSM.
+    echo    Deteniendo PanelWazeBackend para no competir con npm en el mismo puerto...
+    "%NSSM%" stop PanelWazeBackend >nul 2>&1
+    timeout /t 3 /nobreak >nul
 ) else (
-    echo    Iniciando servicio...
-    "%NSSM%" start PanelWazeBackend >nul 2>&1
+    if not exist "%NSSM%" echo    NSSM no encontrado: modo desarrollo si hace falta.
 )
-timeout /t 6 /nobreak >nul
 
-:: Verificar que arranco
-"%NSSM%" status PanelWazeBackend 2>nul | findstr "SERVICE_RUNNING" >nul 2>&1
-if !ERRORLEVEL! EQU 0 (
-    echo    OK: Backend corriendo en puerto %BACKEND_PORT%
+call :IS_BACKEND_UP !BACKEND_PORT!
+if "!IS_BACKEND_UP!"=="1" (
+    echo    Backend ya responde en :!BACKEND_PORT! ^- reiniciando modo desarrollo...
 ) else (
-    echo    ADVERTENCIA: El servicio no arranco - intentando fallback...
-    goto :FALLBACK_BACKEND
+    echo    Backend no responde en :!BACKEND_PORT! ^- iniciando modo desarrollo...
 )
-goto :BACKEND_DONE
 
-:FALLBACK_BACKEND
-:: Liberar puerto solo cuando se va a arrancar en modo directo
-call :KILL_PORT %BACKEND_PORT%
-echo    Iniciando backend en modo directo...
+echo    Cerrando ventanas "Backend Panel Waze" previas...
+taskkill /F /FI "WINDOWTITLE eq Backend Panel Waze*" >nul 2>&1
+
+echo    Liberando escucha en :!BACKEND_PORT! si hay algun proceso...
+call :KILL_PORT_LISTENERS !BACKEND_PORT!
+
+echo    Iniciando backend en modo desarrollo ^(una ventana^)...
 start "Backend Panel Waze" /D "%ROOT%" cmd /k "npm run dev:backend"
 timeout /t 10 /nobreak >nul
-echo    OK: Backend iniciado (modo directo)
+echo    OK: Backend dev (re)iniciado
 
 :BACKEND_DONE
 echo.
 
 :: ============================================================
-:: PASO 3: Frontend
+:: PASO 3: Frontend (una sola instancia: NSSM o una ventana dev)
 :: ============================================================
 echo [3/4] Iniciando Frontend...
-if not exist "%NSSM%" goto :FALLBACK_FRONTEND
 
-"%NSSM%" status PanelWazeFrontend 2>nul | findstr "SERVICE_RUNNING" >nul 2>&1
-if !ERRORLEVEL! EQU 0 (
-    echo    Reiniciando servicio...
-    "%NSSM%" restart PanelWazeFrontend >nul 2>&1
-) else (
-    echo    Iniciando servicio...
-    "%NSSM%" start PanelWazeFrontend >nul 2>&1
-)
-timeout /t 5 /nobreak >nul
-
-"%NSSM%" status PanelWazeFrontend 2>nul | findstr "SERVICE_RUNNING" >nul 2>&1
-if !ERRORLEVEL! EQU 0 (
-    echo    OK: Frontend corriendo en puerto %FRONTEND_PORT%
-    goto :FRONTEND_DONE
-) else (
-    echo    ADVERTENCIA: El servicio no arranco - intentando fallback...
+set "HAS_NSSM_FRONTEND=0"
+if exist "%NSSM%" (
+    sc query PanelWazeFrontend >nul 2>&1
+    if not errorlevel 1 set "HAS_NSSM_FRONTEND=1"
 )
 
-:FALLBACK_FRONTEND
-:: Liberar puerto y arrancar en modo directo
-call :KILL_PORT %FRONTEND_PORT%
-echo    Iniciando frontend en modo desarrollo...
+if "!HAS_NSSM_FRONTEND!"=="1" (
+    echo    Servicio PanelWazeFrontend: sin liberar el puerto a mano antes del reinicio.
+    "%NSSM%" status PanelWazeFrontend 2>nul | findstr "SERVICE_RUNNING" >nul 2>&1
+    if not errorlevel 1 (
+        echo    Reiniciando servicio...
+        "%NSSM%" restart PanelWazeFrontend >nul 2>&1
+    ) else (
+        echo    Iniciando servicio...
+        "%NSSM%" start PanelWazeFrontend >nul 2>&1
+    )
+    timeout /t 5 /nobreak >nul
+
+    "%NSSM%" status PanelWazeFrontend 2>nul | findstr "SERVICE_RUNNING" >nul 2>&1
+    if not errorlevel 1 (
+        echo    OK: Frontend NSSM en puerto !FRONTEND_PORT!
+        goto :FRONTEND_DONE
+    )
+    echo    ADVERTENCIA: Frontend NSSM no en RUNNING - modo Vite sin duplicar servicio.
+    echo    Deteniendo PanelWazeFrontend...
+    "%NSSM%" stop PanelWazeFrontend >nul 2>&1
+    timeout /t 2 /nobreak >nul
+)
+
+call :IS_FRONTEND_LISTENING !FRONTEND_PORT!
+if "!IS_FRONTEND_LISTENING!"=="1" (
+    echo    Frontend ya escucha en :!FRONTEND_PORT! ^- reiniciando modo desarrollo...
+) else (
+    echo    Frontend no escucha en :!FRONTEND_PORT! ^- iniciando modo desarrollo...
+)
+
+echo    Cerrando ventanas "Frontend Panel Waze" previas...
+taskkill /F /FI "WINDOWTITLE eq Frontend Panel Waze*" >nul 2>&1
+
+echo    Liberando escucha en :!FRONTEND_PORT! si hay algun proceso...
+call :KILL_PORT_LISTENERS !FRONTEND_PORT!
+
+echo    Iniciando frontend en modo desarrollo ^(una ventana^)...
 start "Frontend Panel Waze" /D "%ROOT%" cmd /k "npm run dev"
 timeout /t 8 /nobreak >nul
-echo    OK: Frontend iniciado (modo directo)
+echo    OK: Frontend dev (re)iniciado
 
 :FRONTEND_DONE
 echo.
@@ -194,59 +191,42 @@ echo.
 :: PASO 4: Verificacion
 :: ============================================================
 echo [4/4] Verificando sistema...
+timeout /t 5 /nobreak >nul
 
-:: Espera adicional: si se uso fallback, los procesos pueden necesitar mas tiempo
-timeout /t 8 /nobreak >nul
-
-:: Health check backend
-if !CURL_OK! EQU 0 (
-    curl -s --max-time 8 http://localhost:%BACKEND_PORT%/health >nul 2>&1
-    if !ERRORLEVEL! EQU 0 (
-        echo    OK: Backend responde en :%BACKEND_PORT%
-    ) else (
-        echo    ADVERTENCIA: Backend no responde aun - puede estar iniciando ^(esperar ~30s^)
-    )
+curl -s --max-time 5 http://127.0.0.1:!BACKEND_PORT!/health >nul 2>&1
+if !ERRORLEVEL! EQU 0 (
+    echo    OK: Backend responde en :!BACKEND_PORT!
 ) else (
-    :: Fallback sin curl: verificar que el puerto este escuchando
-    netstat -aon | findstr ":%BACKEND_PORT%" | findstr "LISTENING" >nul 2>&1
-    if !ERRORLEVEL! EQU 0 (
-        echo    OK: Backend escuchando en :%BACKEND_PORT%
-    ) else (
-        echo    ADVERTENCIA: Backend no responde en :%BACKEND_PORT%
-    )
+    echo    ADVERTENCIA: Backend no responde aun - puede estar iniciando
 )
 
-:: Verificar frontend
-netstat -aon | findstr ":%FRONTEND_PORT%" | findstr "LISTENING" >nul 2>&1
+netstat -aon 2>nul | findstr ":!FRONTEND_PORT! " | findstr "LISTENING" >nul 2>&1
 if !ERRORLEVEL! EQU 0 (
-    echo    OK: Frontend escuchando en :%FRONTEND_PORT%
+    echo    OK: Frontend escuchando en :!FRONTEND_PORT!
 ) else (
     echo    ADVERTENCIA: Frontend no responde aun
 )
 
-:: Verificar BD (solo si psql existe) - credenciales leidas del .env del backend
-if "!PSQL_OK!"=="1" (
-    set PGPASSWORD=!DB_PASSWORD_ENV!
-    psql -U !DB_USER_ENV! -h localhost -p !DB_PORT_ENV! -d !DB_NAME_ENV! -c "SELECT 1;" >nul 2>&1
-    if !ERRORLEVEL! EQU 0 (
-        echo    OK: Base de datos !DB_NAME_ENV! accesible
-    ) else (
-        echo    ADVERTENCIA: Base de datos no accesible ^(verificar PostgreSQL y credenciales en .env^)
-    )
-    set PGPASSWORD=
+set PGPASSWORD=CASISA
+psql -U postgres -h localhost -p 5432 -d panel_waze -c "SELECT 1;" >nul 2>&1
+if !ERRORLEVEL! EQU 0 (
+    echo    OK: Base de datos panel_waze accesible
 ) else (
-    echo    INFO: Verificacion de BD omitida ^(psql no disponible en %PG_BIN%^)
+    echo    ADVERTENCIA: Base de datos no accesible
 )
+set PGPASSWORD=
 
 echo.
 echo ===============================================
 echo   SISTEMA LISTO
 echo ===============================================
 echo.
-echo   Panel - red local:  http://!LOCAL_IP!:%FRONTEND_PORT%
-echo   Panel - local:      http://localhost:%FRONTEND_PORT%
-echo   API health:         http://localhost:%BACKEND_PORT%/health
+echo   Panel - red local:  http://!LOCAL_IP!:!FRONTEND_PORT!
+echo   Panel - local:      http://localhost:!FRONTEND_PORT!
+echo   API health:         http://localhost:!BACKEND_PORT!/health
 echo.
+echo   Una sola API: no ejecute dev:backend si PanelWazeBackend ^(NSSM^) esta en RUNNING
+echo   con el mismo PORT en apps\backend\.env.
 echo   Para gestionar servicios: services.msc
 echo ===============================================
 echo.
@@ -254,15 +234,51 @@ pause
 goto :EOF
 
 :: ============================================================
-:: Subrutina: Matar proceso que ocupa un puerto
-:: Uso: call :KILL_PORT 3002
+:: Lee PORT desde apps\backend\.env (primera linea PORT=)
+:: Predeterminado 3002 = instalador NSSM INSTALAR-BACKEND-SERVICIO.bat
 :: ============================================================
-:KILL_PORT
+:RESOLVE_BACKEND_PORT
+set "BACKEND_PORT=3002"
+if not exist "%ROOT%\apps\backend\.env" goto :EOF
+for /f "usebackq eol=# tokens=1* delims==" %%a in ("%ROOT%\apps\backend\.env") do (
+    if /i "%%a"=="PORT" (
+        set "BACKEND_PORT=%%b"
+        for /f "tokens=* delims= " %%t in ("!BACKEND_PORT!") do set "BACKEND_PORT=%%t"
+    )
+)
+if "!BACKEND_PORT!"=="" set "BACKEND_PORT=3002"
+goto :EOF
+
+:: ============================================================
+:: IS_BACKEND_UP ^<puerto^>  - 1 si /health devuelve healthy
+:: ============================================================
+:IS_BACKEND_UP
+set "IS_BACKEND_UP=0"
+curl -s --max-time 4 "http://127.0.0.1:%~1/health" 2>nul | findstr /i "healthy" >nul 2>&1
+if not errorlevel 1 set "IS_BACKEND_UP=1"
+goto :EOF
+
+:: ============================================================
+:: IS_FRONTEND_LISTENING ^<puerto^>
+:: ============================================================
+:IS_FRONTEND_LISTENING
+set "IS_FRONTEND_LISTENING=0"
+netstat -aon 2>nul | findstr ":%~1 " | findstr "LISTENING" >nul 2>&1
+if not errorlevel 1 set "IS_FRONTEND_LISTENING=1"
+goto :EOF
+
+:: ============================================================
+:: Mata procesos en LISTENING para el puerto (huérfanos / dev viejo)
+:: Uso: call :KILL_PORT_LISTENERS 3002
+:: Un solo delay al final si hubo algún taskkill
+:: ============================================================
+:KILL_PORT_LISTENERS
 set "_PORT=%~1"
+set "_DID_KILL=0"
 for /f "tokens=5" %%p in ('netstat -aon 2^>nul ^| findstr ":%_PORT% " ^| findstr "LISTENING"') do (
     echo    Liberando puerto %_PORT% - PID %%p
     taskkill /F /PID %%p >nul 2>&1
-    timeout /t 2 /nobreak >nul
+    if not errorlevel 1 set "_DID_KILL=1"
 )
-set "_PORT="
+if "!_DID_KILL!"=="1" timeout /t 2 /nobreak >nul
 goto :EOF

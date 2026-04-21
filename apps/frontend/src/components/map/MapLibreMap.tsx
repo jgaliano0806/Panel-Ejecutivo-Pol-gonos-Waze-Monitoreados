@@ -139,6 +139,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   officialIncidents = [],
 }) => {
   const mapRef = useRef<MapRef>(null);
+  const mapWrapperRef = useRef<HTMLDivElement>(null);
   const incidentMarkersRef = useRef(
     new window.Map<string, maplibregl.Marker>(),
   );
@@ -147,6 +148,9 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   );
   /** ID del marcador que actualmente muestra la animación pulse. */
   const pulsedMarkerIdRef = useRef<string | null>(null);
+  /** Siempre el feed actual para clics en marcadores (evita cierres obsoletos sobre `inc`). */
+  const incidentsLatestRef = useRef(incidents);
+  incidentsLatestRef.current = incidents;
   const navigate = useNavigate();
   const isDark = useThemeStore((state) => state.isDark);
   const [selectedIncident, setSelectedIncident] = useState<any>(null);
@@ -197,6 +201,23 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
 
   // Estado para controlar si el mapa está cargado
   const [mapLoaded, setMapLoaded] = useState(false);
+
+  // ResizeObserver: ante cualquier cambio del contenedor (abrir/cerrar panel
+  // lateral, toggle sidebar, resize de ventana) forzamos map.resize() para
+  // evitar que el canvas WebGL quede con dimensiones viejas y deje asomar
+  // el fondo gris del wrapper por debajo o a los costados.
+  useEffect(() => {
+    if (!mapLoaded) return;
+    const wrapper = mapWrapperRef.current;
+    if (!wrapper) return;
+
+    const ro = new ResizeObserver(() => {
+      const map = mapRef.current?.getMap?.();
+      if (map) map.resize();
+    });
+    ro.observe(wrapper);
+    return () => ro.disconnect();
+  }, [mapLoaded]);
 
   // Inyectar CSS para animación de marcador de notificación (una sola vez)
   useEffect(() => {
@@ -521,17 +542,75 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
       firstDashIndex === -1 ? cleanId : cleanId.substring(0, firstDashIndex);
     const subtype =
       firstDashIndex === -1 ? undefined : cleanId.substring(firstDashIndex + 1);
-    const svgString = getWazeIconSvg(type, subtype);
+    let svgString = getWazeIconSvg(type, subtype);
     if (!svgString) return;
-    const img = new Image(64, 64);
-    img.onload = () => {
-      if (!map.hasImage(iconId)) {
-        map.addImage(iconId, img, { sdf: false });
-        map.triggerRepaint();
+
+    // Si el SVG no trae width/height explícitos Chrome falla al decodificarlo
+    // con InvalidStateError. Los inyectamos en el <svg raíz> antes de rasterizar.
+    const size = 64;
+    if (!/<svg[^>]*\swidth=/i.test(svgString)) {
+      svgString = svgString.replace(/<svg\b/i, `<svg width="${size}" height="${size}"`);
+    }
+
+    // Rasterizamos a ImageBitmap/Canvas para evitar que MapLibre intente
+    // decodificar un HTMLImageElement con data-URI de SVG (InvalidStateError).
+    const rasterize = async () => {
+      if (map.hasImage(iconId)) return;
+      const blob = new Blob([svgString], { type: "image/svg+xml" });
+
+      try {
+        if (typeof createImageBitmap === "function") {
+          const bitmap = await createImageBitmap(blob, {
+            resizeWidth: size,
+            resizeHeight: size,
+            resizeQuality: "high",
+          });
+          const canvas = document.createElement("canvas");
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return;
+          ctx.drawImage(bitmap, 0, 0, size, size);
+          bitmap.close?.();
+          const imageData = ctx.getImageData(0, 0, size, size);
+          if (!map.hasImage(iconId)) {
+            map.addImage(iconId, imageData, { pixelRatio: 2, sdf: false });
+            map.triggerRepaint();
+          }
+          return;
+        }
+      } catch {
+        // Fallback a <img> más abajo
       }
+
+      const url = URL.createObjectURL(blob);
+      const img = new Image(size, size);
+      img.decoding = "sync";
+      img.onload = () => {
+        try {
+          if (map.hasImage(iconId)) return;
+          const canvas = document.createElement("canvas");
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return;
+          ctx.drawImage(img, 0, 0, size, size);
+          const imageData = ctx.getImageData(0, 0, size, size);
+          map.addImage(iconId, imageData, { pixelRatio: 2, sdf: false });
+          map.triggerRepaint();
+        } catch {
+          /* icono omitido: no se pudo decodificar */
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+      };
+      img.src = url;
     };
-    img.src =
-      "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgString);
+
+    void rasterize();
   };
 
   const COMMON_ICONS = [
@@ -693,7 +772,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     };
   }, [mapLoaded, showTraffic, showFlowLayer]);
 
-  // Renderizar incidentes como Markers HTML con reconciliacion (no destruye markers existentes)
+  // Incidentes: Markers HTML — crear nuevos y actualizar icono/posición al vuelo (mismo criterio que capas GeoJSON)
   useEffect(() => {
     const markersMap = incidentMarkersRef.current;
 
@@ -705,10 +784,8 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     const map = mapRef.current?.getMap?.() as maplibregl.Map | undefined;
     if (!map) return;
 
-    // IDs actuales
     const currentIds = new Set(incidents.map((i) => i.id));
 
-    // Quitar markers que ya no existen
     markersMap.forEach((m, id) => {
       if (!currentIds.has(id)) {
         m.remove();
@@ -716,17 +793,42 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
       }
     });
 
-    // Agregar solo markers nuevos
-    incidents.forEach((inc) => {
-      if (markersMap.has(inc.id)) return; // ya existe, no recrear
-
+    const buildIconSrc = (inc: Incident) => {
       const iconUrl = getWazePartnerHubIconUrl(inc.type, inc.subtype);
       const svgContent = getWazeIconSvg(inc.type, inc.subtype);
       const encodedSvg = encodeURIComponent(svgContent);
       const dataUri = `data:image/svg+xml;utf8,${encodedSvg}`;
       const src = iconUrl || dataUri;
+      return { src, dataUri };
+    };
+
+    incidents.forEach((inc) => {
+      const { src, dataUri } = buildIconSrc(inc);
+      const sig = `${inc.type}|${inc.subtype ?? ""}|${inc.location.lng}|${inc.location.lat}|${src}`;
+
+      const existing = markersMap.get(inc.id);
+      if (existing) {
+        existing.setLngLat([inc.location.lng, inc.location.lat]);
+        const el = existing.getElement();
+        if (el.getAttribute("data-waze-sig") === sig) return;
+        el.setAttribute("data-waze-sig", sig);
+        el.setAttribute(
+          "aria-label",
+          `Incidente: ${inc.type}${inc.subtype ? `, ${inc.subtype}` : ""}`,
+        );
+        const img = el.querySelector("img");
+        if (img) {
+          img.onerror = () => {
+            img.onerror = null;
+            img.src = dataUri;
+          };
+          img.src = src;
+        }
+        return;
+      }
 
       const el = document.createElement("div");
+      el.setAttribute("data-waze-sig", sig);
       el.style.width = "36px";
       el.style.height = "36px";
       el.style.cursor = "pointer";
@@ -748,10 +850,16 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         ">
           <img src="${src}" alt="" role="presentation"
             style="width:30px;height:30px;object-fit:contain;pointer-events:none;"
-            onerror="this.onerror=null;this.src='${dataUri}';"
           />
         </div>
       `;
+      const imgNew = el.querySelector("img");
+      if (imgNew) {
+        imgNew.onerror = () => {
+          imgNew.onerror = null;
+          imgNew.src = dataUri;
+        };
+      }
 
       const reducedMotion = window.matchMedia(
         "(prefers-reduced-motion: reduce)",
@@ -766,40 +874,43 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         });
       }
 
+      const incidentId = inc.id;
       const handleActivate = () => {
+        const cur = incidentsLatestRef.current.find((i) => i.id === incidentId);
+        if (!cur?.location) return;
         const timeMs =
-          inc.timestamp instanceof Date
-            ? inc.timestamp.getTime()
-            : new Date(inc.timestamp).getTime();
+          cur.timestamp instanceof Date
+            ? cur.timestamp.getTime()
+            : new Date(cur.timestamp).getTime();
         applyPulseToMarker(inc.id);
         setSelectedJam(null);
         setSelectedIncident({
-          lng: inc.location.lng,
-          lat: inc.location.lat,
+          lng: cur.location.lng,
+          lat: cur.location.lat,
           properties: {
-            id: inc.id,
+            id: cur.id,
             isNew: Date.now() - timeMs < 300000 ? 1 : 0,
-            description: inc.description || "Sin descripción",
+            description: cur.description || "Sin descripción",
             street:
-              inc.street ||
-              `${inc.location.lat.toFixed(5)}, ${inc.location.lng.toFixed(5)}`,
-            type: inc.type,
-            subtype: inc.subtype || "",
-            timestamp: inc.timestamp
-              ? new Date(inc.timestamp).toISOString()
+              cur.street ||
+              `${cur.location.lat.toFixed(5)}, ${cur.location.lng.toFixed(5)}`,
+            type: cur.type,
+            subtype: cur.subtype || "",
+            timestamp: cur.timestamp
+              ? new Date(cur.timestamp).toISOString()
               : "",
-            reportBy: inc.reportBy,
-            reportRating: inc.reportRating,
-            reliability: inc.reliability,
+            reportBy: cur.reportBy,
+            reportRating: cur.reportRating,
+            reliability: cur.reliability,
             confidence:
-              typeof inc.confidence === "number"
-                ? inc.confidence
-                : Number(inc.confidence) || 0,
-            magvar: (inc as any).magvar,
+              typeof cur.confidence === "number"
+                ? cur.confidence
+                : Number(cur.confidence) || 0,
+            magvar: (cur as any).magvar,
           },
         });
         map.flyTo({
-          center: [inc.location.lng, inc.location.lat],
+          center: [cur.location.lng, cur.location.lat],
           zoom: 15,
           duration: 800,
         });
@@ -1227,6 +1338,55 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     };
   }, [incidents, jams]);
 
+  // Igual que DangerZoneLayer: forzar setData en fuentes GeoJSON para que líneas/etiquetas/círculos se repinten al instante.
+  useEffect(() => {
+    if (!mapLoaded) return;
+    const map = mapRef.current?.getMap?.() as maplibregl.Map | undefined;
+    if (!map) return;
+
+    const push = (sourceId: string, data: object) => {
+      try {
+        const src = map.getSource(sourceId) as unknown as
+          | maplibregl.GeoJSONSource
+          | undefined;
+        if (src && typeof src.setData === "function") {
+          src.setData(data as GeoJSON.FeatureCollection);
+        }
+      } catch {
+        /* fuente aún no registrada */
+      }
+    };
+
+    push("polygons-source", polygonsGeoJSON);
+    if (showTraffic && showFlowLayer) {
+      push("flow", flowGeoJSON);
+      push("flow-fluid", flowFluidGeoJSON);
+    }
+    if (showTraffic && showJamsLayer) {
+      push("jams-source", jamsGeoJSON);
+      push("jam-labels-source", jamLabelsGeoJSON);
+    }
+    if (showRoadClosures) {
+      push("road-closures", roadClosureLinesGeoJSON);
+    }
+    if (kilometersGeoJSON.features.length > 0) {
+      push("kilometer-markers", kilometersGeoJSON);
+    }
+  }, [
+    mapLoaded,
+    polygonsGeoJSON,
+    flowGeoJSON,
+    flowFluidGeoJSON,
+    jamsGeoJSON,
+    jamLabelsGeoJSON,
+    roadClosureLinesGeoJSON,
+    kilometersGeoJSON,
+    showTraffic,
+    showFlowLayer,
+    showJamsLayer,
+    showRoadClosures,
+  ]);
+
   // Calcular bearing/dirección de una línea
   function calculateBearing(line?: Array<{ x: number; y: number }>): number {
     if (!line || line.length < 2) return 0;
@@ -1293,8 +1453,8 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
 
   return (
     <div
-      className={`h-full w-full min-h-[500px] ${isDark ? "bg-[#222736]" : "bg-gray-100"} relative`}
-      style={{ minHeight: "500px" }}
+      ref={mapWrapperRef}
+      className={`h-full w-full ${isDark ? "bg-[#222736]" : "bg-gray-100"} relative`}
       role="region"
       aria-label="Mapa de incidentes y tráfico"
     >
@@ -1302,7 +1462,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         mapLib={maplibregl}
         ref={mapRef}
         initialViewState={INITIAL_VIEW_STATE}
-        style={{ width: "100%", height: "100%", minHeight: "500px" }}
+        style={{ width: "100%", height: "100%" }}
         mapStyle={mapStyle}
         attributionControl={false}
         clickTolerance={20}

@@ -42,7 +42,7 @@ export async function playCriticalAlert(
     const translation = getIncidentDescription(type, subtype || undefined);
     const z = (zoneName || "").trim() || "zona de riesgo";
     const text =
-      `Atención sala. ${translation} en zona de riesgo: ${z}. Aguardando validación por cámara para despliegue de unidades.`;
+      `Atención sala. ${translation} en zona de riesgo: ${z}. Aguardando validación por cámara y comunicación por radio para despliegue de unidades.`;
 
     const audio = new Audio(SIREN_URL);
     audio.preload = "auto";

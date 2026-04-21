@@ -4,6 +4,8 @@ import { Pool } from "pg";
 export interface ZonaPeligrosaRow extends IEntity {
   id: string;
   nombre: string;
+  /** Texto libre del panel (campo `description` en API) */
+  descripcion: string;
   geometria: GeoJSON.Polygon;
   nivel_severidad: number;
   protocolo_accion: string;
@@ -26,6 +28,7 @@ export class ZonaPeligrosaRepository extends BaseRepository<ZonaPeligrosaRow> {
     return {
       id: row.id,
       nombre: row.nombre,
+      descripcion: row.descripcion ?? "",
       geometria: g,
       nivel_severidad: row.nivel_severidad,
       protocolo_accion: row.protocolo_accion || "",
@@ -37,6 +40,7 @@ export class ZonaPeligrosaRepository extends BaseRepository<ZonaPeligrosaRow> {
   mapEntityToRow(entity: Partial<ZonaPeligrosaRow>): Record<string, any> {
     const row: Record<string, any> = {};
     if (entity.nombre !== undefined) row.nombre = entity.nombre;
+    if (entity.descripcion !== undefined) row.descripcion = entity.descripcion;
     if (entity.geometria !== undefined)
       row.geometria = JSON.stringify(entity.geometria);
     if (entity.nivel_severidad !== undefined)
