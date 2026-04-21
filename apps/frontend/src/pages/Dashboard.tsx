@@ -497,6 +497,7 @@ const Dashboard: React.FC = () => {
                     jams={filteredJams}
                     selectedPolygon={selectedPolygon}
                     selectedGroup={selectedGroup}
+                    allowDangerZoneEdit={location.pathname === "/zonas-peligrosas"}
                     selectedIncidentId={focusIncidentId}
                     forcedIncident={focusIncidentData}
                     onPolygonClick={handlePolygonChange}

@@ -30,6 +30,13 @@ interface MapProps {
   onPolygonChange?: (polygonId: string | null) => void;
   onGroupChange?: (group: string | null) => void;
   showWazeIncidents?: boolean;
+  /**
+   * Habilita el menú contextual y el panel de alta/edición de zonas peligrosas.
+   * Debe ir en `true` solo en la ruta /zonas-peligrosas y cuando el usuario
+   * tiene el permiso `danger_zones.edit`. En otras rutas queda `false` para
+   * evitar dibujar accidentalmente polígonos desde el mapa principal.
+   */
+  allowDangerZoneEdit?: boolean;
 }
 
 export const Map: React.FC<MapProps> = (props) => {
@@ -57,6 +64,7 @@ export const Map: React.FC<MapProps> = (props) => {
         onPolygonChange={props.onPolygonChange}
         onGroupChange={props.onGroupChange}
         showWazeIncidents={props.showWazeIncidents}
+        allowDangerZoneEdit={props.allowDangerZoneEdit}
       />
       {/* Notificaciones flotantes SOLO dentro del mapa */}
       <GlobalNotifications className="absolute bottom-20 right-4 w-auto max-w-sm z-[2000]" />
