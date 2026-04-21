@@ -81,14 +81,14 @@ export const AppSidebar: React.FC = () => {
     },
     {
       id: "incidents",
-      label: "Módulo Incidentes",
+      label: "Módulo Incidentes Waze",
       icon: <FileSearch size={20} />,
       path: "/incidentes",
       requiredPermission: ROUTE_PERMISSIONS.incidentes,
     },
     {
       id: "accidents",
-      label: "Siniestros Viales",
+      label: "Siniestros Viales Waze",
       icon: <Car size={20} />,
       path: "/siniestros",
       requiredPermission: ROUTE_PERMISSIONS.siniestros,

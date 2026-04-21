@@ -49,7 +49,7 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
     // },
     {
       id: "accidents" as ViewType,
-      label: "Siniestros Viales",
+      label: "Siniestros Viales Waze",
       icon: Car,
       color: "from-orange-600 to-red-600",
       path: "/siniestros",

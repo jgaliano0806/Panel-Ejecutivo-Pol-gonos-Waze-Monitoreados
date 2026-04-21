@@ -388,13 +388,13 @@ const RoleForm = ({
     },
     {
       path: "/incidentes",
-      label: "Módulo Incidentes",
+      label: "Módulo Incidentes Waze",
       icon: Layers,
       permission: "incidents.view",
     },
     {
       path: "/siniestros",
-      label: "Siniestros Viales",
+      label: "Siniestros Viales Waze",
       icon: Car,
       permission: "accidents.view",
     },
