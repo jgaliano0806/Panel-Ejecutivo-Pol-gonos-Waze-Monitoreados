@@ -23,7 +23,6 @@ import kilometerMarkersRoutes from "./kilometerMarkers.routes";
 import tileProxyRoutes from "./tileProxy.routes";
 import dangerZonesRoutes from "./dangerZones.routes";
 import zonasPeligrosasRoutes from "./zonasPeligrosas.routes";
-import { incidenteOficialRoutes } from "./incidenteOficialRoutes";
 
 /**
  * Registra todos los módulos de rutas en la instancia de Fastify
@@ -78,9 +77,6 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
   // RAC — zonas_peligrosas (geofencing activo)
   await app.register(zonasPeligrosasRoutes, { prefix: "/api/zonas-peligrosas" });
-
-  // API Inmutable Sistema Integral (Máquina de Estados Incidentes Base y Móviles)
-  await app.register(incidenteOficialRoutes, { prefix: "/api/incidentes-oficiales" });
 }
 
 export { catalogsRoutes, healthRoutes, iconUploadRoutes };

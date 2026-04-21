@@ -10,16 +10,6 @@
 
 import { API_CONFIG } from "../config/constants";
 import { logger } from "./logger";
-import { useAuthStore } from "../stores/useAuthStore";
-
-/** TTS y cola de voz solo con sesión iniciada (no en login u otras rutas públicas). */
-function isAudioAllowedForCurrentUser(): boolean {
-  try {
-    return useAuthStore.getState().isAuthenticated === true;
-  } catch {
-    return false;
-  }
-}
 
 // Voces disponibles (argentinas y mexicanas)
 export const EDGE_TTS_VOICES = {
@@ -496,22 +486,6 @@ function _pickAndSpeak(
  * y se procesaran automaticamente al primer click/tecla del usuario.
  */
 const processQueue = async () => {
-  if (!isAudioAllowedForCurrentUser()) {
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio = null;
-    }
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
-    if (audioQueue.length > 0) {
-      audioQueue = [];
-      logger.debug("Cola TTS descartada — usuario no autenticado");
-    }
-    isPlaying = false;
-    return;
-  }
-
   if (isPlaying) return;
   if (audioQueue.length === 0) return;
 
@@ -584,10 +558,6 @@ export const speakNotification = async (
     logger.debug("TTS silenciado — mensaje descartado");
     return;
   }
-  if (!isAudioAllowedForCurrentUser()) {
-    logger.debug("TTS omitido — usuario no autenticado");
-    return;
-  }
 
   const text = buildNaturalMessage(title, message);
 
@@ -619,10 +589,6 @@ export const speakUsingIncidentVoice = (
 ): void => {
   if (_muted) {
     logger.debug("TTS silenciado — mensaje descartado (voz incidentes)");
-    return;
-  }
-  if (!isAudioAllowedForCurrentUser()) {
-    logger.debug("TTS omitido (voz incidentes) — usuario no autenticado");
     return;
   }
   const cleaned = cleanTextForTTS(text);

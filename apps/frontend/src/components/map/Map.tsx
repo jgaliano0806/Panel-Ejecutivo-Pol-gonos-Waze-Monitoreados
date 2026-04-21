@@ -24,17 +24,12 @@ interface MapProps {
   center?: [number, number];
   selectedIncidentId?: string | null;
   forcedIncident?: any | null;
-  onExternalIncidentFocusConsumed?: () => void;
   className?: string;
-  /** Habilitar creación/edición de zonas peligrosas (solo en /zonas-peligrosas). */
-  allowDangerZoneEdit?: boolean;
   // Props para filtros de polígonos en el sidebar del mapa
   allPolygons?: Polygon[];
   onPolygonChange?: (polygonId: string | null) => void;
   onGroupChange?: (group: string | null) => void;
   showWazeIncidents?: boolean;
-  showOfficialIncidents?: boolean;
-  officialIncidents?: any[];
 }
 
 export const Map: React.FC<MapProps> = (props) => {
@@ -56,16 +51,12 @@ export const Map: React.FC<MapProps> = (props) => {
         selectedGroup={props.selectedGroup}
         selectedIncidentId={props.selectedIncidentId}
         forcedIncident={props.forcedIncident}
-        onExternalIncidentFocusConsumed={props.onExternalIncidentFocusConsumed}
-        allowDangerZoneEdit={props.allowDangerZoneEdit}
         className="w-full h-full"
         // Props para filtros de polígonos
         allPolygons={props.allPolygons}
         onPolygonChange={props.onPolygonChange}
         onGroupChange={props.onGroupChange}
         showWazeIncidents={props.showWazeIncidents}
-        showOfficialIncidents={props.showOfficialIncidents}
-        officialIncidents={props.officialIncidents}
       />
       {/* Notificaciones flotantes SOLO dentro del mapa */}
       <GlobalNotifications className="absolute bottom-20 right-4 w-auto max-w-sm z-[2000]" />

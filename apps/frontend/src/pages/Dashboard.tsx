@@ -29,7 +29,6 @@ import { DangerZoneListPanel } from "../components/map/DangerZoneListPanel";
 import { useHistoricalData, useTrends } from "../hooks/useWazeData";
 import { initializeAudio } from "../lib/tts-service";
 import { useRealtimeNotifications } from "../hooks/useRealtimeNotifications";
-import { useIncidenteOficialStore } from "../stores/useIncidenteOficialStore";
 import { Map } from "../components/map/Map";
 // GlobalNotifications ahora está dentro del componente Map
 
@@ -123,30 +122,11 @@ const Dashboard: React.FC = () => {
   const [focusIncidentId, setFocusIncidentId] = useState<string | null>(null);
   const [focusIncidentData, setFocusIncidentData] = useState<any | null>(null);
   const [showWazeIncidents, setShowWazeIncidents] = useState(true);
-  const [showOfficialIncidents, setShowOfficialIncidents] = useState(true);
-
-  const { incidentes: rawOfficialIncidents, fetchIncidentes } = useIncidenteOficialStore();
-
-  useEffect(() => {
-    fetchIncidentes();
-  }, [fetchIncidentes]);
-
-  const officialIncidents = useMemo(() => {
-    return rawOfficialIncidents.filter(i => i.estado_workflow === 'Validado_Base');
-  }, [rawOfficialIncidents]);
 
   const handleLayerToggle = useCallback((layer: string, enabled: boolean) => {
     if (layer === "waze") {
       setShowWazeIncidents(enabled);
     }
-    if (layer === "official") {
-      setShowOfficialIncidents(enabled);
-    }
-  }, []);
-
-  const handleExternalIncidentFocusConsumed = useCallback(() => {
-    setFocusIncidentData(null);
-    setFocusIncidentId(null);
   }, []);
 
   // Sincronizar vista con cambios de ruta (ej: botones de atrás/adelante del navegador)
@@ -486,7 +466,6 @@ const Dashboard: React.FC = () => {
                     <MapSidebar
                       onLayerToggle={handleLayerToggle}
                       showWazeIncidents={showWazeIncidents}
-                      showOfficialIncidents={showOfficialIncidents}
                       jams={jams}
                       polygons={polygons}
                       selectedPolygon={selectedPolygon}
@@ -520,21 +499,13 @@ const Dashboard: React.FC = () => {
                     selectedGroup={selectedGroup}
                     selectedIncidentId={focusIncidentId}
                     forcedIncident={focusIncidentData}
-                    onExternalIncidentFocusConsumed={
-                      handleExternalIncidentFocusConsumed
-                    }
                     onPolygonClick={handlePolygonChange}
                     className="rounded-none"
-                    allowDangerZoneEdit={
-                      location.pathname === "/zonas-peligrosas"
-                    }
                     // Props para filtros en el sidebar del mapa
                     allPolygons={polygons}
                     onPolygonChange={handlePolygonChange}
                     onGroupChange={handleGroupChange}
                     showWazeIncidents={showWazeIncidents}
-                    showOfficialIncidents={showOfficialIncidents}
-                    officialIncidents={officialIncidents}
                   />
                   {/* Footer de KPIs Flotante */}
                   <MapKPIFooter

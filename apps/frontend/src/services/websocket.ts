@@ -291,11 +291,11 @@ const playAlertBeep = (isCritical = false): void => {
     };
 
     const now = audioContext.currentTime;
-    
+
     if (isCritical) {
       // Tono de Sirena más agresivo para Zonas Rojas
-      playTone(880, now, 0.15); 
-      playTone(1108.73, now + 0.2, 0.15); 
+      playTone(880, now, 0.15);
+      playTone(1108.73, now + 0.2, 0.15);
       playTone(880, now + 0.4, 0.15);
       playTone(1108.73, now + 0.6, 0.15);
     } else {
@@ -327,9 +327,9 @@ const buildTTSMessage = (notification: Notification): string => {
   let via = polygonGroup || polygonName || notification.data?.street || "vía no especificada";
 
   // REGLA ESPECIAL: En Circunvalación cambiar "Adiecinueve" por "cerodiecinueve"
-  const esCircunvalacion = 
-    via.toLowerCase().includes("circunvalacion") || 
-    via.toLowerCase().includes("a-019") || 
+  const esCircunvalacion =
+    via.toLowerCase().includes("circunvalacion") ||
+    via.toLowerCase().includes("a-019") ||
     polygonGroup.toLowerCase().includes("circunvalacion");
 
   if (esCircunvalacion) {
@@ -345,7 +345,7 @@ const buildTTSMessage = (notification: Notification): string => {
   let localizacionExtra = "";
   const lat = notification.data?.location?.y ?? notification.data?.latitude;
   const lng = notification.data?.location?.x ?? notification.data?.longitude;
-  
+
   if (lat != null && lng != null) {
     const kmMarkers = useKilometerStore.getState().markers;
     const nearest = getNearestKilometer(
@@ -364,7 +364,7 @@ const buildTTSMessage = (notification: Notification): string => {
   if (notification.data?.isDangerZone) {
     prefix = `¡ALERTA CRÍTICA! Incidente reportado dentro de zona peligrosa en ${notification.data?.dangerZoneName || 'área protegida'}. Repito, alerta en zona peligrosa.`;
   }
-  
+
   const mensajeFinal = `${prefix} Reporte: ${reporte}. Localización: ${via}${localizacionExtra}.`;
 
   return mensajeFinal;

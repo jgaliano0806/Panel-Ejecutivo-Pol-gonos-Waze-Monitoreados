@@ -145,9 +145,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
       }
     } finally {
-      void import("../lib/tts-utils").then(({ stopSpeaking }) => {
-        stopSpeaking();
-      });
       // Limpiar estado local siempre
       localStorage.removeItem(TOKEN_KEY);
       set({

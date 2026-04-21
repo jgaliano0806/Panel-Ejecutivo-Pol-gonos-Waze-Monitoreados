@@ -114,8 +114,6 @@ interface MapLibreMapProps {
   onPolygonChange?: (polygonId: string | null) => void;
   onGroupChange?: (groupId: string, active: boolean) => void;
   showWazeIncidents?: boolean; // Controlar visibilidad de iconos Waze
-  showOfficialIncidents?: boolean;
-  officialIncidents?: any[];
 }
 
 export const MapLibreMap: React.FC<MapLibreMapProps> = ({
@@ -135,15 +133,10 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   onPolygonChange: _onPolygonChange,
   onGroupChange: _onGroupChange,
   showWazeIncidents = true,
-  showOfficialIncidents = true,
-  officialIncidents = [],
 }) => {
   const mapRef = useRef<MapRef>(null);
   const mapWrapperRef = useRef<HTMLDivElement>(null);
   const incidentMarkersRef = useRef(
-    new window.Map<string, maplibregl.Marker>(),
-  );
-  const officialMarkersRef = useRef(
     new window.Map<string, maplibregl.Marker>(),
   );
   /** ID del marcador que actualmente muestra la animación pulse. */
@@ -936,72 +929,6 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     });
   }, [mapLoaded, showWazeIncidents, incidents, isDark, applyPulseToMarker]);
 
-  // Renderizar Incidentes Oficiales (Libro de Base)
-  useEffect(() => {
-    const markersMap = officialMarkersRef.current;
-
-    if (!mapLoaded || !showOfficialIncidents) {
-      markersMap.forEach((m) => m.remove());
-      markersMap.clear();
-      return;
-    }
-    const map = mapRef.current?.getMap?.() as maplibregl.Map | undefined;
-    if (!map) return;
-
-    // IDs actuales
-    const currentIds = new Set(officialIncidents.map((i) => String(i.id)));
-
-    // Quitar markers que ya no existen
-    markersMap.forEach((m, id) => {
-      if (!currentIds.has(id)) {
-        m.remove();
-        markersMap.delete(id);
-      }
-    });
-
-    // Agregar solo markers nuevos
-    officialIncidents.forEach((inc) => {
-      const idStr = String(inc.id);
-      if (markersMap.has(idStr)) return;
-      if (!inc.lat || !inc.lng) return; // Coords seguras
-
-      const el = document.createElement("div");
-      el.style.width = "40px";
-      el.style.height = "40px";
-      el.style.cursor = "pointer";
-      el.innerHTML = `
-        <div style="
-          width:40px;height:40px;
-          border-radius:8px;
-          background:#2563eb;
-          border: 2px solid white;
-          display:flex;align-items:center;justify-content:center;
-          box-shadow:0 2px 6px rgba(0,0,0,0.5);
-        ">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          </svg>
-        </div>
-      `;
-
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const msg = [
-          "Incidente Oficial Nro " + inc.id,
-          "Codigo: " + (inc.codigo_situacion || "-"),
-          "Ruta/KM: " + (inc.ruta || "-") + " " + (inc.kilometro || ""),
-        ].join("\n");
-        alert(msg);
-      });
-
-      const marker = new maplibregl.Marker({ element: el, anchor: "center", color: "blue" })
-        .setLngLat([inc.lng, inc.lat])
-        .addTo(map);
-
-      markersMap.set(idStr, marker);
-    });
-  }, [mapLoaded, showOfficialIncidents, officialIncidents, isDark, applyPulseToMarker]);
-
   // GeoJSON Memos (Polygons, Flow, Jams, Incidents)
   const polygonsGeoJSON = useMemo(
     () => ({
@@ -1475,7 +1402,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
             lngLat: { lng: e.lngLat.lng, lat: e.lngLat.lat }
           });
         }}
-        
+
         onLoad={(e: any) => {
           startTransition(() => {
             setMapLoaded(true);

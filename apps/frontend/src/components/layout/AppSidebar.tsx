@@ -44,7 +44,6 @@ export const AppSidebar: React.FC = () => {
     if (location.pathname === "/notificaciones") return "notifications";
     if (location.pathname === "/zonas-peligrosas") return "danger-zones";
     if (location.pathname === "/incidentes") return "incidents";
-    if (location.pathname === "/inbox-operativo") return "inbox-operativo";
     if (location.pathname === "/admin") return "admin";
     return "home";
   };
@@ -92,13 +91,6 @@ export const AppSidebar: React.FC = () => {
       label: "Siniestros Viales",
       icon: <Car size={20} />,
       path: "/siniestros",
-      requiredPermission: ROUTE_PERMISSIONS.siniestros,
-    },
-    {
-      id: "inbox-operativo",
-      label: "Inbox Base",
-      icon: <FileSearch size={20} />,
-      path: "/inbox-operativo",
       requiredPermission: ROUTE_PERMISSIONS.siniestros,
     },
     {

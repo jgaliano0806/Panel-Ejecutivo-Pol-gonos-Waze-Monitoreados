@@ -20,7 +20,6 @@
 export type PermissionCode =
   | "admin"
   | "map.view"
-  | "danger_zones.edit"
   | "notifications.view"
   | "accidents.view"
   | "accidents.create"
