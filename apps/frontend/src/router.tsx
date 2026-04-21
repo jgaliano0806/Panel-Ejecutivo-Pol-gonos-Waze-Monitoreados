@@ -81,7 +81,9 @@ export const router = createBrowserRouter(
     {
       path: "/zonas-peligrosas",
       element: (
-        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.mapa]}>
+        <ProtectedRoute
+          requiredPermissions={[ROUTE_PERMISSIONS.zonasPeligrosas]}
+        >
           <SectionErrorBoundary sectionName="Zonas peligrosas">
             <Dashboard />
           </SectionErrorBoundary>

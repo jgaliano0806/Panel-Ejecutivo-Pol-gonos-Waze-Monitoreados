@@ -77,7 +77,7 @@ export const AppSidebar: React.FC = () => {
       label: "Módulo de zonas peligrosas",
       icon: <Shield size={20} />,
       path: "/zonas-peligrosas",
-      requiredPermission: ROUTE_PERMISSIONS.mapa,
+      requiredPermission: ROUTE_PERMISSIONS.zonasPeligrosas,
     },
     {
       id: "incidents",

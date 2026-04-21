@@ -384,7 +384,7 @@ const RoleForm = ({
       path: "/zonas-peligrosas",
       label: "Módulo de zonas peligrosas",
       icon: Shield,
-      permission: "map.view",
+      permission: "danger_zones.view",
     },
     {
       path: "/incidentes",
@@ -1068,6 +1068,11 @@ const UserManagement: React.FC = () => {
                 // Rutas accesibles para este rol
                 const accessibleRoutes = [
                   { label: "Mapa", icon: Map, perm: "map.view" },
+                  {
+                    label: "Zonas peligrosas",
+                    icon: Shield,
+                    perm: "danger_zones.view",
+                  },
                   {
                     label: "Notificaciones",
                     icon: Bell,

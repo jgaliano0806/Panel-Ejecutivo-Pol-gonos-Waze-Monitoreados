@@ -699,6 +699,28 @@ export async function runMigrations(): Promise<void> {
         }
       }
     }
+
+    // Migración 046: permisos danger_zones.view / danger_zones.edit y asignación a roles
+    const migration046Path = path.join(
+      migrationsDir,
+      "046_danger_zones_permissions.sql",
+    );
+    if (fs.existsSync(migration046Path)) {
+      try {
+        const sql = fs.readFileSync(migration046Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 046 ejecutada: permisos zonas peligrosas (view/edit) y roles",
+        );
+      } catch (migError: any) {
+        if (
+          !migError.message?.includes("already exists") &&
+          !migError.message?.includes("ya existe")
+        ) {
+          console.warn("⚠️ Migración 046:", migError.message);
+        }
+      }
+    }
     console.log("✅ Migraciones completadas exitosamente");
   } catch (error: any) {
     // Si el error es por tabla/columna ya existente, es OK

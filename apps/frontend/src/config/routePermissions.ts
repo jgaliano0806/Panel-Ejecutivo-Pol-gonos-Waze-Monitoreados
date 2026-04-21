@@ -4,6 +4,7 @@
  *
  * Módulos:
  * - Mapa y Zonas: map.view (solo visualización)
+ * - Zonas peligrosas RAC: danger_zones.view (listar/ver), danger_zones.edit (ABM)
  * - Notificaciones: notifications.view (solo visualización)
  * - Siniestros Viales: accidents.view, accidents.create, accidents.export
  * - Incidentes: incidents.view, incidents.export
@@ -12,7 +13,7 @@
  * Roles por defecto:
  * - Administrador: todos los permisos
  * - Supervisor: todo excepto admin
- * - Operador: map.view, notifications.view, accidents.view, accidents.create, incidents.view
+ * - Operador: map.view, danger_zones.view, danger_zones.edit, notifications.view, accidents.view, accidents.create, incidents.view
  * - Visualizador: map.view, notifications.view, accidents.view, incidents.view
  */
 
@@ -20,6 +21,8 @@
 export type PermissionCode =
   | "admin"
   | "map.view"
+  | "danger_zones.view"
+  | "danger_zones.edit"
   | "notifications.view"
   | "accidents.view"
   | "accidents.create"
@@ -30,6 +33,9 @@ export type PermissionCode =
 export const ROUTE_PERMISSIONS = {
   /** Mapa y Zonas — solo visualización */
   mapa: "map.view" as PermissionCode,
+
+  /** Zonas peligrosas RAC — ver módulo y capas (listado / mapa en solo lectura) */
+  zonasPeligrosas: "danger_zones.view" as PermissionCode,
 
   /** Notificaciones — solo visualización */
   notificaciones: "notifications.view" as PermissionCode,
@@ -60,7 +66,7 @@ export const PATH_TO_PERMISSION: Record<string, PermissionCode> = {
   "/": ROUTE_PERMISSIONS.mapa,
   "/dashboard": ROUTE_PERMISSIONS.mapa,
   "/mapa": ROUTE_PERMISSIONS.mapa,
-  "/zonas-peligrosas": ROUTE_PERMISSIONS.mapa,
+  "/zonas-peligrosas": ROUTE_PERMISSIONS.zonasPeligrosas,
   "/notificaciones": ROUTE_PERMISSIONS.notificaciones,
   "/siniestros": ROUTE_PERMISSIONS.siniestros,
   "/incidentes": ROUTE_PERMISSIONS.incidentes,

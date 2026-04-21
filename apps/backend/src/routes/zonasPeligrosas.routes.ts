@@ -1,6 +1,14 @@
 import { FastifyInstance } from "fastify";
+import { authenticate, requirePermission } from "../middleware/authMiddleware";
 import { zonaPeligrosaService } from "../services/zonaPeligrosaService";
 import type { ZonaPeligrosaRow } from "../repositories/ZonaPeligrosaRepository";
+
+const readDangerZones = [
+  authenticate,
+  requirePermission("danger_zones.view", "danger_zones.edit"),
+] as const;
+
+const writeDangerZones = [authenticate, requirePermission("danger_zones.edit")] as const;
 
 function severityLabelFromNivel(n: number): "high" | "critical" | "extreme" {
   if (n === 3) return "extreme";
@@ -41,25 +49,36 @@ interface CreateBody {
 export default async function zonasPeligrosasRoutes(
   app: FastifyInstance,
 ): Promise<void> {
-  app.get("/", async (_req, reply) => {
+  app.get(
+    "/",
+    { preHandler: [...readDangerZones] },
+    async (_req, reply) => {
     try {
       const rows = await zonaPeligrosaService.listAll();
       return reply.send({ success: true, data: rows.map(toApiShape) });
     } catch (e: any) {
       return reply.status(500).send({ success: false, error: e.message });
     }
-  });
+  },
+  );
 
-  app.get("/active", async (_req, reply) => {
+  app.get(
+    "/active",
+    { preHandler: [...readDangerZones] },
+    async (_req, reply) => {
     try {
       const rows = await zonaPeligrosaService.listActive();
       return reply.send({ success: true, data: rows.map(toApiShape) });
     } catch (e: any) {
       return reply.status(500).send({ success: false, error: e.message });
     }
-  });
+  },
+  );
 
-  app.post<{ Body: CreateBody }>("/", async (req, reply) => {
+  app.post<{ Body: CreateBody }>(
+    "/",
+    { preHandler: [...writeDangerZones] },
+    async (req, reply) => {
     try {
       const {
         nombre,
@@ -85,10 +104,12 @@ export default async function zonasPeligrosasRoutes(
     } catch (e: any) {
       return reply.status(500).send({ success: false, error: e.message });
     }
-  });
+  },
+  );
 
   app.put<{ Params: { id: string }; Body: Partial<CreateBody> }>(
     "/:id",
+    { preHandler: [...writeDangerZones] },
     async (req, reply) => {
       try {
         const row = await zonaPeligrosaService.update(req.params.id, {
@@ -109,7 +130,10 @@ export default async function zonasPeligrosasRoutes(
     },
   );
 
-  app.delete<{ Params: { id: string } }>("/:id", async (req, reply) => {
+  app.delete<{ Params: { id: string } }>(
+    "/:id",
+    { preHandler: [...writeDangerZones] },
+    async (req, reply) => {
     try {
       const ok = await zonaPeligrosaService.remove(req.params.id);
       if (!ok)
@@ -118,5 +142,6 @@ export default async function zonasPeligrosasRoutes(
     } catch (e: any) {
       return reply.status(500).send({ success: false, error: e.message });
     }
-  });
+  },
+  );
 }
