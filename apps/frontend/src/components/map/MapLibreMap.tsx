@@ -339,7 +339,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
           ctx.drawImage(img, 0, 0, size, size);
           map.addImage(iconId, ctx.getImageData(0, 0, size, size), { pixelRatio: 2, sdf: false });
           map.triggerRepaint();
-        } catch {} finally { URL.revokeObjectURL(url); }
+        } catch { /* rasterizado fallido: continuar sin icono custom */ } finally { URL.revokeObjectURL(url); }
       };
       img.onerror = () => URL.revokeObjectURL(url);
       img.src = url;
