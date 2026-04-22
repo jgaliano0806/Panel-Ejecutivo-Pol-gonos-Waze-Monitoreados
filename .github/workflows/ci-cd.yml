@@ -319,8 +319,11 @@ jobs:
           }
 
       - name: Verify deployment health
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
         run: |
-          $url = "${{ vars.PRODUCTION_URL }}/health"
+          $base = if ([string]::IsNullOrWhiteSpace($env:PRODUCTION_URL)) { "http://localhost" } else { $env:PRODUCTION_URL.TrimEnd('/') }
+          $url = "$base/health"
           Write-Host "Verificando health check en $url"
           for ($i = 1; $i -le 10; $i++) {
             try {
