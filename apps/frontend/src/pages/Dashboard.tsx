@@ -241,7 +241,6 @@ const Dashboard: React.FC = () => {
   }, [location.search, location.pathname]);
 
   const globalKPIs: GlobalKPIs = useMemo(() => {
-    if (backendKPIs) return backendKPIs;
     const totalPolygons = polygons.length;
     let fluidPolygons = 0;
     let criticalPolygons = 0;
@@ -258,7 +257,7 @@ const Dashboard: React.FC = () => {
         constructions++;
       }
     }
-    return {
+    const fromLive: GlobalKPIs = {
       fluidityPercentage:
         totalPolygons > 0
           ? Math.round((fluidPolygons / totalPolygons) * 100)
@@ -267,6 +266,16 @@ const Dashboard: React.FC = () => {
       criticalPolygons,
       activeConstructions: constructions,
       trends: { fluidityChange: 0, incidentsChange: 0 },
+    };
+
+    if (!backendKPIs) return fromLive;
+
+    return {
+      ...backendKPIs,
+      fluidityPercentage: fromLive.fluidityPercentage,
+      activeIncidents: fromLive.activeIncidents,
+      criticalPolygons: fromLive.criticalPolygons,
+      activeConstructions: fromLive.activeConstructions,
     };
   }, [polygons, incidents, backendKPIs]);
 

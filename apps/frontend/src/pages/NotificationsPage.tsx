@@ -16,6 +16,7 @@ import {
   Tag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { openNotificationOnMap } from "@/lib/notificationMapNavigation";
 
 export const NotificationsPage: React.FC = () => {
   const notifications = useNotificationStore((state) => state.notifications);
@@ -201,17 +202,9 @@ const NotificationCard = ({ notification }: { notification: Notification }) => {
 
   const handleClick = () => {
     markAsRead(notification.id);
-    if (notification.data?.polygonId) {
-      React.startTransition(() => {
-        navigate("/mapa", {
-          state: {
-            selectedPolygonId: notification.data?.polygonId,
-            focusEventId: notification.id,
-            forcedIncident: notification.data,
-          },
-        });
-      });
-    }
+    React.startTransition(() => {
+      openNotificationOnMap(navigate, notification);
+    });
   };
 
   // Construir mensaje descriptivo

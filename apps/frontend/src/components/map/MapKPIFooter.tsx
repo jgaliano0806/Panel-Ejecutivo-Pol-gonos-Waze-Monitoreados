@@ -50,6 +50,17 @@ export const MapKPIFooter: React.FC<MapKPIFooterProps> = ({
     [criticalIncidents, criticalAlerts],
   );
 
+  // Accidentes Waze en vivo (type === "accident") — no confundir con
+  // kpis.roadAccidents que son siniestros RAC registrados manualmente.
+  const wazeAccidents = useMemo(
+    () => incidents.filter((i) => i.type === "accident"),
+    [incidents],
+  );
+  const wazeAccidentsCritical = useMemo(
+    () => wazeAccidents.filter((i) => i.severity >= 4).length,
+    [wazeAccidents],
+  );
+
   const metrics = [
     {
       id: "fluidity",
@@ -70,10 +81,10 @@ export const MapKPIFooter: React.FC<MapKPIFooterProps> = ({
     {
       id: "incidents",
       label: "ACCIDENTES",
-      value: kpis.roadAccidents || 0,
+      value: wazeAccidents.length,
       icon: Car,
-      status: (kpis.roadAccidentsCritical || 0) > 0 ? "warning" : "primary",
-      active: (kpis.roadAccidentsCritical || 0) > 0,
+      status: wazeAccidentsCritical > 0 ? "warning" : "primary",
+      active: wazeAccidentsCritical > 0,
     },
     {
       id: "tvt",

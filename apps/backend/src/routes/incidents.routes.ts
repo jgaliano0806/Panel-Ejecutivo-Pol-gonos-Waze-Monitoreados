@@ -230,8 +230,8 @@ export default async function incidentsRoutes(fastify: FastifyInstance) {
       const query = `
         SELECT
           uuid as id,
-          type,
-          subtype,
+          LOWER(type) as type,
+          LOWER(subtype) as subtype,
           street,
           latitude,
           longitude,

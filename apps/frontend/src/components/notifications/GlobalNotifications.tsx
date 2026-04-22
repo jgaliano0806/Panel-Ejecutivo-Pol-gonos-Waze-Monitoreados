@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getSubtypeTranslation } from "@/utils/wazeTranslations";
 import { shouldShowTTSAndSnackbar } from "@/config/notificationFilters";
+import { openNotificationOnMap } from "@/lib/notificationMapNavigation";
 
 /**
  * Formatea la hora de la notificación de forma segura.
@@ -134,16 +135,8 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
   const navigate = useNavigate();
 
   const handleNavigate = () => {
-    onDismiss(); // Mark as read
-    if (notification.data?.polygonId) {
-      navigate("/mapa", {
-        state: {
-          selectedPolygonId: notification.data.polygonId,
-          focusEventId: notification.id,
-          forcedIncident: notification.data,
-        },
-      });
-    }
+    onDismiss();
+    openNotificationOnMap(navigate, notification);
   };
 
   // Icono basado en el tipo
