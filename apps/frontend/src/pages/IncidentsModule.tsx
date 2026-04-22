@@ -3,7 +3,10 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   useIncidentsModule,
   useIncidentDetail,
+  translateIncidentType,
+  translateIncidentSubtype,
   Incident,
+  IncidentsFilters,
 } from "@/hooks/useIncidentsModule";
 import { IncidentFilters } from "@/components/incidents/IncidentFilters";
 import { IncidentsTable } from "@/components/incidents/IncidentsTable";
@@ -18,12 +21,124 @@ import {
   CheckCircle,
   TrendingUp,
   Calendar,
+  Loader2,
 } from "lucide-react";
+
+const API_URL = import.meta.env.VITE_API_URL || "/api";
+
+/** Descarga un string como archivo en el navegador. */
+function downloadFile(content: string, filename: string, mime: string) {
+  const blob = new Blob(["\uFEFF" + content], { type: `${mime};charset=utf-8;` });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/** Escapa un valor para CSV (envuelve en comillas si tiene comas/saltos). */
+function csvCell(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  const str = String(value);
+  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+/** Calcula duración en minutos entre pubMillis y updatedAt (si inactivo) o ahora. */
+function computeDurationMin(incident: Incident): number {
+  const end = !incident.isActive && incident.updatedAt
+    ? new Date(incident.updatedAt).getTime()
+    : Date.now();
+  return Math.round((end - incident.pubMillis) / 60_000);
+}
+
+/** Obtiene todos los incidentes filtrados sin paginación. */
+async function fetchAllIncidents(filters: IncidentsFilters): Promise<Incident[]> {
+  const params = new URLSearchParams();
+  if (filters.type) params.set("type", filters.type);
+  if (filters.subtype) params.set("subtype", filters.subtype);
+  if (filters.from) params.set("from", filters.from);
+  if (filters.to) params.set("to", filters.to);
+  if (filters.polygonId) params.set("polygonId", filters.polygonId);
+  if (filters.isActive !== undefined) params.set("isActive", String(filters.isActive));
+  if (filters.search) params.set("search", filters.search);
+  params.set("page", "1");
+  params.set("limit", "10000");
+
+  const res = await fetch(`${API_URL}/incidents?${params.toString()}`);
+  if (!res.ok) throw new Error("Error al obtener incidentes para exportar");
+  const data = await res.json();
+  return data.incidents as Incident[];
+}
+
+/** Convierte un array de incidentes a CSV con todos los campos. */
+function incidentsToCsv(incidents: Incident[]): string {
+  const headers = [
+    "ID",
+    "Tipo",
+    "Subtipo",
+    "Estado",
+    "Duración (min)",
+    "Calle",
+    "Ciudad",
+    "País",
+    "Latitud",
+    "Longitud",
+    "Polígono",
+    "Confiabilidad",
+    "Confianza",
+    "Confirmaciones (thumbsUp)",
+    "Reportado por",
+    "Descripción",
+    "Ruta más cercana",
+    "Km más cercano",
+    "Distancia al Km (m)",
+    "Fecha Waze (pub_millis)",
+    "Fecha ingreso sistema",
+    "Última actualización",
+    "Texto TTS",
+  ];
+
+  const rows = incidents.map((inc) => {
+    const durMin = computeDurationMin(inc);
+    return [
+      inc.uuid,
+      translateIncidentType(inc.type.toUpperCase()),
+      inc.subtype ? translateIncidentSubtype(inc.subtype.toUpperCase()) : "",
+      inc.isActive ? "Activo" : "Inactivo",
+      durMin,
+      inc.street || "",
+      inc.city || "",
+      inc.country || "",
+      inc.location.lat,
+      inc.location.lng,
+      inc.polygonId || "",
+      inc.reliability ?? "",
+      inc.confidence ?? "",
+      inc.thumbsUp ?? 0,
+      inc.reportBy || "Anónimo",
+      inc.description || "",
+      inc.nearestKmRoute || "",
+      inc.nearestKmName || "",
+      inc.nearestKmDistance != null ? Math.round(inc.nearestKmDistance) : "",
+      new Date(inc.pubMillis).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" }),
+      new Date(inc.createdAt).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" }),
+      new Date(inc.updatedAt).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" }),
+      inc.ttsText || "",
+    ].map(csvCell).join(",");
+  });
+
+  return [headers.map(csvCell).join(","), ...rows].join("\r\n");
+}
 
 export const IncidentsModule: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const incidentIdFromUrl = searchParams.get("incidentId");
+  const [isExporting, setIsExporting] = useState(false);
 
   const {
     incidents,
@@ -130,13 +245,26 @@ export const IncidentsModule: React.FC = () => {
         <div className="flex items-center gap-3">
           {hasPermission("incidents.export") && (
             <button
-              onClick={() =>
-                alert("Exportar todos los incidentes filtrados a CSV/Excel")
-              }
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              disabled={isExporting}
+              onClick={async () => {
+                setIsExporting(true);
+                try {
+                  const all = await fetchAllIncidents(filters);
+                  const csv = incidentsToCsv(all);
+                  const now = new Date().toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" }).replace(/\//g, "-");
+                  downloadFile(csv, `incidentes-waze-${now}.csv`, "text/csv");
+                } catch {
+                  alert("Error al exportar. Verifique su conexión e intente nuevamente.");
+                } finally {
+                  setIsExporting(false);
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
             >
-              <Download className="w-4 h-4" />
-              Exportar
+              {isExporting
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <Download className="w-4 h-4" />}
+              {isExporting ? "Exportando..." : "Exportar"}
             </button>
           )}
         </div>
