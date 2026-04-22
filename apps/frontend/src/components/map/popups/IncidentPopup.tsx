@@ -1,7 +1,7 @@
 /**
  * IncidentPopup.tsx — Popup de detalle de incidente Waze (memoizado).
  */
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Popup } from "react-map-gl/maplibre";
 import { X, ShieldCheck, Navigation, FileText } from "lucide-react";
 import {
@@ -12,6 +12,36 @@ import {
   getMainTypeTranslation,
 } from "../../../utils/wazeTranslations";
 import { getCardinalDirection } from "../mapUtils";
+import {
+  formatActiveDuration,
+  getDurationColor,
+} from "../../alerts/eventsList.utils";
+
+/** Actualiza el tiempo activo cada minuto sin re-renderizar el popup completo. */
+const LiveDuration: React.FC<{ timestamp: string }> = ({ timestamp }) => {
+  const [text, setText] = useState(() => formatActiveDuration(timestamp));
+  const [colorClass, setColorClass] = useState(() => getDurationColor(timestamp));
+
+  useEffect(() => {
+    const refresh = () => {
+      setText(formatActiveDuration(timestamp));
+      setColorClass(getDurationColor(timestamp));
+    };
+    refresh();
+    const id = setInterval(refresh, 60_000);
+    return () => clearInterval(id);
+  }, [timestamp]);
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-bold ${colorClass}`}
+      title="Tiempo que lleva activo este incidente"
+    >
+      <span aria-hidden>⏱</span>
+      {text}
+    </span>
+  );
+};
 
 interface IncidentPopupData {
   lng: number;
@@ -110,6 +140,15 @@ export const IncidentPopup: React.FC<IncidentPopupProps> = React.memo(
                     })
                   : "N/A"}
               </span>
+
+              {p.timestamp && (
+                <>
+                  <span className="font-medium text-gray-500 dark:text-gray-400">
+                    Tiempo activo
+                  </span>
+                  <LiveDuration timestamp={p.timestamp} />
+                </>
+              )}
 
               <span className="font-medium text-gray-500 dark:text-gray-400">
                 Descripción
