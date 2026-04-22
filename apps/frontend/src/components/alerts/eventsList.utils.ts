@@ -29,11 +29,15 @@ export function getSeverityLabel(severity: number): string {
 }
 
 /**
- * Calcula cuánto tiempo lleva activo un incidente desde su timestamp de publicación.
+ * Calcula la duración entre dos instantes.
+ * Si `to` no se pasa, se usa Date.now() (incidente aún activo).
  * Retorna texto legible en español.
  */
-export function formatActiveDuration(from: Date | string): string {
-  const diffMs = Date.now() - new Date(from).getTime();
+export function formatActiveDuration(
+  from: Date | string,
+  to?: Date | string,
+): string {
+  const diffMs = (to ? new Date(to).getTime() : Date.now()) - new Date(from).getTime();
   if (diffMs < 0) return "recién";
   const totalMin = Math.floor(diffMs / 60_000);
   if (totalMin < 1) return "< 1 min";
@@ -47,11 +51,17 @@ export function formatActiveDuration(from: Date | string): string {
 }
 
 /**
- * Color semáforo para la duración activa de un incidente.
+ * Color semáforo basado en la duración total del incidente.
  * Verde < 30min | Amarillo < 2h | Rojo ≥ 2h
+ * Si `to` no se pasa, se usa Date.now().
  */
-export function getDurationColor(from: Date | string): string {
-  const diffMin = (Date.now() - new Date(from).getTime()) / 60_000;
+export function getDurationColor(
+  from: Date | string,
+  to?: Date | string,
+): string {
+  const diffMin =
+    ((to ? new Date(to).getTime() : Date.now()) - new Date(from).getTime()) /
+    60_000;
   if (diffMin < 30)
     return "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-300 dark:border-green-700";
   if (diffMin < 120)

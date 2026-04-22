@@ -27,31 +27,50 @@ import {
   getDurationColor,
 } from "../alerts/eventsList.utils";
 
-/** Se auto-actualiza cada minuto sin re-renderizar el modal completo. */
-const LiveDuration: React.FC<{ fromMs: number }> = ({ fromMs }) => {
-  const ts = new Date(fromMs).toISOString();
-  const [text, setText] = useState(() => formatActiveDuration(ts));
-  const [colorClass, setColorClass] = useState(() => getDurationColor(ts));
+/**
+ * Muestra la duración de un incidente.
+ * - Activo: se actualiza cada minuto (desde pubMillis hasta ahora).
+ * - Inactivo: duración fija histórica (desde pubMillis hasta updatedAt).
+ */
+const IncidentDuration: React.FC<{
+  fromMs: number;
+  isActive: boolean;
+  updatedAt?: string;
+}> = ({ fromMs, isActive, updatedAt }) => {
+  const from = new Date(fromMs).toISOString();
+  const fixedTo = !isActive && updatedAt ? updatedAt : undefined;
+
+  const compute = () => ({
+    text: formatActiveDuration(from, fixedTo),
+    color: getDurationColor(from, fixedTo),
+  });
+
+  const [state, setState] = useState(compute);
 
   useEffect(() => {
-    const refresh = () => {
-      const now = new Date(fromMs).toISOString();
-      setText(formatActiveDuration(now));
-      setColorClass(getDurationColor(now));
-    };
-    refresh();
-    const id = setInterval(refresh, 60_000);
+    setState(compute());
+    if (!isActive) return; // inactivo: no necesita timer
+    const id = setInterval(() => setState(compute()), 60_000);
     return () => clearInterval(id);
-  }, [fromMs]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromMs, isActive, updatedAt]);
+
+  const label = isActive ? "Tiempo activo" : "Duración total";
 
   return (
-    <span
-      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-bold ${colorClass}`}
-      title="Tiempo que lleva activo este incidente"
-    >
-      <span aria-hidden>⏱</span>
-      {text}
-    </span>
+    <div className="flex items-center gap-2 pt-0.5">
+      <span className="text-xs text-gray-500 dark:text-gray-400">{label}:</span>
+      <span
+        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-bold ${state.color}`}
+        title={isActive ? "Tiempo que lleva activo" : "Duración total del incidente"}
+      >
+        <span aria-hidden>⏱</span>
+        {state.text}
+      </span>
+      {!isActive && (
+        <span className="text-xs text-gray-400 dark:text-gray-500">(cerrado)</span>
+      )}
+    </div>
   );
 };
 
@@ -230,12 +249,11 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                     <p className="text-sm text-gray-600 dark:text-gray-400 capitalize">
                       {formatDate(incident.createdAt)}
                     </p>
-                    <div className="flex items-center gap-2 pt-0.5">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Tiempo activo:
-                      </span>
-                      <LiveDuration fromMs={incident.pubMillis} />
-                    </div>
+                    <IncidentDuration
+                      fromMs={incident.pubMillis}
+                      isActive={incident.isActive}
+                      updatedAt={incident.updatedAt}
+                    />
                   </div>
                 </div>
 
