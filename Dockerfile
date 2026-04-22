@@ -36,12 +36,17 @@ WORKDIR /app
 COPY package*.json ./
 COPY apps/frontend/package*.json ./apps/frontend/
 COPY apps/backend/package*.json ./apps/backend/
+COPY packages/types/package*.json ./packages/types/
 
 # Instalar dependencias
 RUN npm ci
 
 # Copiar código fuente
 COPY . .
+
+# Build shared types (el backend los necesita en dist/)
+WORKDIR /app/packages/types
+RUN npm run build
 
 # Build TypeScript backend
 WORKDIR /app/apps/backend
