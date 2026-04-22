@@ -23,6 +23,12 @@ import kilometerMarkersRoutes from "./kilometerMarkers.routes";
 import tileProxyRoutes from "./tileProxy.routes";
 import dangerZonesRoutes from "./dangerZones.routes";
 import zonasPeligrosasRoutes from "./zonasPeligrosas.routes";
+import metricsRoutes from "./metrics.routes";
+import tvtRoutes from "./tvt.routes";
+import historicalRoutes from "./historical.routes";
+import dataQualityRoutes from "./dataQuality.routes";
+import alertsRoutes from "./alerts.routes";
+import roadAccidentRoutes from "./roadAccidents.routes";
 
 /**
  * Registra todos los módulos de rutas en la instancia de Fastify
@@ -77,6 +83,24 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
   // RAC — zonas_peligrosas (geofencing activo)
   await app.register(zonasPeligrosasRoutes, { prefix: "/api/zonas-peligrosas" });
+
+  // Rutas de Métricas (/api/traffic-metrics y /api/metrics)
+  await app.register(metricsRoutes, { prefix: "/api" });
+
+  // TVT Metrics
+  await app.register(tvtRoutes, { prefix: "/api/tvt-metrics" });
+
+  // Histórico
+  await app.register(historicalRoutes, { prefix: "/api/historical" });
+
+  // Calidad de Datos
+  await app.register(dataQualityRoutes, { prefix: "/api/data-quality" });
+
+  // Alertas
+  await app.register(alertsRoutes, { prefix: "/api/alerts" });
+
+  // Accidentes de tráfico guardados
+  await app.register(roadAccidentRoutes, { prefix: "/api/road-accidents" });
 }
 
 export { catalogsRoutes, healthRoutes, iconUploadRoutes };

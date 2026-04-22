@@ -235,87 +235,7 @@ server.get("/api/test", async () => {
  * Obtiene accidentes RAC para visualización en el mapa con filtros de fecha
  * Query params: startDate, endDate, polygonId (opcional)
  */
-server.get("/api/road-accidents/map", async (request, reply) => {
-  try {
-    const { startDate, endDate, polygonId } = request.query as {
-      startDate?: string;
-      endDate?: string;
-      polygonId?: string;
-    };
 
-    // Validar parámetros requeridos
-    if (!startDate || !endDate) {
-      reply.code(400).send({
-        error: "startDate and endDate are required",
-        message: "Please provide both startDate and endDate in ISO format",
-      });
-      return;
-    }
-
-    // Construir query con filtros
-    let query = `
-      SELECT
-        id,
-        location_lat,
-        location_lng,
-        severity,
-        occurred_at,
-        description,
-        media_urls,
-        polygon_id,
-        created_at
-      FROM road_accidents
-      WHERE occurred_at BETWEEN $1 AND $2
-        AND location_lat IS NOT NULL
-        AND location_lng IS NOT NULL
-    `;
-
-    const params: any[] = [startDate, endDate];
-
-    // Filtro opcional por polígono
-    if (polygonId) {
-      query += ` AND polygon_id = $3`;
-      params.push(polygonId);
-    }
-
-    // Ordenar por fecha más reciente y limitar resultados
-    query += ` ORDER BY occurred_at DESC LIMIT 500`;
-
-    const result = await dbService.query(query, params);
-
-    // Transformar datos para el mapa
-    const accidents = result.rows.map((row) => ({
-      id: row.id,
-      lat: parseFloat(row.location_lat),
-      lng: parseFloat(row.location_lng),
-      severity: row.severity,
-      occurredAt: row.occurred_at,
-      description: row.description,
-      mediaUrls: row.media_urls || [],
-      polygonId: row.polygon_id,
-      createdAt: row.created_at,
-    }));
-
-    reply.send(serializeObject(accidents));
-
-    server.log.info(
-      `📍 Accidentes RAC obtenidos: ${accidents.length} (${startDate} - ${endDate})`,
-    );
-  } catch (error) {
-    server.log.error(
-      {
-        error,
-        url: request.url,
-        stack: error instanceof Error ? error.stack : undefined,
-      },
-      "Error obteniendo accidentes RAC para mapa",
-    );
-    reply.code(500).send({
-      error: "Failed to get road accidents for map",
-      message: error instanceof Error ? error.message : "Unknown error",
-    });
-  }
-});
 
 // =====================================================
 // 📦 RUTAS DE POLÍGONOS MODULARIZADAS
@@ -324,297 +244,46 @@ server.get("/api/road-accidents/map", async (request, reply) => {
 // /routes/polygons.routes.ts
 // Registrado vía registerRoutes() en línea 144
 
-server.get("/api/kpis/global", async (request, reply) => {
-  try {
-    const kpis = await apiService.getGlobalKPIs();
-    return serializeObject(kpis);
-  } catch (error) {
-    server.log.error({ error, url: request.url }, "Error en /api/kpis/global");
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    reply.code(500).send({
-      error: "Failed to get global KPIs",
-      message:
-        process.env.NODE_ENV === "development" ? errorMessage : undefined,
-    });
-  }
-});
 
-server.get("/api/traffic-metrics", async (request, reply) => {
-  try {
-    const metrics = await apiService.getAllTrafficMetrics();
-    return serializeObject(metrics);
-  } catch (error) {
-    server.log.error(
-      { error, url: request.url },
-      "Error en /api/traffic-metrics",
-    );
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    reply.code(500).send({
-      error: "Failed to get traffic metrics",
-      message:
-        process.env.NODE_ENV === "development" ? errorMessage : undefined,
-    });
-  }
-});
 
-server.get("/api/traffic-metrics/:polygonId", async (request, reply) => {
-  try {
-    const { polygonId } = request.params as { polygonId: string };
-    const metrics = await apiService.getTrafficMetricsByPolygon(polygonId);
 
-    if (!metrics) {
-      reply.code(404).send({ error: "Polygon not found" });
-      return;
-    }
 
-    return metrics;
-  } catch (error) {
-    server.log.error(
-      { error, url: request.url },
-      "Error en /api/traffic-metrics/:polygonId",
-    );
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    reply.code(500).send({
-      error: "Failed to get polygon traffic metrics",
-      message:
-        process.env.NODE_ENV === "development" ? errorMessage : undefined,
-    });
-  }
-});
+
 
 // --- Endpoints de TVT (Traffic View Technology) Waze ---
 // Referencia oficial: https://support.google.com/waze/partners/answer/13658466
 
-server.get("/api/tvt-metrics", async (_request, reply) => {
-  try {
-    const metrics = await wazePollingService.getAllLatestTvtMetrics();
-    return metrics;
-  } catch (error) {
-    server.log.error({ error }, "Error en /api/tvt-metrics");
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    reply.code(500).send({
-      error: "Failed to get TVT metrics",
-      message:
-        process.env.NODE_ENV === "development" ? errorMessage : undefined,
-    });
-  }
-});
 
-server.get("/api/tvt-metrics/:polygonId", async (request, reply) => {
-  try {
-    const { polygonId } = request.params as { polygonId: string };
-    const metrics = await wazePollingService.getLatestTvtMetrics(polygonId);
-    if (!metrics) {
-      reply.code(404).send({ error: "No TVT metrics for polygon" });
-      return;
-    }
-    return metrics;
-  } catch (error) {
-    server.log.error({ error }, "Error en /api/tvt-metrics/:polygonId");
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    reply.code(500).send({
-      error: "Failed to get TVT metrics for polygon",
-      message:
-        process.env.NODE_ENV === "development" ? errorMessage : undefined,
-    });
-  }
-});
+
+
 
 // --- Endpoints de Alertas ---
 
-server.get("/api/alerts", async (request, reply) => {
-  try {
-    const alerts = alertService.getActiveAlerts();
-    return serializeObject(alerts || []);
-  } catch (error) {
-    server.log.error({ error, url: request.url }, "Error en /api/alerts");
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    reply.code(500).send({
-      error: "Failed to get alerts",
-      message:
-        process.env.NODE_ENV === "development" ? errorMessage : undefined,
-    });
-  }
-});
 
-server.get("/api/alerts/stats", async (request, reply) => {
-  try {
-    const stats = alertService.getAlertStats();
-    return serializeObject(stats);
-  } catch (error) {
-    server.log.error({ error, url: request.url }, "Error en /api/alerts/stats");
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    reply.code(500).send({
-      error: "Failed to get alert stats",
-      message:
-        process.env.NODE_ENV === "development" ? errorMessage : undefined,
-    });
-  }
-});
 
-server.get("/api/alerts/severity/:severity", async (request, reply) => {
-  try {
-    const { severity } = request.params as { severity: string };
-    return alertService.getAlertsBySeverity(
-      severity as "critical" | "high" | "medium" | "low",
-    );
-  } catch (_error) {
-    reply.code(500).send({ error: "Failed to get alerts by severity" });
-  }
-});
 
-server.get("/api/alerts/polygon/:polygonId", async (request, reply) => {
-  try {
-    const { polygonId } = request.params as { polygonId: string };
-    return alertService.getAlertsByPolygon(polygonId);
-  } catch (_error) {
-    reply.code(500).send({ error: "Failed to get alerts by polygon" });
-  }
-});
 
-server.post("/api/alerts/:alertId/acknowledge", async (request, reply) => {
-  try {
-    const { alertId } = request.params as { alertId: string };
-    const body = request.body as { acknowledgedBy?: string };
 
-    const success = alertService.acknowledgeAlert(alertId, body.acknowledgedBy);
 
-    if (!success) {
-      reply.code(404).send({ error: "Alert not found" });
-      return;
-    }
 
-    return { success: true, message: "Alert acknowledged" };
-  } catch (error) {
-    reply.code(500).send({ error: "Failed to acknowledge alert" });
-  }
-});
+
+
 
 // --- Endpoints de Métricas Agregadas ---
 
-server.get("/api/metrics/global", async (request, reply) => {
-  try {
-    const jams = await repositories().wazeJams.findAllActive();
-    const alerts = await repositories().wazeAlerts.findAllActive();
-    const trafficMetrics = await apiService.getAllTrafficMetrics(); // Now async
 
-    const globalMetrics = aggregationService.calculateGlobalMetrics(
-      jams,
-      alerts,
-      trafficMetrics,
-    );
-    return globalMetrics;
-  } catch (error) {
-    reply.code(500).send({ error: "Failed to get global metrics" });
-  }
-});
 
-server.get("/api/metrics/top-critical", async (request, reply) => {
-  try {
-    const limit = parseInt(
-      (request.query as { limit?: string })?.limit || "10",
-    );
-    const jams = await repositories().wazeJams.findAllActive();
-    const alerts = await repositories().wazeAlerts.findAllActive();
 
-    const topCritical = aggregationService.getTopCriticalPolygons(
-      jams,
-      alerts,
-      limit,
-    );
-    return topCritical;
-  } catch (error) {
-    reply.code(500).send({ error: "Failed to get top critical polygons" });
-  }
-});
 
 // --- Endpoints de Histórico ---
 
-server.get("/api/historical/global", async (request, reply) => {
-  try {
-    const hours = parseInt(
-      (request.query as { hours?: string })?.hours || "24",
-    );
-    const snapshots = await historicalService.getGlobalSnapshots(hours);
-    return serializeObject(snapshots || []);
-  } catch (error) {
-    server.log.error(
-      { error, url: request.url },
-      "Error en /api/historical/global",
-    );
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    reply.code(500).send({
-      error: "Failed to get historical data",
-      message:
-        process.env.NODE_ENV === "development" ? errorMessage : undefined,
-    });
-  }
-});
 
-server.get("/api/historical/polygon/:polygonId", async (request, reply) => {
-  try {
-    const { polygonId } = request.params as { polygonId: string };
-    const hours = parseInt(
-      (request.query as { hours?: string })?.hours || "24",
-    );
-    const snapshots = await historicalService.getPolygonSnapshots(
-      polygonId,
-      hours,
-    );
-    return snapshots;
-  } catch (_error) {
-    reply.code(500).send({ error: "Failed to get polygon historical data" });
-  }
-});
 
-server.get("/api/historical/trends", async (request, reply) => {
-  try {
-    const [totalJams, avgSpeed, criticalKm, avgDelay] = await Promise.all([
-      historicalService.calculateTrends("totalJams"),
-      historicalService.calculateTrends("avgSpeed"),
-      historicalService.calculateTrends("criticalKm"),
-      historicalService.calculateTrends("avgDelay"),
-    ]);
-    return serializeObject({
-      totalJams: totalJams || { current: 0, trend: "stable", percentChange: 0 },
-      avgSpeed: avgSpeed || { current: 0, trend: "stable", percentChange: 0 },
-      criticalKm: criticalKm || {
-        current: 0,
-        trend: "stable",
-        percentChange: 0,
-      },
-      avgDelay: avgDelay || { current: 0, trend: "stable", percentChange: 0 },
-    });
-  } catch (error) {
-    server.log.error(
-      { error, url: request.url },
-      "Error en /api/historical/trends",
-    );
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    reply.code(500).send({
-      error: "Failed to get trends",
-      message:
-        process.env.NODE_ENV === "development" ? errorMessage : undefined,
-    });
-  }
-});
 
-server.get("/api/historical/availability", async (request, reply) => {
-  try {
-    return await historicalService.getDataAvailability();
-  } catch (error) {
-    reply.code(500).send({ error: "Failed to get data availability" });
-  }
-});
+
+
+
+
 
 // --- Endpoints de Calidad de Datos ---
 
@@ -622,123 +291,43 @@ server.get("/api/historical/availability", async (request, reply) => {
  * GET /api/data-quality/report
  * Genera reporte completo de calidad de datos
  */
-server.get("/api/data-quality/report", async (request, reply) => {
-  try {
-    const alerts = await repositories().wazeAlerts.findAllActive();
-    const incidents = alerts.map(toLegacyAlert);
-    const report = dataQualityService.generateQualityReport(incidents);
 
-    // Convertir Map a objeto para JSON
-    const reportJson = {
-      timestamp: report.timestamp,
-      metrics: report.metrics,
-      byPolygon: Object.fromEntries(report.byPolygon),
-      lowQualityIncidents: report.lowQualityIncidents,
-    };
-
-    return reportJson;
-  } catch (error) {
-    reply.code(500).send({ error: "Failed to generate quality report" });
-  }
-});
 
 /**
  * GET /api/data-quality/metrics
  * Obtiene métricas globales de calidad
  */
-server.get("/api/data-quality/metrics", async (request, reply) => {
-  try {
-    const alerts = await repositories().wazeAlerts.findAllActive();
-    const incidents = alerts.map(toLegacyAlert);
-    const metrics = dataQualityService.calculateQualityMetrics(incidents);
-    return metrics;
-  } catch (error) {
-    reply.code(500).send({ error: "Failed to get quality metrics" });
-  }
-});
+
 
 /**
  * GET /api/data-quality/incidents/high-quality
  * Obtiene solo incidentes de alta calidad
  */
-server.get(
-  "/api/data-quality/incidents/high-quality",
-  async (request, reply) => {
-    try {
-      const alerts = await repositories().wazeAlerts.findAllActive();
-      const incidents = alerts.map(toLegacyAlert);
-      const highQuality = dataQualityService.getHighQualityIncidents(incidents);
-      return highQuality;
-    } catch (error) {
-      reply.code(500).send({ error: "Failed to get high quality incidents" });
-    }
-  },
-);
+
 
 /**
  * GET /api/data-quality/incidents/prioritized
  * Obtiene incidentes priorizados por calidad y severidad
  */
-server.get(
-  "/api/data-quality/incidents/prioritized",
-  async (request, reply) => {
-    try {
-      const alerts = await repositories().wazeAlerts.findAllActive();
-      const incidents = alerts.map(toLegacyAlert);
-      const prioritized = dataQualityService.prioritizeIncidents(incidents);
-      return prioritized;
-    } catch (error) {
-      reply.code(500).send({ error: "Failed to prioritize incidents" });
-    }
-  },
-);
+
 
 /**
  * GET /api/data-quality/incidents/stale
  * Detecta incidentes que probablemente ya no son válidos
  */
-server.get("/api/data-quality/incidents/stale", async (request, reply) => {
-  try {
-    const maxAge = parseInt(
-      (request.query as { maxAge?: string })?.maxAge || "30",
-    ); // minutos
-    const alerts = await repositories().wazeAlerts.findAllActive();
-    const incidents = alerts.map(toLegacyAlert);
-    const stale = dataQualityService.detectStaleIncidents(incidents, maxAge);
-    return stale;
-  } catch (_error) {
-    reply.code(500).send({ error: "Failed to detect stale incidents" });
-  }
-});
+
 
 /**
  * GET /api/data-quality/feed-status
  * Verifica si se alcanzó el límite de eventos de Waze (5000)
  */
-server.get("/api/data-quality/feed-status", async (request, reply) => {
-  try {
-    const alerts = await repositories().wazeAlerts.findAllActive();
-    const jamsData = await repositories().wazeJams.findAllActive();
-    const incidents = alerts.map(toLegacyAlert);
-    const jams = jamsData.map(toLegacyJam);
-    const status = dataQualityService.checkFeedLimit(incidents, jams);
-    return status;
-  } catch (error) {
-    reply.code(500).send({ error: "Failed to check feed status" });
-  }
-});
+
 
 /**
  * GET /api/data-quality/thresholds
  * Obtiene los umbrales configurados actualmente
  */
-server.get("/api/data-quality/thresholds", async (request, reply) => {
-  try {
-    return dataQualityService.getThresholds();
-  } catch (error) {
-    reply.code(500).send({ error: "Failed to get thresholds" });
-  }
-});
+
 
 /**
  * POST /api/data-quality/thresholds
@@ -803,82 +392,19 @@ server.post<{ Body: ThresholdsUpdate }>(
  * GET /api/incidents/stats/global
  * Obtiene estadísticas globales de tipos y subtipos de incidentes
  */
-server.get("/api/incidents/stats/global", async (request, reply) => {
-  try {
-    const alertsData = await repositories().wazeAlerts.findAllActive();
-    const jamsData = await repositories().wazeJams.findAllActive();
-    const alerts = alertsData.map(toLegacyAlert);
-    const jams = jamsData.map(toLegacyJam);
-    const stats = incidentStatsService.getGlobalStats(alerts, jams);
-    return stats;
-  } catch (error) {
-    reply.code(500).send({ error: "Failed to get global incident stats" });
-  }
-});
+
 
 /**
  * GET /api/incidents/stats/polygon/:polygonId
  * Obtiene estadísticas detalladas de incidentes para un polígono específico
  */
-server.get(
-  "/api/incidents/stats/polygon/:polygonId",
-  async (request, reply) => {
-    try {
-      const { polygonId } = request.params as { polygonId: string };
-      const polygon = REAL_POLYGONS.find((p) => p.id === polygonId);
 
-      if (!polygon) {
-        reply.code(404).send({ error: "Polygon not found" });
-        return;
-      }
-
-      const alertsData = await repositories().wazeAlerts.findAllActive();
-      const jamsData = await repositories().wazeJams.findAllActive();
-      const alerts = alertsData.map(toLegacyAlert);
-      const jams = jamsData.map(toLegacyJam);
-      const stats = incidentStatsService.getPolygonStats(
-        polygonId,
-        polygon.name,
-        alerts,
-        jams,
-      );
-
-      return stats;
-    } catch (error) {
-      reply.code(500).send({ error: "Failed to get polygon incident stats" });
-    }
-  },
-);
 
 /**
  * GET /api/incidents/types-summary
  * Resumen rápido de tipos de incidentes activos
  */
-server.get("/api/incidents/types-summary", async (request, reply) => {
-  try {
-    const alertsData = await repositories().wazeAlerts.findAllActive();
-    const alerts = alertsData.map(toLegacyAlert);
 
-    // Agrupar por tipo
-    const typeCounts = new Map<string, number>();
-    for (const alert of alerts) {
-      const count = typeCounts.get(alert.type) || 0;
-      typeCounts.set(alert.type, count + 1);
-    }
-
-    const summary = Array.from(typeCounts.entries())
-      .map(([type, count]) => ({
-        type,
-        count,
-        emoji: incidentStatsService.getIncidentEmoji(type),
-      }))
-      .sort((a, b) => b.count - a.count);
-
-    return summary;
-  } catch (error) {
-    reply.code(500).send({ error: "Failed to get incident types summary" });
-  }
-});
 
 // --- Endpoints de Cálculo Mejorado de Demoras ---
 
@@ -887,94 +413,13 @@ server.get("/api/incidents/types-summary", async (request, reply) => {
  * Calcula la demora mejorada para un incidente específico
  * Usa: proximidad geográfica, estimación de desvío, y datos históricos
  */
-server.get("/api/incidents/delay/:incidentId", async (request, reply) => {
-  try {
-    const { incidentId } = request.params as { incidentId: string };
 
-    const alertsData = await repositories().wazeAlerts.findAllActive();
-    const jamsData = await repositories().wazeJams.findAllActive();
-    const alerts = alertsData.map(toLegacyAlert);
-    const jams = jamsData.map(toLegacyJam);
-    const incident = alerts.find((a) => a.id === incidentId);
-
-    if (!incident) {
-      reply.code(404).send({ error: "Incident not found" });
-      return;
-    }
-
-    // Obtener datos históricos si están disponibles
-    const historicalData = await historicalService.getGlobalSnapshots(24);
-
-    const delayResult = delayCalculationService.calculateIncidentDelay(
-      incident,
-      jams,
-      historicalData,
-    );
-
-    return {
-      incidentId,
-      incidentType: incident.type,
-      incidentSubtype: incident.subtype,
-      location: incident.location,
-      street: incident.street,
-      ...delayResult,
-    };
-  } catch (error) {
-    server.log.error({ error }, "Error calculating incident delay");
-    reply.code(500).send({ error: "Failed to calculate incident delay" });
-  }
-});
 
 /**
  * GET /api/incidents/delays/all
  * Calcula demoras mejoradas para todos los incidentes activos
  */
-server.get("/api/incidents/delays/all", async (request, reply) => {
-  try {
-    const alertsData = await repositories().wazeAlerts.findAllActive();
-    const jamsData = await repositories().wazeJams.findAllActive();
-    const alerts = alertsData.map(toLegacyAlert);
-    const jams = jamsData.map(toLegacyJam);
-    const historicalData = await historicalService.getGlobalSnapshots(24);
 
-    const delayResults = delayCalculationService.calculateBatchDelays(
-      alerts,
-      jams,
-      historicalData,
-    );
-
-    // Convertir Map a objeto para la respuesta JSON
-    const results: any[] = [];
-    delayResults.forEach((delay, incidentId) => {
-      const incident = alerts.find((a) => a.id === incidentId);
-      if (incident) {
-        results.push({
-          incidentId,
-          incidentType: incident.type,
-          incidentSubtype: incident.subtype,
-          street: incident.street,
-          polygonId: incident.polygonId,
-          ...delay,
-        });
-      }
-    });
-
-    // Ordenar por demora total descendente
-    results.sort((a, b) => b.totalDelaySeconds - a.totalDelaySeconds);
-
-    return {
-      count: results.length,
-      totalNetworkDelay: results.reduce(
-        (sum, r) => sum + r.totalDelaySeconds,
-        0,
-      ),
-      incidents: results,
-    };
-  } catch (error) {
-    server.log.error({ error }, "Error calculating batch delays");
-    reply.code(500).send({ error: "Failed to calculate batch delays" });
-  }
-});
 
 /**
  * Calcula la distancia entre dos puntos geográficos (Haversine) en metros

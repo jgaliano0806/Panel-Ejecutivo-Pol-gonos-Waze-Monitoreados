@@ -1,5 +1,11 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { dbService } from "../database/dbService";
+import { incidentStatsService } from "../services/incidentStatsService";
+import { delayCalculationService } from "../services/delayCalculationService";
+import { historicalService } from "../services/historicalService";
+import { repositories } from "../repositories";
+import { toLegacyAlert, toLegacyJam } from "../utils";
+import { REAL_POLYGONS } from "../config/realPolygons";
 
 /**
  * Query params para listado de incidentes
@@ -401,6 +407,151 @@ export default async function incidentsRoutes(fastify: FastifyInstance) {
       return reply
         .code(500)
         .send({ error: "Database error retrieving incidents history" });
+    }
+  });
+  fastify.get("/stats/global", async (request, reply) => {
+    try {
+      const alertsData = await repositories().wazeAlerts.findAllActive();
+      const jamsData = await repositories().wazeJams.findAllActive();
+      const alerts = alertsData.map(toLegacyAlert);
+      const jams = jamsData.map(toLegacyJam);
+      const stats = incidentStatsService.getGlobalStats(alerts, jams);
+      return stats;
+    } catch (error) {
+      reply.code(500).send({ error: "Failed to get global incident stats" });
+    }
+  });
+
+  fastify.get("/stats/polygon/:polygonId", async (request, reply) => {
+    try {
+      const { polygonId } = request.params as { polygonId: string };
+      const polygon = REAL_POLYGONS.find((p) => p.id === polygonId);
+
+      if (!polygon) {
+        reply.code(404).send({ error: "Polygon not found" });
+        return;
+      }
+
+      const alertsData = await repositories().wazeAlerts.findAllActive();
+      const jamsData = await repositories().wazeJams.findAllActive();
+      const alerts = alertsData.map(toLegacyAlert);
+      const jams = jamsData.map(toLegacyJam);
+      const stats = incidentStatsService.getPolygonStats(
+        polygonId,
+        polygon.name,
+        alerts,
+        jams,
+      );
+
+      return stats;
+    } catch (error) {
+      reply.code(500).send({ error: "Failed to get polygon incident stats" });
+    }
+  });
+
+  fastify.get("/types-summary", async (request, reply) => {
+    try {
+      const alertsData = await repositories().wazeAlerts.findAllActive();
+      const alerts = alertsData.map(toLegacyAlert);
+
+      const typeCounts = new Map<string, number>();
+      for (const alert of alerts) {
+        const count = typeCounts.get(alert.type) || 0;
+        typeCounts.set(alert.type, count + 1);
+      }
+
+      const summary = Array.from(typeCounts.entries())
+        .map(([type, count]) => ({
+          type,
+          count,
+          emoji: incidentStatsService.getIncidentEmoji(type),
+        }))
+        .sort((a, b) => b.count - a.count);
+
+      return summary;
+    } catch (error) {
+      reply.code(500).send({ error: "Failed to get incident types summary" });
+    }
+  });
+
+  fastify.get("/delay/:incidentId", async (request, reply) => {
+    try {
+      const { incidentId } = request.params as { incidentId: string };
+
+      const alertsData = await repositories().wazeAlerts.findAllActive();
+      const jamsData = await repositories().wazeJams.findAllActive();
+      const alerts = alertsData.map(toLegacyAlert);
+      const jams = jamsData.map(toLegacyJam);
+      const incident = alerts.find((a) => a.id === incidentId);
+
+      if (!incident) {
+        reply.code(404).send({ error: "Incident not found" });
+        return;
+      }
+
+      const historicalData = await historicalService.getGlobalSnapshots(24);
+      const delayResult = delayCalculationService.calculateIncidentDelay(
+        incident,
+        jams,
+        historicalData,
+      );
+
+      return {
+        incidentId,
+        incidentType: incident.type,
+        incidentSubtype: incident.subtype,
+        location: incident.location,
+        street: incident.street,
+        ...delayResult,
+      };
+    } catch (error) {
+      fastify.log.error({ error }, "Error calculating incident delay");
+      reply.code(500).send({ error: "Failed to calculate incident delay" });
+    }
+  });
+
+  fastify.get("/delays/all", async (request, reply) => {
+    try {
+      const alertsData = await repositories().wazeAlerts.findAllActive();
+      const jamsData = await repositories().wazeJams.findAllActive();
+      const alerts = alertsData.map(toLegacyAlert);
+      const jams = jamsData.map(toLegacyJam);
+      const historicalData = await historicalService.getGlobalSnapshots(24);
+
+      const delayResults = delayCalculationService.calculateBatchDelays(
+        alerts,
+        jams,
+        historicalData,
+      );
+
+      const results: any[] = [];
+      delayResults.forEach((delay, incidentId) => {
+        const incident = alerts.find((a) => a.id === incidentId);
+        if (incident) {
+          results.push({
+            incidentId,
+            incidentType: incident.type,
+            incidentSubtype: incident.subtype,
+            street: incident.street,
+            polygonId: incident.polygonId,
+            ...delay,
+          });
+        }
+      });
+
+      results.sort((a, b) => b.totalDelaySeconds - a.totalDelaySeconds);
+
+      return {
+        count: results.length,
+        totalNetworkDelay: results.reduce(
+          (sum, r) => sum + r.totalDelaySeconds,
+          0,
+        ),
+        incidents: results,
+      };
+    } catch (error) {
+      fastify.log.error({ error }, "Error calculating batch delays");
+      reply.code(500).send({ error: "Failed to calculate batch delays" });
     }
   });
 }
