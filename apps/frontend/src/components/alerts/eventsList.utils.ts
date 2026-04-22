@@ -27,3 +27,34 @@ export function getSeverityLabel(severity: number): string {
   if (severity >= 2) return "MEDIA";
   return "BAJA";
 }
+
+/**
+ * Calcula cuánto tiempo lleva activo un incidente desde su timestamp de publicación.
+ * Retorna texto legible en español.
+ */
+export function formatActiveDuration(from: Date | string): string {
+  const diffMs = Date.now() - new Date(from).getTime();
+  if (diffMs < 0) return "recién";
+  const totalMin = Math.floor(diffMs / 60_000);
+  if (totalMin < 1) return "< 1 min";
+  if (totalMin < 60) return `${totalMin} min`;
+  const hours = Math.floor(totalMin / 60);
+  const mins = totalMin % 60;
+  if (hours < 24) return mins > 0 ? `${hours}h ${mins}min` : `${hours}h`;
+  const days = Math.floor(hours / 24);
+  const remHours = hours % 24;
+  return remHours > 0 ? `${days}d ${remHours}h` : `${days}d`;
+}
+
+/**
+ * Color semáforo para la duración activa de un incidente.
+ * Verde < 30min | Amarillo < 2h | Rojo ≥ 2h
+ */
+export function getDurationColor(from: Date | string): string {
+  const diffMin = (Date.now() - new Date(from).getTime()) / 60_000;
+  if (diffMin < 30)
+    return "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-300 dark:border-green-700";
+  if (diffMin < 120)
+    return "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700";
+  return "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-300 dark:border-red-700";
+}

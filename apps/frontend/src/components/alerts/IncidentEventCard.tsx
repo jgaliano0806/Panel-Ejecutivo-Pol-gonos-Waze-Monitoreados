@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import React, { memo, useState, useEffect } from "react";
 import type { Incident } from "../../types";
 import { getIncidentDescription } from "../../utils/wazeTranslations";
 import { WazeIcon } from "../ui/WazeIcon";
@@ -6,7 +6,35 @@ import {
   formatCoordinates,
   getSeverityColor,
   getSeverityLabel,
+  formatActiveDuration,
+  getDurationColor,
 } from "./eventsList.utils";
+
+/** Se auto-actualiza cada minuto sin re-renderizar la card padre (memo). */
+const LiveDuration: React.FC<{ timestamp: Date | string }> = ({ timestamp }) => {
+  const [text, setText] = useState(() => formatActiveDuration(timestamp));
+  const [colorClass, setColorClass] = useState(() => getDurationColor(timestamp));
+
+  useEffect(() => {
+    const refresh = () => {
+      setText(formatActiveDuration(timestamp));
+      setColorClass(getDurationColor(timestamp));
+    };
+    refresh();
+    const id = setInterval(refresh, 60_000);
+    return () => clearInterval(id);
+  }, [timestamp]);
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-bold ${colorClass}`}
+      title="Tiempo activo del incidente"
+    >
+      <span aria-hidden>⏱</span>
+      {text}
+    </span>
+  );
+};
 
 interface IncidentEventCardProps {
   incident: Incident;
@@ -56,9 +84,10 @@ const IncidentEventCardImpl: React.FC<IncidentEventCardProps> = ({
               <h4 className="font-black text-gray-900 dark:text-white text-xl mb-1">
                 {typeDescription}
               </h4>
+              <LiveDuration timestamp={incident.timestamp} />
             </div>
             <span
-              className={`px-4 py-2 rounded-full text-xs font-black border-2 shadow-md ${getSeverityColor(
+              className={`px-4 py-2 rounded-full text-xs font-black border-2 shadow-md flex-shrink-0 ${getSeverityColor(
                 incident.severity,
               )}`}
             >
@@ -129,7 +158,7 @@ const IncidentEventCardImpl: React.FC<IncidentEventCardProps> = ({
                   size="sm"
                   className="text-blue-600"
                 />
-                <div>
+                <div className="space-y-1">
                   <span className="text-gray-500 dark:text-veltrix-muted font-semibold text-xs">
                     Reportado:
                   </span>
@@ -138,6 +167,12 @@ const IncidentEventCardImpl: React.FC<IncidentEventCardProps> = ({
                       timeZone: "America/Argentina/Buenos_Aires",
                     })}
                   </p>
+                  <div className="flex items-center gap-1">
+                    <span className="text-gray-400 dark:text-veltrix-muted text-xs">
+                      Activo hace:
+                    </span>
+                    <LiveDuration timestamp={incident.timestamp} />
+                  </div>
                 </div>
               </div>
             </div>
