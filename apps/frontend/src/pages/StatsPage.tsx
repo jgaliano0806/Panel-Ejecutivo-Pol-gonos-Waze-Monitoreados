@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   TrendingUp,
   TrendingDown,
@@ -13,35 +13,43 @@ import {
   useWeeklyStats,
   useMonthlyStats,
 } from "../hooks/useDailyStats";
-import { Line, Bar } from "react-chartjs-2";
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
   Tooltip,
   Legend,
-} from "chart.js";
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
+} from "recharts";
 
 type Period = "daily" | "weekly" | "monthly";
 
+// Formatea la etiqueta X según el tipo de registro (daily/weekly/monthly)
+function formatPeriodLabel(d: any): string {
+  const tz = "America/Argentina/Buenos_Aires";
+  if ("date" in d && d.date) {
+    return new Date(d.date).toLocaleDateString("es-AR", { timeZone: tz });
+  }
+  if ("week" in d && d.week) {
+    return new Date(d.week).toLocaleDateString("es-AR", { timeZone: tz });
+  }
+  if ("month" in d && d.month) {
+    return new Date(d.month).toLocaleDateString("es-AR", {
+      year: "numeric",
+      month: "short",
+      timeZone: tz,
+    });
+  }
+  return "";
+}
+
 export const StatsPage: React.FC = () => {
   const [period, setPeriod] = useState<Period>("daily");
-  const [activeTab, setActiveTab] = useState<"historical" | "live">("live"); // Default to Live
+  const [activeTab, setActiveTab] = useState<"historical" | "live">("live");
   const [dateRange, setDateRange] = useState({
     from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
       .toISOString()
@@ -57,104 +65,24 @@ export const StatsPage: React.FC = () => {
     period === "daily"
       ? dailyData
       : period === "weekly"
-      ? weeklyData
-      : monthlyData;
+        ? weeklyData
+        : monthlyData;
 
-  const fluidityChartData = {
-    labels:
-      currentData?.map((d) => {
-        if ("date" in d && d.date) return new Date(d.date).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
-        if ("week" in d && d.week) return new Date(d.week).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
-        if ("month" in d && d.month)
-          return new Date(d.month).toLocaleDateString("es-AR", {
-            year: "numeric",
-            month: "short",
-            timeZone: "America/Argentina/Buenos_Aires",
-          });
-        return "";
-      }) || [],
-    datasets: [
-      {
-        label: "Fluidez (%)",
-        data:
-          currentData?.map(
-            (d) =>
-              ("avg_fluidity" in d
-                ? d.avg_fluidity
-                : d.avg_fluidity_percentage) || 0
-          ) || [],
-        borderColor: "rgb(59, 130, 246)",
-        backgroundColor: "rgba(59, 130, 246, 0.1)",
-        tension: 0.4,
-      },
-    ],
-  };
-
-  const speedChartData = {
-    labels:
-      currentData?.map((d) => {
-        if ("date" in d && d.date) return new Date(d.date).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
-        if ("week" in d && d.week) return new Date(d.week).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
-        if ("month" in d && d.month)
-          return new Date(d.month).toLocaleDateString("es-AR", {
-            year: "numeric",
-            month: "short",
-            timeZone: "America/Argentina/Buenos_Aires",
-          });
-        return "";
-      }) || [],
-    datasets: [
-      {
-        label: "Velocidad Promedio (km/h)",
-        data: currentData?.map((d) => d.avg_speed || 0) || [],
-        borderColor: "rgb(16, 185, 129)",
-        backgroundColor: "rgba(16, 185, 129, 0.1)",
-        tension: 0.4,
-      },
-    ],
-  };
-
-  const incidentsChartData = {
-    labels:
-      currentData?.map((d) => {
-        if ("date" in d && d.date) return new Date(d.date).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
-        if ("week" in d && d.week) return new Date(d.week).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
-        if ("month" in d && d.month)
-          return new Date(d.month).toLocaleDateString("es-AR", {
-            year: "numeric",
-            month: "short",
-            timeZone: "America/Argentina/Buenos_Aires",
-          });
-        return "";
-      }) || [],
-    datasets: [
-      {
-        label: "Total Incidentes",
-        data: currentData?.map((d) => d.total_incidents || 0) || [],
-        backgroundColor: "rgba(239, 68, 68, 0.7)",
-      },
-      {
-        label: "Total Congestiones",
-        data: currentData?.map((d) => d.total_jams || 0) || [],
-        backgroundColor: "rgba(251, 146, 60, 0.7)",
-      },
-    ],
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: "top" as const,
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-      },
-    },
-  };
+  // Normaliza los datos a un shape común consumible por recharts.
+  // Memoizado: solo recalcula al cambiar período/rango.
+  const chartRows = useMemo(
+    () =>
+      (currentData || []).map((d: any) => ({
+        label: formatPeriodLabel(d),
+        fluidity:
+          (("avg_fluidity" in d ? d.avg_fluidity : d.avg_fluidity_percentage) ||
+            0) as number,
+        speed: (d.avg_speed || 0) as number,
+        incidents: (d.total_incidents || 0) as number,
+        jams: (d.total_jams || 0) as number,
+      })),
+    [currentData],
+  );
 
   const latestStats = dailyData?.[0];
   const previousStats = dailyData?.[1];
@@ -245,13 +173,13 @@ export const StatsPage: React.FC = () => {
                   </span>
                   {calculateChange(
                     latestStats.avg_fluidity_percentage,
-                    previousStats?.avg_fluidity_percentage
+                    previousStats?.avg_fluidity_percentage,
                   ) !== null && (
                     <div
                       className={`flex items-center text-xs ${
                         calculateChange(
                           latestStats.avg_fluidity_percentage,
-                          previousStats?.avg_fluidity_percentage
+                          previousStats?.avg_fluidity_percentage,
                         )! > 0
                           ? "text-green-600 dark:text-green-400"
                           : "text-red-600 dark:text-red-400"
@@ -259,7 +187,7 @@ export const StatsPage: React.FC = () => {
                     >
                       {calculateChange(
                         latestStats.avg_fluidity_percentage,
-                        previousStats?.avg_fluidity_percentage
+                        previousStats?.avg_fluidity_percentage,
                       )! > 0 ? (
                         <TrendingUp className="w-4 h-4" />
                       ) : (
@@ -268,8 +196,8 @@ export const StatsPage: React.FC = () => {
                       {Math.abs(
                         calculateChange(
                           latestStats.avg_fluidity_percentage,
-                          previousStats?.avg_fluidity_percentage
-                        )!
+                          previousStats?.avg_fluidity_percentage,
+                        )!,
                       ).toFixed(1)}
                       %
                     </div>
@@ -287,13 +215,13 @@ export const StatsPage: React.FC = () => {
                   </span>
                   {calculateChange(
                     latestStats.avg_speed,
-                    previousStats?.avg_speed
+                    previousStats?.avg_speed,
                   ) !== null && (
                     <div
                       className={`flex items-center text-xs ${
                         calculateChange(
                           latestStats.avg_speed,
-                          previousStats?.avg_speed
+                          previousStats?.avg_speed,
                         )! > 0
                           ? "text-green-600 dark:text-green-400"
                           : "text-red-600 dark:text-red-400"
@@ -301,7 +229,7 @@ export const StatsPage: React.FC = () => {
                     >
                       {calculateChange(
                         latestStats.avg_speed,
-                        previousStats?.avg_speed
+                        previousStats?.avg_speed,
                       )! > 0 ? (
                         <TrendingUp className="w-4 h-4" />
                       ) : (
@@ -310,8 +238,8 @@ export const StatsPage: React.FC = () => {
                       {Math.abs(
                         calculateChange(
                           latestStats.avg_speed,
-                          previousStats?.avg_speed
-                        )!
+                          previousStats?.avg_speed,
+                        )!,
                       ).toFixed(1)}
                       %
                     </div>
@@ -362,8 +290,29 @@ export const StatsPage: React.FC = () => {
                   Tendencia de Fluidez
                 </h2>
               </div>
-              <div style={{ height: "300px" }}>
-                <Line data={fluidityChartData} options={chartOptions} />
+              <div style={{ height: 300 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={chartRows}
+                    margin={{ top: 8, right: 16, left: 0, bottom: 8 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="fluidity"
+                      name="Fluidez (%)"
+                      stroke="rgb(59, 130, 246)"
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={{ r: 4 }}
+                      isAnimationActive={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
             </div>
 
@@ -374,8 +323,29 @@ export const StatsPage: React.FC = () => {
                   Velocidad Promedio
                 </h2>
               </div>
-              <div style={{ height: "300px" }}>
-                <Line data={speedChartData} options={chartOptions} />
+              <div style={{ height: 300 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={chartRows}
+                    margin={{ top: 8, right: 16, left: 0, bottom: 8 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="speed"
+                      name="Velocidad Promedio (km/h)"
+                      stroke="rgb(16, 185, 129)"
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={{ r: 4 }}
+                      isAnimationActive={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
             </div>
 
@@ -386,8 +356,31 @@ export const StatsPage: React.FC = () => {
                   Incidentes y Congestiones
                 </h2>
               </div>
-              <div style={{ height: "300px" }}>
-                <Bar data={incidentsChartData} options={chartOptions} />
+              <div style={{ height: 300 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={chartRows}
+                    margin={{ top: 8, right: 16, left: 0, bottom: 8 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip />
+                    <Legend />
+                    <Bar
+                      dataKey="incidents"
+                      name="Total Incidentes"
+                      fill="rgba(239, 68, 68, 0.8)"
+                      isAnimationActive={false}
+                    />
+                    <Bar
+                      dataKey="jams"
+                      name="Total Congestiones"
+                      fill="rgba(251, 146, 60, 0.8)"
+                      isAnimationActive={false}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
           </div>

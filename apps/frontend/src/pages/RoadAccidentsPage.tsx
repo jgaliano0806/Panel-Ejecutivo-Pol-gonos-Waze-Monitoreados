@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, memo } from "react";
 import {
   Car,
   Cloud,
@@ -36,6 +36,117 @@ import { usePolygonsStatus } from "../hooks/useWazeData";
 import { RoadAccident } from "../hooks/useRoadAccidents";
 import { exportAccidentToPDF } from "../lib/pdf-export";
 import { useAuthStore } from "../stores/useAuthStore";
+
+function getAccidentSubtypeLabel(subtype?: string): string {
+  if (!subtype) return "ACCIDENTE";
+  const map: Record<string, string> = {
+    ACCIDENT_MINOR: "Accidente Leve",
+    ACCIDENT_MAJOR: "Accidente Grave",
+    ACCIDENT_CONSTRUCTION: "En Construcción",
+    NO_SUBTYPE: "Accidente",
+    ROAD_CLOSED_EVENT: "Calle Cerrada",
+  };
+  return map[subtype] || subtype.replace(/_/g, " ");
+}
+
+function getSeverityColor(severity?: number): string {
+  if (!severity) return "bg-gray-400";
+  if (severity >= 4) return "bg-red-600";
+  if (severity === 3) return "bg-orange-500";
+  if (severity === 2) return "bg-yellow-500";
+  return "bg-blue-500";
+}
+
+function getLocationDisplay(acc: RoadAccident): string {
+  if (acc.waze_data?.nearestKmName) {
+    const route = acc.waze_data.nearestKmRoute
+      ? `${acc.waze_data.nearestKmRoute} - `
+      : "";
+    const km =
+      acc.waze_data.nearestKmName.split(" - ").pop() ||
+      acc.waze_data.nearestKmName;
+    return `${route}${km}`;
+  }
+  if (acc.street) return acc.street;
+  if (acc.description) return acc.description;
+  if (acc.polygon_id) {
+    const poly = realCordobaPolygons.find((p) => p.id === acc.polygon_id);
+    if (poly) return `Accidente en ${poly.name}`;
+  }
+  return "Ubicación s/d";
+}
+
+interface RoadAccidentListItemProps {
+  accident: RoadAccident;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
+}
+
+const RoadAccidentListItem = memo(function RoadAccidentListItem({
+  accident: acc,
+  isSelected,
+  onSelect,
+}: RoadAccidentListItemProps) {
+  return (
+    <div
+      onClick={() => onSelect(acc.id)}
+      className={`p-4 border-b border-gray-100 dark:border-veltrix-border cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-veltrix-bg/30 ${
+        isSelected
+          ? "bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-600 dark:border-l-blue-500"
+          : ""
+      }`}
+    >
+      <div className="flex justify-between items-start mb-1">
+        <span
+          className={`px-2 py-0.5 rounded text-[10px] font-bold text-white uppercase ${getSeverityColor(
+            acc.severity,
+          )}`}
+        >
+          {getAccidentSubtypeLabel(acc.subtype)}
+        </span>
+        <span className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-1">
+          <Clock className="w-3 h-3" />
+          {new Date(acc.accident_at).toLocaleString("es-AR", {
+            timeZone: "America/Argentina/Buenos_Aires",
+          })}
+        </span>
+      </div>
+      <h3 className="font-semibold text-gray-800 dark:text-white text-sm truncate">
+        {getLocationDisplay(acc)}
+      </h3>
+      <div className="flex items-center gap-2 mt-2">
+        <div className="flex -space-x-1">
+          {acc.media && acc.media.length > 0 ? (
+            acc.media.slice(0, 3).map((m, i) => (
+              <div
+                key={i}
+                className="w-6 h-6 rounded-full border-2 border-white dark:border-veltrix-card bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden"
+              >
+                {m.file_type === "image" ? (
+                  <ImageIcon className="w-3 h-3 text-gray-500 dark:text-gray-300" />
+                ) : m.file_type === "video" ? (
+                  <Film className="w-3 h-3 text-gray-500 dark:text-gray-300" />
+                ) : (
+                  <FileText className="w-3 h-3 text-gray-500 dark:text-gray-300" />
+                )}
+              </div>
+            ))
+          ) : (
+            <span className="text-[10px] text-gray-400 italic">
+              Sin archivos
+            </span>
+          )}
+        </div>
+        {acc.media && acc.media.length > 0 && (
+          <span className="text-[10px] text-gray-500 dark:text-gray-400">
+            +{acc.media.length} archivos
+          </span>
+        )}
+      </div>
+    </div>
+  );
+});
+RoadAccidentListItem.displayName = "RoadAccidentListItem";
 
 export const RoadAccidentsPage: React.FC = () => {
   const authUser = useAuthStore((s) => s.user);
@@ -94,17 +205,6 @@ export const RoadAccidentsPage: React.FC = () => {
     setPage(0);
   };
 
-  const getAccidentSubtypeLabel = (subtype?: string) => {
-    if (!subtype) return "ACCIDENTE";
-    const map: Record<string, string> = {
-      ACCIDENT_MINOR: "Accidente Leve",
-      ACCIDENT_MAJOR: "Accidente Grave",
-      ACCIDENT_CONSTRUCTION: "En Construcción",
-      NO_SUBTYPE: "Accidente",
-      ROAD_CLOSED_EVENT: "Calle Cerrada",
-    };
-    return map[subtype] || subtype.replace(/_/g, " ");
-  };
   const { data: accident, isLoading: detailsLoading } =
     useRoadAccident(selectedAccidentId);
 
@@ -243,29 +343,20 @@ export const RoadAccidentsPage: React.FC = () => {
     }
   };
 
-  const getSeverityColor = (severity?: number) => {
-    if (!severity) return "bg-gray-400";
-    if (severity >= 4) return "bg-red-600";
-    if (severity === 3) return "bg-orange-500";
-    if (severity === 2) return "bg-yellow-500";
-    return "bg-blue-500";
-  };
+  const selectAccident = useCallback((id: string) => {
+    setSelectedAccidentId(id);
+  }, []);
 
-  const getLocationDisplay = (acc: RoadAccident) => {
-    // Priorizar ubicación vial
-    if (acc.waze_data?.nearestKmName) {
-      const route = acc.waze_data.nearestKmRoute ? `${acc.waze_data.nearestKmRoute} - ` : "";
-      const km = acc.waze_data.nearestKmName.split(" - ").pop() || acc.waze_data.nearestKmName;
-      return `${route}${km}`;
-    }
-    if (acc.street) return acc.street;
-    if (acc.description) return acc.description;
-    if (acc.polygon_id) {
-      const poly = realCordobaPolygons.find((p) => p.id === acc.polygon_id);
-      if (poly) return `Accidente en ${poly.name}`;
-    }
-    return "Ubicación s/d";
-  };
+  const renderAccidentItem = useCallback(
+    (acc: RoadAccident) => (
+      <RoadAccidentListItem
+        accident={acc}
+        isSelected={selectedAccidentId === acc.id}
+        onSelect={selectAccident}
+      />
+    ),
+    [selectedAccidentId, selectAccident],
+  );
 
   const apiBase = import.meta.env.VITE_API_URL || "/api";
   const MEDIA_BASE_URL = apiBase.endsWith("/api")
@@ -341,63 +432,7 @@ export const RoadAccidentsPage: React.FC = () => {
               estimateSize={100}
               className="h-full overflow-auto"
               emptyMessage="No hay siniestros registrados."
-              renderItem={(acc) => (
-                <div
-                  key={acc.id}
-                  onClick={() => setSelectedAccidentId(acc.id)}
-                  className={`p-4 border-b border-gray-100 dark:border-veltrix-border cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-veltrix-bg/30 ${
-                    selectedAccidentId === acc.id
-                      ? "bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-600 dark:border-l-blue-500"
-                      : ""
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-1">
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold text-white uppercase ${getSeverityColor(
-                        acc.severity,
-                      )}`}
-                    >
-                      {getAccidentSubtypeLabel(acc.subtype)}
-                    </span>
-                    <span className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {new Date(acc.accident_at).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}
-                    </span>
-                  </div>
-                  <h3 className="font-semibold text-gray-800 dark:text-white text-sm truncate">
-                    {getLocationDisplay(acc)}
-                  </h3>
-                  <div className="flex items-center gap-2 mt-2">
-                    <div className="flex -space-x-1">
-                      {acc.media?.length > 0 ? (
-                        acc.media.slice(0, 3).map((m, i) => (
-                          <div
-                            key={i}
-                            className="w-6 h-6 rounded-full border-2 border-white dark:border-veltrix-card bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden"
-                          >
-                            {m.file_type === "image" ? (
-                              <ImageIcon className="w-3 h-3 text-gray-500 dark:text-gray-300" />
-                            ) : m.file_type === "video" ? (
-                              <Film className="w-3 h-3 text-gray-500 dark:text-gray-300" />
-                            ) : (
-                              <FileText className="w-3 h-3 text-gray-500 dark:text-gray-300" />
-                            )}
-                          </div>
-                        ))
-                      ) : (
-                        <span className="text-[10px] text-gray-400 italic">
-                          Sin archivos
-                        </span>
-                      )}
-                    </div>
-                    {acc.media?.length > 0 && (
-                      <span className="text-[10px] text-gray-500 dark:text-gray-400">
-                        +{acc.media.length} archivos
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
+              renderItem={renderAccidentItem}
             />
           )}
         </div>

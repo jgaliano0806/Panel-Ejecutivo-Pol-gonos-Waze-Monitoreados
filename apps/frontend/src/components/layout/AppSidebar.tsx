@@ -30,9 +30,13 @@ interface NavItem {
 export const AppSidebar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isExpanded, setExpanded } = useSidebarStore();
-  const unreadCount = useNotificationStore((state) => state.unreadCount);
-  const { user, logout, hasPermission } = useAuthStore();
+  // Selectores finos: evitan re-renders cuando otras props de los stores cambian
+  const isExpanded = useSidebarStore((s) => s.isExpanded);
+  const setExpanded = useSidebarStore((s) => s.setExpanded);
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const hasPermission = useAuthStore((s) => s.hasPermission);
 
   // Determinar item activo basado en la ruta actual
   const getActiveItem = () => {

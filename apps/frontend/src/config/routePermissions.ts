@@ -70,6 +70,8 @@ export const PATH_TO_PERMISSION: Record<string, PermissionCode> = {
   "/notificaciones": ROUTE_PERMISSIONS.notificaciones,
   "/siniestros": ROUTE_PERMISSIONS.siniestros,
   "/incidentes": ROUTE_PERMISSIONS.incidentes,
+  "/incidentes/historico": ROUTE_PERMISSIONS.incidentes,
+  "/estadisticas": ROUTE_PERMISSIONS.incidentes,
   "/admin": ROUTE_PERMISSIONS.admin,
 };
 

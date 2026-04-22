@@ -27,7 +27,9 @@ import { API_CONFIG } from "../config/constants";
 
 export const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, updateProfile, uploadAvatar } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const updateProfile = useAuthStore((s) => s.updateProfile);
+  const uploadAvatar = useAuthStore((s) => s.uploadAvatar);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const firstName = user?.firstName || "";

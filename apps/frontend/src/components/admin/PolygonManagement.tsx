@@ -1108,7 +1108,7 @@ const PolygonManagement: React.FC = () => {
             <div className="px-4 py-3 text-center">Acciones</div>
           </div>
 
-          {/* Virtualized Body */}
+          {/* Cuerpo virtualizado: solo filas visibles (lista puede ser cientos de polígonos) */}
           <div className="h-[50vh] min-h-[300px] max-h-[600px]">
             <VirtualizedList
               items={sortedPolygons}

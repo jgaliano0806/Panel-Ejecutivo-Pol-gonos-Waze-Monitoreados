@@ -17,7 +17,7 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react";
-import { API_CONFIG } from "../../config/constants";
+import { API_CONFIG, REFRESH_INTERVALS } from "../../config/constants";
 
 interface OperationalData {
   topCriticalIncidents: any[];
@@ -40,7 +40,10 @@ export const OperationalAnalyticsDashboard: React.FC = () => {
   const { data, isLoading, isError, refetch } = useQuery<OperationalData>({
     queryKey: ["operational-analytics"],
     queryFn: fetchAnalytics,
-    refetchInterval: 30000, // 30 segundos
+    // Fallback polling: los datos también se invalidan vía WebSocket (waze:data_updated).
+    // Alineado con el resto del dashboard: 2 min.
+    refetchInterval: REFRESH_INTERVALS.realTimeData,
+    staleTime: 60_000,
   });
 
   if (isLoading)

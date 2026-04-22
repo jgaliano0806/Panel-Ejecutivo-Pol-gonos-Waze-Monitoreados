@@ -80,6 +80,8 @@ export const WazeIcon: React.FC<WazeIconProps> = ({
           src={officialIconUrl}
           alt={translatedDescription}
           className={`${sizeClasses[size]} object-contain`}
+          loading="lazy"
+          decoding="async"
           onError={() => {
             console.warn(
               `⚠️ Error cargando icono local/oficial: ${officialIconUrl}, cayendo a SVG fallback`,

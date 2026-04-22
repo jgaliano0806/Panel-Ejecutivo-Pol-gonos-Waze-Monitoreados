@@ -24,8 +24,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   requiredPermissions,
 }) => {
-  const { isAuthenticated, isLoading, user, checkSession, hasPermission } =
-    useAuthStore();
+  // Selectores finos para minimizar re-renders (este componente envuelve cada ruta)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const user = useAuthStore((s) => s.user);
+  const checkSession = useAuthStore((s) => s.checkSession);
+  const hasPermission = useAuthStore((s) => s.hasPermission);
   const { getFallbackRoute } = usePermission();
 
   useEffect(() => {

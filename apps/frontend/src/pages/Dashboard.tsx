@@ -115,6 +115,7 @@ const Dashboard: React.FC = () => {
     const path = window.location.pathname;
     if (path === "/mapa" || path === "/zonas-peligrosas") return "map";
     if (path === "/admin") return "admin";
+    if (path === "/dashboard") return "home";
     return "home";
   });
 

@@ -1,15 +1,59 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
-import Dashboard from "./pages/Dashboard";
-import { RiskDashboard } from "./pages/RiskDashboard";
-import { RoadAccidentsPage } from "./pages/RoadAccidentsPage";
-import { IncidentsModule } from "./pages/IncidentsModule";
+import { lazy, Suspense } from "react";
 import { AppLayout } from "./components/layout/AppLayout";
 import { SectionErrorBoundary } from "./components/common/ErrorBoundary";
-import { NotificationsPage } from "./pages/NotificationsPage";
-import { LoginPage } from "./pages/LoginPage";
-import { ProfilePage } from "./pages/ProfilePage";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { ROUTE_PERMISSIONS } from "./config/routePermissions";
+
+// Code-splitting por ruta — cada página es un chunk independiente
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const RiskDashboard = lazy(() =>
+  import("./pages/RiskDashboard").then((m) => ({ default: m.RiskDashboard })),
+);
+const RoadAccidentsPage = lazy(() =>
+  import("./pages/RoadAccidentsPage").then((m) => ({
+    default: m.RoadAccidentsPage,
+  })),
+);
+const IncidentsModule = lazy(() =>
+  import("./pages/IncidentsModule").then((m) => ({
+    default: m.IncidentsModule,
+  })),
+);
+const NotificationsPage = lazy(() =>
+  import("./pages/NotificationsPage").then((m) => ({
+    default: m.NotificationsPage,
+  })),
+);
+const LoginPage = lazy(() =>
+  import("./pages/LoginPage").then((m) => ({ default: m.LoginPage })),
+);
+const ProfilePage = lazy(() =>
+  import("./pages/ProfilePage").then((m) => ({ default: m.ProfilePage })),
+);
+const StatsPage = lazy(() =>
+  import("./pages/StatsPage").then((m) => ({ default: m.StatsPage })),
+);
+const IncidentsHistoryPage = lazy(() =>
+  import("./pages/IncidentsHistoryPage").then((m) => ({
+    default: m.IncidentsHistoryPage,
+  })),
+);
+
+const PageFallback = () => (
+  <div
+    className="flex items-center justify-center min-h-[60vh]"
+    role="status"
+    aria-live="polite"
+  >
+    <div className="animate-spin rounded-full h-10 w-10 border-2 border-blue-600 border-t-transparent" />
+    <span className="sr-only">Cargando…</span>
+  </div>
+);
+
+const withSuspense = (el: React.ReactNode) => (
+  <Suspense fallback={<PageFallback />}>{el}</Suspense>
+);
 
 export const router = createBrowserRouter(
   [
@@ -17,7 +61,7 @@ export const router = createBrowserRouter(
       path: "/login",
       element: (
         <SectionErrorBoundary sectionName="Login">
-          <LoginPage />
+          {withSuspense(<LoginPage />)}
         </SectionErrorBoundary>
       ),
     },
@@ -27,14 +71,20 @@ export const router = createBrowserRouter(
     },
     {
       path: "/dashboard",
-      element: <Navigate to="/mapa" replace />,
+      element: (
+        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.mapa]}>
+          <SectionErrorBoundary sectionName="Inicio">
+            {withSuspense(<Dashboard />)}
+          </SectionErrorBoundary>
+        </ProtectedRoute>
+      ),
     },
     {
       path: "/mapa",
       element: (
         <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.mapa]}>
           <SectionErrorBoundary sectionName="Mapa">
-            <Dashboard />
+            {withSuspense(<Dashboard />)}
           </SectionErrorBoundary>
         </ProtectedRoute>
       ),
@@ -45,7 +95,7 @@ export const router = createBrowserRouter(
         <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.siniestros]}>
           <AppLayout>
             <SectionErrorBoundary sectionName="Siniestros">
-              <RoadAccidentsPage />
+              {withSuspense(<RoadAccidentsPage />)}
             </SectionErrorBoundary>
           </AppLayout>
         </ProtectedRoute>
@@ -57,7 +107,7 @@ export const router = createBrowserRouter(
         <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.mapa]}>
           <AppLayout>
             <SectionErrorBoundary sectionName="Dashboard de Riesgos">
-              <RiskDashboard />
+              {withSuspense(<RiskDashboard />)}
             </SectionErrorBoundary>
           </AppLayout>
         </ProtectedRoute>
@@ -72,7 +122,7 @@ export const router = createBrowserRouter(
         >
           <AppLayout>
             <SectionErrorBoundary sectionName="Notificaciones">
-              <NotificationsPage />
+              {withSuspense(<NotificationsPage />)}
             </SectionErrorBoundary>
           </AppLayout>
         </ProtectedRoute>
@@ -85,7 +135,7 @@ export const router = createBrowserRouter(
           requiredPermissions={[ROUTE_PERMISSIONS.zonasPeligrosas]}
         >
           <SectionErrorBoundary sectionName="Zonas peligrosas">
-            <Dashboard />
+            {withSuspense(<Dashboard />)}
           </SectionErrorBoundary>
         </ProtectedRoute>
       ),
@@ -96,7 +146,31 @@ export const router = createBrowserRouter(
         <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.incidentes]}>
           <AppLayout>
             <SectionErrorBoundary sectionName="Módulo de Incidentes">
-              <IncidentsModule />
+              {withSuspense(<IncidentsModule />)}
+            </SectionErrorBoundary>
+          </AppLayout>
+        </ProtectedRoute>
+      ),
+    },
+    {
+      path: "/incidentes/historico",
+      element: (
+        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.incidentes]}>
+          <AppLayout>
+            <SectionErrorBoundary sectionName="Histórico de Incidentes">
+              {withSuspense(<IncidentsHistoryPage />)}
+            </SectionErrorBoundary>
+          </AppLayout>
+        </ProtectedRoute>
+      ),
+    },
+    {
+      path: "/estadisticas",
+      element: (
+        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.incidentes]}>
+          <AppLayout>
+            <SectionErrorBoundary sectionName="Estadísticas">
+              {withSuspense(<StatsPage />)}
             </SectionErrorBoundary>
           </AppLayout>
         </ProtectedRoute>
@@ -107,7 +181,7 @@ export const router = createBrowserRouter(
       element: (
         <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.admin]}>
           <SectionErrorBoundary sectionName="Administración">
-            <Dashboard />
+            {withSuspense(<Dashboard />)}
           </SectionErrorBoundary>
         </ProtectedRoute>
       ),
@@ -117,7 +191,7 @@ export const router = createBrowserRouter(
       element: (
         <ProtectedRoute>
           <SectionErrorBoundary sectionName="Perfil">
-            <ProfilePage />
+            {withSuspense(<ProfilePage />)}
           </SectionErrorBoundary>
         </ProtectedRoute>
       ),

@@ -48,10 +48,6 @@ import axios from "axios";
 import { runMigrations } from "./database/migrations/runMigrations";
 import { registerRoutes } from "./routes";
 // Tipos inline para endpoints - más flexible que tipos externos fijos
-type ThresholdsUpdate = Record<
-  string,
-  { minConfidence?: number; minReliability?: number; minCombined?: number }
->;
 type AccidentUpdate = Partial<{
   status: "active" | "inactive";
   description: string;
@@ -329,26 +325,7 @@ server.get("/api/test", async () => {
  */
 
 
-/**
- * POST /api/data-quality/thresholds
- * Actualiza umbrales de calidad dinámicamente
- */
-server.post<{ Body: ThresholdsUpdate }>(
-  "/api/data-quality/thresholds",
-  async (request, reply) => {
-    try {
-      const updates = request.body;
-      dataQualityService.updateThresholds(updates);
-      return {
-        success: true,
-        message: "Thresholds updated",
-        current: dataQualityService.getThresholds(),
-      };
-    } catch (error) {
-      reply.code(500).send({ error: "Failed to update thresholds" });
-    }
-  },
-);
+// POST /api/data-quality/thresholds → movida a routes/dataQuality.routes.ts
 
 // --- Endpoints de Datos Raw para Mapa ---
 

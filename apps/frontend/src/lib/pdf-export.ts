@@ -1,8 +1,10 @@
 /**
  * Utilidad para exportar incidentes y siniestros a PDF
  * Usa jsPDF para generar documentos PDF con branding de Caminos de las Sierras
+ *
+ * NOTA: jsPDF se importa dinámicamente (~300 KB) para no inflar el bundle inicial.
+ * Solo se carga cuando el usuario dispara una exportación.
  */
-import { jsPDF } from "jspdf";
 import type { Incident } from "../hooks/useIncidentsModule";
 import {
   translateIncidentType,
@@ -209,6 +211,7 @@ export async function exportIncidentToPDF(
   polygonName?: string,
   polygonGroup?: string,
 ): Promise<void> {
+  const { jsPDF } = await import("jspdf");
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -551,6 +554,7 @@ export async function exportAccidentToPDF(
   polygonGroup?: string,
   generatedBy?: string,
 ): Promise<void> {
+  const { jsPDF } = await import("jspdf");
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();

@@ -28,7 +28,7 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
       label: "Inicio",
       icon: Home,
       color: "from-primary-600 to-primary-700",
-      path: "/",
+      path: "/dashboard",
       requiredPermission: ROUTE_PERMISSIONS.mapa,
     },
     {

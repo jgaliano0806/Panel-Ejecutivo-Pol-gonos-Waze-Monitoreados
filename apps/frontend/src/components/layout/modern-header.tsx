@@ -48,7 +48,8 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
       window.localStorage.getItem(SOUND_ALERTS_LS) === "true"
     );
   });
-  const { isDark, toggleTheme } = useThemeStore();
+  const isDark = useThemeStore((s) => s.isDark);
+  const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const { isConnected: wsConnected } = useWebSocketStatus();
 
   // Sincronizar estado si cambia desde otro componente
@@ -129,6 +130,8 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
                 src={COMPANY_INFO.logoPath}
                 alt={COMPANY_INFO.name}
                 className="h-full w-auto object-contain"
+                decoding="async"
+                fetchPriority="high"
               />
             </motion.div>
 

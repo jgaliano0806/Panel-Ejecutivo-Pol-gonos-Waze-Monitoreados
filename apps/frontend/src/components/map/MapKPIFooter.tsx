@@ -111,7 +111,7 @@ export const MapKPIFooter: React.FC<MapKPIFooterProps> = ({
               key={metric.id}
               className="flex items-center gap-3 min-w-max cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 py-1 rounded-lg transition-colors border-none bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-opacity-50 touch-manipulation"
               onClick={() => {
-                if (metric.id === "events") navigate("/incidentes");
+                if (metric.id === "events") navigate("/dashboard");
                 if (metric.id === "incidents") navigate("/siniestros");
                 if (metric.id === "critical") navigate("/riesgos"); // Fallback just in case
               }}

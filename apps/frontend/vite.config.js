@@ -68,6 +68,13 @@ export default defineConfig(function (_a) {
                 },
             },
         }, 
+        // Eliminar console.log/debug y debugger en builds de producción (mantiene warn/error)
+        esbuild: {
+            pure: mode === "production"
+                ? ["console.log", "console.debug", "console.info"]
+                : [],
+            drop: mode === "production" ? ["debugger"] : [],
+        }, 
         // Configuración de build para producción
         build: {
             target: "es2022",
@@ -77,20 +84,40 @@ export default defineConfig(function (_a) {
             // Optimizaciones de tree shaking
             rollupOptions: {
                 output: {
-                    /* manualChunks: {
-                      "react-vendor": ["react", "react-dom", "react-router-dom"],
-                      "query-vendor": ["@tanstack/react-query"],
-                      "ui-vendor": ["framer-motion", "lucide-react"],
-                      "chart-vendor": ["recharts"],
-                      "radix-vendor": [
-                        "@radix-ui/react-dialog",
-                        "@radix-ui/react-dropdown-menu",
-                        "@radix-ui/react-select",
-                        "@radix-ui/react-tabs",
-                        "@radix-ui/react-toast",
-                        "@radix-ui/react-tooltip",
-                      ],
-                    }, */
+                    // Splitting de vendors para cachear mejor en browser y reducir initial bundle.
+                    // IMPORTANTE: devolver `undefined` para deps no clasificadas deja que Rollup las
+                    // asigne al chunk que las importa, evitando chunks circulares (vendor <-> react-vendor).
+                    manualChunks: function (id) {
+                        if (!id.includes("node_modules"))
+                            return undefined;
+                        if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id))
+                            return "react-vendor";
+                        if (id.includes("react-router"))
+                            return "react-vendor";
+                        if (id.includes("@tanstack/react-query"))
+                            return "query-vendor";
+                        if (id.includes("@tanstack/react-virtual"))
+                            return "query-vendor";
+                        if (id.includes("@radix-ui"))
+                            return "radix-vendor";
+                        if (id.includes("framer-motion"))
+                            return "motion-vendor";
+                        if (id.includes("recharts") || id.includes("d3-"))
+                            return "chart-vendor";
+                        if (id.includes("maplibre-gl") || id.includes("react-map-gl"))
+                            return "maplibre-vendor";
+                        if (id.includes("leaflet"))
+                            return "leaflet-vendor";
+                        if (id.includes("@turf"))
+                            return "turf-vendor";
+                        if (id.includes("jspdf") || id.includes("html2canvas"))
+                            return "export-vendor";
+                        if (id.includes("socket.io-client"))
+                            return "socket-vendor";
+                        if (id.includes("lucide-react"))
+                            return "icons-vendor";
+                        return undefined;
+                    },
                     // Optimizaciones adicionales
                     assetFileNames: function (assetInfo) {
                         var _a;

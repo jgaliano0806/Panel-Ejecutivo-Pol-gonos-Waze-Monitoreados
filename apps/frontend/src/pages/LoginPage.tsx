@@ -12,8 +12,13 @@ import { useAuthStore } from "../stores/useAuthStore";
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { login, isAuthenticated, isLoading, error, clearError, checkSession } =
-    useAuthStore();
+  // Selectores finos: evitan re-renders por cambios de otras props del auth store
+  const login = useAuthStore((s) => s.login);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const error = useAuthStore((s) => s.error);
+  const clearError = useAuthStore((s) => s.clearError);
+  const checkSession = useAuthStore((s) => s.checkSession);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -94,10 +99,12 @@ export const LoginPage: React.FC = () => {
               transition={{ delay: 0.2, duration: 0.5 }}
               className="flex justify-center items-center h-16 mb-4"
             >
-              <img 
-                src="/logo_cs.png" 
-                alt="Caminos de las Sierras S.A." 
-                className="h-full w-auto object-contain drop-shadow-md" 
+              <img
+                src="/logo_cs.png"
+                alt="Caminos de las Sierras S.A."
+                className="h-full w-auto object-contain drop-shadow-md"
+                decoding="async"
+                fetchPriority="high"
               />
             </motion.div>
 
