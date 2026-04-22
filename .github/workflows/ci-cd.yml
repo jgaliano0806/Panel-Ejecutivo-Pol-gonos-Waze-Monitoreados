@@ -277,8 +277,12 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
+            set -e
             cd ${{ secrets.DEPLOY_PATH || '/opt/panel-waze' }}
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            # Pull por SHA (permite rollback trazable) y re-tag local a :latest
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+            docker tag  ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }} \
+                        ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             docker compose --profile prod up -d --no-build
             docker image prune -f
             echo "✅ Deploy completado: ${{ github.sha }}"
@@ -287,7 +291,7 @@ jobs:
         run: |
           echo "🔍 Verificando health check..."
           for i in {1..10}; do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ vars.PRODUCTION_URL }}/api/health" || echo "000")
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ vars.PRODUCTION_URL }}/health" || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "✅ Health check OK (intento $i)"
               exit 0

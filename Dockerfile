@@ -7,16 +7,21 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app
 
-# Copiar archivos de dependencias raiz
+# Copiar archivos de dependencias raiz (workspaces: apps/* + packages/*)
 COPY package*.json ./
 COPY apps/frontend/package*.json ./apps/frontend/
 COPY apps/backend/package*.json ./apps/backend/
+COPY packages/types/package*.json ./packages/types/
 
 # Instalar dependencias
 RUN npm ci --include=dev
 
 # Copiar código fuente
 COPY . .
+
+# Buildear types compartidos (tsc -b del frontend los referencia vía paths alias)
+WORKDIR /app/packages/types
+RUN npm run build
 
 # Build de producción frontend
 WORKDIR /app/apps/frontend
