@@ -257,35 +257,52 @@ jobs:
             VITE_API_URL=${{ vars.VITE_API_URL || '/api' }}
 
   # =============================================
-  # DEPLOY (Production) — SSH al servidor
+  # DEPLOY (Production) — SSH a Windows Server (NSSM + nginx)
   # Requiere secrets: SSH_HOST, SSH_USER, SSH_PRIVATE_KEY
+  # Opcionales:       SSH_PORT, DEPLOY_PATH
+  # Target: Windows Server 2022 con OpenSSH (DefaultShell=powershell.exe)
+  # Ejecuta: deploy/manage-services.ps1 -Action update  (git pull + build + restart NSSM)
   # =============================================
   deploy:
     name: 🚀 Deploy to Production
     runs-on: ubuntu-latest
-    needs: docker
+    needs: [build-frontend, build-backend, security]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment:
       name: production
       url: ${{ vars.PRODUCTION_URL }}
     steps:
-      - name: Deploy via SSH
+      - name: Deploy via SSH (Windows / NSSM)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          envs: GIT_SHA,DEPLOY_PATH
           script: |
-            set -e
-            cd ${{ secrets.DEPLOY_PATH || '/opt/panel-waze' }}
-            # Pull por SHA (permite rollback trazable) y re-tag local a :latest
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
-            docker tag  ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }} \
-                        ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            docker compose --profile prod up -d --no-build
-            docker image prune -f
-            echo "✅ Deploy completado: ${{ github.sha }}"
+            $ErrorActionPreference = "Stop"
+            $InstallDir = $env:DEPLOY_PATH
+            if (-not $InstallDir) { $InstallDir = "D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados" }
+            Write-Host "================================================"
+            Write-Host " Deploy Panel Waze -> $InstallDir"
+            Write-Host " SHA: $env:GIT_SHA"
+            Write-Host "================================================"
+
+            if (-not (Test-Path "$InstallDir\deploy\manage-services.ps1")) {
+              throw "No se encontro manage-services.ps1 en $InstallDir\deploy"
+            }
+
+            & "$InstallDir\deploy\manage-services.ps1" -Action update -InstallDir $InstallDir
+            if ($LASTEXITCODE -ne 0) {
+              throw "manage-services.ps1 update fallo con codigo $LASTEXITCODE"
+            }
+
+            & "$InstallDir\deploy\manage-services.ps1" -Action status -InstallDir $InstallDir
+            Write-Host "[OK] Deploy completado: $env:GIT_SHA"
+        env:
+          GIT_SHA: ${{ github.sha }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
 
       - name: Verify deployment health
         run: |
