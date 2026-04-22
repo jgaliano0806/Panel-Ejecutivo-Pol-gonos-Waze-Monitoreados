@@ -25,7 +25,6 @@ import {
   Filter,
   ChevronDown,
 } from "lucide-react";
-import { iconCacheService } from "../../utils/iconCache";
 import { MiniMapLibre } from "../map/MiniMapLibre";
 
 // Tipos y subtipos de eventos para filtrar (jerarquía)

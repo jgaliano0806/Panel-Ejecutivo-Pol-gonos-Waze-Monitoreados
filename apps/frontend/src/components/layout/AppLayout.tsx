@@ -1,5 +1,4 @@
 import React from "react";
-import { useLocation } from "react-router-dom";
 import { ModernHeader } from "./modern-header";
 import { AppSidebar } from "./AppSidebar";
 import Footer from "./Footer";

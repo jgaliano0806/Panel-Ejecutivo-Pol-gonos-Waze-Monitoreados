@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, memo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import type {
   GlobalKPIs,
@@ -10,20 +10,8 @@ import type {
   TrafficJam,
 } from "../../types";
 import { IncidentType } from "../../types";
-import { Card, CardContent } from "../ui/card";
-import { Badge } from "../ui/badge";
-import { cn } from "../../lib/utils";
-import {
-  TrendingUp,
-  TrendingDown,
-  AlertTriangle,
-  Target,
-  MapPin,
-  Car,
-  ArrowRight,
-} from "lucide-react";
+import { AlertTriangle, Target, MapPin, Car } from "lucide-react";
 import { EventsListModal } from "../alerts/EventsListModal";
-import { NETWORK_CONFIG } from "../../config/constants";
 import { StatCard } from "../common/StatCard";
 
 interface ModernExecutiveSummaryProps {
@@ -42,7 +30,7 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(
   ({
     kpis,
     alertStats: _alertStats,
-    totalPolygons,
+    totalPolygons: _totalPolygons,
     criticalPolygons,
     incidents = [],
     alerts = [],
@@ -149,7 +137,7 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(
       show: { opacity: 1, transition: { staggerChildren: 0.1 } },
     };
 
-    const item = {
+    const _item = {
       hidden: { opacity: 0, y: 20 },
       show: {
         opacity: 1,
@@ -168,7 +156,7 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(
           animate="show"
         >
           {metrics.map((metric, index) => {
-            const Icon = metric.icon;
+            const _Icon = metric.icon;
             const hasEvents = incidents.length > 0 || alerts.length > 0;
             const isClickable =
               metric.id === "critical"

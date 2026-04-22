@@ -7,7 +7,7 @@ import React, {
   useEffect,
   useRef,
 } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import { useWazeData } from "../hooks/useWazeData";
@@ -18,11 +18,9 @@ import { ModernHeader } from "../components/layout/modern-header";
 import { type ViewType } from "../components/layout/modern-navigation";
 import { AppSidebar } from "../components/layout/AppSidebar";
 import { useSidebarStore } from "../stores/useSidebarStore";
-import Filters from "../components/common/Filters";
 import Footer from "../components/layout/Footer";
 import PolygonDetail from "../components/dashboard/PolygonDetail";
 import { AlertsBadge } from "../components/alerts/AlertsBadge";
-import { WazeOMeter } from "../components/dashboard/WazeOMeter";
 import { MapKPIFooter } from "../components/map/MapKPIFooter";
 import { MapSidebar } from "../components/map/MapSidebar";
 import { DangerZoneListPanel } from "../components/map/DangerZoneListPanel";
@@ -39,23 +37,10 @@ const TrendsChart = lazy(() =>
     default: m.TrendsChart,
   })),
 );
-const GroupTrafficComparison = lazy(() =>
-  import("../components/dashboard/GroupTrafficComparison").then((m) => ({
-    default: m.GroupTrafficComparison,
-  })),
-);
 const AdminPanel = lazy(() => import("../components/admin/AdminPanel"));
-const PolygonManagement = lazy(
-  () => import("../components/admin/PolygonManagement"),
-);
 const ModernExecutiveSummary = lazy(() =>
   import("../components/dashboard/modern-executive-summary").then((m) => ({
     default: m.ModernExecutiveSummary,
-  })),
-);
-const TopCriticalDashboard = lazy(() =>
-  import("../components/dashboard/TopCriticalDashboard").then((m) => ({
-    default: m.TopCriticalDashboard,
   })),
 );
 const WeatherAlertsPanel = lazy(() =>
@@ -86,7 +71,7 @@ const Dashboard: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { setExpanded: setSidebarExpandedStore } = useSidebarStore();
+  const { setExpanded: _setSidebarExpandedStore } = useSidebarStore();
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const hasCollapsedForMap = useRef(false);
   const {
@@ -344,7 +329,7 @@ const Dashboard: React.FC = () => {
     return polygons.find((p) => p.id === selectedPolygon) || null;
   }, [selectedPolygon, polygons]);
 
-  const allGroups = useMemo(() => {
+  const _allGroups = useMemo(() => {
     const groups = new Set(polygons.map((p) => p.group));
     return Array.from(groups);
   }, [polygons]);

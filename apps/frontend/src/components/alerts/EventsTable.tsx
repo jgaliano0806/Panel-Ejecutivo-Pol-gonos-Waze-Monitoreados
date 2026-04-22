@@ -1,9 +1,6 @@
 import React from "react";
 import { BlockingAnalysisItem } from "../../hooks/useWazeData";
-import {
-  getIncidentDescription,
-  getIncidentColor,
-} from "../../utils/wazeTranslations";
+import { getIncidentDescription } from "../../utils/wazeTranslations";
 import { WazeIcon } from "../ui/WazeIcon";
 import { MapPin, ExternalLink } from "lucide-react";
 

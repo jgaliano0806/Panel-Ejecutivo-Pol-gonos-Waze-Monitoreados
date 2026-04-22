@@ -71,7 +71,12 @@ export default [
       // TypeScript rules
       "@typescript-eslint/no-unused-vars": [
         "warn",
-        { argsIgnorePattern: "^_" },
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+        },
       ],
       "@typescript-eslint/no-explicit-any": "off",
 
@@ -90,6 +95,7 @@ export default [
   {
     ignores: [
       "dist/**",
+      "dist-preprod/**",
       "node_modules/**",
       "*.config.js",
       "*.config.ts",

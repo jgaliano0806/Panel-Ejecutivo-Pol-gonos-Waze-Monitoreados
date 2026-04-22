@@ -10,9 +10,6 @@ import {
   XCircle,
   AlertTriangle,
   Key,
-  Globe,
-  Mail,
-  Lock,
 } from "lucide-react";
 
 interface SSOProvider {
