@@ -295,18 +295,15 @@ jobs:
             throw "No se encontro manage-services.ps1 en $InstallDir\deploy"
           }
 
-          # Inyectar token efimero para autenticar 'git pull' (repo privado, runner corre como LocalSystem)
-          # El token expira al finalizar el workflow. Se limpia en el 'finally'.
-          $isGitRepo = Test-Path (Join-Path $InstallDir ".git")
-          $tokenInjected = $false
-          if ($isGitRepo) {
-            $b64 = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:GH_TOKEN"))
-            & git -C "$InstallDir" config --local http.https://github.com/.extraheader "AUTHORIZATION: basic $b64" 2>&1 | Out-Null
-            if ($LASTEXITCODE -eq 0) { $tokenInjected = $true } else { Write-Host "[WARN] No se pudo inyectar token git (LASTEXITCODE=$LASTEXITCODE). Se continua igualmente." }
-            $global:LASTEXITCODE = 0
-          } else {
-            Write-Host "[WARN] $InstallDir no es un repo git; se omite inyeccion de token."
-          }
+          # Inyectar token efimero para autenticar 'git pull' en repo privado
+          # (runner corre como LocalSystem). Usamos env vars de git-config en lugar de
+          # 'git config --local' para evitar issues con paths unicode en Windows
+          # (el InstallDir contiene tildes). Las env vars se heredan al 'cmd /c git pull'
+          # que hace manage-services.ps1 y se pierden al terminar el step.
+          $b64 = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:GH_TOKEN"))
+          $env:GIT_CONFIG_COUNT = "1"
+          $env:GIT_CONFIG_KEY_0 = "http.https://github.com/.extraheader"
+          $env:GIT_CONFIG_VALUE_0 = "AUTHORIZATION: basic $b64"
 
           try {
             & "$InstallDir\deploy\manage-services.ps1" -Action update -InstallDir $InstallDir
@@ -316,12 +313,9 @@ jobs:
             $global:LASTEXITCODE = 0
             Write-Host "[OK] Deploy completado: $env:GITHUB_SHA"
           } finally {
-            if ($tokenInjected) {
-              try {
-                & git -C "$InstallDir" config --local --unset-all http.https://github.com/.extraheader 2>&1 | Out-Null
-              } catch { Write-Host "[WARN] Limpieza de token fallo (ignorada): $_" }
-              $global:LASTEXITCODE = 0
-            }
+            Remove-Item Env:GIT_CONFIG_COUNT -ErrorAction SilentlyContinue
+            Remove-Item Env:GIT_CONFIG_KEY_0 -ErrorAction SilentlyContinue
+            Remove-Item Env:GIT_CONFIG_VALUE_0 -ErrorAction SilentlyContinue
           }
 
       - name: Verify deployment health
