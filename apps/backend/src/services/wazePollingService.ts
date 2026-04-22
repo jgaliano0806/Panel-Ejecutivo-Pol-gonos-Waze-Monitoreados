@@ -399,7 +399,7 @@ export class WazePollingService {
                SET is_active = false, updated_at = NOW()
                WHERE polygon_id = $1
                AND is_active = true
-               AND uuid != ALL($2)`,
+               AND NOT (uuid = ANY($2))`,
           [polygonId, currentUuids],
         );
       } else {
@@ -435,7 +435,7 @@ export class WazePollingService {
       if (accUuids.length > 0) {
         await dbService.query(
           `UPDATE road_accidents SET status='inactive', updated_at=NOW()
-               WHERE polygon_id=$1 AND incident_id IS NOT NULL AND status='active' AND incident_id != ALL($2)`,
+               WHERE polygon_id=$1 AND incident_id IS NOT NULL AND status='active' AND NOT (incident_id = ANY($2))`,
           [polygonId, accUuids],
         );
       } else {
@@ -493,93 +493,93 @@ export class WazePollingService {
       const now = Date.now();
       const polygonInfo = this.getPolygonInfo(polygonId);
 
-      for (const alert of criticalAlerts) {
-        const info = alertInfoMap.get(alert.uuid);
-        if (!info) continue;
+      // Procesamiento concurrente de notificaciones críticas
+      await Promise.allSettled(
+        criticalAlerts.map(async (alert) => {
+          const info = alertInfoMap.get(alert.uuid);
+          if (!info) return;
 
-        // No notificar alertas viejas (>5 min)
-        if (now - info.createdAt >= 300000) continue;
+          // No notificar alertas viejas (>5 min)
+          if (now - info.createdAt >= 300000) return;
 
-        // Ya notificada por UUID
-        if (info.alreadyNotified) continue;
+          // Ya notificada por UUID
+          if (info.alreadyNotified) return;
 
-        // Dedup por contenido (misma ubicación geográfica)
-        const lat = alert.location?.y ?? 0;
-        const lng = alert.location?.x ?? 0;
+          // Dedup por contenido (misma ubicación geográfica)
+          const lat = alert.location?.y ?? 0;
+          const lng = alert.location?.x ?? 0;
 
-        const existingByContent = await dbService.query(
-          `SELECT 1 FROM notifications
-           WHERE type = $1
-             AND COALESCE(data->>'subtype', '') = $2
-             AND created_at > NOW() - INTERVAL '10 minutes'
-             AND ABS(COALESCE(CAST(data->>'latitude' AS FLOAT), 0) - $3) < 0.001
-             AND ABS(COALESCE(CAST(data->>'longitude' AS FLOAT), 0) - $4) < 0.001
-           LIMIT 1`,
-          [
-            alert.type === "ACCIDENT" ? "ACCIDENT" : "HAZARD",
-            alert.subtype || "",
-            lat,
-            lng,
-          ],
-        );
-
-        if ((existingByContent.rowCount ?? 0) > 0) {
-          logger.info(
-            `🔕 Notificación duplicada por CONTENIDO: ${alert.uuid}`,
+          const existingByContent = await dbService.query(
+            `SELECT 1 FROM notifications
+             WHERE type = $1
+               AND COALESCE(data->>'subtype', '') = $2
+               AND created_at > NOW() - INTERVAL '10 minutes'
+               AND ABS(COALESCE(CAST(data->>'latitude' AS FLOAT), 0) - $3) < 0.001
+               AND ABS(COALESCE(CAST(data->>'longitude' AS FLOAT), 0) - $4) < 0.001
+             LIMIT 1`,
+            [
+              alert.type === "ACCIDENT" ? "ACCIDENT" : "HAZARD",
+              alert.subtype || "",
+              lat,
+              lng,
+            ],
           );
-          continue;
-        }
 
-        const title = this.getNotificationTitle(alert);
-        const message = this.getNotificationMessage(alert);
+          if ((existingByContent.rowCount ?? 0) > 0) {
+            logger.info(`🔕 Notificación duplicada por CONTENIDO: ${alert.uuid}`);
+            return;
+          }
 
-        const nearest = geoReferenceService.findNearestMarker(lat, lng);
-        const ttsText = geoReferenceService.generateTTSText(
-          alert.type,
-          alert.subtype,
-          nearest,
-          alert.street,
-        );
+          const title = this.getNotificationTitle(alert);
+          const message = this.getNotificationMessage(alert);
 
-        const redZone = (alert as WazeAlert & { redZoneMatch?: RedZoneMatch })
-          .redZoneMatch;
-        if (redZone) {
-          eventBus.emit(SystemEvents.RED_ZONE_CRITICAL_ALERT, {
-            ...alert,
-            polygonId,
-            redZonaId: redZone.redZonaId,
-            redZonaNombre: redZone.redZonaNombre,
-            protocolo_accion: redZone.protocolo_accion,
-            nivel_severidad: redZone.nivel_severidad,
-          });
-        }
+          const nearest = geoReferenceService.findNearestMarker(lat, lng);
+          const ttsText = geoReferenceService.generateTTSText(
+            alert.type,
+            alert.subtype,
+            nearest,
+            alert.street,
+          );
 
-        await notificationService.create(
-          alert.type === "ACCIDENT" ? "ACCIDENT" : "HAZARD",
-          title,
-          message,
-          {
-            ...alert,
-            polygonId,
-            polygonName: polygonInfo.name,
-            polygonGroup: polygonInfo.group,
-            latitude: lat,
-            longitude: lng,
-            nearestKmName: nearest?.name || null,
-            nearestKmRoute: nearest?.route_name || null,
-            nearestKmDistance: nearest ? Math.round(nearest.distance) : null,
-            ttsText,
-            isRedZone: redZone ? true : undefined,
-            isDangerZone: redZone ? true : undefined,
-            dangerZoneId: redZone?.redZonaId,
-            dangerZoneName: redZone?.redZonaNombre,
-            redZoneProtocol: redZone?.protocolo_accion,
-          },
-        );
-        logger.info(
-          `🔔 Notificación enviada para alerta ${alert.uuid}${redZone ? " (🚨 ZONA PELIGROSA RAC)" : ""}`,
-        );
-      }
+          const redZone = (alert as WazeAlert & { redZoneMatch?: RedZoneMatch }).redZoneMatch;
+          if (redZone) {
+            eventBus.emit(SystemEvents.RED_ZONE_CRITICAL_ALERT, {
+              ...alert,
+              polygonId,
+              redZonaId: redZone.redZonaId,
+              redZonaNombre: redZone.redZonaNombre,
+              protocolo_accion: redZone.protocolo_accion,
+              nivel_severidad: redZone.nivel_severidad,
+            });
+          }
+
+          await notificationService.create(
+            alert.type === "ACCIDENT" ? "ACCIDENT" : "HAZARD",
+            title,
+            message,
+            {
+              ...alert,
+              polygonId,
+              polygonName: polygonInfo.name,
+              polygonGroup: polygonInfo.group,
+              latitude: lat,
+              longitude: lng,
+              nearestKmName: nearest?.name || null,
+              nearestKmRoute: nearest?.route_name || null,
+              nearestKmDistance: nearest ? Math.round(nearest.distance) : null,
+              ttsText,
+              isRedZone: redZone ? true : undefined,
+              isDangerZone: redZone ? true : undefined,
+              dangerZoneId: redZone?.redZonaId,
+              dangerZoneName: redZone?.redZonaNombre,
+              redZoneProtocol: redZone?.protocolo_accion,
+            },
+          );
+          logger.info(
+            `🔔 Notificación enviada para alerta ${alert.uuid}${redZone ? " (🚨 ZONA PELIGROSA RAC)" : ""}`,
+          );
+        })
+      );
     } catch (error) {
       logger.error(
         "Error processing batch notifications:",
@@ -608,66 +608,66 @@ export class WazePollingService {
       existingIds = new Set();
     }
 
-    for (const accident of accidents) {
-      try {
-        if (!existingIds.has(accident.uuid)) {
-          const { roadAccidentService } = require("./roadAccidentService");
-          const { weatherService } = require("./weatherService");
-          let weatherData: Record<string, unknown> = {};
-          try {
-            const w = await weatherService.fetchWeatherForPolygon(
-              `accident_${accident.uuid}`,
-              accident.location.y,
-              accident.location.x,
-            );
-            if (w) {
-              weatherData = {
-                temperature_celsius: w.temperature_celsius,
-                precipitation_mm: w.precipitation_mm,
-                weather_code: w.weather_code,
-                wind_speed_kmh: w.wind_speed_kmh,
-                visibility_meters: w.visibility_meters,
-                humidity_percent: w.humidity_percent,
-                weather_description: w.weather_description,
-                is_freezing_risk: w.is_freezing_risk,
-              };
+    await Promise.allSettled(
+      accidents.map(async (accident) => {
+        try {
+          if (!existingIds.has(accident.uuid)) {
+            const { roadAccidentService } = require("./roadAccidentService");
+            const { weatherService } = require("./weatherService");
+            let weatherData: Record<string, unknown> = {};
+            try {
+              const w = await weatherService.fetchWeatherForPolygon(
+                `accident_${accident.uuid}`,
+                accident.location.y,
+                accident.location.x,
+              );
+              if (w) {
+                weatherData = {
+                  temperature_celsius: w.temperature_celsius,
+                  precipitation_mm: w.precipitation_mm,
+                  weather_code: w.weather_code,
+                  wind_speed_kmh: w.wind_speed_kmh,
+                  visibility_meters: w.visibility_meters,
+                  humidity_percent: w.humidity_percent,
+                  weather_description: w.weather_description,
+                  is_freezing_risk: w.is_freezing_risk,
+                };
+              }
+            } catch {
+              logger.warn(`Clima no disponible para accidente ${accident.uuid}`);
             }
-          } catch {
-            logger.warn(
-              `Clima no disponible para accidente ${accident.uuid}`,
+
+            await roadAccidentService.createAccident({
+              incident_id: accident.uuid,
+              type: "ACCIDENT",
+              subtype: accident.subtype || undefined,
+              severity: accident.reliability
+                ? Math.min(5, Math.max(1, Math.round(accident.reliability / 2)))
+                : 3,
+              waze_data: accident,
+              weather_data: weatherData,
+              status: "active",
+              polygon_id: polygonId,
+              accident_at: new Date(accident.pubMillis),
+              location_lat: accident.location.y,
+              location_lng: accident.location.x,
+              street: accident.street,
+              description: accident.reportDescription || accident.subtype,
+            });
+          } else {
+            await dbService.query(
+              "UPDATE road_accidents SET status='active', updated_at=NOW() WHERE incident_id=$1",
+              [accident.uuid],
             );
           }
-
-          await roadAccidentService.createAccident({
-            incident_id: accident.uuid,
-            type: "ACCIDENT",
-            subtype: accident.subtype || undefined,
-            severity: accident.reliability
-              ? Math.min(5, Math.max(1, Math.round(accident.reliability / 2)))
-              : 3,
-            waze_data: accident,
-            weather_data: weatherData,
-            status: "active",
-            polygon_id: polygonId,
-            accident_at: new Date(accident.pubMillis),
-            location_lat: accident.location.y,
-            location_lng: accident.location.x,
-            street: accident.street,
-            description: accident.reportDescription || accident.subtype,
-          });
-        } else {
-          await dbService.query(
-            "UPDATE road_accidents SET status='active', updated_at=NOW() WHERE incident_id=$1",
-            [accident.uuid],
+        } catch (error) {
+          logger.error(
+            `Error processing accident ${accident.uuid}:`,
+            error instanceof Error ? error.message : String(error),
           );
         }
-      } catch (error) {
-        logger.error(
-          `Error processing accident ${accident.uuid}:`,
-          error instanceof Error ? error.message : String(error),
-        );
-      }
-    }
+      })
+    );
   }
 
   // ─── STORE JAMS ───────────────────────────────────────────────────
@@ -685,7 +685,7 @@ export class WazePollingService {
       if (currentUuids.length > 0) {
         await dbService.query(
           `UPDATE waze_jams SET is_active = false, updated_at = NOW()
-               WHERE polygon_id = $1 AND is_active = true AND uuid != ALL($2)`,
+               WHERE polygon_id = $1 AND is_active = true AND NOT (uuid = ANY($2))`,
           [polygonId, currentUuids],
         );
       } else {
@@ -720,7 +720,7 @@ export class WazePollingService {
       if (currentUuids.length > 0 && currentUuids[0]) {
         await dbService.query(
           `UPDATE waze_irregularities SET is_active = false, updated_at = NOW()
-               WHERE polygon_id = $1 AND is_active = true AND uuid != ALL($2)`,
+               WHERE polygon_id = $1 AND is_active = true AND NOT (uuid = ANY($2))`,
           [polygonId, currentUuids],
         );
       }
