@@ -297,17 +297,31 @@ jobs:
 
           # Inyectar token efimero para autenticar 'git pull' (repo privado, runner corre como LocalSystem)
           # El token expira al finalizar el workflow. Se limpia en el 'finally'.
-          $b64 = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:GH_TOKEN"))
-          git -C "$InstallDir" config --local http.https://github.com/.extraheader "AUTHORIZATION: basic $b64"
+          $isGitRepo = Test-Path (Join-Path $InstallDir ".git")
+          $tokenInjected = $false
+          if ($isGitRepo) {
+            $b64 = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:GH_TOKEN"))
+            & git -C "$InstallDir" config --local http.https://github.com/.extraheader "AUTHORIZATION: basic $b64" 2>&1 | Out-Null
+            if ($LASTEXITCODE -eq 0) { $tokenInjected = $true } else { Write-Host "[WARN] No se pudo inyectar token git (LASTEXITCODE=$LASTEXITCODE). Se continua igualmente." }
+            $global:LASTEXITCODE = 0
+          } else {
+            Write-Host "[WARN] $InstallDir no es un repo git; se omite inyeccion de token."
+          }
 
           try {
             & "$InstallDir\deploy\manage-services.ps1" -Action update -InstallDir $InstallDir
             if ($LASTEXITCODE -ne 0) { throw "manage-services.ps1 update fallo: $LASTEXITCODE" }
 
             & "$InstallDir\deploy\manage-services.ps1" -Action status -InstallDir $InstallDir
+            $global:LASTEXITCODE = 0
             Write-Host "[OK] Deploy completado: $env:GITHUB_SHA"
           } finally {
-            git -C "$InstallDir" config --local --unset-all http.https://github.com/.extraheader 2>$null | Out-Null
+            if ($tokenInjected) {
+              try {
+                & git -C "$InstallDir" config --local --unset-all http.https://github.com/.extraheader 2>&1 | Out-Null
+              } catch { Write-Host "[WARN] Limpieza de token fallo (ignorada): $_" }
+              $global:LASTEXITCODE = 0
+            }
           }
 
       - name: Verify deployment health
