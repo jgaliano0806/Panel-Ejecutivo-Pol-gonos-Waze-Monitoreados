@@ -257,64 +257,73 @@ jobs:
             VITE_API_URL=${{ vars.VITE_API_URL || '/api' }}
 
   # =============================================
-  # DEPLOY (Production) — SSH a Windows Server (NSSM + nginx)
-  # Requiere secrets: SSH_HOST, SSH_USER, SSH_PRIVATE_KEY
-  # Opcionales:       SSH_PORT, DEPLOY_PATH
-  # Target: Windows Server 2022 con OpenSSH (DefaultShell=powershell.exe)
-  # Ejecuta: deploy/manage-services.ps1 -Action update  (git pull + build + restart NSSM)
+  # DEPLOY (Production) — Self-hosted runner on-prem (Windows + NSSM)
+  # El runner corre DENTRO de la VPN corporativa (VM 10.1.0.136),
+  # por lo que no necesita SSH ni exposicion publica del servidor.
+  # Ejecuta: deploy/manage-services.ps1 -Action update
+  # Labels requeridos en el runner: self-hosted, Windows, panel-waze
   # =============================================
   deploy:
     name: 🚀 Deploy to Production
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Windows, panel-waze]
     needs: [build-frontend, build-backend, security]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment:
       name: production
       url: ${{ vars.PRODUCTION_URL }}
+    defaults:
+      run:
+        shell: powershell
+    permissions:
+      contents: read
     steps:
-      - name: Deploy via SSH (Windows / NSSM)
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
-          envs: GIT_SHA,DEPLOY_PATH
-          script: |
-            $ErrorActionPreference = "Stop"
-            $InstallDir = $env:DEPLOY_PATH
-            if (-not $InstallDir) { $InstallDir = "D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados" }
-            Write-Host "================================================"
-            Write-Host " Deploy Panel Waze -> $InstallDir"
-            Write-Host " SHA: $env:GIT_SHA"
-            Write-Host "================================================"
+      - name: Deploy (NSSM update)
+        env:
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $InstallDir = $env:DEPLOY_PATH
+          if (-not $InstallDir) { $InstallDir = "D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados" }
 
-            if (-not (Test-Path "$InstallDir\deploy\manage-services.ps1")) {
-              throw "No se encontro manage-services.ps1 en $InstallDir\deploy"
-            }
+          Write-Host "================================================"
+          Write-Host " Deploy Panel Waze -> $InstallDir"
+          Write-Host " SHA: $env:GITHUB_SHA"
+          Write-Host "================================================"
 
+          if (-not (Test-Path "$InstallDir\deploy\manage-services.ps1")) {
+            throw "No se encontro manage-services.ps1 en $InstallDir\deploy"
+          }
+
+          # Inyectar token efimero para autenticar 'git pull' (repo privado, runner corre como LocalSystem)
+          # El token expira al finalizar el workflow. Se limpia en el 'finally'.
+          $b64 = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:GH_TOKEN"))
+          git -C "$InstallDir" config --local http.https://github.com/.extraheader "AUTHORIZATION: basic $b64"
+
+          try {
             & "$InstallDir\deploy\manage-services.ps1" -Action update -InstallDir $InstallDir
-            if ($LASTEXITCODE -ne 0) {
-              throw "manage-services.ps1 update fallo con codigo $LASTEXITCODE"
-            }
+            if ($LASTEXITCODE -ne 0) { throw "manage-services.ps1 update fallo: $LASTEXITCODE" }
 
             & "$InstallDir\deploy\manage-services.ps1" -Action status -InstallDir $InstallDir
-            Write-Host "[OK] Deploy completado: $env:GIT_SHA"
-        env:
-          GIT_SHA: ${{ github.sha }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+            Write-Host "[OK] Deploy completado: $env:GITHUB_SHA"
+          } finally {
+            git -C "$InstallDir" config --local --unset-all http.https://github.com/.extraheader 2>$null | Out-Null
+          }
 
       - name: Verify deployment health
         run: |
-          echo "🔍 Verificando health check..."
-          for i in {1..10}; do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ vars.PRODUCTION_URL }}/health" || echo "000")
-            if [ "$STATUS" = "200" ]; then
-              echo "✅ Health check OK (intento $i)"
-              exit 0
-            fi
-            echo "⏳ Esperando... intento $i/10 (status: $STATUS)"
-            sleep 15
-          done
-          echo "❌ Health check falló después de 10 intentos"
-          exit 1
+          $url = "${{ vars.PRODUCTION_URL }}/health"
+          Write-Host "Verificando health check en $url"
+          for ($i = 1; $i -le 10; $i++) {
+            try {
+              $r = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 5
+              if ($r.StatusCode -eq 200) {
+                Write-Host "[OK] Health check OK (intento $i)"
+                exit 0
+              }
+            } catch {
+              Write-Host "Esperando... intento $i/10 (error: $($_.Exception.Message))"
+            }
+            Start-Sleep -Seconds 15
+          }
+          throw "Health check fallo despues de 10 intentos"
