@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Incident,
   translateIncidentType,
@@ -22,6 +22,38 @@ import {
 } from "lucide-react";
 import { MiniMapLibre } from "../map/MiniMapLibre";
 import { realCordobaPolygons } from "@/data/mock/realCordobaPolygons";
+import {
+  formatActiveDuration,
+  getDurationColor,
+} from "../alerts/eventsList.utils";
+
+/** Se auto-actualiza cada minuto sin re-renderizar el modal completo. */
+const LiveDuration: React.FC<{ fromMs: number }> = ({ fromMs }) => {
+  const ts = new Date(fromMs).toISOString();
+  const [text, setText] = useState(() => formatActiveDuration(ts));
+  const [colorClass, setColorClass] = useState(() => getDurationColor(ts));
+
+  useEffect(() => {
+    const refresh = () => {
+      const now = new Date(fromMs).toISOString();
+      setText(formatActiveDuration(now));
+      setColorClass(getDurationColor(now));
+    };
+    refresh();
+    const id = setInterval(refresh, 60_000);
+    return () => clearInterval(id);
+  }, [fromMs]);
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-bold ${colorClass}`}
+      title="Tiempo que lleva activo este incidente"
+    >
+      <span aria-hidden>⏱</span>
+      {text}
+    </span>
+  );
+};
 
 interface IncidentDetailModalProps {
   incident: Incident | null;
@@ -191,13 +223,19 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                 {/* Fecha */}
                 <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                   <Clock className="w-5 h-5 text-green-500 mt-0.5" />
-                  <div>
+                  <div className="space-y-1.5">
                     <p className="text-sm font-medium text-gray-900 dark:text-white">
                       Fecha de reporte
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-400 capitalize">
                       {formatDate(incident.createdAt)}
                     </p>
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        Tiempo activo:
+                      </span>
+                      <LiveDuration fromMs={incident.pubMillis} />
+                    </div>
                   </div>
                 </div>
 
