@@ -61,4 +61,18 @@ export default async function metricsRoutes(server: FastifyInstance) {
       reply.code(500).send({ error: "Failed to get top critical polygons" });
     }
   });
+
+  server.get("/kpis/global", async (request, reply) => {
+    try {
+      const kpis = await apiService.getGlobalKPIs();
+      return serializeObject(kpis);
+    } catch (error) {
+      server.log.error({ error, url: request.url }, "Error en /api/kpis/global");
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      reply.code(500).send({
+        error: "Failed to get global KPIs",
+        message: process.env.NODE_ENV === "development" ? errorMessage : undefined,
+      });
+    }
+  });
 }

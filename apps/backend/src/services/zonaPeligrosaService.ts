@@ -23,11 +23,31 @@ class ZonaPeligrosaService {
   }
 
   async listAll(): Promise<ZonaPeligrosaRow[]> {
-    return repositories().zonasPeligrosas.findAll();
+    try {
+      return await repositories().zonasPeligrosas.findAll();
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("does not exist")) {
+        logger.warn(
+          "Tabla zonas_peligrosas no existe; retornando []. Ejecutar migraciones.",
+        );
+        return [];
+      }
+      throw error;
+    }
   }
 
   async listActive(): Promise<ZonaPeligrosaRow[]> {
-    return repositories().zonasPeligrosas.findActive();
+    try {
+      return await repositories().zonasPeligrosas.findActive();
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("does not exist")) {
+        logger.warn(
+          "Tabla zonas_peligrosas no existe; retornando []. Ejecutar migraciones.",
+        );
+        return [];
+      }
+      throw error;
+    }
   }
 
   async create(input: ZonaPeligrosaCreateInput): Promise<ZonaPeligrosaRow> {

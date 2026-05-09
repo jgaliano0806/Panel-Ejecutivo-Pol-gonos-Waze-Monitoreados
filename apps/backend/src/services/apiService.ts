@@ -8,11 +8,45 @@ import { WazeJam } from "../repositories/WazeJamRepository";
  * Servicio API - VERSIÓN REFACTORIZADA (Repository Pattern)
  * Lógica de negocio para calcular estados y KPIs a partir de datos de DB.
  */
+const RESPONSE_CACHE_TTL_MS = 25_000;
+type CacheEntry<T> = { value: T; expiresAt: number; inFlight?: Promise<T> };
+
 export class ApiService {
+  private responseCache = new Map<string, CacheEntry<unknown>>();
+
+  private async cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const now = Date.now();
+    const hit = this.responseCache.get(key) as CacheEntry<T> | undefined;
+    if (hit && hit.expiresAt > now) return hit.value;
+    if (hit?.inFlight) return hit.inFlight;
+    const inFlight = fn()
+      .then((value) => {
+        this.responseCache.set(key, {
+          value,
+          expiresAt: Date.now() + RESPONSE_CACHE_TTL_MS,
+        });
+        return value;
+      })
+      .catch((err) => {
+        this.responseCache.delete(key);
+        throw err;
+      });
+    this.responseCache.set(key, {
+      value: hit?.value as T,
+      expiresAt: 0,
+      inFlight,
+    });
+    return inFlight;
+  }
+
   /**
    * Obtiene el estado de todos los polígonos
    */
   async getPolygonsStatus(): Promise<PolygonStatus[]> {
+    return this.cached("polygons:status", () => this._getPolygonsStatusUncached());
+  }
+
+  private async _getPolygonsStatusUncached(): Promise<PolygonStatus[]> {
     try {
       logger.info("🔍 getPolygonsStatus: Iniciando...");
       const polygons = await repositories().polygons.findAll();
@@ -180,6 +214,10 @@ export class ApiService {
   }
 
   async getGlobalKPIs() {
+    return this.cached("kpis:global", () => this._getGlobalKPIsUncached());
+  }
+
+  private async _getGlobalKPIsUncached() {
     logger.info("🔍 getGlobalKPIs: Iniciando...");
 
     // Variables con valores por defecto
@@ -536,6 +574,10 @@ export class ApiService {
    * Obtiene métricas de tráfico para todos los polígonos
    */
   async getAllTrafficMetrics(): Promise<PolygonTrafficMetrics[]> {
+    return this.cached("traffic-metrics:all", () => this._getAllTrafficMetricsUncached());
+  }
+
+  private async _getAllTrafficMetricsUncached(): Promise<PolygonTrafficMetrics[]> {
     try {
       const jams = await repositories().wazeJams.findAllActive();
       // TODO: Group by polygon and calculate.
