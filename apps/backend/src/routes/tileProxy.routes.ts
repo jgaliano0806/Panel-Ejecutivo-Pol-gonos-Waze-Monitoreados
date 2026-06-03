@@ -49,6 +49,21 @@ async function fetchTile(url: string): Promise<Buffer> {
   return Buffer.from(res.data);
 }
 
+/**
+ * Aplica headers CORS abiertos a las respuestas de tiles.
+ * Necesario para que el canvas que usa `img.crossOrigin = "anonymous"`
+ * (exportación a PDF) pueda dibujar las imágenes sin "tainted canvas".
+ * Los tiles son assets públicos sin auth → wildcard es seguro.
+ */
+function sendTile(reply: FastifyReply, buf: Buffer): void {
+  reply
+    .header("Content-Type", "image/png")
+    .header("Cache-Control", "public, max-age=604800")
+    .header("Access-Control-Allow-Origin", "*")
+    .header("Cross-Origin-Resource-Policy", "cross-origin")
+    .send(buf);
+}
+
 async function tileProxyRoutes(app: FastifyInstance) {
   const tileRouteOpts = { config: { rateLimit: false as const } };
 
@@ -73,10 +88,7 @@ async function tileProxyRoutes(app: FastifyInstance) {
           app.log.warn({ cartoUrl }, "CARTO dark fallback to ESRI Dark Gray");
           buf = await fetchTile(esriUrl);
         }
-        reply
-          .header("Content-Type", "image/png")
-          .header("Cache-Control", "public, max-age=604800")
-          .send(buf);
+        sendTile(reply, buf);
       } catch (err) {
         app.log.warn({ cartoUrl, esriUrl, err }, "Tile proxy error (dark)");
         reply.status(502).send();
@@ -105,10 +117,7 @@ async function tileProxyRoutes(app: FastifyInstance) {
           app.log.warn({ cartoUrl }, "CARTO light fallback to ESRI Light Gray");
           buf = await fetchTile(esriUrl);
         }
-        reply
-          .header("Content-Type", "image/png")
-          .header("Cache-Control", "public, max-age=604800")
-          .send(buf);
+        sendTile(reply, buf);
       } catch (err) {
         app.log.warn({ cartoUrl, esriUrl, err }, "Tile proxy error (light)");
         reply.status(502).send();
@@ -128,10 +137,7 @@ async function tileProxyRoutes(app: FastifyInstance) {
       const url = `${OSM_BASE}/${z}/${x}/${y}.png`;
       try {
         const buf = await fetchTile(url);
-        reply
-          .header("Content-Type", "image/png")
-          .header("Cache-Control", "public, max-age=604800")
-          .send(buf);
+        sendTile(reply, buf);
       } catch (err) {
         app.log.warn({ url, err }, "Tile proxy error");
         reply.status(502).send();
