@@ -721,6 +721,74 @@ export async function runMigrations(): Promise<void> {
         }
       }
     }
+    // Migración 047: latest_polygon_risk_scores como vista normal + refresh_risk_scores_view no-op
+    const migration047Path = path.join(
+      migrationsDir,
+      "047_fix_refresh_risk_scores.sql",
+    );
+    if (fs.existsSync(migration047Path)) {
+      try {
+        const sql = fs.readFileSync(migration047Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 047 ejecutada: latest_polygon_risk_scores como vista normal y refresh no-op",
+        );
+      } catch (migError: any) {
+        if (
+          !migError.message?.includes("already exists") &&
+          !migError.message?.includes("ya existe")
+        ) {
+          console.warn("⚠️ Migración 047:", migError.message);
+        }
+      }
+    }
+
+    // Migración 048: timeouts de PostgreSQL (idle_in_transaction + statement).
+    // ALTER DATABASE solo afecta a CONEXIONES NUEVAS: requiere reiniciar el backend
+    // (o reciclar el pool) para que tome efecto. Necesita ser owner de la DB.
+    const migration048Path = path.join(
+      migrationsDir,
+      "048_postgresql_timeouts.sql",
+    );
+    if (fs.existsSync(migration048Path)) {
+      try {
+        const sql = fs.readFileSync(migration048Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 048 ejecutada: timeouts configurados (idle_in_transaction=5min, statement=30s). Aplica a conexiones nuevas.",
+        );
+      } catch (migError: any) {
+        // Falta de privilegios (no es owner de la DB) o DB con otro nombre → advertencia, no fatal.
+        console.warn(
+          "⚠️ Migración 048 (timeouts; requiere ser owner de la DB):",
+          migError.message,
+        );
+      }
+    }
+
+    // Migración 049: política de retención (funciones de purga + índices created_at).
+    // Las funciones se ejecutan vía cron/pg_cron: SELECT * FROM run_retention_cleanup();
+    const migration049Path = path.join(
+      migrationsDir,
+      "049_retention_policy.sql",
+    );
+    if (fs.existsSync(migration049Path)) {
+      try {
+        const sql = fs.readFileSync(migration049Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 049 ejecutada: funciones de retención e índices creados (programar SELECT * FROM run_retention_cleanup())",
+        );
+      } catch (migError: any) {
+        if (
+          !migError.message?.includes("already exists") &&
+          !migError.message?.includes("ya existe")
+        ) {
+          console.warn("⚠️ Migración 049:", migError.message);
+        }
+      }
+    }
+
     console.log("✅ Migraciones completadas exitosamente");
   } catch (error: any) {
     // Si el error es por tabla/columna ya existente, es OK

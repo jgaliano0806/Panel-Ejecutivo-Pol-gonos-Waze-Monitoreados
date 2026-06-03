@@ -68,15 +68,28 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 5. Crear índice para acelerar purgas (si no existe)
-CREATE INDEX IF NOT EXISTS idx_polygon_snapshots_created_at 
-    ON polygon_snapshots(created_at);
+-- 5. Crear índices para acelerar purgas (solo si la tabla ya existe).
+--    waze_tvt_metrics y notifications se crean de forma diferida en runtime
+--    (wazePollingService / notificationService), por lo que en una BD nueva
+--    pueden no existir al correr esta migración. Se guarda con to_regclass para
+--    no abortar el resto de la migración (todo el archivo corre como una transacción).
+DO $$
+BEGIN
+    IF to_regclass('public.polygon_snapshots') IS NOT NULL THEN
+        CREATE INDEX IF NOT EXISTS idx_polygon_snapshots_created_at
+            ON polygon_snapshots(created_at);
+    END IF;
 
-CREATE INDEX IF NOT EXISTS idx_tvt_metrics_created_at 
-    ON waze_tvt_metrics(created_at);
+    IF to_regclass('public.waze_tvt_metrics') IS NOT NULL THEN
+        CREATE INDEX IF NOT EXISTS idx_tvt_metrics_created_at
+            ON waze_tvt_metrics(created_at);
+    END IF;
 
-CREATE INDEX IF NOT EXISTS idx_notifications_created_at 
-    ON notifications(created_at);
+    IF to_regclass('public.notifications') IS NOT NULL THEN
+        CREATE INDEX IF NOT EXISTS idx_notifications_created_at
+            ON notifications(created_at);
+    END IF;
+END $$;
 
 COMMENT ON FUNCTION run_retention_cleanup() IS 
     'Ejecutar periódicamente (cron/pg_cron): SELECT * FROM run_retention_cleanup();';
