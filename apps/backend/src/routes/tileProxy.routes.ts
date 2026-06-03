@@ -2,9 +2,12 @@
  * Proxy de tiles para MapLibre/Leaflet
  *
  * Estrategia:
- *  A. Rotación entre subdominios CARTO (a/b/c/d) por hash determinístico del tile
+ *  A. Cache en disco  (tiles/cache/{style}/{z}/{x}/{y}.png)
+ *     → primera solicitud baja el tile de red, el resto sirve del disco sin latencia.
+ *     → TTL de 30 días gestionado por el script de limpieza (o manualmente).
+ *  B. Rotación entre subdominios CARTO (a/b/c/d) por hash determinístico del tile
  *     → reparte la carga y minimiza rate-limits (429) en `a.basemaps.cartocdn.com`.
- *  B. Fallback DARK / LIGHT a ESRI World Gray Canvas (gratuito, sin API key)
+ *  C. Fallback DARK / LIGHT a ESRI World Gray Canvas (gratuito, sin API key)
  *     → si CARTO falla, el tile sigue siendo del color correcto y NO se mezclan
  *     tiles claros sobre el mapa dark (ni viceversa).
  *
@@ -13,11 +16,57 @@
  */
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import axios from "axios";
+import fs from "fs";
+import path from "path";
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Cache en disco
+// ──────────────────────────────────────────────────────────────────────────────
+const TILE_CACHE_DIR = path.resolve(
+  process.env.TILE_CACHE_DIR || path.join(process.cwd(), "data", "tile-cache"),
+);
+
+/** Asegura que el directorio de un archivo existe antes de escribir. */
+function ensureDirSync(filePath: string): void {
+  const dir = path.dirname(filePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+}
+
+/** Ruta en disco para un tile. */
+function tilePath(style: string, z: string, x: string, y: string): string {
+  return path.join(TILE_CACHE_DIR, style, z, x, `${y}.png`);
+}
+
+/** Lee un tile del disco; devuelve null si no existe. */
+function readTileFromDisk(style: string, z: string, x: string, y: string): Buffer | null {
+  const fp = tilePath(style, z, x, y);
+  try {
+    return fs.existsSync(fp) ? fs.readFileSync(fp) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Escribe un tile en disco de forma no bloqueante. */
+function writeTileToDisk(style: string, z: string, x: string, y: string, buf: Buffer): void {
+  const fp = tilePath(style, z, x, y);
+  try {
+    ensureDirSync(fp);
+    fs.writeFileSync(fp, buf);
+  } catch (err) {
+    // No crítico: si no puede escribir, el tile seguirá sirviendo desde red
+    console.warn(`[tile-cache] No se pudo escribir ${fp}:`, err);
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Proveedores de tiles
+// ──────────────────────────────────────────────────────────────────────────────
 const CARTO_SUBDOMAINS = ["a", "b", "c", "d"] as const;
 const OSM_BASE = "https://tile.openstreetmap.org";
 // ESRI: orden de path es {z}/{y}/{x} (NO {z}/{x}/{y})
-// World_Dark_Gray_Base / World_Light_Gray_Base → estilos minimalistas grises
 const ESRI_DARK_BASE =
   "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile";
 const ESRI_LIGHT_BASE =
@@ -52,24 +101,65 @@ async function fetchTile(url: string): Promise<Buffer> {
 
 /**
  * Aplica headers CORS abiertos a las respuestas de tiles.
- * Necesario para que el canvas que usa `img.crossOrigin = "anonymous"`
- * (exportación a PDF) pueda dibujar las imágenes sin "tainted canvas".
- * Los tiles son assets públicos sin auth → wildcard es seguro.
+ * X-Tile-Cache indica si el tile vino del disco (HIT) o de red (MISS).
  */
-function sendTile(reply: FastifyReply, buf: Buffer): void {
+function sendTile(reply: FastifyReply, buf: Buffer, fromCache: boolean): void {
   reply
     .header("Content-Type", "image/png")
-    .header("Cache-Control", "public, max-age=604800, immutable")
+    .header("Cache-Control", "public, max-age=2592000, immutable") // 30 días
     .header("Access-Control-Allow-Origin", "*")
     .header("Cross-Origin-Resource-Policy", "cross-origin")
+    .header("X-Tile-Cache", fromCache ? "HIT" : "MISS")
     .send(buf);
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Helper genérico: sirve un tile con cache-aside
+// ──────────────────────────────────────────────────────────────────────────────
+async function serveTile(
+  reply: FastifyReply,
+  style: string,
+  z: string,
+  x: string,
+  y: string,
+  primaryUrl: string,
+  fallbackUrl: string,
+  app: FastifyInstance,
+): Promise<void> {
+  // 1. Cache hit → responder desde disco inmediatamente
+  const cached = readTileFromDisk(style, z, x, y);
+  if (cached) {
+    return sendTile(reply, cached, true);
+  }
+
+  // 2. Cache miss → bajar de red con fallback
+  try {
+    let buf: Buffer;
+    try {
+      buf = await fetchTile(primaryUrl);
+    } catch {
+      app.log.warn({ primaryUrl }, `${style} fallback to secondary source`);
+      buf = await fetchTile(fallbackUrl);
+    }
+    // Guardar en disco (async, no bloquea la respuesta)
+    setImmediate(() => writeTileToDisk(style, z, x, y, buf));
+    sendTile(reply, buf, false);
+  } catch (err) {
+    app.log.warn({ primaryUrl, fallbackUrl, err }, "Tile proxy error");
+    reply.status(502).send();
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Rutas
+// ──────────────────────────────────────────────────────────────────────────────
 async function tileProxyRoutes(app: FastifyInstance) {
   const tileRouteOpts = { config: { rateLimit: false as const } };
 
-  // CARTO Dark: a|b|c|d.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png
-  // Fallback: ESRI World Dark Gray Canvas (mantiene look oscuro).
+  // Log del directorio de cache al arrancar
+  app.log.info({ TILE_CACHE_DIR }, "📦 Tile disk-cache activo");
+
+  // CARTO Dark → fallback ESRI Dark Gray
   app.get(
     "/tiles/carto-dark/:z/:x/:y.png",
     tileRouteOpts,
@@ -81,24 +171,11 @@ async function tileProxyRoutes(app: FastifyInstance) {
       const sub = pickCartoSubdomain(z, x, y);
       const cartoUrl = `https://${sub}.basemaps.cartocdn.com/rastertiles/dark_all/${z}/${x}/${y}.png`;
       const esriUrl = `${ESRI_DARK_BASE}/${z}/${y}/${x}`;
-      try {
-        let buf: Buffer;
-        try {
-          buf = await fetchTile(cartoUrl);
-        } catch {
-          app.log.warn({ cartoUrl }, "CARTO dark fallback to ESRI Dark Gray");
-          buf = await fetchTile(esriUrl);
-        }
-        sendTile(reply, buf);
-      } catch (err) {
-        app.log.warn({ cartoUrl, esriUrl, err }, "Tile proxy error (dark)");
-        reply.status(502).send();
-      }
+      return serveTile(reply, "carto-dark", z, x, y, cartoUrl, esriUrl, app);
     },
   );
 
-  // CARTO Light: a|b|c|d.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png
-  // Fallback: ESRI World Light Gray Canvas (mantiene look claro).
+  // CARTO Light → fallback ESRI Light Gray
   app.get(
     "/tiles/carto-light/:z/:x/:y.png",
     tileRouteOpts,
@@ -110,23 +187,11 @@ async function tileProxyRoutes(app: FastifyInstance) {
       const sub = pickCartoSubdomain(z, x, y);
       const cartoUrl = `https://${sub}.basemaps.cartocdn.com/rastertiles/light_all/${z}/${x}/${y}.png`;
       const esriUrl = `${ESRI_LIGHT_BASE}/${z}/${y}/${x}`;
-      try {
-        let buf: Buffer;
-        try {
-          buf = await fetchTile(cartoUrl);
-        } catch {
-          app.log.warn({ cartoUrl }, "CARTO light fallback to ESRI Light Gray");
-          buf = await fetchTile(esriUrl);
-        }
-        sendTile(reply, buf);
-      } catch (err) {
-        app.log.warn({ cartoUrl, esriUrl, err }, "Tile proxy error (light)");
-        reply.status(502).send();
-      }
+      return serveTile(reply, "carto-light", z, x, y, cartoUrl, esriUrl, app);
     },
   );
 
-  // OSM: /tiles/osm/{z}/{x}/{y}.png — sin cambios (no se usa para basemap principal).
+  // OSM
   app.get(
     "/tiles/osm/:z/:x/:y.png",
     tileRouteOpts,
@@ -135,12 +200,15 @@ async function tileProxyRoutes(app: FastifyInstance) {
       reply: FastifyReply,
     ) => {
       const { z, x, y } = req.params;
-      const url = `${OSM_BASE}/${z}/${x}/${y}.png`;
+      const osmUrl = `${OSM_BASE}/${z}/${x}/${y}.png`;
+      const cached = readTileFromDisk("osm", z, x, y);
+      if (cached) return sendTile(reply, cached, true);
       try {
-        const buf = await fetchTile(url);
-        sendTile(reply, buf);
+        const buf = await fetchTile(osmUrl);
+        setImmediate(() => writeTileToDisk("osm", z, x, y, buf));
+        sendTile(reply, buf, false);
       } catch (err) {
-        app.log.warn({ url, err }, "Tile proxy error");
+        app.log.warn({ osmUrl, err }, "Tile proxy error (osm)");
         reply.status(502).send();
       }
     },

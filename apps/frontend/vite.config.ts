@@ -44,22 +44,14 @@ export default defineConfig(({ mode }) => {
           ws: true,
           rewriteWsOrigin: true,
         },
-        "/tiles/osm": {
-          target: "https://tile.openstreetmap.org",
+        // Tiles: enrutar TODO /tiles al backend (no directo a CARTO/OSM).
+        // Así en dev se usa el proxy inteligente del backend (tileProxy.routes.ts):
+        // caché en disco + rotación de subdominios a/b/c/d + fallback a ESRI Gray.
+        // El backend ya expone /tiles/carto-dark/:z/:x/:y.png, /tiles/carto-light/...,
+        // /tiles/osm/... → no hace falta reescribir el path.
+        "/tiles": {
+          target: backendUrl,
           changeOrigin: true,
-          rewrite: (path: string) => path.replace(/^\/tiles\/osm/, ""),
-        },
-        "/tiles/carto-dark": {
-          target: "https://a.basemaps.cartocdn.com",
-          changeOrigin: true,
-          rewrite: (tilePath: string) =>
-            tilePath.replace(/^\/tiles\/carto-dark/, "/rastertiles/dark_all"),
-        },
-        "/tiles/carto-light": {
-          target: "https://a.basemaps.cartocdn.com",
-          changeOrigin: true,
-          rewrite: (tilePath: string) =>
-            tilePath.replace(/^\/tiles\/carto-light/, "/rastertiles/light_all"),
         },
       },
     },

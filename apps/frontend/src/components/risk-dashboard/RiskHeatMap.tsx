@@ -62,7 +62,15 @@ export const RiskHeatMap: React.FC<RiskHeatMapProps> = ({
         attribution: "&copy; CARTO",
       },
     },
-    layers: [{ id: "basemap", type: "raster" as const, source: "basemap" }],
+    layers: [
+      // Fondo sólido: evita zócalos blancos mientras cargan los tiles raster
+      {
+        id: "background",
+        type: "background" as const,
+        paint: { "background-color": isDark ? "#1a1b2e" : "#e8e0d8" },
+      },
+      { id: "basemap", type: "raster" as const, source: "basemap" },
+    ],
   };
 
   // Datos para el heatmap (centroides)

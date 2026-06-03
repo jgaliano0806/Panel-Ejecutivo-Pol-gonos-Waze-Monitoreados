@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "migrate": "npx ts-node src/scripts/migrate.ts",
     "seed": "npx ts-node src/scripts/seed.ts",
+    "seed:tiles": "npx ts-node src/scripts/seedTiles.ts",
     "sql:create-red-zones": "npx ts-node src/scripts/run-create-red-zones-table.ts"
   },
   "keywords": [],
