@@ -117,6 +117,93 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   // Hitos kilométricos
   const { data: kilometerMarkers = [] } = useKilometers(true);
 
+  // ─── Enfocar incidente externo ("Ver en el mapa" / snackbar / notificaciones) ───
+  useEffect(() => {
+    if (!mapLoaded) return;
+    if (!selectedIncidentId && !forcedIncident) return;
+
+    const isValidNum = (v: any): v is number =>
+      typeof v === "number" && isFinite(v) && !isNaN(v);
+
+    const timer = setTimeout(() => {
+      let lat: number | undefined;
+      let lng: number | undefined;
+      let incidentProps: any = null;
+
+      // Prioridad 1: incidente forzado (viene de snackbar o módulo externo)
+      if (forcedIncident) {
+        incidentProps = forcedIncident;
+        // Intento 1: location.lat / location.lng
+        if (isValidNum(forcedIncident.location?.lat) && isValidNum(forcedIncident.location?.lng)) {
+          lat = forcedIncident.location.lat;
+          lng = forcedIncident.location.lng;
+        // Intento 2: location.y / location.x (formato Waze raw)
+        } else if (isValidNum(forcedIncident.location?.y) && isValidNum(forcedIncident.location?.x)) {
+          lat = forcedIncident.location.y;
+          lng = forcedIncident.location.x;
+        // Intento 3: latitude / longitude en raíz
+        } else if (isValidNum(forcedIncident.latitude) && isValidNum(forcedIncident.longitude)) {
+          lat = forcedIncident.latitude;
+          lng = forcedIncident.longitude;
+        }
+      }
+
+      // Prioridad 2: buscar por ID en los incidentes activos del feed
+      if ((lat === undefined || lng === undefined) && selectedIncidentId) {
+        const found = incidents.find(
+          (i) => i.id === selectedIncidentId || (i as any).uuid === selectedIncidentId,
+        );
+        if (found) {
+          lat = found.location.lat;
+          lng = found.location.lng;
+          incidentProps = {
+            id: found.id,
+            description: found.description || "Sin descripción",
+            street: found.street || `${found.location.lat.toFixed(5)}, ${found.location.lng.toFixed(5)}`,
+            type: found.type,
+            subtype: found.subtype || "",
+            timestamp: found.timestamp ? new Date(found.timestamp).toISOString() : "",
+            reportBy: found.reportBy,
+            nThumbsUp: found.nThumbsUp || 0,
+            confidence: typeof found.confidence === "number" ? found.confidence : Number(found.confidence) || 0,
+            magvar: (found as any).magvar,
+          };
+        }
+      }
+
+      if (!isValidNum(lat) || !isValidNum(lng)) {
+        console.warn("⚠️ focusIncident: coordenadas inválidas o no encontradas", { forcedIncident, selectedIncidentId });
+        return;
+      }
+
+      console.log("📍 focusIncident: flyTo", { lat, lng, id: selectedIncidentId });
+
+      // Abrir popup del incidente en el mapa
+      if (incidentProps) {
+        setSelectedJam(null);
+        setSelectedIncident({ lat, lng, properties: incidentProps });
+      }
+
+      // Volar al incidente
+      try {
+        mapRef.current?.getMap().flyTo({
+          center: [lng, lat],
+          zoom: 16,
+          duration: 1200,
+          essential: true,
+        });
+      } catch (err) {
+        console.error("❌ focusIncident: error en flyTo", err);
+      }
+
+      // Notificar al padre que ya fue consumido (evita re-trigger en re-renders)
+      onExternalIncidentFocusConsumed?.();
+    }, 400);
+
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIncidentId, forcedIncident, mapLoaded]);
+
   // Memos de GeoJSON centralizados (recalculan solo si sus props cambian)
   const polygonsGeoJSON = usePolygonsGeoJSON(polygons);
   const flowGeoJSON = useFlowGeoJSON(trafficFlow, jams);
@@ -436,18 +523,38 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     sources: {
       basemap: {
         type: "raster",
-        tiles: isDark ? [`${tilesBase}/tiles/carto-dark/{z}/{x}/{y}.png`] : [`${tilesBase}/tiles/carto-light/{z}/{x}/{y}.png`],
+        tiles: isDark
+          ? [`${tilesBase}/tiles/carto-dark/{z}/{x}/{y}.png`]
+          : [`${tilesBase}/tiles/carto-light/{z}/{x}/{y}.png`],
         tileSize: 256,
         attribution: "© CARTO",
+        minzoom: 0,
+        maxzoom: 19,
       },
     },
-    layers: [{ id: "basemap", type: "raster", source: "basemap" }],
+    layers: [
+      // Capa de fondo sólido: evita zócalos blancos/negros mientras los tiles cargan
+      {
+        id: "background",
+        type: "background",
+        paint: {
+          "background-color": isDark ? "#1a1b2e" : "#e8e0d8",
+          "background-opacity": 1,
+        },
+      },
+      {
+        id: "basemap",
+        type: "raster",
+        source: "basemap",
+        paint: { "raster-fade-duration": 200 },
+      },
+    ],
   }), [isDark, tilesBase]);
 
   return (
     <div
       ref={mapWrapperRef}
-      className={`h-full w-full ${isDark ? "bg-[#222736]" : "bg-gray-100"} relative`}
+      className={`h-full w-full ${isDark ? "bg-[#1a1b2e]" : "bg-[#e8e0d8]"} relative`}
       role="region"
       aria-label="Mapa de incidentes y tráfico"
     >

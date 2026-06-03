@@ -24,6 +24,7 @@ interface MapProps {
   center?: [number, number];
   selectedIncidentId?: string | null;
   forcedIncident?: any | null;
+  onExternalIncidentFocusConsumed?: () => void;
   className?: string;
   // Props para filtros de polígonos en el sidebar del mapa
   allPolygons?: Polygon[];
@@ -58,6 +59,7 @@ export const Map: React.FC<MapProps> = (props) => {
         selectedGroup={props.selectedGroup}
         selectedIncidentId={props.selectedIncidentId}
         forcedIncident={props.forcedIncident}
+        onExternalIncidentFocusConsumed={props.onExternalIncidentFocusConsumed}
         className="w-full h-full"
         // Props para filtros de polígonos
         allPolygons={props.allPolygons}

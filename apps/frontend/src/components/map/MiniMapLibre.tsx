@@ -89,9 +89,27 @@ export const MiniMapLibre: React.FC<MiniMapLibreProps> = ({
           : [`${tilesBase}/tiles/carto-light/{z}/{x}/{y}.png`],
         tileSize: 256,
         attribution: "&copy; CARTO",
+        minzoom: 0,
+        maxzoom: 19,
       },
     },
-    layers: [{ id: "basemap", type: "raster" as const, source: "basemap" }],
+    layers: [
+      // Fondo sólido: evita zócalos blancos/negros mientras los tiles cargan
+      {
+        id: "background",
+        type: "background" as const,
+        paint: {
+          "background-color": isDark ? "#1a1b2e" : "#e8e0d8",
+          "background-opacity": 1,
+        },
+      },
+      {
+        id: "basemap",
+        type: "raster" as const,
+        source: "basemap",
+        paint: { "raster-fade-duration": 200 },
+      },
+    ],
   };
 
   // Inicializar mapa

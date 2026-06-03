@@ -26,6 +26,7 @@ const ESRI_LIGHT_BASE =
 const TILE_HEADERS = {
   "User-Agent": "PanelWaze-CASISA/1.0 (Map Tiles Proxy)",
   Accept: "image/png,image/*,*/*",
+  Referer: "https://caminosdelassierras.com.ar/",
 };
 
 /**
@@ -42,7 +43,7 @@ function pickCartoSubdomain(z: string, x: string, y: string): string {
 async function fetchTile(url: string): Promise<Buffer> {
   const res = await axios.get(url, {
     responseType: "arraybuffer",
-    timeout: 8000,
+    timeout: 6000,
     headers: TILE_HEADERS,
     validateStatus: (s) => s === 200,
   });
@@ -58,7 +59,7 @@ async function fetchTile(url: string): Promise<Buffer> {
 function sendTile(reply: FastifyReply, buf: Buffer): void {
   reply
     .header("Content-Type", "image/png")
-    .header("Cache-Control", "public, max-age=604800")
+    .header("Cache-Control", "public, max-age=604800, immutable")
     .header("Access-Control-Allow-Origin", "*")
     .header("Cross-Origin-Resource-Policy", "cross-origin")
     .send(buf);

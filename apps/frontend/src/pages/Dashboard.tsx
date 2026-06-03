@@ -109,6 +109,12 @@ const Dashboard: React.FC = () => {
   const [focusIncidentData, setFocusIncidentData] = useState<any | null>(null);
   const [showWazeIncidents, setShowWazeIncidents] = useState(true);
 
+  // Callback para limpiar el foco de incidente una vez que el mapa lo consumió
+  const handleFocusConsumed = useCallback(() => {
+    setFocusIncidentId(null);
+    setFocusIncidentData(null);
+  }, []);
+
   const handleLayerToggle = useCallback((layer: string, enabled: boolean) => {
     if (layer === "waze") {
       setShowWazeIncidents(enabled);
@@ -495,6 +501,7 @@ const Dashboard: React.FC = () => {
                     allowDangerZoneEdit={location.pathname === "/zonas-peligrosas"}
                     selectedIncidentId={focusIncidentId}
                     forcedIncident={focusIncidentData}
+                    onExternalIncidentFocusConsumed={handleFocusConsumed}
                     onPolygonClick={handlePolygonChange}
                     className="rounded-none"
                     // Props para filtros en el sidebar del mapa
