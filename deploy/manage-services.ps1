@@ -38,12 +38,28 @@ function Test-NssmService([string]$Name) {
     return [bool](Get-Service -Name $Name -ErrorAction SilentlyContinue)
 }
 
-# True si hay algo escuchando en el puerto 80 (nginx realmente bindeo).
+# True si algo acepta conexiones TCP en :80 (nginx realmente bindeo).
 # El estado "Running" de NSSM puede ser fantasma: master vivo sin bind a :80
 # cuando un nginx.exe huerfano se quedo tomando el puerto.
+# Usamos TcpClient (.NET puro) y NO Get-NetTCPConnection: el modulo NetTCPIP
+# falla al autocargarse de forma intermitente en este host y, bajo
+# ErrorActionPreference=Stop, lanzaba excepcion tumbando el deploy.
 function Test-NginxPort {
-    $c = Get-NetTCPConnection -LocalPort 80 -State Listen -ErrorAction SilentlyContinue
-    return [bool]$c
+    $client = $null
+    try {
+        $client = New-Object System.Net.Sockets.TcpClient
+        $iar = $client.BeginConnect("127.0.0.1", 80, $null, $null)
+        $ok = $iar.AsyncWaitHandle.WaitOne(3000, $false)
+        if ($ok -and $client.Connected) {
+            $client.EndConnect($iar)
+            return $true
+        }
+        return $false
+    } catch {
+        return $false
+    } finally {
+        if ($client) { $client.Close() }
+    }
 }
 
 function Start-Nginx {
