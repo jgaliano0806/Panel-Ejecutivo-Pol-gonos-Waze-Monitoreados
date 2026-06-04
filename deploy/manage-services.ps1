@@ -38,47 +38,63 @@ function Test-NssmService([string]$Name) {
     return [bool](Get-Service -Name $Name -ErrorAction SilentlyContinue)
 }
 
+# True si hay algo escuchando en el puerto 80 (nginx realmente bindeo).
+# El estado "Running" de NSSM puede ser fantasma: master vivo sin bind a :80
+# cuando un nginx.exe huerfano se quedo tomando el puerto.
+function Test-NginxPort {
+    $c = Get-NetTCPConnection -LocalPort 80 -State Listen -ErrorAction SilentlyContinue
+    return [bool]$c
+}
+
 function Start-Nginx {
     if (Test-NssmService "PanelWazeNginx") {
-        $svc = Get-Service PanelWazeNginx -ErrorAction SilentlyContinue
-        if ($svc.Status -eq "Paused") {
-            Write-Host "  PanelWazeNginx en Paused, reanudando..." -ForegroundColor Yellow
-            Resume-Service PanelWazeNginx -ErrorAction SilentlyContinue
+        # Arranque limpio y verificado: en cada intento detenemos servicio,
+        # matamos huerfanos que pudieran retener :80, arrancamos y comprobamos
+        # que realmente sirve en :80 (no basta con estado Running).
+        for ($attempt = 1; $attempt -le 3; $attempt++) {
+            Stop-Service PanelWazeNginx -Force -ErrorAction SilentlyContinue
             Start-Sleep -Seconds 2
-        }
-        if ((Get-Service PanelWazeNginx).Status -ne "Running") {
+            Stop-Process -Name nginx -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 2
+
             Start-Service PanelWazeNginx -ErrorAction SilentlyContinue
-            Start-Sleep -Seconds 2
-        }
-        if ((Get-Service PanelWazeNginx).Status -ne "Running") {
-            Restart-Service PanelWazeNginx -ErrorAction SilentlyContinue
             Start-Sleep -Seconds 3
+
+            $bound = $false
+            for ($i = 1; $i -le 5; $i++) {
+                if (Test-NginxPort) { $bound = $true; break }
+                Start-Sleep -Seconds 2
+            }
+            if ($bound) {
+                Write-Host "  PanelWazeNginx OK (sirviendo en :80)" -ForegroundColor Green
+                return
+            }
+            Write-Host "  nginx no bindeo :80 (intento $attempt/3); limpiando y reintentando..." -ForegroundColor Yellow
         }
-        $state = (Get-Service PanelWazeNginx).Status
-        Write-Host "  PanelWazeNginx (NSSM): $state" -ForegroundColor $(if ($state -eq "Running") { "Green" } else { "Red" })
-        if ($state -ne "Running") { throw "PanelWazeNginx no arranco (estado: $state)" }
-        return
+        throw "PanelWazeNginx no logro escuchar en :80 tras 3 intentos"
     }
+
     if (-not $nginxDir) { Write-Host "  nginx no encontrado" -ForegroundColor Red; return }
     Stop-Process -Name nginx -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 1
     Start-Process -FilePath "$nginxDir\nginx.exe" -WorkingDirectory $nginxDir
-    Start-Sleep -Seconds 1
-    $count = (Get-Process nginx -ErrorAction SilentlyContinue).Count
-    Write-Host "  nginx: $count procesos activos" -ForegroundColor Green
+    Start-Sleep -Seconds 2
+    if (-not (Test-NginxPort)) { throw "nginx no logro escuchar en :80 (modo proceso)" }
+    Write-Host "  nginx OK (modo proceso, sirviendo en :80)" -ForegroundColor Green
 }
 
 function Stop-Nginx {
     if (Test-NssmService "PanelWazeNginx") {
         Stop-Service PanelWazeNginx -Force -ErrorAction SilentlyContinue
         Start-Sleep -Seconds 2
-        Write-Host "  PanelWazeNginx detenido" -ForegroundColor Green
-        return
+    } elseif ($nginxDir) {
+        cmd /c "cd /d `"$nginxDir`" && nginx.exe -s quit 2>&1" | Out-Null
+        Start-Sleep -Seconds 2
     }
-    if ($nginxDir) { cmd /c "cd /d `"$nginxDir`" && nginx.exe -s quit 2>&1" | Out-Null }
-    Start-Sleep -Seconds 2
+    # Siempre matar huerfanos: NSSM no limpia nginx.exe que quedaron tomando :80.
     Stop-Process -Name nginx -Force -ErrorAction SilentlyContinue
-    Write-Host "  nginx detenido" -ForegroundColor Green
+    Start-Sleep -Seconds 1
+    Write-Host "  nginx detenido (servicio + huerfanos)" -ForegroundColor Green
 }
 
 # Ejecuta un comando en cmd y aborta si el exit code != 0.
