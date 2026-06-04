@@ -840,6 +840,53 @@ export async function exportAccidentToPDF(
     }
   }
 
+  // === RESUMEN METEOROLÓGICO (interpretado para gestión vial) ===
+  const summary = accident.weather_summary;
+  if (summary) {
+    const riskLabel: Record<string, string> = {
+      bajo: "BAJO",
+      moderado: "MODERADO",
+      alto: "ALTO",
+      extremo: "EXTREMO",
+    };
+    yPos += 8;
+    doc.setTextColor(...BRAND_COLORS.greenDark);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("Resumen Meteorológico", 15, yPos);
+    yPos += 6;
+
+    doc.setTextColor(...BRAND_COLORS.textDark);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text(
+      `Riesgo vial: ${riskLabel[summary.road_risk_level] ?? "N/D"}  |  Condición: ${summary.phenomenon}  |  Visibilidad: ${summary.visibility_category}`,
+      15,
+      yPos,
+    );
+    yPos += 6;
+
+    doc.setFont("helvetica", "normal");
+    const splitNarrative = doc.splitTextToSize(summary.narrative, pageWidth - 30);
+    doc.text(splitNarrative, 15, yPos);
+    yPos += splitNarrative.length * 4 + 2;
+
+    if (summary.factors.length > 0) {
+      doc.setFont("helvetica", "bold");
+      doc.text("Factores de riesgo detectados:", 15, yPos);
+      yPos += 5;
+      doc.setFont("helvetica", "normal");
+      for (const f of summary.factors) {
+        const line = doc.splitTextToSize(
+          `- ${f.label}: ${f.detail}`,
+          pageWidth - 30,
+        );
+        doc.text(line, 15, yPos);
+        yPos += line.length * 4;
+      }
+    }
+  }
+
   // === ENLACES ===
   yPos += 5;
   doc.setTextColor(...BRAND_COLORS.textMuted);

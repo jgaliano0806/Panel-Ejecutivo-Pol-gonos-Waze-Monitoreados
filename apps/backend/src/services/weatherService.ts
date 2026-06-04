@@ -20,6 +20,7 @@ interface WeatherData {
   wind_gusts_kmh?: number;
   visibility_meters?: number;
   cloud_cover_percentage?: number;
+  relative_humidity_percent?: number;
   road_temperature_celsius?: number;
   is_freezing_risk?: boolean;
   weather_code?: number;
@@ -34,6 +35,7 @@ interface OpenMeteoResponse {
     time: string;
     temperature_2m: number;
     apparent_temperature: number;
+    relative_humidity_2m?: number;
     precipitation: number;
     rain: number;
     snowfall: number;
@@ -127,6 +129,9 @@ export class WeatherService {
   private db: DatabaseService;
   private readonly OPEN_METEO_BASE_URL =
     "https://api.open-meteo.com/v1/forecast";
+  /** Histórico por fecha (hasta 92 días): no usar /forecast, usa archive */
+  private readonly OPEN_METEO_ARCHIVE_URL =
+    "https://archive-api.open-meteo.com/v1/archive";
   private readonly ACCUWEATHER_BASE_URL = "https://dataservice.accuweather.com";
   private readonly ACCUWEATHER_API_KEY = process.env.ACCUWEATHER_API_KEY;
   private readonly WEATHER_PROVIDER: WeatherProvider =
@@ -512,6 +517,7 @@ export class WeatherService {
         [
           "temperature_2m",
           "apparent_temperature",
+          "relative_humidity_2m",
           "precipitation",
           "rain",
           "snowfall",
@@ -594,6 +600,7 @@ export class WeatherService {
         wind_gusts_kmh: data.current.wind_gusts_10m,
         visibility_meters: visibility,
         cloud_cover_percentage: data.current.cloud_cover,
+        relative_humidity_percent: data.current.relative_humidity_2m,
         road_temperature_celsius: roadTemp,
         is_freezing_risk: isFreezingRisk,
         weather_code: data.current.weather_code,
@@ -1031,9 +1038,26 @@ export class WeatherService {
         return null;
       }
 
-      const url = new URL(this.OPEN_METEO_BASE_URL);
+      // Para siniestros recientes (<= 72h) usar primero el forecast API: a
+      // diferencia del archive (ERA5), provee `visibility`, clave para
+      // clasificar niebla/neblina. Si no devuelve dato, cae al archive abajo.
+      if (daysDiff <= 3) {
+        const recent = await this.fetchHistoricalWeatherViaPastHours(
+          latitude,
+          longitude,
+          date,
+        ).catch(() => null);
+        if (recent) {
+          console.log(
+            "🌫️ Clima reciente vía forecast (incluye visibilidad) usado para siniestro",
+          );
+          return recent;
+        }
+      }
 
-      // Formatear fecha como YYYY-MM-DD
+      const url = new URL(this.OPEN_METEO_ARCHIVE_URL);
+
+      // Formatear fecha como YYYY-MM-DD (zona Argentina para alinear con Open-Meteo)
       const dateStr = formatLocalDateForOpenMeteo(date);
 
       url.searchParams.append("latitude", latitude.toString());
@@ -1045,6 +1069,7 @@ export class WeatherService {
         [
           "temperature_2m",
           "apparent_temperature",
+          "relative_humidity_2m",
           "precipitation",
           "rain",
           "snowfall",
@@ -1057,10 +1082,13 @@ export class WeatherService {
           "precipitation_probability",
         ].join(","),
       );
-      url.searchParams.append("timezone", "auto");
+      url.searchParams.append(
+        "timezone",
+        "America/Argentina/Cordoba",
+      );
 
       console.log(
-        `📊 Obteniendo clima histórico para ${dateStr} (${latitude}, ${longitude})...`,
+        `📊 Obteniendo clima histórico (archive) ${dateStr} (${latitude}, ${longitude})...`,
       );
 
       // Intentar hasta 3 veces con timeout de 30 segundos
@@ -1081,11 +1109,15 @@ export class WeatherService {
               `Open-Meteo Historical API error: ${response.status}`,
             );
             if (attempt < 3) {
-              console.log(`⏳ Reintentando (${attempt}/3)...`);
-              await new Promise((resolve) => setTimeout(resolve, 2000)); // Esperar 2s antes de reintentar
+              const waitMs =
+                response.status === 429 ? 8000 * attempt : 3000 * attempt;
+              console.log(
+                `⏳ Reintentando (${attempt}/3) en ${waitMs / 1000}s...`,
+              );
+              await new Promise((resolve) => setTimeout(resolve, waitMs));
               continue;
             }
-            return null;
+            break;
           }
 
           const data = await response.json();
@@ -1182,6 +1214,8 @@ export class WeatherService {
             wind_gusts_kmh: data.hourly.wind_gusts_10m?.[closestIndex] ?? null,
             visibility_meters: data.hourly.visibility?.[closestIndex] ?? null,
             cloud_cover_percentage: cloudCover,
+            relative_humidity_percent:
+              data.hourly.relative_humidity_2m?.[closestIndex] ?? null,
             road_temperature_celsius: roadTemp,
             is_freezing_risk: isFreezingRisk,
             weather_code: weatherCode,
@@ -1218,11 +1252,176 @@ export class WeatherService {
         }
       }
 
-      // Si llegamos aquí, todos los intentos fallaron
+      // Si llegamos aquí, todos los intentos fallaron — fallback past_hours (mejor para hoy)
+      console.warn(
+        "Open-Meteo start_date falló, probando fallback past_hours:",
+        lastError?.message,
+      );
+      const fallback = await this.fetchHistoricalWeatherViaPastHours(
+        latitude,
+        longitude,
+        date,
+      );
+      if (fallback) return fallback;
+
       console.error("Error fetching historical weather data:", lastError);
       return null;
     } catch (error) {
       console.error("Error fetching historical weather data:", error);
+      const fallback = await this.fetchHistoricalWeatherViaPastHours(
+        latitude,
+        longitude,
+        date,
+      ).catch(() => null);
+      return fallback;
+    }
+  }
+
+  /**
+   * Fallback: forecast API con past_hours (menos 429 que ráfagas start_date/end_date).
+   * Útil para siniestros de hoy/ayer cuando la API histórica por fecha falla.
+   */
+  private async fetchHistoricalWeatherViaPastHours(
+    latitude: number,
+    longitude: number,
+    date: Date,
+  ): Promise<WeatherData | null> {
+    try {
+      const url = new URL(this.OPEN_METEO_BASE_URL);
+      url.searchParams.append("latitude", latitude.toString());
+      url.searchParams.append("longitude", longitude.toString());
+      url.searchParams.append(
+        "hourly",
+        [
+          "temperature_2m",
+          "apparent_temperature",
+          "relative_humidity_2m",
+          "precipitation",
+          "rain",
+          "snowfall",
+          "weather_code",
+          "cloud_cover",
+          "wind_speed_10m",
+          "wind_direction_10m",
+          "wind_gusts_10m",
+          "visibility",
+          "precipitation_probability",
+        ].join(","),
+      );
+      url.searchParams.append("past_hours", "72");
+      url.searchParams.append("forecast_hours", "1");
+      url.searchParams.append("timezone", "auto");
+
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        console.error(
+          `Open-Meteo past_hours fallback error: ${response.status}`,
+        );
+        return null;
+      }
+
+      const data = await response.json();
+      const utcOffsetSeconds: number = data.utc_offset_seconds ?? -10800;
+
+      if (!data.hourly?.time?.length) {
+        console.warn("Open-Meteo past_hours: sin datos hourly");
+        return null;
+      }
+
+      const targetTime = date.getTime();
+      let closestIndex = 0;
+      let minDiff = Infinity;
+
+      for (let i = 0; i < data.hourly.time.length; i++) {
+        const hourTime = parseOpenMeteoHourlyTime(
+          data.hourly.time[i],
+          utcOffsetSeconds,
+        );
+        const diff = Math.abs(hourTime - targetTime);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestIndex = i;
+        }
+      }
+
+      const closestTime = new Date(
+        parseOpenMeteoHourlyTime(
+          data.hourly.time[closestIndex],
+          utcOffsetSeconds,
+        ),
+      );
+      const weatherCode = data.hourly.weather_code?.[closestIndex] ?? 0;
+      const rawPrecipitation = data.hourly.precipitation?.[closestIndex] ?? 0;
+      const rawRain = data.hourly.rain?.[closestIndex] ?? 0;
+      const { precipitation_mm, rain_mm } = normalizeOpenMeteoPrecipitation(
+        weatherCode,
+        rawPrecipitation,
+        rawRain,
+      );
+      const temperature = data.hourly.temperature_2m?.[closestIndex] ?? null;
+      const windSpeed = data.hourly.wind_speed_10m?.[closestIndex] ?? null;
+      const cloudCover = data.hourly.cloud_cover?.[closestIndex] ?? null;
+
+      let roadTemp: number | undefined;
+      let isFreezingRisk = false;
+      if (
+        temperature !== null &&
+        windSpeed !== null &&
+        cloudCover !== null
+      ) {
+        roadTemp = this.calculateRoadTemperature(
+          temperature,
+          windSpeed,
+          cloudCover,
+        );
+        isFreezingRisk = this.detectFreezingRisk(
+          temperature,
+          roadTemp,
+          precipitation_mm > 0,
+        );
+      }
+
+      const weatherData: WeatherData = {
+        polygon_id: `historical-${date.getTime()}`,
+        timestamp: closestTime,
+        temperature_celsius: temperature,
+        temperature_feels_like:
+          data.hourly.apparent_temperature?.[closestIndex] ?? null,
+        precipitation_mm,
+        rain_mm,
+        snow_mm: data.hourly.snowfall?.[closestIndex] ?? 0,
+        precipitation_probability:
+          data.hourly.precipitation_probability?.[closestIndex] ?? null,
+        wind_speed_kmh: windSpeed,
+        wind_direction_degrees:
+          data.hourly.wind_direction_10m?.[closestIndex] ?? null,
+        wind_gusts_kmh: data.hourly.wind_gusts_10m?.[closestIndex] ?? null,
+        visibility_meters: data.hourly.visibility?.[closestIndex] ?? null,
+        cloud_cover_percentage: cloudCover,
+        relative_humidity_percent:
+          data.hourly.relative_humidity_2m?.[closestIndex] ?? null,
+        road_temperature_celsius: roadTemp,
+        is_freezing_risk: isFreezingRisk,
+        weather_code: weatherCode,
+        weather_description:
+          WMO_WEATHER_CODES[weatherCode] || "Desconocido",
+      };
+
+      const alert = this.detectWeatherAlert(weatherData);
+      if (alert) {
+        weatherData.has_weather_alert = true;
+        weatherData.alert_severity = alert.severity;
+        weatherData.alert_description = alert.description;
+      }
+
+      console.log(`✅ Clima vía past_hours (fallback):`, {
+        date: closestTime.toISOString(),
+        temperature: weatherData.temperature_celsius,
+      });
+
+      return weatherData;
+    } catch (error) {
+      console.error("Error en fetchHistoricalWeatherViaPastHours:", error);
       return null;
     }
   }

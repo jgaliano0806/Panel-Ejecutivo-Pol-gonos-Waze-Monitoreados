@@ -2,12 +2,31 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
+export type RoadRiskLevel = "bajo" | "moderado" | "alto" | "extremo";
+
+export interface WeatherRiskFactor {
+  label: string;
+  detail: string;
+  severity: RoadRiskLevel;
+}
+
+export interface WeatherSummary {
+  phenomenon: string;
+  visibility_category: string;
+  visibility_km: number | null;
+  road_risk_level: RoadRiskLevel;
+  headline: string;
+  factors: WeatherRiskFactor[];
+  narrative: string;
+}
+
 export interface RoadAccident {
   id: string;
   incident_id?: string;
   polygon_id?: string;
   waze_data: any;
   weather_data: any;
+  weather_summary?: WeatherSummary | null;
   type?: string;
   subtype?: string;
   severity?: number;
@@ -98,6 +117,7 @@ function normalizeAccident(data: any): RoadAccident {
       : data.waze_data?.polygon_id,
     waze_data: data.waze_data || {},
     weather_data: data.weather_data || {},
+    weather_summary: data.weather_summary ?? null,
     type: data.type ? String(data.type) : undefined,
     subtype: data.subtype ? String(data.subtype) : undefined,
     severity: severity,

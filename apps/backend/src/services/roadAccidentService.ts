@@ -2,12 +2,17 @@ import { dbService } from "../database/dbService";
 import { v4 as uuidv4 } from "uuid";
 import { LocalStorageProvider } from "./storage/localStorageProvider";
 import { IStorageProvider } from "./storage/storageProvider";
+import {
+  buildWeatherSummary,
+  type WeatherSummary,
+} from "../utils/weatherSummary";
 
 export interface RoadAccident {
   id?: string;
   incident_id?: string;
   waze_data: any;
   weather_data: any;
+  weather_summary?: WeatherSummary | null;
   type?: string;
   subtype?: string;
   severity?: number;
@@ -22,6 +27,18 @@ export interface RoadAccident {
   polygon_id?: string;
   media?: AccidentMedia[];
 }
+
+export type WeatherBackfillFailureReason =
+  | "not_found"
+  | "already_has_weather"
+  | "too_old"
+  | "future_date"
+  | "invalid_coordinates"
+  | "open_meteo_unavailable";
+
+export type WeatherBackfillResult =
+  | { ok: true; accidentId: string }
+  | { ok: false; reason: WeatherBackfillFailureReason };
 
 export interface AccidentMedia {
   id?: string;
@@ -145,6 +162,25 @@ export class RoadAccidentService {
   }
 
   /**
+   * Adjunta el resumen meteorológico interpretado (para gestión vial) a partir
+   * del weather_data crudo del siniestro. No falla si no hay datos climáticos.
+   */
+  private withWeatherSummary(accident: RoadAccident): RoadAccident {
+    try {
+      const w = accident.weather_data;
+      if (w && typeof w === "object" && Object.keys(w).length > 0) {
+        accident.weather_summary = buildWeatherSummary(w);
+      } else {
+        accident.weather_summary = null;
+      }
+    } catch (err) {
+      console.warn("No se pudo generar weather_summary:", err);
+      accident.weather_summary = null;
+    }
+    return accident;
+  }
+
+  /**
    * Obtiene una lista de siniestros viales con filtros
    */
   async getAccidents(
@@ -203,7 +239,9 @@ export class RoadAccidentService {
 
     try {
       const result = await dbService.query(query, params);
-      return result.rows as RoadAccident[];
+      return (result.rows as RoadAccident[]).map((a) =>
+        this.withWeatherSummary(a),
+      );
     } catch (error) {
       console.error("Error en getAccidents:", error);
       // Si la tabla no existe, retornar array vacío
@@ -240,12 +278,13 @@ export class RoadAccidentService {
                    COALESCE(json_agg(m.*) FILTER (WHERE m.id IS NOT NULL), '[]') as media
             FROM road_accidents a
             LEFT JOIN accident_media m ON a.id = m.accident_id
-            WHERE a.id = $1
+            WHERE a.id::text = $1 OR a.incident_id = $1
             GROUP BY a.id, a.incident_id, a.waze_data, a.weather_data, a.type, a.subtype, a.severity, a.street, a.location_lat, a.location_lng, a.operator_notes, a.accident_at, a.created_at, a.updated_at, a.polygon_id
         `;
     try {
       const result = await dbService.query(query, [id]);
-      return (result.rows[0] as RoadAccident) || null;
+      const row = result.rows[0] as RoadAccident | undefined;
+      return row ? this.withWeatherSummary(row) : null;
     } catch (error) {
       console.error("Error en getAccidentById:", error);
       if (error instanceof Error && error.message.includes("does not exist")) {
@@ -389,37 +428,43 @@ export class RoadAccidentService {
   }
 
   /**
-   * Rellena datos climáticos históricos para un accidente que no tiene weather_data
-   * Solo procesa accidentes sin datos climáticos y dentro de los últimos 92 días
-   *
-   * @param accidentId ID del accidente
-   * @returns true si se actualizó exitosamente, false en caso contrario
+   * Rellena datos climáticos históricos para un accidente que no tiene weather_data.
+   * Acepta road_accidents.id o incident_id (UUID de Waze).
    */
   async backfillWeatherData(
-    accidentId: string,
+    idOrIncidentId: string,
     options: { force?: boolean } = {},
-  ): Promise<boolean> {
+  ): Promise<WeatherBackfillResult> {
     try {
-      const accident = await this.getAccidentById(accidentId);
+      const accident = await this.getAccidentById(idOrIncidentId);
       if (!accident) {
-        console.log(`❌ Accidente ${accidentId} no encontrado`);
-        return false;
+        console.log(`❌ Siniestro no encontrado: ${idOrIncidentId}`);
+        return { ok: false, reason: "not_found" };
       }
 
+      const accidentId = accident.id as string;
+      if (!accidentId) {
+        return { ok: false, reason: "not_found" };
+      }
       const { force = false } = options;
 
-      // Verificar si ya tiene weather_data válido (salvo refresh forzado)
       if (
         !force &&
         accident.weather_data &&
         typeof accident.weather_data === "object" &&
         Object.keys(accident.weather_data).length > 0
       ) {
-        console.log(`ℹ️ Accidente ${accidentId} ya tiene weather_data`);
-        return false;
+        console.log(`ℹ️ Siniestro ${accidentId} ya tiene weather_data`);
+        return { ok: false, reason: "already_has_weather" };
       }
 
-      // Verificar que esté dentro de 92 días
+      const lat = Number(accident.location_lat);
+      const lng = Number(accident.location_lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        console.log(`⚠️ Coordenadas inválidas para siniestro ${accidentId}`);
+        return { ok: false, reason: "invalid_coordinates" };
+      }
+
       const accidentDate = accident.accident_at
         ? new Date(accident.accident_at)
         : accident.created_at
@@ -431,65 +476,52 @@ export class RoadAccidentService {
 
       if (daysDiff > 92) {
         console.log(
-          `⚠️ Accidente ${accidentId} es muy antiguo (${Math.floor(
-            daysDiff,
-          )} días). Open-Meteo solo permite hasta 92 días.`,
+          `⚠️ Siniestro ${accidentId} muy antiguo (${Math.floor(daysDiff)} días)`,
         );
-        return false;
+        return { ok: false, reason: "too_old" };
       }
 
       if (daysDiff < 0) {
-        console.log(`⚠️ Accidente ${accidentId} tiene fecha futura`);
-        return false;
+        console.log(`⚠️ Siniestro ${accidentId} con fecha futura`);
+        return { ok: false, reason: "future_date" };
       }
 
       console.log(
-        `📊 Obteniendo clima histórico para accidente ${accidentId} (${Math.floor(
-          daysDiff,
-        )} días atrás)...`,
+        `📊 Clima histórico siniestro ${accidentId} (${Math.floor(daysDiff)} días atrás, ref=${idOrIncidentId})...`,
       );
 
-      // Importar weatherService dinámicamente para evitar dependencia circular
       const { weatherService } = await import("./weatherService");
-
-      // Obtener clima histórico
       const weatherData = await weatherService.fetchHistoricalWeatherForDate(
-        accident.location_lat,
-        accident.location_lng,
+        lat,
+        lng,
         accidentDate,
       );
 
       if (!weatherData) {
         console.log(
-          `❌ No se pudo obtener clima histórico para accidente ${accidentId}`,
+          `❌ Open-Meteo no disponible para siniestro ${accidentId}`,
         );
-        return false;
+        return { ok: false, reason: "open_meteo_unavailable" };
       }
 
-      // Actualizar accidente con weather_data
-      const query = `
-                UPDATE road_accidents
-                SET weather_data = $1, updated_at = NOW()
-                WHERE id = $2
-            `;
-      await dbService.query(query, [JSON.stringify(weatherData), accidentId]);
-
-      console.log(
-        `✅ Weather data histórico actualizado para accidente ${accidentId}:`,
-        {
-          temperature: weatherData.temperature_celsius,
-          precipitation: weatherData.precipitation_mm,
-          description: weatherData.weather_description,
-        },
+      await dbService.query(
+        `UPDATE road_accidents SET weather_data = $1, updated_at = NOW() WHERE id = $2`,
+        [JSON.stringify(weatherData), accidentId],
       );
 
-      return true;
+      console.log(`✅ Clima actualizado siniestro ${accidentId}`, {
+        temperature: weatherData.temperature_celsius,
+        precipitation: weatherData.precipitation_mm,
+        description: weatherData.weather_description,
+      });
+
+      return { ok: true, accidentId };
     } catch (error) {
       console.error(
-        `❌ Error en backfillWeatherData para ${accidentId}:`,
+        `❌ Error en backfillWeatherData para ${idOrIncidentId}:`,
         error,
       );
-      return false;
+      return { ok: false, reason: "open_meteo_unavailable" };
     }
   }
 }

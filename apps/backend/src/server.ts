@@ -33,7 +33,31 @@ import path from "path";
 import multipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
 import fs from "fs";
-import { roadAccidentService } from "./services/roadAccidentService";
+import {
+  roadAccidentService,
+  type WeatherBackfillFailureReason,
+} from "./services/roadAccidentService";
+
+function weatherBackfillUserMessage(
+  reason: WeatherBackfillFailureReason,
+): string {
+  switch (reason) {
+    case "not_found":
+      return "No se encontró el siniestro. Use el ID del registro (no solo el incident_id de Waze) o verifique que exista en la lista.";
+    case "already_has_weather":
+      return "El siniestro ya tiene datos climáticos. Use «Actualizar» con recarga forzada (force=true).";
+    case "too_old":
+      return "El siniestro es anterior a 92 días. Open-Meteo no provee clima histórico más allá de ese plazo.";
+    case "future_date":
+      return "La fecha del siniestro es futura. Corrija accident_at en el registro.";
+    case "invalid_coordinates":
+      return "El siniestro no tiene coordenadas válidas para consultar el clima.";
+    case "open_meteo_unavailable":
+      return "Open-Meteo no respondió (límite de consultas 429 o error temporal 502). Espere 1–2 minutos y vuelva a intentar.";
+    default:
+      return "No se pudo obtener el clima histórico.";
+  }
+}
 import { catalogSyncService } from "./services/catalogSyncService";
 import { wazePollingService } from "./services/wazePollingService";
 import { openMeteoService } from "./services/openMeteoService";
@@ -1306,12 +1330,12 @@ server.post("/api/accidents/backfill-weather", async (request, reply) => {
 
     for (const accident of eligibleAccidents) {
       try {
-        const success = await roadAccidentService.backfillWeatherData(
+        const result = await roadAccidentService.backfillWeatherData(
           accident.id!,
           { force: forceRefresh },
         );
         processed++;
-        if (success) {
+        if (result.ok) {
           successful++;
           server.log.info(
             {
@@ -1325,8 +1349,8 @@ server.post("/api/accidents/backfill-weather", async (request, reply) => {
           failed++;
         }
 
-        // Rate limiting: esperar 100ms entre requests para no saturar Open-Meteo
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        // Rate limiting: espaciar consultas a Open-Meteo (evitar 429)
+        await new Promise((resolve) => setTimeout(resolve, 1500));
       } catch (error) {
         failed++;
         server.log.error(
@@ -1726,20 +1750,21 @@ server.patch("/api/accidents/:id/weather", async (request, reply) => {
       "Solicitando backfill de clima histórico",
     );
 
-    const success = await roadAccidentService.backfillWeatherData(id, {
+    const result = await roadAccidentService.backfillWeatherData(id, {
       force: forceRefresh,
     });
 
-    if (!success) {
+    if (!result.ok) {
       return reply.code(400).send({
         error: "No se pudo obtener clima histórico",
-        message:
-          "El accidente puede ser muy antiguo (>92 días), ya tiene datos climáticos, o no se pudo contactar con el servicio meteorológico",
+        reason: result.reason,
+        message: weatherBackfillUserMessage(result.reason),
       });
     }
 
-    // Obtener accidente actualizado
-    const accident = await roadAccidentService.getAccidentById(id);
+    const accident = await roadAccidentService.getAccidentById(
+      result.accidentId,
+    );
 
     server.log.info(
       { accidentId: id },
