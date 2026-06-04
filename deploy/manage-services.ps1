@@ -81,6 +81,34 @@ function Stop-Nginx {
     Write-Host "  nginx detenido" -ForegroundColor Green
 }
 
+# Ejecuta un comando en cmd y aborta si el exit code != 0.
+# Evita desplegar dist roto cuando npm ci / build fallan.
+function Invoke-Step([string]$Label, [string]$Command) {
+    Write-Host "  $Label..."
+    cmd /c $Command
+    if ($LASTEXITCODE -ne 0) {
+        throw "$Label fallo (exit $LASTEXITCODE)"
+    }
+}
+
+# Espera a que el backend responda 200 en /health antes de declarar exito.
+# El backend corre migraciones en el arranque, por eso puede tardar.
+function Wait-BackendHealthy([int]$TimeoutSec = 120) {
+    $deadline = (Get-Date).AddSeconds($TimeoutSec)
+    $attempt = 0
+    while ((Get-Date) -lt $deadline) {
+        $attempt++
+        try {
+            $h = Invoke-RestMethod -Uri "http://localhost:3002/health" -TimeoutSec 5
+            Write-Host "  Backend saludable (intento $attempt, uptime: $($h.uptimeFormatted))" -ForegroundColor Green
+            return $true
+        } catch {
+            Start-Sleep -Seconds 4
+        }
+    }
+    throw "Backend no respondio 200 en :3002/health tras $TimeoutSec s"
+}
+
 switch ($Action) {
     "start" {
         Write-Host "Iniciando PanelWazeBackend..." -ForegroundColor Yellow
@@ -199,41 +227,48 @@ switch ($Action) {
             Pop-Location
         }
 
-        Write-Host "  npm ci..."
-        cmd /c "cd /d `"$InstallDir`" && npm ci --include=dev 2>&1"
+        # Build: si algo falla, abortar antes de arrancar (no desplegar dist roto).
+        # El bloque catch garantiza que los servicios vuelvan a arrancar igual.
+        try {
+            Invoke-Step "npm ci" "cd /d `"$InstallDir`" && npm ci --include=dev 2>&1"
 
-        if (Test-Path "$InstallDir\packages\types") {
-            Write-Host "  Compilando types..."
-            cmd /c "cd /d `"$InstallDir\packages\types`" && npm run build 2>&1"
+            if (Test-Path "$InstallDir\packages\types") {
+                Invoke-Step "Compilando types" "cd /d `"$InstallDir\packages\types`" && npm run build 2>&1"
+            }
+
+            Invoke-Step "Compilando backend" "cd /d `"$InstallDir\apps\backend`" && npm run build 2>&1"
+
+            Invoke-Step "Compilando frontend" "cd /d `"$InstallDir\apps\frontend`" && set NODE_OPTIONS=--max-old-space-size=4096 && npm run build 2>&1"
+
+            # Actualizar config nginx con ruta correcta (sin BOM; BOM rompe nginx en Windows)
+            if ($nginxDir -and (Test-Path "$InstallDir\deploy\nginx-prod.conf")) {
+                $nginxConf = Get-Content "$InstallDir\deploy\nginx-prod.conf" -Raw
+                $nginxRoot = $InstallDir -replace '\\', '/'
+                $nginxConf = $nginxConf -replace 'INSTALL_DIR', $nginxRoot
+                $confPath = "$nginxDir\conf\nginx.conf"
+                $utf8NoBom = New-Object System.Text.UTF8Encoding($False)
+                [System.IO.File]::WriteAllText($confPath, $nginxConf, $utf8NoBom)
+                Write-Host "  nginx config actualizado (UTF-8 sin BOM)" -ForegroundColor Gray
+
+                Push-Location $nginxDir
+                & .\nginx.exe -t 2>&1
+                $nginxTestExit = $LASTEXITCODE
+                Pop-Location
+                if ($nginxTestExit -ne 0) { throw "nginx.conf invalida tras actualizar" }
+            }
+        } catch {
+            Write-Host "  [ERROR] Build/config fallo: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "  Re-arrancando servicios con el dist previo para no dejar prod caida..." -ForegroundColor Yellow
+            nssm start PanelWazeBackend 2>$null | Out-Null
+            Start-Nginx
+            throw
         }
 
-        Write-Host "  Compilando backend..."
-        cmd /c "cd /d `"$InstallDir\apps\backend`" && npm run build 2>&1"
-
-        Write-Host "  Compilando frontend..."
-        cmd /c "cd /d `"$InstallDir\apps\frontend`" && set NODE_OPTIONS=--max-old-space-size=4096 && npm run build 2>&1"
-
-        # Actualizar config nginx con ruta correcta (sin BOM; BOM rompe nginx en Windows)
-        if ($nginxDir -and (Test-Path "$InstallDir\deploy\nginx-prod.conf")) {
-            $nginxConf = Get-Content "$InstallDir\deploy\nginx-prod.conf" -Raw
-            $nginxRoot = $InstallDir -replace '\\', '/'
-            $nginxConf = $nginxConf -replace 'INSTALL_DIR', $nginxRoot
-            $confPath = "$nginxDir\conf\nginx.conf"
-            $utf8NoBom = New-Object System.Text.UTF8Encoding($False)
-            [System.IO.File]::WriteAllText($confPath, $nginxConf, $utf8NoBom)
-            Write-Host "  nginx config actualizado (UTF-8 sin BOM)" -ForegroundColor Gray
-
-            Push-Location $nginxDir
-            & .\nginx.exe -t 2>&1
-            if ($LASTEXITCODE -ne 0) { throw "nginx.conf invalida tras actualizar" }
-            Pop-Location
-        }
-
+        # Arranque + verificacion: el backend debe responder antes de declarar exito.
         nssm start PanelWazeBackend
-        Start-Sleep -Seconds 3
         net start PanelWazeFrontend 2>$null
-        Start-Sleep -Seconds 2
         Start-Nginx
+        Wait-BackendHealthy -TimeoutSec 120
 
         Write-Host ""
         Write-Host "Actualizacion completada." -ForegroundColor Green

@@ -7,7 +7,9 @@ on:
 
 concurrency:
   group: ci-cd-${{ github.ref }}
-  cancel-in-progress: true
+  # Solo cancelar runs en push (no en workflow_dispatch, para poder probar deploys
+  # manualmente sin que se cancelen entre si).
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 permissions:
   contents: read
@@ -210,7 +212,11 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Deploy (NSSM update)
+      # Deploy atomico con health-check autoritativo y ROLLBACK automatico:
+      # si build/arranque/health fallan, se vuelve al SHA previo (last-good)
+      # y se re-despliega, dejando produccion siempre arriba. El job igual
+      # termina en fallo para visibilizar el problema en el pipeline.
+      - name: Deploy + health + rollback (NSSM)
         env:
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
           DEPLOY_SHA: ${{ github.sha }}
@@ -219,48 +225,99 @@ jobs:
           $ErrorActionPreference = "Stop"
           $InstallDir = $env:DEPLOY_PATH
           if (-not $InstallDir) { $InstallDir = "D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados" }
+          $manage = "$InstallDir\deploy\manage-services.ps1"
 
           Write-Host "================================================"
           Write-Host " Deploy Panel Waze -> $InstallDir"
           Write-Host " SHA: $env:GITHUB_SHA"
           Write-Host "================================================"
 
-          if (-not (Test-Path "$InstallDir\deploy\manage-services.ps1")) {
+          if (-not (Test-Path $manage)) {
             throw "No se encontro manage-services.ps1 en $InstallDir\deploy"
+          }
+
+          # Health autoritativo: backend :3002 (JSON real) + nginx :80 (proxy).
+          function Test-DeployHealth {
+            $backendOk = $false
+            for ($i = 1; $i -le 20; $i++) {
+              try {
+                $b = Invoke-RestMethod -Uri "http://localhost:3002/health" -TimeoutSec 5
+                if ($b) { Write-Host "[health] backend :3002 OK (uptime: $($b.uptimeFormatted))"; $backendOk = $true; break }
+              } catch {
+                Write-Host "[health] backend intento $i/20..."
+                Start-Sleep -Seconds 6
+              }
+            }
+            if (-not $backendOk) { Write-Host "[health] backend NO responde"; return $false }
+
+            for ($i = 1; $i -le 10; $i++) {
+              try {
+                $r = Invoke-WebRequest -Uri "http://localhost/health" -UseBasicParsing -TimeoutSec 5
+                if ($r.StatusCode -eq 200) { Write-Host "[health] nginx :80 OK"; return $true }
+              } catch {
+                Write-Host "[health] nginx intento $i/10..."
+                Start-Sleep -Seconds 6
+              }
+            }
+            Write-Host "[health] nginx NO responde"
+            return $false
           }
 
           $b64 = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:GH_TOKEN"))
           $env:GIT_CONFIG_COUNT = "1"
           $env:GIT_CONFIG_KEY_0 = "http.https://github.com/.extraheader"
           $env:GIT_CONFIG_VALUE_0 = "AUTHORIZATION: basic $b64"
+          $env:SKIP_GIT_SYNC = "1"
+          $prevSha = $null
 
           try {
             $safeDir = ($InstallDir -replace '\\', '/')
-            Write-Host "git safe.directory -> $safeDir"
             git config --global --add safe.directory $safeDir
             if ($LASTEXITCODE -ne 0) { throw "git config safe.directory fallo" }
 
             Push-Location $InstallDir
-            Write-Host "git fetch origin main..."
-            git fetch origin main
-            if ($LASTEXITCODE -ne 0) { throw "git fetch fallo (exit $LASTEXITCODE)" }
+            try {
+              git fetch origin main
+              if ($LASTEXITCODE -ne 0) { throw "git fetch fallo (exit $LASTEXITCODE)" }
 
-            $target = if ($env:DEPLOY_SHA) { $env:DEPLOY_SHA.Trim() } else { "origin/main" }
-            Write-Host "git reset --hard $target..."
-            git checkout -f main
-            if ($LASTEXITCODE -ne 0) { throw "git checkout main fallo (exit $LASTEXITCODE)" }
-            git reset --hard $target
-            if ($LASTEXITCODE -ne 0) { throw "git reset fallo (exit $LASTEXITCODE)" }
-            Write-Host "HEAD en servidor: $(git rev-parse --short HEAD)"
-            Pop-Location
+              # SHA actualmente desplegado = objetivo de rollback (last-good).
+              $prevSha = (git rev-parse HEAD).Trim()
+              Write-Host "SHA previo (rollback target): $prevSha"
 
-            $env:SKIP_GIT_SYNC = "1"
-            & "$InstallDir\deploy\manage-services.ps1" -Action update -InstallDir $InstallDir
-            if ($LASTEXITCODE -ne 0) { throw "manage-services.ps1 update fallo: $LASTEXITCODE" }
+              $target = if ($env:DEPLOY_SHA) { $env:DEPLOY_SHA.Trim() } else { "origin/main" }
+              git checkout -f main
+              if ($LASTEXITCODE -ne 0) { throw "git checkout main fallo (exit $LASTEXITCODE)" }
+              git reset --hard $target
+              if ($LASTEXITCODE -ne 0) { throw "git reset fallo (exit $LASTEXITCODE)" }
+              Write-Host "HEAD nuevo: $(git rev-parse --short HEAD)"
+            } finally {
+              Pop-Location
+            }
 
-            & "$InstallDir\deploy\manage-services.ps1" -Action status -InstallDir $InstallDir
-            $global:LASTEXITCODE = 0
-            Write-Host "[OK] Deploy completado: $env:GITHUB_SHA"
+            try {
+              & $manage -Action update -InstallDir $InstallDir
+              if ($LASTEXITCODE -ne 0) { throw "manage-services update fallo (exit $LASTEXITCODE)" }
+              if (-not (Test-DeployHealth)) { throw "health-check fallo tras desplegar $target" }
+              $global:LASTEXITCODE = 0
+              Write-Host "[OK] Deploy completado y saludable: $env:GITHUB_SHA"
+            } catch {
+              $deployErr = $_.Exception.Message
+              Write-Host "##[error] Deploy fallo: $deployErr" -ForegroundColor Red
+              if ($prevSha) {
+                Write-Host "[ROLLBACK] Volviendo a last-good $prevSha..."
+                Push-Location $InstallDir
+                try { git reset --hard $prevSha } finally { Pop-Location }
+                & $manage -Action update -InstallDir $InstallDir
+                if (Test-DeployHealth) {
+                  Write-Host "[ROLLBACK] Produccion restaurada en $prevSha (saludable)"
+                } else {
+                  Write-Host "##[error] ROLLBACK no saludable: intervencion manual requerida"
+                }
+              } else {
+                Write-Host "##[error] Sin SHA previo: no se pudo hacer rollback"
+              }
+              throw "Deploy fallo y se aplico rollback a $prevSha. Causa: $deployErr"
+            }
           } finally {
             Remove-Item Env:SKIP_GIT_SYNC -ErrorAction SilentlyContinue
             Remove-Item Env:GIT_CONFIG_COUNT -ErrorAction SilentlyContinue
@@ -268,41 +325,15 @@ jobs:
             Remove-Item Env:GIT_CONFIG_VALUE_0 -ErrorAction SilentlyContinue
           }
 
-      - name: Verify deployment health
+      - name: Estado final de servicios
+        if: always()
         env:
-          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
         run: |
-          # Backend directo (NSSM PanelWazeBackend)
-          Write-Host "Verificando backend NSSM en http://localhost:3002/health"
-          for ($i = 1; $i -le 10; $i++) {
-            try {
-              $backend = Invoke-RestMethod -Uri "http://localhost:3002/health" -TimeoutSec 5
-              Write-Host "[OK] Backend :3002 responde (uptime: $($backend.uptimeFormatted))"
-              break
-            } catch {
-              if ($i -eq 10) { throw "Backend NSSM no responde en :3002 tras 10 intentos" }
-              Write-Host "Esperando backend... intento $i/10"
-              Start-Sleep -Seconds 15
-            }
-          }
-
-          # Proxy nginx :80 (trafico principal)
-          $base = if ([string]::IsNullOrWhiteSpace($env:PRODUCTION_URL)) { "http://localhost" } else { $env:PRODUCTION_URL.TrimEnd('/') }
-          $url = "$base/health"
-          Write-Host "Verificando nginx proxy en $url"
-          for ($i = 1; $i -le 10; $i++) {
-            try {
-              $r = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 5
-              if ($r.StatusCode -eq 200) {
-                Write-Host "[OK] Nginx proxy OK (intento $i)"
-                exit 0
-              }
-            } catch {
-              Write-Host "Esperando nginx... intento $i/10 (error: $($_.Exception.Message))"
-            }
-            Start-Sleep -Seconds 15
-          }
-          throw "Health check nginx fallo despues de 10 intentos"
+          $InstallDir = $env:DEPLOY_PATH
+          if (-not $InstallDir) { $InstallDir = "D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados" }
+          & "$InstallDir\deploy\manage-services.ps1" -Action status -InstallDir $InstallDir
+          $global:LASTEXITCODE = 0
 
   # =============================================
   # RESUMEN — jobs críticos deben pasar
