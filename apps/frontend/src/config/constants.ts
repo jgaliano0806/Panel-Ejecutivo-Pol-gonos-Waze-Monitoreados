@@ -63,6 +63,13 @@ export const API_CONFIG = {
   retryCount: 1,
 };
 
+// Versión de los tiles del mapa para cache-busting del navegador.
+// Los tiles se sirven con Cache-Control: immutable (30 días), así que el browser
+// no los vuelve a pedir aunque el server empiece a devolver otra imagen.
+// Subir este número invalida los tiles cacheados en TODOS los navegadores tras
+// un deploy, sin que cada usuario tenga que limpiar caché manualmente.
+export const TILES_VERSION = "2";
+
 // ============================================
 // UMBRALES DE SEVERIDAD
 // ============================================

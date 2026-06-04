@@ -20,7 +20,7 @@ import { useKilometers } from "../../hooks/useKilometers";
 import { useIncidentDetail } from "../../hooks/useIncidentsModule";
 import { IncidentDetailModal } from "../incidents/IncidentDetailModal";
 import { exportIncidentToPDF } from "../../lib/pdf-export";
-import { API_CONFIG } from "../../config/constants";
+import { API_CONFIG, TILES_VERSION } from "../../config/constants";
 import { getWazeIconSvg } from "../../utils/wazeIcons";
 
 import { MapContextMenu } from "./MapContextMenu";
@@ -541,8 +541,8 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
       basemap: {
         type: "raster",
         tiles: isDark
-          ? [`${tilesBase}/tiles/v2/carto-dark/{z}/{x}/{y}.png`]
-          : [`${tilesBase}/tiles/v2/carto-light/{z}/{x}/{y}.png`],
+          ? [`${tilesBase}/tiles/v2/carto-dark/{z}/{x}/{y}.png?v=${TILES_VERSION}`]
+          : [`${tilesBase}/tiles/v2/carto-light/{z}/{x}/{y}.png?v=${TILES_VERSION}`],
         tileSize: 256,
         attribution: "© CARTO",
         minzoom: 0,

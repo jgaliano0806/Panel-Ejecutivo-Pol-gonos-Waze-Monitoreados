@@ -12,10 +12,10 @@ import {
   validatePolygon,
   type ValidationResult,
 } from "../../utils/polygonValidation";
-import { API_CONFIG } from "../../config/constants";
+import { API_CONFIG, TILES_VERSION } from "../../config/constants";
 
-const getCartoLight = () => `${API_CONFIG.tilesBase || ""}/tiles/v2/carto-light/{z}/{x}/{y}.png`;
-const getCartoDark = () => `${API_CONFIG.tilesBase || ""}/tiles/v2/carto-dark/{z}/{x}/{y}.png`;
+const getCartoLight = () => `${API_CONFIG.tilesBase || ""}/tiles/v2/carto-light/{z}/{x}/{y}.png?v=${TILES_VERSION}`;
+const getCartoDark = () => `${API_CONFIG.tilesBase || ""}/tiles/v2/carto-dark/{z}/{x}/{y}.png?v=${TILES_VERSION}`;
 const CARTO_ATTRIBUTION =
   '&copy; <a href="https://carto.com">CARTO</a>';
 
