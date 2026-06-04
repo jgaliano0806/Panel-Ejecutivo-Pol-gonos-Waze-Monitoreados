@@ -1,0 +1,82 @@
+---
+description: Flujo Git — preprod como staging, main como producción
+alwaysApply: true
+---
+
+# Flujo Git: preprod → main (producción)
+
+## Ramas y roles
+
+| Rama | Rol |
+|------|-----|
+| `main` | **Producción** (master). Solo recibe código probado en preprod. |
+| `preprod` | **Staging / pre-producción**. Debe estar siempre alineada con `main`. |
+| `feat/*`, `fix/*`, etc. | Trabajo temporal. Siempre nacen de `preprod`. |
+
+## Reglas obligatorias
+
+1. **`preprod` siempre actualizada con producción**
+   - Cuando `main` avanza (hotfix en prod, release), integrar de inmediato en `preprod`:
+     ```bash
+     git checkout preprod
+     git pull origin preprod
+     git merge origin/main
+     git push origin preprod
+     ```
+
+2. **Nuevas ramas solo desde `preprod`**
+   - Fixes, features y refactors:
+     ```bash
+     git checkout preprod
+     git pull origin preprod
+     git checkout -b fix/descripcion-corta
+     # o: git checkout -b feat/descripcion-corta
+     ```
+   - **No** crear ramas de trabajo desde `main` ni desde otras ramas feature salvo excepción acordada.
+
+3. **Recorrido inverso para integrar (obligatorio)**
+   ```
+   feat/fix/*  →  preprod  →  main
+   ```
+   - Nunca mergear directo a `main` saltando `preprod`.
+   - Nunca pushear a `main` sin haber validado antes en el entorno preprod.
+
+4. **Probar en preprod antes de producción**
+   - Deploy y pruebas en preprod (funcional, regresión, smoke).
+   - Solo después del OK: merge `preprod` → `main` y deploy prod.
+
+## Flujo típico
+
+```bash
+# 1. Arrancar trabajo
+git checkout preprod && git pull origin preprod
+git checkout -b feat/mi-cambio
+
+# 2. Commits en la rama de trabajo (mensajes en español argentino)
+
+# 3. Integrar a preprod
+git checkout preprod && git pull origin preprod
+git merge feat/mi-cambio
+git push origin preprod
+# → deploy y probar en preprod
+
+# 4. Pasar a producción (solo si preprod OK)
+git checkout main && git pull origin main
+git merge preprod
+git push origin main
+```
+
+## Hotfix en producción
+
+Si el fix va directo a `main` por urgencia:
+
+1. Mergear el hotfix en `main` y desplegar prod.
+2. **Inmediatamente** sincronizar `preprod` con `main` (regla 1).
+3. Backportar el mismo fix a ramas feature abiertas si aplica.
+
+## Qué debe hacer el agente
+
+- Al proponer commits, PRs o deploys: respetar `feat/fix → preprod → main`.
+- Si el usuario pide subir a `main`: confirmar que ya se probó en preprod o advertir el desvío.
+- Si `preprod` está detrás de `main`: sugerir sincronizar antes de abrir ramas nuevas.
+- No recomendar `git push origin main` sin paso previo por `preprod`, salvo hotfix explícito con sync posterior.
