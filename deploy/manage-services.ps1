@@ -164,9 +164,12 @@ switch ($Action) {
         Write-Host "Actualizando Panel Waze..." -ForegroundColor Yellow
         Write-Host "  InstallDir: $InstallDir" -ForegroundColor Gray
 
-        nssm stop PanelWazeBackend 2>$null
-        net stop PanelWazeFrontend 2>$null
+        $prevErrorPref = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        nssm stop PanelWazeBackend 2>$null | Out-Null
+        net stop PanelWazeFrontend 2>$null | Out-Null
         Stop-Nginx
+        $ErrorActionPreference = $prevErrorPref
 
         Push-Location $InstallDir
         try {
