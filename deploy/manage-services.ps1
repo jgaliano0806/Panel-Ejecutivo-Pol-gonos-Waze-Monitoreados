@@ -40,10 +40,23 @@ function Test-NssmService([string]$Name) {
 
 function Start-Nginx {
     if (Test-NssmService "PanelWazeNginx") {
-        Start-Service PanelWazeNginx -ErrorAction SilentlyContinue
-        Start-Sleep -Seconds 2
+        $svc = Get-Service PanelWazeNginx -ErrorAction SilentlyContinue
+        if ($svc.Status -eq "Paused") {
+            Write-Host "  PanelWazeNginx en Paused, reanudando..." -ForegroundColor Yellow
+            Resume-Service PanelWazeNginx -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 2
+        }
+        if ((Get-Service PanelWazeNginx).Status -ne "Running") {
+            Start-Service PanelWazeNginx -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 2
+        }
+        if ((Get-Service PanelWazeNginx).Status -ne "Running") {
+            Restart-Service PanelWazeNginx -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 3
+        }
         $state = (Get-Service PanelWazeNginx).Status
         Write-Host "  PanelWazeNginx (NSSM): $state" -ForegroundColor $(if ($state -eq "Running") { "Green" } else { "Red" })
+        if ($state -ne "Running") { throw "PanelWazeNginx no arranco (estado: $state)" }
         return
     }
     if (-not $nginxDir) { Write-Host "  nginx no encontrado" -ForegroundColor Red; return }
@@ -197,13 +210,20 @@ switch ($Action) {
         Write-Host "  Compilando frontend..."
         cmd /c "cd /d `"$InstallDir\apps\frontend`" && set NODE_OPTIONS=--max-old-space-size=4096 && npm run build 2>&1"
 
-        # Actualizar config nginx con ruta correcta
+        # Actualizar config nginx con ruta correcta (sin BOM; BOM rompe nginx en Windows)
         if ($nginxDir -and (Test-Path "$InstallDir\deploy\nginx-prod.conf")) {
             $nginxConf = Get-Content "$InstallDir\deploy\nginx-prod.conf" -Raw
             $nginxRoot = $InstallDir -replace '\\', '/'
             $nginxConf = $nginxConf -replace 'INSTALL_DIR', $nginxRoot
-            Set-Content -Path "$nginxDir\conf\nginx.conf" -Value $nginxConf -Encoding UTF8
-            Write-Host "  nginx config actualizado" -ForegroundColor Gray
+            $confPath = "$nginxDir\conf\nginx.conf"
+            $utf8NoBom = New-Object System.Text.UTF8Encoding($False)
+            [System.IO.File]::WriteAllText($confPath, $nginxConf, $utf8NoBom)
+            Write-Host "  nginx config actualizado (UTF-8 sin BOM)" -ForegroundColor Gray
+
+            Push-Location $nginxDir
+            & .\nginx.exe -t 2>&1
+            if ($LASTEXITCODE -ne 0) { throw "nginx.conf invalida tras actualizar" }
+            Pop-Location
         }
 
         nssm start PanelWazeBackend
