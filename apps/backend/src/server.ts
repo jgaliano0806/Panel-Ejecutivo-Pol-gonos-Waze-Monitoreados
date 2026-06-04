@@ -1846,7 +1846,10 @@ const start = async () => {
 
       const { isRiskScoringEnabled } = await import("./config/features");
       if (isRiskScoringEnabled) {
-        await import("./listeners/RiskScoringListener");
+        const { initRiskScoringListener } = await import(
+          "./listeners/RiskScoringListener"
+        );
+        initRiskScoringListener();
         console.log("✓ RiskScoringListener initialized (ENABLE_RISK_SCORING=1)");
       } else {
         console.log("⏭️ RiskScoringListener deshabilitado (solo group-kpis-display)");

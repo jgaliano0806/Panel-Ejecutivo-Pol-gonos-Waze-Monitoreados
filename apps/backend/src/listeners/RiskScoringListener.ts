@@ -110,4 +110,7 @@ export class RiskScoringListener {
   }
 }
 
-export const riskScoringListener = new RiskScoringListener();
+/** Solo usar vía import explícito cuando ENABLE_RISK_SCORING=1 */
+export function initRiskScoringListener(): RiskScoringListener {
+  return new RiskScoringListener();
+}
