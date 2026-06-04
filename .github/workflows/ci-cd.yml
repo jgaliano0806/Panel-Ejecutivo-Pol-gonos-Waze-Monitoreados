@@ -213,6 +213,7 @@ jobs:
       - name: Deploy (NSSM update)
         env:
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          DEPLOY_SHA: ${{ github.sha }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $ErrorActionPreference = "Stop"

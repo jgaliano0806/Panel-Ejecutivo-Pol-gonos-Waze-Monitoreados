@@ -155,8 +155,32 @@ switch ($Action) {
         net stop PanelWazeFrontend 2>$null
         Stop-Nginx
 
-        Write-Host "  git pull..."
-        cmd /c "cd /d `"$InstallDir`" && git pull 2>&1"
+        $safeDir = ($InstallDir -replace '\\', '/')
+        Write-Host "  git safe.directory..."
+        git config --global --add safe.directory $safeDir 2>$null | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            cmd /c "git config --global --add safe.directory `"$safeDir`"" 2>&1 | Out-Null
+        }
+
+        Push-Location $InstallDir
+        try {
+            $targetRef = if ($env:DEPLOY_SHA) { $env:DEPLOY_SHA.Trim() } else { "origin/main" }
+            Write-Host "  git fetch origin main..."
+            git fetch origin main 2>&1
+            if ($LASTEXITCODE -ne 0) { throw "git fetch fallo (exit $LASTEXITCODE)" }
+
+            Write-Host "  git checkout main + reset -> $targetRef..."
+            git checkout -f main 2>&1
+            if ($LASTEXITCODE -ne 0) { throw "git checkout main fallo (exit $LASTEXITCODE)" }
+
+            git reset --hard $targetRef 2>&1
+            if ($LASTEXITCODE -ne 0) { throw "git reset --hard fallo (exit $LASTEXITCODE)" }
+
+            $head = (git rev-parse --short HEAD 2>&1).Trim()
+            Write-Host "  HEAD: $head" -ForegroundColor Gray
+        } finally {
+            Pop-Location
+        }
 
         Write-Host "  npm ci..."
         cmd /c "cd /d `"$InstallDir`" && npm ci --include=dev 2>&1"
