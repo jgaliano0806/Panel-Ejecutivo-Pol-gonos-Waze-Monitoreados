@@ -122,9 +122,9 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(
       },
       {
         id: "critical",
-        label: "RIESGOS CRÍTICOS",
+        label: "TRAMOS CRÍTICOS",
         value: criticalPolygons,
-        subtext: "Tramos con scoring alto",
+        subtext: "Alta congestión en red",
         icon: MapPin,
         status: "primary",
         trend: 0,
@@ -180,7 +180,7 @@ export const ModernExecutiveSummary = memo<ModernExecutiveSummaryProps>(
                   active={hoveredCard === index}
                   onClick={() => {
                     if (metric.id === "critical" && isClickable)
-                      navigate("/riesgos");
+                      navigate("/incidentes");
                     else if (metric.id === "incidents" && isClickable)
                       navigate("/siniestros");
                     else if (isClickable) {

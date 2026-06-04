@@ -72,6 +72,16 @@
     min-width: 360px;
     overflow-x: auto;
   }
+
+  /* Native selects: lista desplegable legible en dark mode (Windows/Chrome) */
+  .dark select {
+    color-scheme: dark;
+  }
+
+  .dark select option {
+    background-color: #2a3042;
+    color: #eff2f7;
+  }
 }
 
 /*

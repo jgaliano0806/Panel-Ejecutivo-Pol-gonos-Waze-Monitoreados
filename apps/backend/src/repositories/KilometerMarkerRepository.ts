@@ -131,4 +131,143 @@ export class KilometerMarkerRepository extends BaseRepository<KilometerMarker> {
       inactive: parseInt(row.inactive, 10),
     };
   }
+
+  /** Rutas distintas para filtro en admin */
+  async findDistinctRoutes(): Promise<string[]> {
+    const result = await this.query(
+      `SELECT DISTINCT route_name
+       FROM ${this.tableName}
+       WHERE route_name IS NOT NULL AND TRIM(route_name) <> ''
+       ORDER BY route_name ASC`,
+    );
+    return result.rows.map((row) => row.route_name as string);
+  }
+
+  /**
+   * Listado paginado con filtros (admin)
+   */
+  async findPaginated(options: {
+    search?: string;
+    route_name?: string;
+    active?: "all" | "active" | "inactive";
+    group_id?: number;
+    limit: number;
+    offset: number;
+  }): Promise<{ data: KilometerMarker[]; total: number }> {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    let paramIdx = 1;
+
+    if (options.search?.trim()) {
+      conditions.push(
+        `(km.name ILIKE $${paramIdx} OR km.route_name ILIKE $${paramIdx} OR pg.name ILIKE $${paramIdx})`,
+      );
+      params.push(`%${options.search.trim()}%`);
+      paramIdx++;
+    }
+
+    if (options.route_name) {
+      conditions.push(`km.route_name = $${paramIdx}`);
+      params.push(options.route_name);
+      paramIdx++;
+    }
+
+    if (options.active === "active") {
+      conditions.push("km.is_active = true");
+    } else if (options.active === "inactive") {
+      conditions.push("km.is_active = false");
+    }
+
+    if (options.group_id != null) {
+      conditions.push(`km.polygon_group_id = $${paramIdx}`);
+      params.push(options.group_id);
+      paramIdx++;
+    }
+
+    const whereClause =
+      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const fromClause = `FROM ${this.tableName} km
+         LEFT JOIN polygon_groups pg ON km.polygon_group_id = pg.id`;
+
+    try {
+      const countResult = await this.query(
+        `SELECT COUNT(*) AS total ${fromClause} ${whereClause}`,
+        params,
+      );
+      const total = parseInt(countResult.rows[0]?.total ?? "0", 10);
+
+      const dataResult = await this.query(
+        `SELECT km.*, pg.name AS group_name
+         ${fromClause}
+         ${whereClause}
+         ORDER BY km.name ASC
+         LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`,
+        [...params, options.limit, options.offset],
+      );
+
+      return {
+        data: dataResult.rows.map((row) => this.mapRowToEntity(row)),
+        total,
+      };
+    } catch (err: unknown) {
+      const pgErr = err as { code?: string; message?: string };
+      if (
+        pgErr?.code === "42P01" ||
+        pgErr?.message?.includes("polygon_groups")
+      ) {
+        const fallbackConditions: string[] = [];
+        const fallbackParams: unknown[] = [];
+        let idx = 1;
+
+        if (options.search?.trim()) {
+          fallbackConditions.push(
+            `(name ILIKE $${idx} OR route_name ILIKE $${idx})`,
+          );
+          fallbackParams.push(`%${options.search.trim()}%`);
+          idx++;
+        }
+        if (options.route_name) {
+          fallbackConditions.push(`route_name = $${idx}`);
+          fallbackParams.push(options.route_name);
+          idx++;
+        }
+        if (options.active === "active") {
+          fallbackConditions.push("is_active = true");
+        } else if (options.active === "inactive") {
+          fallbackConditions.push("is_active = false");
+        }
+        if (options.group_id != null) {
+          fallbackConditions.push(`polygon_group_id = $${idx}`);
+          fallbackParams.push(options.group_id);
+          idx++;
+        }
+
+        const fallbackWhere =
+          fallbackConditions.length > 0
+            ? `WHERE ${fallbackConditions.join(" AND ")}`
+            : "";
+
+        const countResult = await this.query(
+          `SELECT COUNT(*) AS total FROM ${this.tableName} ${fallbackWhere}`,
+          fallbackParams,
+        );
+        const total = parseInt(countResult.rows[0]?.total ?? "0", 10);
+
+        const dataResult = await this.query(
+          `SELECT * FROM ${this.tableName}
+           ${fallbackWhere}
+           ORDER BY name ASC
+           LIMIT $${idx} OFFSET $${idx + 1}`,
+          [...fallbackParams, options.limit, options.offset],
+        );
+
+        return {
+          data: dataResult.rows.map((row) => this.mapRowToEntity(row)),
+          total,
+        };
+      }
+      throw err;
+    }
+  }
 }

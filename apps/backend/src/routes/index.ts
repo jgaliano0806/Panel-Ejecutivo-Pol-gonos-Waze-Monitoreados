@@ -15,8 +15,8 @@ import polygonGroupsRoutes from "./polygonGroups.routes";
 import incidentsRoutes from "./incidents.routes";
 import jamsRoutes from "./jams.routes";
 import ttsRoutes from "./tts.routes";
-import riskRoutes from "./risk.routes";
 import authRoutes from "./auth.routes";
+import { isRiskScoringEnabled } from "../config/features";
 import usersRoutes from "./users.routes";
 import rolesRoutes from "./roles.routes";
 import kilometerMarkersRoutes from "./kilometerMarkers.routes";
@@ -72,8 +72,11 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   // Text-to-Speech (voces neuronales gratuitas)
   await app.register(ttsRoutes, { prefix: "/api/tts" });
 
-  // Risk Scoring Dashboard
-  await app.register(riskRoutes, { prefix: "/api/risk" });
+  // Risk Scoring (solo con ENABLE_RISK_SCORING=1 — rama group-kpis-display)
+  if (isRiskScoringEnabled) {
+    const { default: riskRoutes } = await import("./risk.routes");
+    await app.register(riskRoutes, { prefix: "/api/risk" });
+  }
 
   // Hitos Kilométricos
   await app.register(kilometerMarkersRoutes, { prefix: "/api/kilometers" });

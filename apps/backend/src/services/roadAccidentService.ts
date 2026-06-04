@@ -395,7 +395,10 @@ export class RoadAccidentService {
    * @param accidentId ID del accidente
    * @returns true si se actualizó exitosamente, false en caso contrario
    */
-  async backfillWeatherData(accidentId: string): Promise<boolean> {
+  async backfillWeatherData(
+    accidentId: string,
+    options: { force?: boolean } = {},
+  ): Promise<boolean> {
     try {
       const accident = await this.getAccidentById(accidentId);
       if (!accident) {
@@ -403,8 +406,11 @@ export class RoadAccidentService {
         return false;
       }
 
-      // Verificar si ya tiene weather_data válido
+      const { force = false } = options;
+
+      // Verificar si ya tiene weather_data válido (salvo refresh forzado)
       if (
+        !force &&
         accident.weather_data &&
         typeof accident.weather_data === "object" &&
         Object.keys(accident.weather_data).length > 0

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MapPin,
@@ -12,14 +12,24 @@ import {
   Save,
   Loader2,
   AlertCircle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
-  useKilometers,
+  useKilometersList,
+  useKilometerStats,
+  useKilometerRoutes,
   useKilometerMutations,
   type KilometerMarker,
 } from "../../hooks/useKilometers";
 import { useAdminToast } from "../../hooks/useAdminToast";
 import { useQuery } from "@tanstack/react-query";
+import {
+  NativeSelect,
+  NativeSelectOption,
+  nativeSelectClassName,
+} from "../ui/native-select";
+import { cn } from "../../lib/utils";
 
 // Fetch polygon groups para el selector
 interface PolygonGroup {
@@ -108,11 +118,18 @@ const KmFormModal: React.FC<KmFormModalProps> = ({
   };
 
   const fieldClass = (field: string) =>
-    `w-full px-3 py-2 rounded-lg bg-white/[0.06] border ${
+    `w-full px-3 py-2 rounded-lg bg-gray-800 border ${
       errors[field]
         ? "border-red-500 focus:ring-red-500/50"
-        : "border-white/[0.1] focus:ring-blue-500/50"
+        : "border-white/10 focus:ring-blue-500/50"
     } text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-all`;
+
+  const selectFieldClass = (field: string) =>
+    cn(
+      nativeSelectClassName,
+      "bg-gray-800 dark:bg-gray-800 border-white/10 text-white",
+      errors[field] && "border-red-500 focus:ring-red-500/50",
+    );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -125,7 +142,7 @@ const KmFormModal: React.FC<KmFormModalProps> = ({
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-semibold text-white flex items-center gap-2">
             <MapPin size={20} className="text-blue-400" />
-            {marker ? "Editar Ubicación" : "Nueva Ubicación Vial"}
+            {marker ? "Editar mojón" : "Nuevo mojón kilométrico"}
           </h3>
           <button
             onClick={onCancel}
@@ -194,36 +211,40 @@ const KmFormModal: React.FC<KmFormModalProps> = ({
             <label className="block text-sm font-medium text-gray-300 mb-1">
               Grupo de Polígonos *
             </label>
-            <select
+            <NativeSelect
               value={form.polygon_group_id}
               onChange={(e) =>
                 setForm({ ...form, polygon_group_id: e.target.value })
               }
               title="Seleccionar grupo de polígonos"
-              className={fieldClass("polygon_group_id")}
+              className={selectFieldClass("polygon_group_id")}
             >
-              <option value="">— Seleccionar grupo —</option>
+              <NativeSelectOption value="">— Seleccionar grupo —</NativeSelectOption>
               {groups
                 .filter((g) => g.is_active)
                 .map((g) => (
-                  <option key={g.id} value={String(g.id)}>
+                  <NativeSelectOption key={g.id} value={String(g.id)}>
                     {g.name}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-            </select>
+            </NativeSelect>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
-              Ruta (opcional)
+              Ruta
             </label>
             <input
               type="text"
               value={form.route_name}
               onChange={(e) => setForm({ ...form, route_name: e.target.value })}
-              placeholder="Ej: RN36, E55, Autopista CBA-Rosario"
+              placeholder="Ej: Alternativa Ruta Provincial 5"
               className={fieldClass("route_name")}
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Debe coincidir con la columna &quot;Ruta&quot; del listado (ej.
+              Alternativa Ruta Provincial 5).
+            </p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -275,44 +296,43 @@ const KmFormModal: React.FC<KmFormModalProps> = ({
 
 // ─── Componente Principal ─────────────────────────────────
 
-const KilometerManagement: React.FC = () => {
-  const { data: markers = [], isLoading, error } = useKilometers();
-  const { createMutation, updateMutation, deleteMutation } =
-    useKilometerMutations();
-  const toast = useAdminToast();
+const PAGE_SIZE = 50;
 
+const KilometerManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterActive, setFilterActive] = useState<
     "all" | "active" | "inactive"
   >("all");
+  const [filterRoute, setFilterRoute] = useState("");
+  const [page, setPage] = useState(0);
   const [editingMarker, setEditingMarker] = useState<KilometerMarker | null>(
     null,
   );
   const [showModal, setShowModal] = useState(false);
 
-  // Filtrar y buscar
-  const filteredMarkers = useMemo(() => {
-    return markers.filter((m) => {
-      const matchesSearch =
-        !searchTerm ||
-        m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (m.route_name &&
-          m.route_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (m.group_name &&
-          m.group_name.toLowerCase().includes(searchTerm.toLowerCase()));
-      const matchesStatus =
-        filterActive === "all" ||
-        (filterActive === "active" && m.is_active) ||
-        (filterActive === "inactive" && !m.is_active);
-      return matchesSearch && matchesStatus;
+  const { data: listResult, isLoading, error, isFetching } =
+    useKilometersList({
+      page,
+      pageSize: PAGE_SIZE,
+      search: searchTerm,
+      routeName: filterRoute || undefined,
+      status: filterActive,
     });
-  }, [markers, searchTerm, filterActive]);
 
-  const stats = useMemo(() => {
-    const total = markers.length;
-    const active = markers.filter((m) => m.is_active).length;
-    return { total, active, inactive: total - active };
-  }, [markers]);
+  const markers = listResult?.data ?? [];
+  const totalFiltered = listResult?.total ?? 0;
+  const { data: routeOptions = [] } = useKilometerRoutes();
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / PAGE_SIZE));
+  const pageStart = totalFiltered === 0 ? 0 : page * PAGE_SIZE + 1;
+  const pageEnd = Math.min((page + 1) * PAGE_SIZE, totalFiltered);
+
+  const { data: stats = { total: 0, active: 0, inactive: 0 } } =
+    useKilometerStats();
+  const { createMutation, updateMutation, deleteMutation } =
+    useKilometerMutations();
+  const toast = useAdminToast();
+
+  const resetPage = useCallback(() => setPage(0), []);
 
   const handleNew = useCallback(() => {
     setEditingMarker(null);
@@ -390,7 +410,7 @@ const KilometerManagement: React.FC = () => {
     return (
       <div className="p-8 flex items-center gap-3 text-red-400">
         <AlertCircle size={20} />
-        <span>Error al cargar ubicación vial</span>
+        <span>Error al cargar mojones kilométricos</span>
       </div>
     );
   }
@@ -402,11 +422,13 @@ const KilometerManagement: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <MapPin className="text-blue-500" size={24} />
-            Ubicación Vial
+            Mojones Kilométricos
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            {stats.total} ubicaciones · {stats.active} activas · {stats.inactive}{" "}
-            inactivos
+            {stats.total} mojones en total · {stats.active} activos ·{" "}
+            {stats.inactive} inactivos
+            {totalFiltered !== stats.total &&
+              ` · ${totalFiltered} coinciden con el filtro`}
           </p>
         </div>
         <button
@@ -414,13 +436,13 @@ const KilometerManagement: React.FC = () => {
           className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/25"
         >
           <Plus size={18} />
-          Agregar Hito
+          Agregar mojón
         </button>
       </div>
 
       {/* Controles de filtro */}
-      <div className="flex items-center gap-4 mb-5">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-wrap items-center gap-3 mb-5">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search
             size={16}
             className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
@@ -428,21 +450,53 @@ const KilometerManagement: React.FC = () => {
           <input
             type="text"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por nombre o ruta..."
-            className="w-full pl-9 pr-4 py-2 rounded-lg bg-gray-100/80 dark:bg-white/[0.06] border border-gray-200 dark:border-white/[0.1] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-sm"
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              resetPage();
+            }}
+            placeholder="Buscar por nombre, ruta o grupo..."
+            className="w-full pl-9 pr-4 py-2 rounded-lg bg-gray-100/80 dark:bg-veltrix-bg border border-gray-200 dark:border-veltrix-border text-gray-900 dark:text-veltrix-text placeholder-gray-500 dark:placeholder-veltrix-muted focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 text-sm"
           />
         </div>
 
-        <div className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-white/[0.1]">
+        <div className="flex flex-col gap-1">
+          <label
+            htmlFor="filter-route-name"
+            className="text-xs font-medium text-gray-500 dark:text-veltrix-muted"
+          >
+            Ruta
+          </label>
+          <NativeSelect
+            id="filter-route-name"
+            value={filterRoute}
+            onChange={(e) => {
+              setFilterRoute(e.target.value);
+              resetPage();
+            }}
+            title="Filtrar por columna Ruta (route_name)"
+            wrapperClassName="min-w-[220px]"
+          >
+            <NativeSelectOption value="">Todas las rutas</NativeSelectOption>
+            {routeOptions.map((route) => (
+              <NativeSelectOption key={route} value={route}>
+                {route}
+              </NativeSelectOption>
+            ))}
+          </NativeSelect>
+        </div>
+
+        <div className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-veltrix-border">
           {(["all", "active", "inactive"] as const).map((filter) => (
             <button
               key={filter}
-              onClick={() => setFilterActive(filter)}
+              onClick={() => {
+                setFilterActive(filter);
+                resetPage();
+              }}
               className={`px-3 py-2 text-xs font-medium transition-colors ${
                 filterActive === filter
                   ? "bg-blue-600 text-white"
-                  : "bg-gray-100/80 dark:bg-white/[0.06] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/[0.1]"
+                  : "bg-gray-100/80 dark:bg-veltrix-bg text-gray-600 dark:text-veltrix-muted hover:bg-gray-200 dark:hover:bg-veltrix-card"
               }`}
             >
               {filter === "all"
@@ -460,13 +514,18 @@ const KilometerManagement: React.FC = () => {
         <div className="flex items-center justify-center py-20">
           <Loader2 size={32} className="animate-spin text-blue-500" />
         </div>
-      ) : filteredMarkers.length === 0 ? (
+      ) : markers.length === 0 ? (
         <div className="text-center py-20 text-gray-500">
           <MapPin size={48} className="mx-auto mb-3 opacity-30" />
-          <p>No se encontraron ubicaciones viales</p>
+          <p>No se encontraron mojones kilométricos</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-white/[0.08]">
+        <div className="relative overflow-x-auto rounded-xl border border-gray-200 dark:border-white/[0.08]">
+          {isFetching && !isLoading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/40 dark:bg-black/20">
+              <Loader2 size={24} className="animate-spin text-blue-500" />
+            </div>
+          )}
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-white/[0.04]">
               <tr>
@@ -494,7 +553,7 @@ const KilometerManagement: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-white/[0.06]">
-              {filteredMarkers.map((marker) => (
+              {markers.map((marker) => (
                 <tr
                   key={marker.id}
                   className={`hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-colors ${
@@ -573,11 +632,38 @@ const KilometerManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Contador */}
-      {filteredMarkers.length > 0 && (
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 text-right">
-          Mostrando {filteredMarkers.length} de {markers.length} ubicaciones
-        </p>
+      {/* Paginación */}
+      {totalFiltered > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Mostrando {pageStart}–{pageEnd} de {totalFiltered} mojones
+            {totalPages > 1 && ` · Página ${page + 1} de ${totalPages}`}
+          </p>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={page === 0 || isFetching}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-white/10 text-sm disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-white/5"
+              >
+                <ChevronLeft size={16} />
+                Anterior
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setPage((p) => Math.min(totalPages - 1, p + 1))
+                }
+                disabled={page >= totalPages - 1 || isFetching}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-white/10 text-sm disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-white/5"
+              >
+                Siguiente
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Modal */}

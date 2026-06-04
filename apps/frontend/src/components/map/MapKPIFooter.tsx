@@ -61,7 +61,15 @@ export const MapKPIFooter: React.FC<MapKPIFooterProps> = ({
     [wazeAccidents],
   );
 
-  const metrics = [
+  const metrics: Array<{
+    id: string;
+    label: string;
+    value: string | number;
+    icon: typeof Target;
+    status: string;
+    active: boolean;
+    path?: string;
+  }> = [
     {
       id: "fluidity",
       label: "FLUIDEZ",
@@ -85,6 +93,7 @@ export const MapKPIFooter: React.FC<MapKPIFooterProps> = ({
       icon: Car,
       status: wazeAccidentsCritical > 0 ? "warning" : "primary",
       active: wazeAccidentsCritical > 0,
+      path: "/siniestros",
     },
     {
       id: "tvt",
@@ -101,7 +110,11 @@ export const MapKPIFooter: React.FC<MapKPIFooterProps> = ({
       <motion.div
         initial={{ y: 50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 p-3 pointer-events-none flex items-center justify-center gap-6 md:gap-10 overflow-x-auto [&>button]:pointer-events-auto"
+        className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 p-3 pointer-events-auto flex items-center justify-center gap-6 md:gap-10 overflow-x-auto select-none"
+        role="group"
+        aria-label="Indicadores del mapa"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         {metrics.map((metric) => {
           const Icon = metric.icon;
@@ -117,18 +130,8 @@ export const MapKPIFooter: React.FC<MapKPIFooterProps> = ({
           const colorClass =
             colors[metric.status as keyof typeof colors] || colors.primary;
 
-          return (
-            <button
-              key={metric.id}
-              className="flex items-center gap-3 min-w-max cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 py-1 rounded-lg transition-colors border-none bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-opacity-50 touch-manipulation"
-              onClick={() => {
-                if (metric.id === "events") navigate("/dashboard");
-                if (metric.id === "incidents") navigate("/siniestros");
-                if (metric.id === "critical") navigate("/riesgos"); // Fallback just in case
-              }}
-              title={`Ver detalle de ${metric.label}`}
-              aria-label={`Ver detalle de ${metric.label}: ${metric.value}`}
-            >
+          const content = (
+            <>
               <div className={cn("p-2 rounded-xl", colorClass)}>
                 <Icon className="w-5 h-5" />
               </div>
@@ -140,6 +143,31 @@ export const MapKPIFooter: React.FC<MapKPIFooterProps> = ({
                   {metric.value}
                 </span>
               </div>
+            </>
+          );
+
+          if (!metric.path) {
+            return (
+              <div
+                key={metric.id}
+                className="flex items-center gap-3 min-w-max px-2 py-1 cursor-default pointer-events-auto"
+                aria-label={`${metric.label}: ${metric.value}`}
+              >
+                {content}
+              </div>
+            );
+          }
+
+          return (
+            <button
+              key={metric.id}
+              type="button"
+              className="flex items-center gap-3 min-w-max cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 py-1 rounded-lg transition-colors border-none bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-opacity-50 touch-manipulation pointer-events-auto"
+              onClick={() => navigate(metric.path!)}
+              title={`Ver detalle de ${metric.label}`}
+              aria-label={`Ver detalle de ${metric.label}: ${metric.value}`}
+            >
+              {content}
             </button>
           );
         })}

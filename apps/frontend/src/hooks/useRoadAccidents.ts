@@ -302,6 +302,38 @@ export const useCreateAccident = () => {
   });
 };
 
+export const useRefreshAccidentWeather = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      force = true,
+    }: {
+      id: string;
+      force?: boolean;
+    }) => {
+      const baseUrl = API_URL.endsWith("/api") ? API_URL : `${API_URL}/api`;
+      const response = await fetch(
+        `${baseUrl}/accidents/${id}/weather?force=${force ? "true" : "false"}`,
+        { method: "PATCH" },
+      );
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(
+          error.message ||
+            error.error ||
+            "No se pudo actualizar el clima del siniestro",
+        );
+      }
+      return normalizeAccident(await response.json());
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["road-accident", data.id], data);
+      queryClient.invalidateQueries({ queryKey: ["road-accidents"] });
+    },
+  });
+};
+
 export const useUploadAccidentMedia = () => {
   const queryClient = useQueryClient();
   return useMutation({

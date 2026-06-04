@@ -1,5 +1,5 @@
 ---
-description: Flujo Git — preprod como staging, main como producción
+description: Flujo Git — preprod como staging, main como producción, gestión de ramas por tipo de cambio
 alwaysApply: true
 ---
 
@@ -9,9 +9,63 @@ alwaysApply: true
 
 | Rama | Rol |
 |------|-----|
-| `main` | **Producción** (master). Solo recibe código probado en preprod. |
-| `preprod` | **Staging / pre-producción**. Debe estar siempre alineada con `main`. |
-| `feat/*`, `fix/*`, etc. | Trabajo temporal. Siempre nacen de `preprod`. |
+| `main` | **Producción** (master). Solo recibe código probado en preprod. Deploy NSSM automático. |
+| `preprod` | **Staging / pre-producción**. Debe estar siempre alineada con `main`. CI sin deploy prod. |
+| `feat/*`, `fix/*`, `refactor/*` | Trabajo temporal. Siempre nacen de `preprod`. |
+| Ramas de módulo (ej. `group-kpis-display`) | Laboratorio / features no listas para prod. **No mergear** a main/preprod sin decisión explícita. |
+
+## Cuándo OBLIGATORIO crear rama nueva
+
+Antes de escribir código, el agente debe **detenerse y avisar**:
+
+> Este cambio requiere una rama nueva desde `preprod`. Propongo: `feat/...`, `fix/...` o `refactor/...`. ¿Confirmás?
+
+Aplica si ocurre **cualquiera** de:
+
+| Situación | Rama sugerida |
+|-----------|---------------|
+| Nueva feature | `feat/<modulo>-<descripcion-corta>` |
+| Bug fix | `fix/<modulo>-<descripcion-corta>` |
+| Refactor grande | `refactor/<area>-<descripcion-corta>` |
+| Arreglo grande / multi-archivo | `fix/<tema>` o `refactor/<tema>` |
+| Módulo experimental (no va a main/preprod) | `<nombre-modulo>` ej. `group-kpis-display` |
+| Cambio que no debe ir a prod aún | rama dedicada, **sin merge** a main/preprod |
+
+**Arreglo grande** = cualquiera de:
+
+- Toca **frontend + backend** (o 3+ archivos en apps distintas)
+- Cambia contratos API, migraciones DB, CI/CD o NSSM
+- Elimina o mueve módulos enteros (ej. Risk Dashboard fuera de prod)
+- Optimización de infra (CPU, polling, Defender, deploy)
+- Más de **~1 PR razonable** de alcance
+
+**Nunca** implementar arreglos grandes, features o fixes directo en `preprod` o `main`.
+
+## Ramas especiales (laboratorio / KPIs)
+
+| Rama | Contenido | Merge a preprod/main |
+|------|-----------|----------------------|
+| `group-kpis-display` | Dashboard de Riesgo, heatmap, matriz, predicciones, KPIs por grupo | Solo cuando se decida producto |
+| `main` / `preprod` | Mapa, incidentes, siniestros, admin operativo | Flujo normal |
+
+Si el usuario indica que algo **no debe existir en main/preprod**:
+
+1. Avisar que el trabajo va en rama dedicada.
+2. En main/preprod: quitar ruta, links, listener backend si aplica.
+3. En rama dedicada: mantener el módulo completo.
+
+## Convención de nombres
+
+```
+feat/kilometers-pagination
+fix/weather-historical-timestamp
+refactor/remove-risk-from-prod
+group-kpis-display
+```
+
+- Minúsculas, guiones, sin espacios.
+- Español o inglés técnico, consistente con el repo.
+- Máximo ~4 palabras en el slug.
 
 ## Reglas obligatorias
 
@@ -31,12 +85,13 @@ alwaysApply: true
      git pull origin preprod
      git checkout -b fix/descripcion-corta
      # o: git checkout -b feat/descripcion-corta
+     # o: git checkout -b refactor/descripcion-corta
      ```
    - **No** crear ramas de trabajo desde `main` ni desde otras ramas feature salvo excepción acordada.
 
 3. **Recorrido inverso para integrar (obligatorio)**
    ```
-   feat/fix/*  →  preprod  →  main
+   feat/fix/refactor/*  →  preprod  →  main
    ```
    - Nunca mergear directo a `main` saltando `preprod`.
    - Nunca pushear a `main` sin haber validado antes en el entorno preprod.
@@ -44,6 +99,17 @@ alwaysApply: true
 4. **Probar en preprod antes de producción**
    - Deploy y pruebas en preprod (funcional, regresión, smoke).
    - Solo después del OK: merge `preprod` → `main` y deploy prod.
+
+## Buenas prácticas de gestión de ramas
+
+1. **Una rama = un objetivo** — no mezclar fix + feature + refactor en la misma rama.
+2. **Base siempre `preprod` actualizada** (salvo hotfix documentado en main).
+3. **Commits pequeños y atómicos** — mensajes en español, foco en el "por qué".
+4. **No commit ni push** salvo que el usuario lo pida explícitamente.
+5. **Antes de merge a preprod**: lint, tests unitarios, smoke manual del módulo tocado.
+6. **`preprod` → `main`** solo con OK en staging; push a `main` dispara deploy NSSM.
+7. **Ramas viejas**: merge o rebase de `preprod` antes de seguir (evitar drift).
+8. **Al terminar**: merge a preprod; borrar rama remota/local si ya integrada.
 
 ## Flujo típico
 
@@ -76,7 +142,33 @@ Si el fix va directo a `main` por urgencia:
 
 ## Qué debe hacer el agente
 
-- Al proponer commits, PRs o deploys: respetar `feat/fix → preprod → main`.
+### Al inicio de cada tarea
+
+- Identificar tipo: `feat` | `fix` | `refactor` | rama experimental.
+- Si aplica criterio de rama nueva: **avisar y proponer nombre** antes de codificar.
+- Verificar rama actual (`git branch --show-current`) y si `preprod` está sync con `main`.
+
+### Durante el trabajo
+
+- Respetar siempre `feat/fix/refactor/* → preprod → main`.
+- No tocar archivos fuera del alcance de la rama.
+- Si el alcance crece: avisar y proponer **segunda rama** o split del PR.
+
+### Antes de integrar
+
+- Resumir diff, archivos tocados, riesgos (API, DB, deploy).
 - Si el usuario pide subir a `main`: confirmar que ya se probó en preprod o advertir el desvío.
 - Si `preprod` está detrás de `main`: sugerir sincronizar antes de abrir ramas nuevas.
+- Si es rama experimental: **no** sugerir merge a main/preprod.
+
+### Commits, PRs y deploys
+
 - No recomendar `git push origin main` sin paso previo por `preprod`, salvo hotfix explícito con sync posterior.
+- No crear commits ni push sin pedido explícito del usuario.
+
+### Plantilla de aviso (arreglo grande / feature / fix)
+
+> **Gestión de ramas:** Este cambio [es grande / es una feature / es un fix] ([breve descripción]).
+> Propongo crear `[feat|fix|refactor]/<nombre>` desde `preprod`.
+> [Si aplica: el módulo X quedaría solo en `group-kpis-display`.]
+> ¿Creo la rama y arranco ahí?

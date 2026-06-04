@@ -26,6 +26,23 @@ interface KilometerStats {
   inactive: number;
 }
 
+export interface KilometersListFilters {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  routeName?: string;
+  status?: "all" | "active" | "inactive";
+  groupId?: number;
+}
+
+export interface KilometersListResult {
+  data: KilometerMarker[];
+  total: number;
+  routes: string[];
+  limit: number;
+  offset: number;
+}
+
 type CreateKilometerInput = Omit<
   KilometerMarker,
   "id" | "created_at" | "updated_at"
@@ -49,7 +66,49 @@ const fetchKilometers = async (
     : `${API_URL}/kilometers`;
   const res = await fetch(url, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error("Error al cargar ubicación vial");
-  return res.json();
+  const json = await res.json();
+  if (Array.isArray(json)) return json;
+  return json.data ?? [];
+};
+
+const fetchKilometersList = async (
+  filters: KilometersListFilters,
+): Promise<KilometersListResult> => {
+  const page = filters.page ?? 0;
+  const pageSize = filters.pageSize ?? 50;
+  const params = new URLSearchParams();
+  params.set("limit", String(pageSize));
+  params.set("offset", String(page * pageSize));
+  if (filters.search?.trim()) params.set("search", filters.search.trim());
+  if (filters.routeName) params.set("route_name", filters.routeName);
+  if (filters.status && filters.status !== "all") {
+    params.set("status", filters.status);
+  }
+  if (filters.groupId != null) {
+    params.set("group_id", String(filters.groupId));
+  }
+
+  const res = await fetch(`${API_URL}/kilometers?${params}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error("Error al cargar ubicación vial");
+  const json = await res.json();
+  return {
+    data: json.data ?? [],
+    total: json.total ?? 0,
+    routes: json.routes ?? [],
+    limit: json.limit ?? pageSize,
+    offset: json.offset ?? page * pageSize,
+  };
+};
+
+const fetchKilometerRoutes = async (): Promise<string[]> => {
+  const res = await fetch(`${API_URL}/kilometers/routes`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error("Error al cargar rutas");
+  const json = await res.json();
+  return Array.isArray(json) ? json : [];
 };
 
 const fetchKilometerStats = async (): Promise<KilometerStats> => {
@@ -112,6 +171,26 @@ export function useKilometers(activeOnly = false) {
     queryKey: ["kilometers", { activeOnly }],
     queryFn: () => fetchKilometers(activeOnly),
     staleTime: 5 * 60 * 1000, // 5 min
+  });
+}
+
+/**
+ * Listado paginado con filtros (admin)
+ */
+export function useKilometersList(filters: KilometersListFilters) {
+  return useQuery({
+    queryKey: ["kilometers", "list", filters],
+    queryFn: () => fetchKilometersList(filters),
+    staleTime: 60 * 1000,
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useKilometerRoutes() {
+  return useQuery({
+    queryKey: ["kilometers", "routes"],
+    queryFn: fetchKilometerRoutes,
+    staleTime: 5 * 60 * 1000,
   });
 }
 

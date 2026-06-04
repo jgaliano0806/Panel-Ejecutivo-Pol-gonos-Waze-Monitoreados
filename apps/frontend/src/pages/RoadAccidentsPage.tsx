@@ -1,4 +1,5 @@
 import React, { useState, useCallback, memo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Car,
   Cloud,
@@ -21,12 +22,14 @@ import {
   Star,
   ThumbsUp,
   FileText,
+  RefreshCw,
 } from "lucide-react";
 import {
   useRoadAccidents,
   useRoadAccident,
   useUploadAccidentMedia,
   useCreateAccident,
+  useRefreshAccidentWeather,
 } from "../hooks/useRoadAccidents";
 import { MiniMapLibre } from "../components/map/MiniMapLibre";
 import { VirtualizedList } from "../components/ui/VirtualizedList";
@@ -47,6 +50,51 @@ function getAccidentSubtypeLabel(subtype?: string): string {
     ROAD_CLOSED_EVENT: "Calle Cerrada",
   };
   return map[subtype] || subtype.replace(/_/g, " ");
+}
+
+function formatPrecipitationMm(value?: number | null): string {
+  if (value == null || Number.isNaN(Number(value))) return "--";
+  const mm = Number(value);
+  if (mm === 0) return "0mm";
+  return `${mm.toFixed(1)}mm`;
+}
+
+function isRainWeatherCode(code?: number): boolean {
+  if (code == null) return false;
+  return (
+    (code >= 51 && code <= 67) ||
+    (code >= 80 && code <= 82) ||
+    (code >= 95 && code <= 99)
+  );
+}
+
+const WEATHER_BACKFILL_MAX_DAYS = 92;
+
+function filterAccidentsEligibleForWeatherBackfill(
+  accidents: Array<{
+    id?: string;
+    location_lat?: number | string;
+    location_lng?: number | string;
+    accident_at?: string;
+    created_at?: string;
+  }>,
+): Array<{ id: string }> {
+  const now = Date.now();
+  return accidents.filter((accident) => {
+    if (!accident.id) return false;
+    const lat = Number(accident.location_lat);
+    const lng = Number(accident.location_lng);
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return false;
+
+    const accidentDate = new Date(
+      accident.accident_at || accident.created_at || 0,
+    );
+    if (Number.isNaN(accidentDate.getTime())) return false;
+
+    const daysDiff =
+      (now - accidentDate.getTime()) / (1000 * 60 * 60 * 24);
+    return daysDiff >= 0 && daysDiff <= WEATHER_BACKFILL_MAX_DAYS;
+  }) as Array<{ id: string }>;
 }
 
 function getSeverityColor(severity?: number): string {
@@ -149,6 +197,7 @@ const RoadAccidentListItem = memo(function RoadAccidentListItem({
 RoadAccidentListItem.displayName = "RoadAccidentListItem";
 
 export const RoadAccidentsPage: React.FC = () => {
+  const queryClient = useQueryClient();
   const authUser = useAuthStore((s) => s.user);
   const hasPermission = useAuthStore((s) => s.hasPermission);
 
@@ -212,72 +261,96 @@ export const RoadAccidentsPage: React.FC = () => {
 
   const uploadMediaMutation = useUploadAccidentMedia();
   const createAccidentMutation = useCreateAccident();
+  const refreshWeatherMutation = useRefreshAccidentWeather();
 
   const handleBackfillWeather = async () => {
     if (isBackfilling) return;
 
     const confirmed = window.confirm(
-      "¿Deseas obtener datos climáticos históricos para todos los accidentes sin información meteorológica?\n\n" +
-        "Esto puede tardar varios minutos dependiendo de la cantidad de registros.",
+      "¿Deseas reconsultar Open-Meteo y actualizar el clima histórico de TODOS los siniestros de los últimos 92 días?\n\n" +
+        "Se usará la hora y ubicación de cada incidente. El progreso reflejará cada siniestro procesado.",
     );
 
     if (!confirmed) return;
 
     setIsBackfilling(true);
     setBackfillProgress(0);
-    setBackfillStats(null);
+    setBackfillStats({ processed: 0, total: 0, successful: 0, failed: 0 });
+
+    const API_URL = import.meta.env.VITE_API_URL || "/api";
+    const baseUrl = API_URL.endsWith("/api") ? API_URL : `${API_URL}/api`;
+
+    let successful = 0;
+    let failed = 0;
 
     try {
-      const API_URL = import.meta.env.VITE_API_URL || "/api";
-      const baseUrl = API_URL.endsWith("/api") ? API_URL : `${API_URL}/api`;
+      const listResponse = await fetch(`${baseUrl}/accidents?limit=10000`);
+      if (!listResponse.ok) {
+        throw new Error("No se pudo obtener la lista de siniestros");
+      }
 
-      // Simular progreso mientras se procesa
-      const progressInterval = setInterval(() => {
-        setBackfillProgress((prev) => {
-          if (prev >= 90) return prev;
-          return prev + Math.random() * 10;
+      const listRaw = await listResponse.json();
+      const allAccidents = Array.isArray(listRaw)
+        ? listRaw
+        : (listRaw?.data ?? []);
+      const eligible = filterAccidentsEligibleForWeatherBackfill(allAccidents);
+      const total = eligible.length;
+
+      if (total === 0) {
+        alert("No hay siniestros elegibles en los últimos 92 días.");
+        return;
+      }
+
+      setBackfillStats({ processed: 0, total, successful: 0, failed: 0 });
+
+      for (let i = 0; i < eligible.length; i++) {
+        const { id } = eligible[i];
+
+        try {
+          const response = await fetch(
+            `${baseUrl}/accidents/${id}/weather?force=true`,
+            { method: "PATCH" },
+          );
+          if (response.ok) {
+            successful++;
+          } else {
+            failed++;
+          }
+        } catch {
+          failed++;
+        }
+
+        const processed = i + 1;
+        setBackfillProgress((processed / total) * 100);
+        setBackfillStats({ processed, total, successful, failed });
+
+        if (i < eligible.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      alert(
+        `✅ Proceso completado:\n\n` +
+          `Elegibles (últimos 92 días): ${total}\n` +
+          `Procesados: ${total}\n` +
+          `Actualizados: ${successful}\n` +
+          `Fallidos: ${failed}`,
+      );
+      await queryClient.invalidateQueries({ queryKey: ["road-accidents"] });
+      if (selectedAccidentId) {
+        await queryClient.invalidateQueries({
+          queryKey: ["road-accident", selectedAccidentId],
         });
-      }, 500);
-
-      const response = await fetch(`${baseUrl}/accidents/backfill-weather`, {
-        method: "POST",
-      });
-
-      clearInterval(progressInterval);
-      setBackfillProgress(100);
-
-      if (response.ok) {
-        const result = await response.json();
-        setBackfillStats({
-          processed: result.processed,
-          total: result.eligible,
-          successful: result.successful,
-          failed: result.failed,
-        });
-
-        // Esperar 2 segundos para mostrar el 100%
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-
-        alert(
-          `✅ Proceso completado:\n\n` +
-            `Total de accidentes: ${result.total}\n` +
-            `Sin datos climáticos: ${result.withoutWeather}\n` +
-            `Elegibles (últimos 92 días): ${result.eligible}\n` +
-            `Procesados: ${result.processed}\n` +
-            `Exitosos: ${result.successful}\n` +
-            `Fallidos: ${result.failed}`,
-        );
-        // Refrescar lista
-        window.location.reload();
-      } else {
-        const error = await response.json();
-        alert(
-          `❌ Error: ${error.message || "No se pudo completar el proceso"}`,
-        );
       }
     } catch (error) {
       console.error("Error en backfill:", error);
-      alert("❌ Error al procesar la solicitud");
+      alert(
+        error instanceof Error
+          ? `❌ Error: ${error.message}`
+          : "❌ Error al procesar la solicitud",
+      );
     } finally {
       setIsBackfilling(false);
       setBackfillProgress(0);
@@ -383,7 +456,7 @@ export const RoadAccidentsPage: React.FC = () => {
                 onClick={handleBackfillWeather}
                 disabled={isBackfilling}
                 className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed relative"
-                title="Obtener clima histórico para todos los accidentes sin datos"
+                title="Reconsultar Open-Meteo para todos los siniestros (últimos 92 días)"
               >
                 <Cloud className="w-5 h-5" />
               </button>
@@ -759,12 +832,39 @@ export const RoadAccidentsPage: React.FC = () => {
 
                 {/* Información Climática */}
                 <div className="bg-white dark:bg-veltrix-card rounded-2xl shadow-sm border border-gray-100 dark:border-veltrix-border p-6 flex flex-col">
-                  <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2 flex-wrap">
                     <Cloud className="w-5 h-5 text-blue-500" />
                     Condiciones Climáticas al Momento
                     <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium rounded-full">
                       Open-Meteo
                     </span>
+                    {selectedAccidentId && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await refreshWeatherMutation.mutateAsync({
+                              id: selectedAccidentId,
+                              force: true,
+                            });
+                          } catch (error) {
+                            alert(
+                              error instanceof Error
+                                ? error.message
+                                : "No se pudo actualizar el clima",
+                            );
+                          }
+                        }}
+                        disabled={refreshWeatherMutation.isPending}
+                        title="Reconsultar Open-Meteo para la hora del incidente"
+                        className="ml-auto inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 disabled:opacity-50"
+                      >
+                        <RefreshCw
+                          className={`w-3.5 h-3.5 ${refreshWeatherMutation.isPending ? "animate-spin" : ""}`}
+                        />
+                        Actualizar
+                      </button>
+                    )}
                   </h3>
 
                   {accident.weather_data &&
@@ -789,8 +889,24 @@ export const RoadAccidentsPage: React.FC = () => {
                             Precipitación
                           </p>
                           <p className="text-2xl font-bold text-blue-800 dark:text-blue-200">
-                            {accident.weather_data?.precipitation_mm ?? 0}mm
+                            {formatPrecipitationMm(
+                              accident.weather_data?.precipitation_mm,
+                            )}
                           </p>
+                          {accident.weather_data?.weather_description && (
+                            <p className="text-xs text-blue-700/80 dark:text-blue-300/80 mt-1">
+                              {accident.weather_data.weather_description}
+                            </p>
+                          )}
+                          {accident.weather_data?.precipitation_mm === 0 &&
+                            isRainWeatherCode(
+                              accident.weather_data?.weather_code,
+                            ) && (
+                              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                                Código WMO indica lluvia; Open-Meteo reportó
+                                acumulado 0mm en esa hora.
+                              </p>
+                            )}
                         </div>
                       </div>
                       <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
@@ -843,7 +959,10 @@ export const RoadAccidentsPage: React.FC = () => {
                             }
 
                             const temp = w.temperature_celsius;
-                            const precip = w.precipitation_mm || 0;
+                            const precip =
+                              w.precipitation_mm ||
+                              w.rain_mm ||
+                              (isRainWeatherCode(w.weather_code) ? 0.1 : 0);
                             const wind = w.wind_speed_kmh || 0;
                             const vis = w.visibility_meters
                               ? (w.visibility_meters / 1000).toFixed(1)
@@ -1448,7 +1567,7 @@ export const RoadAccidentsPage: React.FC = () => {
                       2 * Math.PI * 70 * (1 - backfillProgress / 100)
                     }`}
                     strokeLinecap="round"
-                    className="transition-all duration-500 ease-out drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                    className="transition-all duration-300 ease-linear drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]"
                   />
                 </svg>
 
@@ -1471,11 +1590,13 @@ export const RoadAccidentsPage: React.FC = () => {
                 Obteniendo datos climáticos
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-4">
-                Procesando accidentes históricos...
+                {backfillStats && backfillStats.total > 0
+                  ? `Actualizando ${backfillStats.processed} de ${backfillStats.total} siniestros...`
+                  : "Obteniendo lista de siniestros elegibles..."}
               </p>
 
-              {/* Estadísticas si están disponibles */}
-              {backfillStats && (
+              {/* Estadísticas en tiempo real */}
+              {backfillStats && backfillStats.total > 0 && (
                 <div className="w-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-veltrix-bg dark:to-veltrix-card rounded-xl p-4 space-y-2 border border-gray-200 dark:border-veltrix-border">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600 dark:text-veltrix-muted">
@@ -1487,7 +1608,7 @@ export const RoadAccidentsPage: React.FC = () => {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600 dark:text-veltrix-muted">
-                      Exitosos:
+                      Actualizados:
                     </span>
                     <span className="font-semibold text-green-600 dark:text-green-400">
                       ✓ {backfillStats.successful}

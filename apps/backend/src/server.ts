@@ -1227,34 +1227,48 @@ server.get("/api/weather/all", async (request, reply) => {
 
 // Risk Scoring endpoints have been moved to routes/risk.routes.ts
 
-// POST /api/accidents/backfill-weather - Obtener clima histórico para todos los accidentes sin datos
+// POST /api/accidents/backfill-weather - Clima histórico masivo (Open-Meteo)
 server.post("/api/accidents/backfill-weather", async (request, reply) => {
   try {
-    server.log.info("Iniciando backfill masivo de clima histórico");
+    const body = (request.body as { force?: boolean }) || {};
+    const query = request.query as { force?: string };
+    const forceRefresh =
+      body.force === true || query.force === "true" || query.force === "1";
+
+    server.log.info(
+      { forceRefresh },
+      "Iniciando backfill masivo de clima histórico",
+    );
 
     // Obtener todos los accidentes
     const allAccidents = await roadAccidentService.getAccidents({
       limit: 10000,
     });
 
-    // Filtrar los que no tienen weather_data
+    // Sin force: solo sin weather_data. Con force: todos (se reconsulta Open-Meteo).
     const accidentsWithoutWeather = allAccidents.filter((accident) => {
       if (!accident.weather_data) return true;
       if (typeof accident.weather_data !== "object") return true;
       return Object.keys(accident.weather_data).length === 0;
     });
 
+    const candidateAccidents = forceRefresh
+      ? allAccidents
+      : accidentsWithoutWeather;
+
     server.log.info(
       {
         total: allAccidents.length,
         withoutWeather: accidentsWithoutWeather.length,
+        forceRefresh,
+        candidates: candidateAccidents.length,
       },
       "Accidentes a procesar",
     );
 
     // Filtrar los que están dentro de 92 días
     const now = new Date();
-    const eligibleAccidents = accidentsWithoutWeather.filter((accident) => {
+    const eligibleAccidents = candidateAccidents.filter((accident) => {
       const accidentDate = accident.accident_at
         ? new Date(accident.accident_at)
         : accident.created_at
@@ -1266,7 +1280,7 @@ server.post("/api/accidents/backfill-weather", async (request, reply) => {
     });
 
     server.log.info(
-      { eligible: eligibleAccidents.length },
+      { eligible: eligibleAccidents.length, forceRefresh },
       "Accidentes elegibles (dentro de 92 días)",
     );
 
@@ -1278,7 +1292,10 @@ server.post("/api/accidents/backfill-weather", async (request, reply) => {
         processed: 0,
         successful: 0,
         failed: 0,
-        message: "No hay accidentes elegibles para procesar",
+        forceRefresh,
+        message: forceRefresh
+          ? "No hay accidentes elegibles en los últimos 92 días"
+          : "No hay accidentes elegibles para procesar",
       };
     }
 
@@ -1291,6 +1308,7 @@ server.post("/api/accidents/backfill-weather", async (request, reply) => {
       try {
         const success = await roadAccidentService.backfillWeatherData(
           accident.id!,
+          { force: forceRefresh },
         );
         processed++;
         if (success) {
@@ -1299,6 +1317,7 @@ server.post("/api/accidents/backfill-weather", async (request, reply) => {
             {
               accidentId: accident.id,
               progress: `${processed}/${eligibleAccidents.length}`,
+              forceRefresh,
             },
             "Clima obtenido",
           );
@@ -1324,7 +1343,10 @@ server.post("/api/accidents/backfill-weather", async (request, reply) => {
       processed,
       successful,
       failed,
-      message: `Procesados ${processed} accidentes: ${successful} exitosos, ${failed} fallidos`,
+      forceRefresh,
+      message: forceRefresh
+        ? `Actualizados ${successful} de ${processed} incidentes (${failed} fallidos)`
+        : `Procesados ${processed} accidentes: ${successful} exitosos, ${failed} fallidos`,
     };
 
     server.log.info(result, "Backfill masivo completado");
@@ -1469,16 +1491,16 @@ server.post("/api/accidents", async (request, reply) => {
           }
         }
 
-        // Si no hay clima del polígono, obtenerlo directamente de la API usando coordenadas
+        // Si no hay clima del polígono, obtenerlo en el momento del incidente
         if (!data.weather_data && data.location_lat && data.location_lng) {
           try {
-            // Usar un polygonId temporal o el incident_id como identificador
-            const tempPolygonId =
-              data.polygonId || `accident-${data.incident_id || "temp"}`;
-            const weatherData = await weatherService.fetchWeatherForPolygon(
-              tempPolygonId,
+            const eventTime = data.accident_at
+              ? new Date(data.accident_at)
+              : new Date();
+            const weatherData = await weatherService.fetchWeatherAtTimestamp(
               Number(data.location_lat),
               Number(data.location_lng),
+              eventTime,
             );
 
             if (weatherData) {
@@ -1487,9 +1509,10 @@ server.post("/api/accidents", async (request, reply) => {
                 {
                   lat: data.location_lat,
                   lng: data.location_lng,
+                  accident_at: eventTime.toISOString(),
                   provider: process.env.WEATHER_PROVIDER || "openmeteo",
                 },
-                "Clima obtenido de API para accidente",
+                "Clima histórico obtenido para accidente",
               );
             } else {
               server.log.warn(
@@ -1695,13 +1718,17 @@ server.delete("/api/accidents/:id", async (request, reply) => {
 server.patch("/api/accidents/:id/weather", async (request, reply) => {
   try {
     const { id } = request.params as { id: string };
+    const { force } = request.query as { force?: string };
+    const forceRefresh = force === "true" || force === "1";
 
     server.log.info(
-      { accidentId: id },
+      { accidentId: id, forceRefresh },
       "Solicitando backfill de clima histórico",
     );
 
-    const success = await roadAccidentService.backfillWeatherData(id);
+    const success = await roadAccidentService.backfillWeatherData(id, {
+      force: forceRefresh,
+    });
 
     if (!success) {
       return reply.code(400).send({
@@ -1813,13 +1840,17 @@ const start = async () => {
         IncidentsHistoryListener,
         NotificationListener,
       } = await import("./listeners");
-      const { riskScoringListener } =
-        await import("./listeners/RiskScoringListener");
       new AccidentCaptureListener();
       new IncidentsHistoryListener();
       new NotificationListener(websocketService.getIO()!);
-      // RiskScoringListener ya se auto-inicializa al importarse (singleton)
-      console.log("✓ RiskScoringListener initialized");
+
+      const { isRiskScoringEnabled } = await import("./config/features");
+      if (isRiskScoringEnabled) {
+        await import("./listeners/RiskScoringListener");
+        console.log("✓ RiskScoringListener initialized (ENABLE_RISK_SCORING=1)");
+      } else {
+        console.log("⏭️ RiskScoringListener deshabilitado (solo group-kpis-display)");
+      }
       console.log("✓ Event listeners initialized");
       console.log("✓ WebSocket service initialized");
     } catch (wsError) {

@@ -18,8 +18,7 @@ export const PolygonLayers: React.FC<PolygonLayersProps> = React.memo(
         type="geojson"
         data={polygonsGeoJSON as any}
       >
-        {/* minzoom 8: a z<8 los polígonos miden 1-2px, no aportan info y
-            cargan triangulación + fill innecesariamente. */}
+        {/* Relleno solo desde z8 (triangulación costosa sin valor a zoom lejano). */}
         <Layer
           id="polygons-fill"
           type="fill"
@@ -29,25 +28,48 @@ export const PolygonLayers: React.FC<PolygonLayersProps> = React.memo(
             "fill-opacity": isDark ? 0.1 : 0.2,
           }}
         />
+        {/* Contorno siempre visible (sin minzoom); ancho mayor a zoom bajo para legibilidad. */}
         <Layer
           id="polygons-border"
           type="line"
-          minzoom={8}
+          layout={{ "line-join": "round", "line-cap": "round" }}
           paint={{
             "line-color": ["get", "color"],
-            "line-width": 1,
-            "line-opacity": isDark ? 0.5 : 0.7,
+            "line-width": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              5,
+              2.5,
+              8,
+              2,
+              12,
+              1.5,
+              16,
+              2,
+            ],
+            "line-opacity": isDark ? 0.65 : 0.85,
           }}
         />
         {selectedPolygon && (
           <Layer
             id="polygons-selected"
             type="line"
-            minzoom={8}
             filter={["==", ["get", "id"], selectedPolygon]}
+            layout={{ "line-join": "round", "line-cap": "round" }}
             paint={{
               "line-color": "#6366f1",
-              "line-width": 4,
+              "line-width": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                5,
+                4,
+                12,
+                4,
+                16,
+                5,
+              ],
               "line-opacity": 1,
             }}
           />

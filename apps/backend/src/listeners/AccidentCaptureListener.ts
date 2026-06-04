@@ -50,21 +50,24 @@ export class AccidentCaptureListener {
         try {
           let weatherData: Record<string, unknown> = {};
           try {
-            const w = await weatherService.fetchWeatherForPolygon(
-              `accident_${alertId}`,
+            const accidentAt = new Date(accident.pubMillis ?? Date.now());
+            const w = await weatherService.fetchWeatherAtTimestamp(
               lat,
-              lng
+              lng,
+              accidentAt,
             );
             if (w) {
               weatherData = {
                 temperature_celsius: w.temperature_celsius,
                 precipitation_mm: w.precipitation_mm,
+                rain_mm: w.rain_mm,
                 weather_code: w.weather_code,
                 wind_speed_kmh: w.wind_speed_kmh,
                 visibility_meters: w.visibility_meters,
-                humidity_percent: (w as any).humidity_percent,
+                precipitation_probability: w.precipitation_probability,
                 weather_description: w.weather_description,
                 is_freezing_risk: w.is_freezing_risk,
+                timestamp: w.timestamp,
               };
             }
           } catch (e) {

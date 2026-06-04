@@ -43,7 +43,6 @@ export const AppSidebar: React.FC = () => {
     if (location.pathname === "/" || location.pathname === "/dashboard")
       return "home";
     if (location.pathname === "/mapa") return "map";
-    if (location.pathname === "/riesgos") return "risk";
     if (location.pathname === "/siniestros") return "accidents";
     if (location.pathname === "/notificaciones") return "notifications";
     if (location.pathname === "/zonas-peligrosas") return "danger-zones";
@@ -62,13 +61,7 @@ export const AppSidebar: React.FC = () => {
       path: "/mapa",
       requiredPermission: ROUTE_PERMISSIONS.mapa,
     },
-    // {
-    //   id: "risk",
-    //   label: "Análisis de Riesgos",
-    //   icon: <AlertTriangle size={20} />,
-    //   path: "/riesgos",
-    //   requiredPermission: ROUTE_PERMISSIONS.riesgos,
-    // },
+    // Análisis de Riesgos: solo en rama group-kpis-display (/riesgos)
     {
       id: "notifications",
       label: "Notificaciones",

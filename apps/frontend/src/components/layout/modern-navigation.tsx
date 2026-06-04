@@ -6,7 +6,7 @@ import { cn } from "../../lib/utils";
 import { useAuthStore } from "../../stores/useAuthStore";
 import { ROUTE_PERMISSIONS } from "../../config/routePermissions";
 
-export type ViewType = "home" | "map" | "risks" | "accidents" | "admin";
+export type ViewType = "home" | "map" | "accidents" | "admin";
 
 interface ModernNavigationProps {
   currentView: ViewType;
@@ -39,14 +39,7 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
       path: "/mapa",
       requiredPermission: ROUTE_PERMISSIONS.mapa,
     },
-    // {
-    //   id: "risks" as ViewType,
-    //   label: "Análisis de Riesgos",
-    //   icon: ShieldAlert,
-    //   color: "from-red-500 to-red-600",
-    //   path: "/riesgos",
-    //   requiredPermission: ROUTE_PERMISSIONS.riesgos,
-    // },
+    // Análisis de Riesgos: solo en rama group-kpis-display
     {
       id: "accidents" as ViewType,
       label: "Siniestros Viales Waze",
@@ -70,7 +63,6 @@ export const ModernNavigation: React.FC<ModernNavigationProps> = ({
     if (location.pathname === "/" || location.pathname === "/dashboard")
       return "home";
     if (location.pathname === "/mapa") return "map";
-    if (location.pathname === "/riesgos") return "risks";
     if (location.pathname === "/siniestros") return "accidents";
     if (location.pathname === "/admin") return "admin";
     return currentView;

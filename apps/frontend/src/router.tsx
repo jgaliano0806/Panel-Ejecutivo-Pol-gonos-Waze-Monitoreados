@@ -7,9 +7,6 @@ import { ROUTE_PERMISSIONS } from "./config/routePermissions";
 
 // Code-splitting por ruta — cada página es un chunk independiente
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const RiskDashboard = lazy(() =>
-  import("./pages/RiskDashboard").then((m) => ({ default: m.RiskDashboard })),
-);
 const RoadAccidentsPage = lazy(() =>
   import("./pages/RoadAccidentsPage").then((m) => ({
     default: m.RoadAccidentsPage,
@@ -101,19 +98,6 @@ export const router = createBrowserRouter(
         </ProtectedRoute>
       ),
     },
-    {
-      path: "/riesgos",
-      element: (
-        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.mapa]}>
-          <AppLayout>
-            <SectionErrorBoundary sectionName="Dashboard de Riesgos">
-              {withSuspense(<RiskDashboard />)}
-            </SectionErrorBoundary>
-          </AppLayout>
-        </ProtectedRoute>
-      ),
-    },
-
     {
       path: "/notificaciones",
       element: (

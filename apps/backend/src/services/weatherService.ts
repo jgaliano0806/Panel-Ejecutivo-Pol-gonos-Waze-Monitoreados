@@ -1,5 +1,10 @@
 import { DatabaseService } from "../database/dbService";
 import { logger } from "../utils/logger";
+import {
+  formatLocalDateForOpenMeteo,
+  normalizeOpenMeteoPrecipitation,
+  parseOpenMeteoHourlyTime,
+} from "../utils/openMeteoWeatherHelpers";
 
 interface WeatherData {
   polygon_id: string;
@@ -448,6 +453,35 @@ export class WeatherService {
     }
   }
 
+  /**
+   * Clima en el instante del incidente: histórico horario si el evento no es reciente,
+   * o condiciones actuales si ocurrió hace menos de 15 minutos.
+   */
+  async fetchWeatherAtTimestamp(
+    latitude: number,
+    longitude: number,
+    eventTime: Date,
+  ): Promise<WeatherData | null> {
+    const ageMinutes = (Date.now() - eventTime.getTime()) / (1000 * 60);
+
+    if (ageMinutes > 15) {
+      const historical = await this.fetchHistoricalWeatherForDate(
+        latitude,
+        longitude,
+        eventTime,
+      );
+      if (historical) {
+        return historical;
+      }
+    }
+
+    return this.fetchWeatherForPolygon(
+      `point-${latitude.toFixed(4)}-${longitude.toFixed(4)}`,
+      latitude,
+      longitude,
+    );
+  }
+
   async fetchWeatherForPolygon(
     polygonId: string,
     latitude: number,
@@ -516,27 +550,15 @@ export class WeatherService {
         `🌤️ Open-Meteo data for ${polygonId}`,
       );
 
-      // Detectar si está lloviendo basado en weather_code (más confiable que precipitation)
-      // Códigos que indican lluvia: 51-67 (llovizna y lluvia), 80-82 (chubascos), 95-99 (tormentas)
-      const isRaining =
-        (data.current.weather_code >= 51 && data.current.weather_code <= 67) ||
-        (data.current.weather_code >= 80 && data.current.weather_code <= 82) ||
-        (data.current.weather_code >= 95 && data.current.weather_code <= 99);
+      // Detectar lluvia y normalizar precipitación (Open-Meteo puede reportar 0mm con código de lluvia)
+      const { precipitation_mm: effectivePrecipitation, rain_mm: effectiveRain } =
+        normalizeOpenMeteoPrecipitation(
+          data.current.weather_code,
+          data.current.precipitation,
+          data.current.rain,
+        );
 
-      // Si el weather_code indica lluvia pero precipitation es 0, usar un valor mínimo
-      // Open-Meteo puede reportar 0mm de precipitación acumulada pero el código indica lluvia actual
-      const effectivePrecipitation =
-        isRaining && data.current.precipitation === 0
-          ? 0.1 // Mínimo para indicar que está lloviendo
-          : data.current.precipitation;
-
-      const effectiveRain =
-        isRaining &&
-        data.current.rain === 0 &&
-        data.current.weather_code >= 61 &&
-        data.current.weather_code <= 67
-          ? 0.1
-          : data.current.rain;
+      const isRaining = effectivePrecipitation > 0;
 
       // Calcular temperatura de carretera (aproximación)
       const roadTemp = this.calculateRoadTemperature(
@@ -1012,7 +1034,7 @@ export class WeatherService {
       const url = new URL(this.OPEN_METEO_BASE_URL);
 
       // Formatear fecha como YYYY-MM-DD
-      const dateStr = date.toISOString().split("T")[0];
+      const dateStr = formatLocalDateForOpenMeteo(date);
 
       url.searchParams.append("latitude", latitude.toString());
       url.searchParams.append("longitude", longitude.toString());
@@ -1067,6 +1089,7 @@ export class WeatherService {
           }
 
           const data = await response.json();
+          const utcOffsetSeconds: number = data.utc_offset_seconds ?? -10800;
 
           if (
             !data.hourly ||
@@ -1085,7 +1108,10 @@ export class WeatherService {
           let minDiff = Infinity;
 
           for (let i = 0; i < data.hourly.time.length; i++) {
-            const hourTime = new Date(data.hourly.time[i]).getTime();
+            const hourTime = parseOpenMeteoHourlyTime(
+              data.hourly.time[i],
+              utcOffsetSeconds,
+            );
             const diff = Math.abs(hourTime - targetTime);
             if (diff < minDiff) {
               minDiff = diff;
@@ -1093,15 +1119,26 @@ export class WeatherService {
             }
           }
 
-          const closestTime = new Date(data.hourly.time[closestIndex]);
+          const closestTime = new Date(
+            parseOpenMeteoHourlyTime(
+              data.hourly.time[closestIndex],
+              utcOffsetSeconds,
+            ),
+          );
           console.log(
             `🎯 Hora más cercana encontrada: ${closestTime.toISOString()} (índice ${closestIndex})`,
           );
 
           // Extraer datos de esa hora específica
           const weatherCode = data.hourly.weather_code?.[closestIndex] ?? 0;
-          const precipitation = data.hourly.precipitation?.[closestIndex] ?? 0;
-          const rain = data.hourly.rain?.[closestIndex] ?? 0;
+          const rawPrecipitation =
+            data.hourly.precipitation?.[closestIndex] ?? 0;
+          const rawRain = data.hourly.rain?.[closestIndex] ?? 0;
+          const { precipitation_mm, rain_mm } = normalizeOpenMeteoPrecipitation(
+            weatherCode,
+            rawPrecipitation,
+            rawRain,
+          );
           const temperature =
             data.hourly.temperature_2m?.[closestIndex] ?? null;
           const windSpeed = data.hourly.wind_speed_10m?.[closestIndex] ?? null;
@@ -1124,7 +1161,7 @@ export class WeatherService {
             isFreezingRisk = this.detectFreezingRisk(
               temperature,
               roadTemp,
-              precipitation > 0,
+              precipitation_mm > 0,
             );
           }
 
@@ -1134,8 +1171,8 @@ export class WeatherService {
             temperature_celsius: temperature,
             temperature_feels_like:
               data.hourly.apparent_temperature?.[closestIndex] ?? null,
-            precipitation_mm: precipitation,
-            rain_mm: rain,
+            precipitation_mm,
+            rain_mm,
             snow_mm: data.hourly.snowfall?.[closestIndex] ?? 0,
             precipitation_probability:
               data.hourly.precipitation_probability?.[closestIndex] ?? null,

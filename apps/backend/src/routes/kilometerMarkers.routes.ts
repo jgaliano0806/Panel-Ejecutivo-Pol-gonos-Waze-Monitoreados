@@ -17,47 +17,74 @@ export default async function kilometerMarkersRoutes(
   // Lista todos los marcadores (activos por defecto)
   fastify.get("/", async (request, reply) => {
     try {
-      const { search, active, group_id, limit, offset } = request.query as {
+      const {
+        search,
+        active,
+        group_id,
+        route_name,
+        status,
+        limit,
+        offset,
+      } = request.query as {
         search?: string;
         active?: string;
         group_id?: string;
+        route_name?: string;
+        status?: string;
         limit?: string;
         offset?: string;
       };
 
       const repo = repositories().kilometerMarkers;
 
-      // Búsqueda por nombre
-      if (search) {
-        const results = await repo.search(search);
-        return reply.send(results);
-      }
-
-      // Filtrar por grupo
-      if (group_id) {
-        const results = await repo.findByGroup(parseInt(group_id, 10));
-        return reply.send(results);
-      }
-
-      // Filtrar por estado
+      // Mapa / TTS: todos los activos sin paginación
       if (active === "true") {
         const results = await repo.findAllActive();
         return reply.send(results);
       }
 
-      // Listado paginado (admin)
-      const results = await repo.findAll({
-        limit: limit ? parseInt(limit, 10) : 500,
-        offset: offset ? parseInt(offset, 10) : 0,
-        orderBy: "name",
-        orderDirection: "ASC",
+      const parsedLimit = Math.min(
+        limit ? parseInt(limit, 10) : 50,
+        200,
+      );
+      const parsedOffset = offset ? parseInt(offset, 10) : 0;
+
+      let activeFilter: "all" | "active" | "inactive" = "all";
+      if (status === "active" || active === "active") {
+        activeFilter = "active";
+      } else if (status === "inactive" || active === "false") {
+        activeFilter = "inactive";
+      }
+
+      const { data, total } = await repo.findPaginated({
+        search,
+        route_name: route_name || undefined,
+        active: activeFilter,
+        group_id: group_id ? parseInt(group_id, 10) : undefined,
+        limit: parsedLimit,
+        offset: parsedOffset,
       });
-      return reply.send(results);
-    } catch (error: any) {
+
+      const routes = await repo.findDistinctRoutes();
+
+      return reply.send({ data, total, routes, limit: parsedLimit, offset: parsedOffset });
+    } catch (error: unknown) {
       request.log.error({ err: error }, "Error listing kilometer markers");
       return reply
         .status(500)
         .send({ error: "Error al listar hitos kilométricos" });
+    }
+  });
+
+  // ─── GET /api/kilometers/routes ────────────────────────
+  fastify.get("/routes", async (request, reply) => {
+    try {
+      const repo = repositories().kilometerMarkers;
+      const routes = await repo.findDistinctRoutes();
+      return reply.send(routes);
+    } catch (error: unknown) {
+      request.log.error({ err: error }, "Error listing kilometer routes");
+      return reply.status(500).send({ error: "Error al listar rutas" });
     }
   });
 

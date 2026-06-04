@@ -54,9 +54,9 @@ const adminSections: AdminSectionConfig[] = [
   },
   {
     id: "kilometers",
-    label: "Ubicación Vial",
+    label: "Mojones Kilométricos",
     icon: MapPin,
-    description: "Puntos de referencia de rutas en el mapa",
+    description: "Gestión de mojones kilométricos por ruta",
     color: "from-cyan-600 to-cyan-700",
   },
   {
