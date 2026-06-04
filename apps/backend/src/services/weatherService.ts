@@ -20,6 +20,7 @@ interface WeatherData {
   wind_gusts_kmh?: number;
   visibility_meters?: number;
   cloud_cover_percentage?: number;
+  relative_humidity_percent?: number;
   road_temperature_celsius?: number;
   is_freezing_risk?: boolean;
   weather_code?: number;
@@ -34,6 +35,7 @@ interface OpenMeteoResponse {
     time: string;
     temperature_2m: number;
     apparent_temperature: number;
+    relative_humidity_2m?: number;
     precipitation: number;
     rain: number;
     snowfall: number;
@@ -515,6 +517,7 @@ export class WeatherService {
         [
           "temperature_2m",
           "apparent_temperature",
+          "relative_humidity_2m",
           "precipitation",
           "rain",
           "snowfall",
@@ -597,6 +600,7 @@ export class WeatherService {
         wind_gusts_kmh: data.current.wind_gusts_10m,
         visibility_meters: visibility,
         cloud_cover_percentage: data.current.cloud_cover,
+        relative_humidity_percent: data.current.relative_humidity_2m,
         road_temperature_celsius: roadTemp,
         is_freezing_risk: isFreezingRisk,
         weather_code: data.current.weather_code,
@@ -1034,6 +1038,23 @@ export class WeatherService {
         return null;
       }
 
+      // Para siniestros recientes (<= 72h) usar primero el forecast API: a
+      // diferencia del archive (ERA5), provee `visibility`, clave para
+      // clasificar niebla/neblina. Si no devuelve dato, cae al archive abajo.
+      if (daysDiff <= 3) {
+        const recent = await this.fetchHistoricalWeatherViaPastHours(
+          latitude,
+          longitude,
+          date,
+        ).catch(() => null);
+        if (recent) {
+          console.log(
+            "🌫️ Clima reciente vía forecast (incluye visibilidad) usado para siniestro",
+          );
+          return recent;
+        }
+      }
+
       const url = new URL(this.OPEN_METEO_ARCHIVE_URL);
 
       // Formatear fecha como YYYY-MM-DD (zona Argentina para alinear con Open-Meteo)
@@ -1048,6 +1069,7 @@ export class WeatherService {
         [
           "temperature_2m",
           "apparent_temperature",
+          "relative_humidity_2m",
           "precipitation",
           "rain",
           "snowfall",
@@ -1192,6 +1214,8 @@ export class WeatherService {
             wind_gusts_kmh: data.hourly.wind_gusts_10m?.[closestIndex] ?? null,
             visibility_meters: data.hourly.visibility?.[closestIndex] ?? null,
             cloud_cover_percentage: cloudCover,
+            relative_humidity_percent:
+              data.hourly.relative_humidity_2m?.[closestIndex] ?? null,
             road_temperature_celsius: roadTemp,
             is_freezing_risk: isFreezingRisk,
             weather_code: weatherCode,
@@ -1271,6 +1295,7 @@ export class WeatherService {
         [
           "temperature_2m",
           "apparent_temperature",
+          "relative_humidity_2m",
           "precipitation",
           "rain",
           "snowfall",
@@ -1373,6 +1398,8 @@ export class WeatherService {
         wind_gusts_kmh: data.hourly.wind_gusts_10m?.[closestIndex] ?? null,
         visibility_meters: data.hourly.visibility?.[closestIndex] ?? null,
         cloud_cover_percentage: cloudCover,
+        relative_humidity_percent:
+          data.hourly.relative_humidity_2m?.[closestIndex] ?? null,
         road_temperature_celsius: roadTemp,
         is_freezing_risk: isFreezingRisk,
         weather_code: weatherCode,

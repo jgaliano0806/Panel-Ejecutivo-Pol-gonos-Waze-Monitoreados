@@ -2,12 +2,17 @@ import { dbService } from "../database/dbService";
 import { v4 as uuidv4 } from "uuid";
 import { LocalStorageProvider } from "./storage/localStorageProvider";
 import { IStorageProvider } from "./storage/storageProvider";
+import {
+  buildWeatherSummary,
+  type WeatherSummary,
+} from "../utils/weatherSummary";
 
 export interface RoadAccident {
   id?: string;
   incident_id?: string;
   waze_data: any;
   weather_data: any;
+  weather_summary?: WeatherSummary | null;
   type?: string;
   subtype?: string;
   severity?: number;
@@ -157,6 +162,25 @@ export class RoadAccidentService {
   }
 
   /**
+   * Adjunta el resumen meteorológico interpretado (para gestión vial) a partir
+   * del weather_data crudo del siniestro. No falla si no hay datos climáticos.
+   */
+  private withWeatherSummary(accident: RoadAccident): RoadAccident {
+    try {
+      const w = accident.weather_data;
+      if (w && typeof w === "object" && Object.keys(w).length > 0) {
+        accident.weather_summary = buildWeatherSummary(w);
+      } else {
+        accident.weather_summary = null;
+      }
+    } catch (err) {
+      console.warn("No se pudo generar weather_summary:", err);
+      accident.weather_summary = null;
+    }
+    return accident;
+  }
+
+  /**
    * Obtiene una lista de siniestros viales con filtros
    */
   async getAccidents(
@@ -215,7 +239,9 @@ export class RoadAccidentService {
 
     try {
       const result = await dbService.query(query, params);
-      return result.rows as RoadAccident[];
+      return (result.rows as RoadAccident[]).map((a) =>
+        this.withWeatherSummary(a),
+      );
     } catch (error) {
       console.error("Error en getAccidents:", error);
       // Si la tabla no existe, retornar array vacío
@@ -257,7 +283,8 @@ export class RoadAccidentService {
         `;
     try {
       const result = await dbService.query(query, [id]);
-      return (result.rows[0] as RoadAccident) || null;
+      const row = result.rows[0] as RoadAccident | undefined;
+      return row ? this.withWeatherSummary(row) : null;
     } catch (error) {
       console.error("Error en getAccidentById:", error);
       if (error instanceof Error && error.message.includes("does not exist")) {

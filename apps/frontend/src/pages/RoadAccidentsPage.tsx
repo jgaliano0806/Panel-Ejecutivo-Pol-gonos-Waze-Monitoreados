@@ -944,73 +944,114 @@ export const RoadAccidentsPage: React.FC = () => {
                   )}
 
                   {/* Resumen Meteorológico */}
-                  <div className="mt-4 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-100 dark:border-blue-900">
-                    <div className="flex items-start gap-3">
-                      <Navigation2 className="w-5 h-5 mt-0.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                      <div className="flex-1">
-                        <h4 className="text-sm font-bold text-blue-900 dark:text-blue-200 mb-2">
-                          Resumen Meteorológico
-                        </h4>
-                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                          {(() => {
-                            const w = accident.weather_data;
-                            if (!w || Object.keys(w).length === 0) {
-                              return "Sin información meteorológica disponible para este incidente.";
-                            }
+                  {(() => {
+                    const summary = accident.weather_summary;
 
-                            const temp = w.temperature_celsius;
-                            const precip =
-                              w.precipitation_mm ||
-                              w.rain_mm ||
-                              (isRainWeatherCode(w.weather_code) ? 0.1 : 0);
-                            const wind = w.wind_speed_kmh || 0;
-                            const vis = w.visibility_meters
-                              ? (w.visibility_meters / 1000).toFixed(1)
-                              : null;
-                            const desc =
-                              w.weather_description || "Condiciones normales";
+                    const riskStyles: Record<
+                      string,
+                      { badge: string; bar: string; label: string }
+                    > = {
+                      bajo: {
+                        badge:
+                          "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
+                        bar: "bg-emerald-500",
+                        label: "Riesgo vial bajo",
+                      },
+                      moderado: {
+                        badge:
+                          "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200 dark:border-amber-800",
+                        bar: "bg-amber-500",
+                        label: "Riesgo vial moderado",
+                      },
+                      alto: {
+                        badge:
+                          "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300 border-orange-200 dark:border-orange-800",
+                        bar: "bg-orange-500",
+                        label: "Riesgo vial alto",
+                      },
+                      extremo: {
+                        badge:
+                          "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border-red-200 dark:border-red-800",
+                        bar: "bg-red-600",
+                        label: "Riesgo vial extremo",
+                      },
+                    };
 
-                            let summary = `Al momento del incidente, ${desc.toLowerCase()}. `;
+                    return (
+                      <div className="mt-4 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-100 dark:border-blue-900">
+                        <div className="flex items-start gap-3">
+                          <Navigation2 className="w-5 h-5 mt-0.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                              <h4 className="text-sm font-bold text-blue-900 dark:text-blue-200">
+                                Resumen Meteorológico
+                              </h4>
+                              {summary && (
+                                <span
+                                  className={`inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full border ${riskStyles[summary.road_risk_level]?.badge ?? riskStyles.bajo.badge}`}
+                                >
+                                  {riskStyles[summary.road_risk_level]?.label ??
+                                    "Riesgo vial"}
+                                </span>
+                              )}
+                            </div>
 
-                            if (temp !== null && temp !== undefined) {
-                              summary += `La temperatura era de ${temp}°C. `;
-                            }
+                            {summary ? (
+                              <>
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-md bg-white/70 dark:bg-gray-800/60 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
+                                    Condición:{" "}
+                                    <strong className="capitalize">
+                                      {summary.phenomenon}
+                                    </strong>
+                                  </span>
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-md bg-white/70 dark:bg-gray-800/60 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
+                                    Visibilidad:{" "}
+                                    <strong>{summary.visibility_category}</strong>
+                                    {summary.visibility_km != null && (
+                                      <span className="text-gray-500 dark:text-gray-400">
+                                        ({summary.visibility_km} km)
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
 
-                            if (precip > 0) {
-                              if (precip > 5) {
-                                summary += `Se registró lluvia intensa con ${precip}mm de precipitación. `;
-                              } else if (precip > 1) {
-                                summary += `Había lluvia moderada (${precip}mm). `;
-                              } else {
-                                summary += `Se detectó precipitación ligera (${precip}mm). `;
-                              }
-                            }
+                                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                                  {summary.narrative}
+                                </p>
 
-                            if (wind > 40) {
-                              summary += `Vientos fuertes de ${wind} km/h. `;
-                            } else if (wind > 20) {
-                              summary += `Vientos moderados de ${wind} km/h. `;
-                            }
-
-                            if (vis !== null) {
-                              if (parseFloat(vis) < 1) {
-                                summary += `Visibilidad muy reducida (${vis} km). `;
-                              } else if (parseFloat(vis) < 5) {
-                                summary += `Visibilidad limitada (${vis} km). `;
-                              }
-                            }
-
-                            if (w.is_freezing_risk) {
-                              summary +=
-                                "⚠️ Riesgo de congelamiento detectado.";
-                            }
-
-                            return summary;
-                          })()}
-                        </p>
+                                {summary.factors.length > 0 && (
+                                  <ul className="mt-3 space-y-1.5">
+                                    {summary.factors.map((f, idx) => (
+                                      <li
+                                        key={idx}
+                                        className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400"
+                                      >
+                                        <span
+                                          className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${riskStyles[f.severity]?.bar ?? "bg-gray-400"}`}
+                                        />
+                                        <span>
+                                          <strong className="text-gray-700 dark:text-gray-300">
+                                            {f.label}:
+                                          </strong>{" "}
+                                          {f.detail}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </>
+                            ) : (
+                              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                                Sin información meteorológica disponible para este
+                                incidente.
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    );
+                  })()}
                 </div>
               </div>
 
