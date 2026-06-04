@@ -15,6 +15,14 @@ param(
     [string]$InstallDir
 )
 
+# Comandos nativos (nssm/net/git/nginx) escriben en stderr y devuelven exit
+# codes != 0 en casos normales (p.ej. nssm start -> SERVICE_START_PENDING,
+# net start -> "ya iniciado"). Si el invocador (CI) tiene ErrorActionPreference
+# = Stop, esos stderr se convierten en excepciones terminantes que tumbaban el
+# deploy. Forzamos Continue y validamos por exit code / estado explicito donde
+# importa. Los `throw` siguen siendo terminantes igual.
+$ErrorActionPreference = "Continue"
+
 # Auto-detectar directorio del proyecto (raíz del repo = padre de deploy/)
 # Producción: D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados
 if (-not $InstallDir) {
@@ -36,6 +44,15 @@ foreach ($candidate in @("C:\nginx", (Get-ChildItem "C:\tools\nginx*" -Directory
 
 function Test-NssmService([string]$Name) {
     return [bool](Get-Service -Name $Name -ErrorAction SilentlyContinue)
+}
+
+# Arranca el backend de forma tolerante. `nssm start` devuelve
+# SERVICE_START_PENDING (no es error) cuando el servicio ya esta arrancando y,
+# bajo Stop, eso tumbaba el deploy. Start-Service tolera estados pending/running.
+function Start-Backend {
+    Start-Service PanelWazeBackend -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+    $global:LASTEXITCODE = 0
 }
 
 # True si algo acepta conexiones TCP en :80 (nginx realmente bindeo).
@@ -144,11 +161,11 @@ function Wait-BackendHealthy([int]$TimeoutSec = 120) {
 switch ($Action) {
     "start" {
         Write-Host "Iniciando PanelWazeBackend..." -ForegroundColor Yellow
-        nssm start PanelWazeBackend
-        Start-Sleep -Seconds 3
+        Start-Backend
         Write-Host "Iniciando nginx..." -ForegroundColor Yellow
         Start-Nginx
         Write-Host "Servicios iniciados." -ForegroundColor Green
+        $global:LASTEXITCODE = 0
     }
 
     "stop" {
@@ -161,13 +178,14 @@ switch ($Action) {
 
     "restart" {
         Write-Host "Reiniciando PanelWazeBackend..." -ForegroundColor Yellow
-        nssm restart PanelWazeBackend
+        Restart-Service PanelWazeBackend -Force -ErrorAction SilentlyContinue
         Start-Sleep -Seconds 3
         Write-Host "Reiniciando nginx..." -ForegroundColor Yellow
         Stop-Nginx
         Start-Sleep -Seconds 1
         Start-Nginx
         Write-Host "Servicios reiniciados." -ForegroundColor Green
+        $global:LASTEXITCODE = 0
     }
 
     "status" {
@@ -291,18 +309,21 @@ switch ($Action) {
         } catch {
             Write-Host "  [ERROR] Build/config fallo: $($_.Exception.Message)" -ForegroundColor Red
             Write-Host "  Re-arrancando servicios con el dist previo para no dejar prod caida..." -ForegroundColor Yellow
-            nssm start PanelWazeBackend 2>$null | Out-Null
+            Start-Backend
             Start-Nginx
             throw
         }
 
         # Arranque + verificacion: el backend debe responder antes de declarar exito.
-        nssm start PanelWazeBackend
+        Start-Backend
         net start PanelWazeFrontend 2>$null
         Start-Nginx
         Wait-BackendHealthy -TimeoutSec 120
 
         Write-Host ""
         Write-Host "Actualizacion completada." -ForegroundColor Green
+        # Asegurar exit 0: comandos nativos (net start, etc.) pudieron dejar
+        # LASTEXITCODE != 0 sin ser un fallo real.
+        $global:LASTEXITCODE = 0
     }
 }
