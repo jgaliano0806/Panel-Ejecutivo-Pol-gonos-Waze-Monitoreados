@@ -235,6 +235,26 @@ jobs:
           $env:GIT_CONFIG_VALUE_0 = "AUTHORIZATION: basic $b64"
 
           try {
+            $safeDir = ($InstallDir -replace '\\', '/')
+            Write-Host "git safe.directory -> $safeDir"
+            git config --global --add safe.directory $safeDir
+            if ($LASTEXITCODE -ne 0) { throw "git config safe.directory fallo" }
+
+            Push-Location $InstallDir
+            Write-Host "git fetch origin main..."
+            git fetch origin main
+            if ($LASTEXITCODE -ne 0) { throw "git fetch fallo (exit $LASTEXITCODE)" }
+
+            $target = if ($env:DEPLOY_SHA) { $env:DEPLOY_SHA.Trim() } else { "origin/main" }
+            Write-Host "git reset --hard $target..."
+            git checkout -f main
+            if ($LASTEXITCODE -ne 0) { throw "git checkout main fallo (exit $LASTEXITCODE)" }
+            git reset --hard $target
+            if ($LASTEXITCODE -ne 0) { throw "git reset fallo (exit $LASTEXITCODE)" }
+            Write-Host "HEAD en servidor: $(git rev-parse --short HEAD)"
+            Pop-Location
+
+            $env:SKIP_GIT_SYNC = "1"
             & "$InstallDir\deploy\manage-services.ps1" -Action update -InstallDir $InstallDir
             if ($LASTEXITCODE -ne 0) { throw "manage-services.ps1 update fallo: $LASTEXITCODE" }
 
@@ -242,6 +262,7 @@ jobs:
             $global:LASTEXITCODE = 0
             Write-Host "[OK] Deploy completado: $env:GITHUB_SHA"
           } finally {
+            Remove-Item Env:SKIP_GIT_SYNC -ErrorAction SilentlyContinue
             Remove-Item Env:GIT_CONFIG_COUNT -ErrorAction SilentlyContinue
             Remove-Item Env:GIT_CONFIG_KEY_0 -ErrorAction SilentlyContinue
             Remove-Item Env:GIT_CONFIG_VALUE_0 -ErrorAction SilentlyContinue
