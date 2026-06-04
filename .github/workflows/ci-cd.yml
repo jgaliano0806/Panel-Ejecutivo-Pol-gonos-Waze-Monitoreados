@@ -145,17 +145,17 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Run unit tests
-        run: npm run test --if-present
+        run: |
+          npm run test --workspace=apps/frontend
+          npm run test --workspace=apps/backend
 
   # =============================================
-  # TESTS E2E (Playwright) — no bloquea deploy
-  # Requiere backend; usa mocks parciales en los tests.
+  # TESTS E2E (Playwright) — /mapa con mocks de API (sin backend real)
   # =============================================
   test-e2e:
     name: 🎭 E2E Tests
     runs-on: ubuntu-latest
     needs: [build-frontend, build-backend]
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -322,12 +322,13 @@ jobs:
             check "deploy" "${{ needs.deploy.result }}"
           fi
 
-          # E2E es informativo — no bloquea
+          # E2E debe pasar; fallos indican regresión en /mapa o mocks
           e2e_result="${{ needs.test-e2e.result }}"
           if [ "$e2e_result" = "skipped" ]; then
             echo "⏭️  test-e2e: skipped"
-          elif [ "$e2e_result" = "failure" ]; then
-            echo "⚠️  test-e2e: failure (no bloquea pipeline)"
+          elif [ "$e2e_result" != "success" ]; then
+            echo "❌ test-e2e: $e2e_result"
+            exit 1
           else
-            echo "✅ test-e2e: $e2e_result"
+            echo "✅ test-e2e: success"
           fi
