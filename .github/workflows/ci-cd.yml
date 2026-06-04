@@ -2,14 +2,18 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
+    branches: [main, preprod]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 env:
   NODE_VERSION: "20"
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   # =============================================
@@ -21,14 +25,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup monorepo
+        uses: ./.github/actions/setup-monorepo
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
 
       - name: Build shared types (required by backend)
         working-directory: packages/types
@@ -55,14 +55,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup monorepo
+        uses: ./.github/actions/setup-monorepo
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
 
       - name: Run npm audit (root)
         run: npm audit --audit-level=high || true
@@ -85,14 +81,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup monorepo
+        uses: ./.github/actions/setup-monorepo
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
 
       - name: Build frontend
         working-directory: apps/frontend
@@ -117,14 +109,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup monorepo
+        uses: ./.github/actions/setup-monorepo
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
 
       - name: Build shared types
         working-directory: packages/types
@@ -151,38 +139,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup monorepo
+        uses: ./.github/actions/setup-monorepo
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
 
       - name: Run unit tests
         run: npm run test --if-present
 
   # =============================================
-  # TESTS E2E (Playwright) — no bloquea Docker
+  # TESTS E2E (Playwright) — no bloquea deploy
+  # Requiere backend; usa mocks parciales en los tests.
   # =============================================
   test-e2e:
     name: 🎭 E2E Tests
     runs-on: ubuntu-latest
     needs: [build-frontend, build-backend]
-    # E2E requiere backend+DB corriendo; no bloquea el pipeline
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup monorepo
+        uses: ./.github/actions/setup-monorepo
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
 
       - name: Install Playwright browsers
         working-directory: apps/frontend
@@ -209,59 +189,12 @@ jobs:
           retention-days: 30
 
   # =============================================
-  # DOCKER BUILD & PUSH
-  # Solo se ejecuta en push a main (no en PRs)
-  # No depende de E2E (requiere infraestructura externa)
-  # =============================================
-  docker:
-    name: 🐳 Docker Build & Push
-    runs-on: ubuntu-latest
-    needs: [build-frontend, build-backend, security]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix=sha-
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            VITE_API_URL=${{ vars.VITE_API_URL || '/api' }}
-
-  # =============================================
-  # DEPLOY (Production) — Self-hosted runner on-prem (Windows + NSSM)
-  # El runner corre DENTRO de la VPN corporativa (VM 10.1.0.136),
-  # por lo que no necesita SSH ni exposicion publica del servidor.
-  # Ejecuta: deploy/manage-services.ps1 -Action update
-  # Labels requeridos en el runner: self-hosted, Windows, panel-waze
+  # DEPLOY (Production) — Windows nativo + NSSM (10.1.0.136)
+  # Sin Docker ni PM2. Servicios:
+  #   PanelWazeBackend  → node dist\server.js  (:3002)
+  #   PanelWazeNginx    → C:\nginx\nginx.exe   (:80, trafico principal)
+  #   PanelWazeFrontend → serve -s dist        (:5180, preview opcional)
+  # PostgreSQL local. Polling Waze dentro del backend (sin worker aparte).
   # =============================================
   deploy:
     name: 🚀 Deploy to Production
@@ -295,11 +228,6 @@ jobs:
             throw "No se encontro manage-services.ps1 en $InstallDir\deploy"
           }
 
-          # Inyectar token efimero para autenticar 'git pull' en repo privado
-          # (runner corre como LocalSystem). Usamos env vars de git-config en lugar de
-          # 'git config --local' para evitar issues con paths unicode en Windows
-          # (el InstallDir contiene tildes). Las env vars se heredan al 'cmd /c git pull'
-          # que hace manage-services.ps1 y se pierden al terminar el step.
           $b64 = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:GH_TOKEN"))
           $env:GIT_CONFIG_COUNT = "1"
           $env:GIT_CONFIG_KEY_0 = "http.https://github.com/.extraheader"
@@ -322,19 +250,84 @@ jobs:
         env:
           PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
         run: |
+          # Backend directo (NSSM PanelWazeBackend)
+          Write-Host "Verificando backend NSSM en http://localhost:3002/health"
+          for ($i = 1; $i -le 10; $i++) {
+            try {
+              $backend = Invoke-RestMethod -Uri "http://localhost:3002/health" -TimeoutSec 5
+              Write-Host "[OK] Backend :3002 responde (uptime: $($backend.uptimeFormatted))"
+              break
+            } catch {
+              if ($i -eq 10) { throw "Backend NSSM no responde en :3002 tras 10 intentos" }
+              Write-Host "Esperando backend... intento $i/10"
+              Start-Sleep -Seconds 15
+            }
+          }
+
+          # Proxy nginx :80 (trafico principal)
           $base = if ([string]::IsNullOrWhiteSpace($env:PRODUCTION_URL)) { "http://localhost" } else { $env:PRODUCTION_URL.TrimEnd('/') }
           $url = "$base/health"
-          Write-Host "Verificando health check en $url"
+          Write-Host "Verificando nginx proxy en $url"
           for ($i = 1; $i -le 10; $i++) {
             try {
               $r = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 5
               if ($r.StatusCode -eq 200) {
-                Write-Host "[OK] Health check OK (intento $i)"
+                Write-Host "[OK] Nginx proxy OK (intento $i)"
                 exit 0
               }
             } catch {
-              Write-Host "Esperando... intento $i/10 (error: $($_.Exception.Message))"
+              Write-Host "Esperando nginx... intento $i/10 (error: $($_.Exception.Message))"
             }
             Start-Sleep -Seconds 15
           }
-          throw "Health check fallo despues de 10 intentos"
+          throw "Health check nginx fallo despues de 10 intentos"
+
+  # =============================================
+  # RESUMEN — jobs críticos deben pasar
+  # E2E es informativo; deploy NSSM es obligatorio en main
+  # =============================================
+  pipeline-status:
+    name: ✅ Pipeline Status
+    runs-on: ubuntu-latest
+    needs:
+      - lint
+      - security
+      - build-frontend
+      - build-backend
+      - test-unit
+      - test-e2e
+      - deploy
+    if: always()
+    steps:
+      - name: Verificar jobs críticos
+        run: |
+          check() {
+            local name="$1"
+            local result="$2"
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              echo "❌ Job crítico falló: $name ($result)"
+              exit 1
+            fi
+            echo "✅ $name: $result"
+          }
+
+          check "lint" "${{ needs.lint.result }}"
+          check "security" "${{ needs.security.result }}"
+          check "build-frontend" "${{ needs.build-frontend.result }}"
+          check "build-backend" "${{ needs.build-backend.result }}"
+          check "test-unit" "${{ needs.test-unit.result }}"
+
+          # En push a main, deploy NSSM es obligatorio (sin Docker)
+          if [ "${{ github.ref }}" = "refs/heads/main" ] && [ "${{ github.event_name }}" = "push" ]; then
+            check "deploy" "${{ needs.deploy.result }}"
+          fi
+
+          # E2E es informativo — no bloquea
+          e2e_result="${{ needs.test-e2e.result }}"
+          if [ "$e2e_result" = "skipped" ]; then
+            echo "⏭️  test-e2e: skipped"
+          elif [ "$e2e_result" = "failure" ]; then
+            echo "⚠️  test-e2e: failure (no bloquea pipeline)"
+          else
+            echo "✅ test-e2e: $e2e_result"
+          fi

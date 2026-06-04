@@ -26,9 +26,26 @@ if (-not $InstallDir) {
     }
 }
 
-$nginxDir = (Get-ChildItem "C:\tools\nginx*" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+$nginxDir = $null
+foreach ($candidate in @("C:\nginx", (Get-ChildItem "C:\tools\nginx*" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1).FullName)) {
+    if ($candidate -and (Test-Path "$candidate\nginx.exe")) {
+        $nginxDir = $candidate
+        break
+    }
+}
+
+function Test-NssmService([string]$Name) {
+    return [bool](Get-Service -Name $Name -ErrorAction SilentlyContinue)
+}
 
 function Start-Nginx {
+    if (Test-NssmService "PanelWazeNginx") {
+        Start-Service PanelWazeNginx -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 2
+        $state = (Get-Service PanelWazeNginx).Status
+        Write-Host "  PanelWazeNginx (NSSM): $state" -ForegroundColor $(if ($state -eq "Running") { "Green" } else { "Red" })
+        return
+    }
     if (-not $nginxDir) { Write-Host "  nginx no encontrado" -ForegroundColor Red; return }
     Stop-Process -Name nginx -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 1
@@ -39,6 +56,12 @@ function Start-Nginx {
 }
 
 function Stop-Nginx {
+    if (Test-NssmService "PanelWazeNginx") {
+        Stop-Service PanelWazeNginx -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 2
+        Write-Host "  PanelWazeNginx detenido" -ForegroundColor Green
+        return
+    }
     if ($nginxDir) { cmd /c "cd /d `"$nginxDir`" && nginx.exe -s quit 2>&1" | Out-Null }
     Start-Sleep -Seconds 2
     Stop-Process -Name nginx -Force -ErrorAction SilentlyContinue
@@ -81,9 +104,21 @@ switch ($Action) {
         $bColor = if ($backendState -match "Running") { "Green" } else { "Red" }
         Write-Host "  PanelWazeBackend: $backendState" -ForegroundColor $bColor
 
-        $nginxCount = (Get-Process nginx -ErrorAction SilentlyContinue).Count
-        $nColor = if ($nginxCount -gt 0) { "Green" } else { "Red" }
-        Write-Host "  nginx: $nginxCount procesos" -ForegroundColor $nColor
+        if (Test-NssmService "PanelWazeNginx") {
+            $nginxState = (Get-Service PanelWazeNginx).Status
+            $nColor = if ($nginxState -eq "Running") { "Green" } else { "Red" }
+            Write-Host "  PanelWazeNginx:   $nginxState" -ForegroundColor $nColor
+        } else {
+            $nginxCount = (Get-Process nginx -ErrorAction SilentlyContinue).Count
+            $nColor = if ($nginxCount -gt 0) { "Green" } else { "Red" }
+            Write-Host "  nginx: $nginxCount procesos" -ForegroundColor $nColor
+        }
+
+        if (Test-NssmService "PanelWazeFrontend") {
+            $frontendState = (Get-Service PanelWazeFrontend).Status
+            $fColor = if ($frontendState -eq "Running") { "Green" } else { "Yellow" }
+            Write-Host "  PanelWazeFrontend: $frontendState (preview :5180, no trafico principal)" -ForegroundColor $fColor
+        }
 
         Write-Host ""
         Write-Host "Health check:" -ForegroundColor Cyan

@@ -43,10 +43,14 @@ WORKDIR /app
 COPY package*.json ./
 COPY apps/frontend/package*.json ./apps/frontend/
 COPY apps/backend/package*.json  ./apps/backend/
+COPY packages/types/package*.json ./packages/types/
 
 RUN npm ci
 
 COPY . .
+
+WORKDIR /app/packages/types
+RUN npm run build
 
 WORKDIR /app/apps/backend
 RUN npm run build
@@ -60,8 +64,9 @@ RUN apk add --no-cache nginx curl
 
 WORKDIR /app
 
+COPY --from=backend-builder /app/node_modules                ./node_modules
+COPY --from=backend-builder /app/packages                    ./packages
 COPY --from=backend-builder /app/apps/backend/dist           ./backend/dist
-COPY --from=backend-builder /app/apps/backend/node_modules   ./backend/node_modules
 COPY --from=backend-builder /app/apps/backend/package.json   ./backend/
 COPY                         apps/backend/data               ./backend/data
 
