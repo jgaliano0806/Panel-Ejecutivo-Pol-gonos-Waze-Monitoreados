@@ -81,3 +81,4 @@ temp
 
 # Caché de tiles del mapa (generado por el proxy/seeder, no versionar)
 **/data/tile-cache/
+**/data/tile-cache-v2/

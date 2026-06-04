@@ -27,7 +27,7 @@ import path from "path";
 // ──────────────────────────────────────────────────────────────────────────────
 
 const TILE_CACHE_DIR = path.resolve(
-  process.env.TILE_CACHE_DIR || path.join(process.cwd(), "data", "tile-cache"),
+  process.env.TILE_CACHE_DIR || path.join(process.cwd(), "data", "tile-cache-v2"),
 );
 
 // Por defecto solo dark (tema en uso). Para ambos: STYLES=carto-dark,carto-light

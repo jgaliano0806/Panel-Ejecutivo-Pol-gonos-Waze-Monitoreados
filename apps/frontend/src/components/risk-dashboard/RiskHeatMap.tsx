@@ -56,8 +56,8 @@ export const RiskHeatMap: React.FC<RiskHeatMapProps> = ({
       basemap: {
         type: "raster" as const,
         tiles: isDark
-          ? [`${tilesBase}/tiles/carto-dark/{z}/{x}/{y}.png`]
-          : [`${tilesBase}/tiles/carto-light/{z}/{x}/{y}.png`],
+          ? [`${tilesBase}/tiles/v2/carto-dark/{z}/{x}/{y}.png`]
+          : [`${tilesBase}/tiles/v2/carto-light/{z}/{x}/{y}.png`],
         tileSize: 256,
         attribution: "&copy; CARTO",
       },

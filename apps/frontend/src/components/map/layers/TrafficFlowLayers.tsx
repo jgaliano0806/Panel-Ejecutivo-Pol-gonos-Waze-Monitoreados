@@ -14,27 +14,30 @@ export const TrafficFlowLayers: React.FC<TrafficFlowLayersProps> = React.memo(
   ({ flowGeoJSON, flowFluidGeoJSON, mapLoaded }) => {
     return (
       <>
-        {/* Flujo de Tráfico - Capa base con gradiente */}
+        {/* Flujo de Tráfico - Capa base con gradiente.
+            Oculta a zoom muy bajo: a z<10 los segmentos son <1px y solo
+            queman GPU sin aportar info legible. */}
         <Source id="flow" type="geojson" data={flowGeoJSON as any}>
-          {/* Capa de borde/sombra */}
+          {/* Borde/sombra sin blur (line-blur dispara render off-screen
+              caro y a 7px de width casi no se nota visualmente). */}
           <Layer
             id="flow-line-border"
             type="line"
+            minzoom={10}
             paint={{
               "line-color": "#000000",
               "line-width": 7,
               "line-opacity": 0.15,
-              "line-blur": 2,
             }}
             layout={{
               "line-cap": "round",
               "line-join": "round",
             }}
           />
-          {/* Capa principal de flujo */}
           <Layer
             id="flow-line"
             type="line"
+            minzoom={10}
             paint={{
               "line-color": ["get", "color"],
               "line-width": [
@@ -60,6 +63,7 @@ export const TrafficFlowLayers: React.FC<TrafficFlowLayersProps> = React.memo(
             <Layer
               id="flow-fluid-line"
               type="line"
+              minzoom={10}
               paint={{
                 "line-color": "#00c853",
                 "line-width": [

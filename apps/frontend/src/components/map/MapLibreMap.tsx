@@ -345,11 +345,17 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     }
   }, [selectedPolygon, selectedGroup, polygons, mapLoaded]);
 
-  // Animación del dasharray de la capa "flow-fluid-line" usando requestAnimationFrame (~200ms throttle)
+  // Animación del dasharray de "flow-fluid-line". Cada setPaintProperty
+  // dispara un repaint completo del layer → la mantenemos a 250ms y la
+  // pausamos cuando la pestaña está oculta, el mapa se está moviendo
+  // (pan/zoom/rotate) o el usuario prefiere movimiento reducido.
   useEffect(() => {
     if (!mapLoaded || !showTraffic || !showFlowLayer) return;
     const map = mapRef.current?.getMap?.() as maplibregl.Map | undefined;
     if (!map) return;
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reducedMotion) return;
 
     const dashSteps = [[2, 4], [3, 3], [4, 2], [5, 1], [6, 0], [0, 6], [1, 5]];
     let step = 0;
@@ -357,9 +363,9 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     let lastTime = performance.now();
 
     const animateDash = (time: DOMHighResTimeStamp) => {
-      // Usar 100ms de frecuencia para suavidad mejorada en lugar de 80ms
-      if (time - lastTime > 100) {
-        if (!document.hidden && map.getLayer("flow-fluid-line")) {
+      if (time - lastTime > 250) {
+        const moving = map.isMoving() || map.isZooming() || map.isRotating();
+        if (!document.hidden && !moving && map.getLayer("flow-fluid-line")) {
           const [dash, gap] = dashSteps[step % dashSteps.length];
           map.setPaintProperty("flow-fluid-line", "line-dasharray", [dash, gap]);
           step++;
@@ -465,9 +471,20 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
       } catch { return []; }
     };
 
+    // mousemove se dispara ~60Hz; throttleamos a ~16fps (60ms) y solo
+    // tocamos el DOM si el cursor cambia (evita layout-thrash).
+    let lastMoveAt = 0;
+    let currentCursor: "pointer" | "" = "";
     const onMouseMove = (ev: maplibregl.MapMouseEvent) => {
+      const now = performance.now();
+      if (now - lastMoveAt < 60) return;
+      lastMoveAt = now;
       const hits = safeQuery([ev.point.x, ev.point.y]);
-      canvas.style.cursor = hits.length > 0 ? "pointer" : "";
+      const next: "pointer" | "" = hits.length > 0 ? "pointer" : "";
+      if (next !== currentCursor) {
+        canvas.style.cursor = next;
+        currentCursor = next;
+      }
     };
     map.on("mousemove", onMouseMove);
 
@@ -524,8 +541,8 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
       basemap: {
         type: "raster",
         tiles: isDark
-          ? [`${tilesBase}/tiles/carto-dark/{z}/{x}/{y}.png`]
-          : [`${tilesBase}/tiles/carto-light/{z}/{x}/{y}.png`],
+          ? [`${tilesBase}/tiles/v2/carto-dark/{z}/{x}/{y}.png`]
+          : [`${tilesBase}/tiles/v2/carto-light/{z}/{x}/{y}.png`],
         tileSize: 256,
         attribution: "© CARTO",
         minzoom: 0,

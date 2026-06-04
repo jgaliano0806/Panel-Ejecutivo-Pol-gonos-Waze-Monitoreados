@@ -13,45 +13,35 @@ export const JamLayers: React.FC<JamLayersProps> = React.memo(
   ({ jamsGeoJSON, jamLabelsGeoJSON }) => {
     return (
       <>
-        {/* Jams/Atascos - Capas con efecto Waze */}
+        {/* Jams/Atascos - Capas con efecto Waze.
+            Optimización: 2 capas de glow combinadas en 1 (line-blur de 6→2,
+            que es ~9× más barato de renderizar en GPU manteniendo el efecto
+            visual). minzoom 10 para no dibujar atascos invisibles a z<10. */}
         <Source id="jams-source" type="geojson" data={jamsGeoJSON as any}>
-          {/* Capa de glow exterior pulsante */}
-          <Layer
-            id="jams-outer-glow"
-            type="line"
-            layout={{ "line-join": "round", "line-cap": "round" }}
-            paint={{
-              "line-color": ["get", "color"],
-              "line-width": [
-                "interpolate", ["linear"], ["get", "level"],
-                2, 12, 3, 16, 4, 20, 5, 26,
-              ],
-              "line-opacity": [
-                "interpolate", ["linear"], ["get", "level"],
-                2, 0.15, 5, 0.35,
-              ],
-              "line-blur": 6,
-            }}
-          />
-          {/* Capa de glow interior */}
+          {/* Glow unificado (antes: jams-outer-glow + jams-glow). */}
           <Layer
             id="jams-glow"
             type="line"
+            minzoom={10}
             layout={{ "line-join": "round", "line-cap": "round" }}
             paint={{
               "line-color": ["get", "color"],
               "line-width": [
                 "interpolate", ["linear"], ["get", "level"],
-                2, 8, 3, 10, 4, 14, 5, 18,
+                2, 10, 3, 13, 4, 17, 5, 22,
               ],
-              "line-opacity": 0.5,
-              "line-blur": 3,
+              "line-opacity": [
+                "interpolate", ["linear"], ["get", "level"],
+                2, 0.25, 5, 0.45,
+              ],
+              "line-blur": 2,
             }}
           />
           {/* Capa núcleo - línea principal */}
           <Layer
             id="jams-core"
             type="line"
+            minzoom={10}
             layout={{ "line-join": "round", "line-cap": "round" }}
             paint={{
               "line-color": ["get", "color"],
@@ -69,10 +59,12 @@ export const JamLayers: React.FC<JamLayersProps> = React.memo(
               "line-opacity": 1,
             }}
           />
-          {/* Patrón animado para indicar dirección */}
+          {/* Patrón animado para indicar dirección - solo a zoom alto
+              (a z<12 las líneas son tan finas que el dash no se distingue). */}
           <Layer
             id="jams-animated"
             type="line"
+            minzoom={12}
             layout={{ "line-join": "round", "line-cap": "round" }}
             paint={{
               "line-color": "#ffffff",

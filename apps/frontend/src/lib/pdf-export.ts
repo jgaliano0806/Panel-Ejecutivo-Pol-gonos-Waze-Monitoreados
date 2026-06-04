@@ -149,7 +149,7 @@ async function generateMapImage(
             };
 
             const tilesBase = API_CONFIG.tilesBase || "";
-            img.src = `${tilesBase}/tiles/carto-light/${zoom}/${tileX}/${tileY}.png`;
+            img.src = `${tilesBase}/tiles/v2/carto-light/${zoom}/${tileX}/${tileY}.png`;
           });
 
           tileLoadPromises.push(promise);
