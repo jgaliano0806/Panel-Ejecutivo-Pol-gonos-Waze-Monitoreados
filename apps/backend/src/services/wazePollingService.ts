@@ -399,6 +399,7 @@ export class WazePollingService {
                SET is_active = false, updated_at = NOW()
                WHERE polygon_id = $1
                AND is_active = true
+               AND uuid NOT LIKE 'SIM-%'
                AND NOT (uuid = ANY($2))`,
           [polygonId, currentUuids],
         );
@@ -406,7 +407,8 @@ export class WazePollingService {
         await dbService.query(
           `UPDATE waze_alerts
                SET is_active = false, updated_at = NOW()
-               WHERE polygon_id = $1 AND is_active = true`,
+               WHERE polygon_id = $1 AND is_active = true
+               AND uuid NOT LIKE 'SIM-%'`,
           [polygonId],
         );
       }
@@ -557,23 +559,14 @@ export class WazePollingService {
             alert.type === "ACCIDENT" ? "ACCIDENT" : "HAZARD",
             title,
             message,
-            {
-              ...alert,
+            this.buildIncidentNotificationPayload(
+              alert,
               polygonId,
-              polygonName: polygonInfo.name,
-              polygonGroup: polygonInfo.group,
-              latitude: lat,
-              longitude: lng,
-              nearestKmName: nearest?.name || null,
-              nearestKmRoute: nearest?.route_name || null,
-              nearestKmDistance: nearest ? Math.round(nearest.distance) : null,
+              polygonInfo,
+              nearest,
               ttsText,
-              isRedZone: redZone ? true : undefined,
-              isDangerZone: redZone ? true : undefined,
-              dangerZoneId: redZone?.redZonaId,
-              dangerZoneName: redZone?.redZonaNombre,
-              redZoneProtocol: redZone?.protocolo_accion,
-            },
+              redZone,
+            ),
           );
           logger.info(
             `🔔 Notificación enviada para alerta ${alert.uuid}${redZone ? " (🚨 ZONA PELIGROSA RAC)" : ""}`,
@@ -1231,6 +1224,120 @@ export class WazePollingService {
       return `${genericMessage} Ubicación: ${alert.street}.`;
     }
     return genericMessage;
+  }
+
+  /**
+   * Payload completo para notificación + mapa (sin depender del refetch del feed).
+   * Se persiste en notifications.data antes de emitir notification:new.
+   */
+  private buildIncidentNotificationPayload(
+    alert: WazeAlert,
+    polygonId: string,
+    polygonInfo: { name: string; group?: string },
+    nearest: ReturnType<typeof geoReferenceService.findNearestMarker>,
+    ttsText: string,
+    redZone: RedZoneMatch | null | undefined,
+  ): Record<string, unknown> {
+    const lat = alert.location?.y ?? 0;
+    const lng = alert.location?.x ?? 0;
+    const description =
+      alert.reportDescription && !alert.reportDescription.includes("[AI")
+        ? alert.reportDescription
+        : this.getNotificationMessage(alert);
+
+    return {
+      uuid: alert.uuid,
+      alertId: alert.uuid,
+      id: alert.uuid,
+      incidentType: alert.type,
+      type: alert.type.toLowerCase(),
+      subtype: (alert.subtype || "").toLowerCase(),
+      street: alert.street || null,
+      city: alert.city || null,
+      country: alert.country || null,
+      description,
+      reportDescription: alert.reportDescription || null,
+      pubMillis: alert.pubMillis,
+      timestamp: new Date(alert.pubMillis).toISOString(),
+      reportBy: alert.reportBy || null,
+      nThumbsUp: alert.nThumbsUp ?? 0,
+      reportRating: alert.reportRating ?? null,
+      confidence: alert.confidence,
+      reliability: alert.reliability,
+      magvar: alert.magvar ?? null,
+      location: { x: lng, y: lat },
+      latitude: lat,
+      longitude: lng,
+      polygonId,
+      polygonName: polygonInfo.name,
+      polygonGroup: polygonInfo.group ?? null,
+      nearestKmName: nearest?.name ?? null,
+      nearestKmRoute: nearest?.route_name ?? null,
+      nearestKmDistance: nearest ? Math.round(nearest.distance) : null,
+      ttsText,
+      isRedZone: redZone ? true : undefined,
+      isDangerZone: redZone ? true : undefined,
+      dangerZoneId: redZone?.redZonaId,
+      dangerZoneName: redZone?.redZonaNombre,
+      redZoneProtocol: redZone?.protocolo_accion,
+    };
+  }
+
+  /**
+   * Ingesta alertas simuladas con el mismo pipeline que un input del feed Waze:
+   * geo-referencia, zona peligrosa, notificación persistida, TTS y socket.
+   * No desactiva otras alertas del polígono (a diferencia de storeAlerts).
+   */
+  public async ingestSimulatedAlerts(
+    alerts: WazeAlert[],
+    polygonId: string,
+  ): Promise<void> {
+    if (alerts.length === 0) return;
+
+    try {
+      const entities = alerts.map((a) => ({
+        ...a,
+        polygon_id: polygonId,
+        city: a.city || undefined,
+        street: a.street || undefined,
+        report_by: a.reportBy || null,
+        magvar: a.magvar || null,
+        is_active: true,
+      }));
+
+      await repositories().wazeAlerts.bulkUpsert(entities as any);
+      await this.enrichAlertsWithGeoData(alerts);
+      await enrichAlertsWithRedZoneFlags(alerts);
+
+      const criticalTypes = ["ACCIDENT", "HAZARD", "WEATHERHAZARD"];
+      const criticalAlerts = alerts.filter((a) =>
+        criticalTypes.includes(a.type),
+      );
+      if (criticalAlerts.length > 0) {
+        await this.processCriticalNotificationsBatch(
+          criticalAlerts,
+          polygonId,
+        );
+      }
+
+      const accidents = alerts.filter((a) => a.type === "ACCIDENT");
+      if (accidents.length > 0) {
+        await this.processAccidents(accidents, polygonId);
+      }
+
+      await this.emitUpdate(polygonId);
+      await this.invalidateCache(polygonId);
+
+      logger.info(
+        `🤖 Simulación ingestada como feed Waze: ${alerts.length} alerta(s) en ${polygonId}`,
+      );
+    } catch (error) {
+      logger.error(
+        "Error ingesting simulated alerts:",
+        error instanceof Error ? error.message : String(error),
+      );
+      throw error;
+    }
   }
 }
 

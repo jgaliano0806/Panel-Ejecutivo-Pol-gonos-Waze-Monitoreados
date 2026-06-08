@@ -133,7 +133,8 @@ export class WazeAlertRepository extends BaseRepository<WazeAlert> {
     const result = await this.query(
       `UPDATE ${this.tableName}
        SET is_active = false
-       WHERE updated_at < $1 AND is_active = true`,
+       WHERE updated_at < $1 AND is_active = true
+         AND uuid NOT LIKE 'SIM-%'`,
       [olderThan]
     );
     return result.rowCount || 0;
@@ -193,6 +194,15 @@ export class WazeAlertRepository extends BaseRepository<WazeAlert> {
        ON CONFLICT (uuid) DO UPDATE SET
          updated_at = NOW(),
          is_active = true,
+         polygon_id = EXCLUDED.polygon_id,
+         type = EXCLUDED.type,
+         subtype = EXCLUDED.subtype,
+         latitude = EXCLUDED.latitude,
+         longitude = EXCLUDED.longitude,
+         street = EXCLUDED.street,
+         city = EXCLUDED.city,
+         country = EXCLUDED.country,
+         pub_millis = EXCLUDED.pub_millis,
          reliability = EXCLUDED.reliability,
          confidence = EXCLUDED.confidence,
          n_thumbs_up = EXCLUDED.n_thumbs_up,

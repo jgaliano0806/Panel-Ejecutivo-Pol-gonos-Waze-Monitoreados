@@ -248,6 +248,8 @@ export default async function incidentsRoutes(fastify: FastifyInstance) {
           tts_text as "ttsText"
         FROM waze_alerts
         WHERE is_active = true
+          AND latitude IS NOT NULL
+          AND longitude IS NOT NULL
         LIMIT 2000
       `;
 

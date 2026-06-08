@@ -165,22 +165,22 @@ const Dashboard: React.FC = () => {
           setSinglePolygonMode(true);
         }
         if (state.focusEventId) {
-          console.log("✅ Setting focusEventId:", state.focusEventId);
-          setFocusIncidentId(state.focusEventId);
+          setFocusIncidentId(
+            state.forcedIncident?.uuid ||
+              state.forcedIncident?.id ||
+              state.focusEventId,
+          );
         }
         if (state.forcedIncident) {
-          console.log("✅ Setting forcedIncident data");
           setFocusIncidentData(state.forcedIncident);
         }
-        // Log para mostrar jams/tráfico
         if (state.showJams || state.highlightTraffic) {
           console.log(
             "🚗 Mostrando tráfico/jams del polígono:",
             state.selectedPolygonId,
           );
         }
-        // Asegurar que vamos al mapa si hay intención de enfocar
-        if (state.selectedPolygonId || state.focusEventId) {
+        if (state.selectedPolygonId || state.focusEventId || state.forcedIncident) {
           setCurrentView("map");
         }
       });
@@ -189,47 +189,41 @@ const Dashboard: React.FC = () => {
     }
   }, [location.state]);
 
-  // Manejar parámetros de URL para "Ver en el mapa" desde el módulo de incidentes
+  // Parámetros URL (?lat=&lng=&highlight=) — priorizar state.forcedIncident (notificación)
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const lat = searchParams.get("lat");
     const lng = searchParams.get("lng");
-    const zoom = searchParams.get("zoom");
     const highlight = searchParams.get("highlight");
 
-    if (lat && lng) {
-      console.log("🗺️ Navegando a coordenadas desde URL:", {
-        lat,
-        lng,
-        zoom,
-        highlight,
-      });
+    if (!lat || !lng) return;
 
-      React.startTransition(() => {
-        // Cambiar a vista de mapa
-        setCurrentView("map");
+    const navState = location.state as { forcedIncident?: Record<string, unknown> } | null;
+    const stateForced = navState?.forcedIncident;
 
-        // Si hay un ID de incidente para resaltar
-        if (highlight) {
-          setFocusIncidentId(highlight);
+    React.startTransition(() => {
+      setCurrentView("map");
 
-          // Crear datos de incidente temporal para forzar el enfoque
-          setFocusIncidentData({
-            uuid: highlight,
+      if (highlight) {
+        const decoded = decodeURIComponent(highlight);
+        setFocusIncidentId(decoded);
+        setFocusIncidentData(
+          stateForced ?? {
+            id: decoded,
+            uuid: decoded,
             location: {
-              x: parseFloat(lng),
-              y: parseFloat(lat),
+              lat: parseFloat(lat),
+              lng: parseFloat(lng),
             },
             latitude: parseFloat(lat),
             longitude: parseFloat(lng),
-          });
-        }
-      });
+          },
+        );
+      }
+    });
 
-      // Limpiar los parámetros de URL después de procesarlos
-      window.history.replaceState({}, document.title, location.pathname);
-    }
-  }, [location.search, location.pathname]);
+    window.history.replaceState({}, document.title, location.pathname);
+  }, [location.search, location.pathname, location.state]);
 
   const globalKPIs: GlobalKPIs = useMemo(() => {
     const totalPolygons = polygons.length;

@@ -32,6 +32,13 @@ import {
   INITIAL_VIEW_STATE,
   COMMON_ICONS,
   INTERACTIVE_LAYER_IDS,
+  isValidCoord,
+  findIncidentById,
+  buildIncidentPopupProperties,
+  buildPopupPropertiesFromForced,
+  extractIncidentCoords,
+  decodeHighlightId,
+  mergeIncidentsForMap,
 } from "./mapUtils";
 
 import {
@@ -117,77 +124,82 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   // Hitos kilométricos
   const { data: kilometerMarkers = [] } = useKilometers(true);
 
+  /** Marcadores: feed + incidente de notificación/popup si aún no está en el feed */
+  const markerIncidents = useMemo(
+    () =>
+      mergeIncidentsForMap(incidents, [
+        forcedIncident,
+        selectedIncident
+          ? {
+              id: selectedIncident.properties?.id,
+              uuid: selectedIncident.properties?.id,
+              type: selectedIncident.properties?.type,
+              subtype: selectedIncident.properties?.subtype,
+              description: selectedIncident.properties?.description,
+              street: selectedIncident.properties?.street,
+              reportBy: selectedIncident.properties?.reportBy,
+              confidence: selectedIncident.properties?.confidence,
+              nThumbsUp: selectedIncident.properties?.nThumbsUp,
+              magvar: selectedIncident.properties?.magvar,
+              location: {
+                lat: selectedIncident.lat,
+                lng: selectedIncident.lng,
+              },
+              timestamp: selectedIncident.properties?.timestamp,
+            }
+          : null,
+      ]),
+    [incidents, forcedIncident, selectedIncident],
+  );
+
   // ─── Enfocar incidente externo ("Ver en el mapa" / snackbar / notificaciones) ───
   useEffect(() => {
     if (!mapLoaded) return;
     if (!selectedIncidentId && !forcedIncident) return;
 
-    const isValidNum = (v: any): v is number =>
-      typeof v === "number" && isFinite(v) && !isNaN(v);
+    const highlightId =
+      decodeHighlightId(selectedIncidentId) ||
+      decodeHighlightId(forcedIncident?.uuid) ||
+      decodeHighlightId(forcedIncident?.id);
 
     const timer = setTimeout(() => {
+      const found = highlightId
+        ? findIncidentById(incidents, highlightId)
+        : undefined;
+
       let lat: number | undefined;
       let lng: number | undefined;
       let incidentProps: any = null;
 
-      // Prioridad 1: incidente forzado (viene de snackbar o módulo externo)
-      if (forcedIncident) {
-        incidentProps = forcedIncident;
-        // Intento 1: location.lat / location.lng
-        if (isValidNum(forcedIncident.location?.lat) && isValidNum(forcedIncident.location?.lng)) {
-          lat = forcedIncident.location.lat;
-          lng = forcedIncident.location.lng;
-        // Intento 2: location.y / location.x (formato Waze raw)
-        } else if (isValidNum(forcedIncident.location?.y) && isValidNum(forcedIncident.location?.x)) {
-          lat = forcedIncident.location.y;
-          lng = forcedIncident.location.x;
-        // Intento 3: latitude / longitude en raíz
-        } else if (isValidNum(forcedIncident.latitude) && isValidNum(forcedIncident.longitude)) {
-          lat = forcedIncident.latitude;
-          lng = forcedIncident.longitude;
-        }
-      }
-
-      // Prioridad 2: buscar por ID en los incidentes activos del feed
-      if ((lat === undefined || lng === undefined) && selectedIncidentId) {
-        const found = incidents.find(
-          (i) => i.id === selectedIncidentId || (i as any).uuid === selectedIncidentId,
+      if (found) {
+        lat = found.location.lat;
+        lng = found.location.lng;
+        incidentProps = buildIncidentPopupProperties(found);
+      } else if (forcedIncident) {
+        const coords = extractIncidentCoords(forcedIncident);
+        lat = coords.lat;
+        lng = coords.lng;
+        incidentProps = buildPopupPropertiesFromForced(
+          forcedIncident,
+          highlightId,
         );
-        if (found) {
-          lat = found.location.lat;
-          lng = found.location.lng;
-          incidentProps = {
-            id: found.id,
-            description: found.description || "Sin descripción",
-            street: found.street || `${found.location.lat.toFixed(5)}, ${found.location.lng.toFixed(5)}`,
-            type: found.type,
-            subtype: found.subtype || "",
-            timestamp: found.timestamp ? new Date(found.timestamp).toISOString() : "",
-            reportBy: found.reportBy,
-            nThumbsUp: found.nThumbsUp || 0,
-            confidence: typeof found.confidence === "number" ? found.confidence : Number(found.confidence) || 0,
-            magvar: (found as any).magvar,
-          };
-        }
       }
 
-      if (!isValidNum(lat) || !isValidNum(lng)) {
-        console.warn("⚠️ focusIncident: coordenadas inválidas o no encontradas", { forcedIncident, selectedIncidentId });
+      if (!isValidCoord(lat, lng)) {
+        console.warn("⚠️ focusIncident: coordenadas inválidas o no encontradas", {
+          forcedIncident,
+          selectedIncidentId,
+          highlightId,
+        });
         return;
       }
 
-      console.log("📍 focusIncident: flyTo", { lat, lng, id: selectedIncidentId });
+      setSelectedJam(null);
+      setSelectedIncident({ lat: lat!, lng: lng!, properties: incidentProps });
 
-      // Abrir popup del incidente en el mapa
-      if (incidentProps) {
-        setSelectedJam(null);
-        setSelectedIncident({ lat, lng, properties: incidentProps });
-      }
-
-      // Volar al incidente
       try {
         mapRef.current?.getMap().flyTo({
-          center: [lng, lat],
+          center: [lng!, lat!],
           zoom: 16,
           duration: 1200,
           essential: true,
@@ -196,13 +208,17 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         console.error("❌ focusIncident: error en flyTo", err);
       }
 
-      // Notificar al padre que ya fue consumido (evita re-trigger en re-renders)
       onExternalIncidentFocusConsumed?.();
-    }, 400);
+    }, 150);
 
     return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedIncidentId, forcedIncident, mapLoaded]);
+  }, [
+    selectedIncidentId,
+    forcedIncident,
+    mapLoaded,
+    incidents,
+    onExternalIncidentFocusConsumed,
+  ]);
 
   // Memos de GeoJSON centralizados (recalculan solo si sus props cambian)
   const polygonsGeoJSON = usePolygonsGeoJSON(polygons);
@@ -292,27 +308,14 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     mapRef,
     mapLoaded,
     showWazeIncidents,
-    incidents,
+    incidents: markerIncidents,
     isDark,
     onIncidentClick: (inc) => {
       setSelectedJam(null);
-      const timeMs = inc.timestamp instanceof Date ? inc.timestamp.getTime() : new Date(inc.timestamp).getTime();
       setSelectedIncident({
         lng: inc.location.lng,
         lat: inc.location.lat,
-        properties: {
-          id: inc.id,
-          isNew: Date.now() - timeMs < 300000 ? 1 : 0,
-          description: inc.description || "Sin descripción",
-          street: inc.street || `${inc.location.lat.toFixed(5)}, ${inc.location.lng.toFixed(5)}`,
-          type: inc.type,
-          subtype: inc.subtype || "",
-          timestamp: inc.timestamp ? new Date(inc.timestamp).toISOString() : "",
-          reportBy: inc.reportBy,
-          nThumbsUp: inc.nThumbsUp || 0,
-          confidence: typeof inc.confidence === "number" ? inc.confidence : Number(inc.confidence) || 0,
-          magvar: (inc as any).magvar,
-        },
+        properties: buildIncidentPopupProperties(inc),
       });
     },
     applyPulseToMarker,
@@ -322,6 +325,14 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   useEffect(() => {
     incidentMarkersMapRef.current = markersRef.current;
   }, [markersRef]);
+
+  // Pulso en el marcador cuando se abre popup (notificación o clic)
+  useEffect(() => {
+    const id = selectedIncident?.properties?.id;
+    if (!id || !mapLoaded) return;
+    const t = setTimeout(() => applyPulseToMarker(id), 200);
+    return () => clearTimeout(t);
+  }, [selectedIncident, mapLoaded, applyPulseToMarker]);
 
   // Zoom a polígono seleccionado
   useEffect(() => {

@@ -11,6 +11,7 @@ import { useEffect, useRef, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import type { MapRef } from "react-map-gl/maplibre";
 import type { Incident } from "../../../types";
+import { isValidCoord } from "../mapUtils";
 import {
   getWazePartnerHubIconUrl,
   getWazeIconSvg,
@@ -96,6 +97,10 @@ export function useIncidentMarkers({
 
     // Crear o actualizar marcadores
     incidents.forEach((inc) => {
+      if (!inc.location || !isValidCoord(inc.location.lat, inc.location.lng)) {
+        return;
+      }
+
       const { src, dataUri } = getIconSrc(inc.type, inc.subtype);
       const sig = `${inc.type}|${inc.subtype ?? ""}|${inc.location.lng}|${inc.location.lat}|${src}`;
 

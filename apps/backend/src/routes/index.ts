@@ -104,6 +104,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
   // Accidentes de tráfico guardados
   await app.register(roadAccidentRoutes, { prefix: "/api/road-accidents" });
+
 }
 
 export { catalogsRoutes, healthRoutes, iconUploadRoutes };

@@ -485,6 +485,16 @@ socket.on("notification:new", async (notification: Notification) => {
   // Agregar al store
   useNotificationStore.getState().addNotification(updatedNotification);
 
+  // Refrescar marcadores del mapa sin esperar al próximo poll
+  window.dispatchEvent(
+    new CustomEvent("waze:data_updated", {
+      detail: {
+        source: "notification:new",
+        timestamp: new Date().toISOString(),
+      },
+    }),
+  );
+
   if (!shouldNotify) {
     useNotificationStore.getState().markTTSPlayed(notification.id);
     return;

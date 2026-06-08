@@ -1,3 +1,6 @@
+import type { Incident } from "../../types";
+import { Severity } from "../../types";
+
 /**
  * mapUtils.ts — Funciones puras y constantes para el componente de mapa.
  *
@@ -55,6 +58,183 @@ export function isValidCoord(lat: any, lng: any): boolean {
 export function isValidPoint(p: { x: number; y: number } | null | undefined): boolean {
   if (!p) return false;
   return isValidCoord(p.y, p.x);
+}
+
+/** Decodifica ID de highlight desde URL o notificación. */
+export function decodeHighlightId(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  try {
+    return decodeURIComponent(String(raw));
+  } catch {
+    return String(raw);
+  }
+}
+
+/** Busca incidente activo por uuid/id (feed /incidents/all). */
+export function findIncidentById<T extends { id: string; uuid?: string }>(
+  incidents: T[],
+  id: string | null | undefined,
+): T | undefined {
+  const needle = decodeHighlightId(id);
+  if (!needle) return undefined;
+  return incidents.find((i) => i.id === needle || i.uuid === needle);
+}
+
+/** Props normalizadas para IncidentPopup desde el feed del mapa. */
+export function buildIncidentPopupProperties(inc: {
+  id: string;
+  type: string;
+  subtype?: string;
+  description?: string;
+  street?: string;
+  timestamp: Date | string;
+  reportBy?: string;
+  nThumbsUp?: number;
+  confidence?: number;
+  location: { lat: number; lng: number };
+  magvar?: number;
+}) {
+  const timeMs =
+    inc.timestamp instanceof Date
+      ? inc.timestamp.getTime()
+      : new Date(inc.timestamp).getTime();
+
+  return {
+    id: inc.id,
+    isNew: Date.now() - timeMs < 300000 ? 1 : 0,
+    description: inc.description || "Sin descripción",
+    street:
+      inc.street ||
+      `${inc.location.lat.toFixed(5)}, ${inc.location.lng.toFixed(5)}`,
+    type: inc.type,
+    subtype: inc.subtype || "",
+    timestamp: inc.timestamp ? new Date(inc.timestamp).toISOString() : "",
+    reportBy: inc.reportBy,
+    nThumbsUp: inc.nThumbsUp || 0,
+    confidence:
+      typeof inc.confidence === "number"
+        ? inc.confidence
+        : Number(inc.confidence) || 0,
+    magvar: inc.magvar,
+  };
+}
+
+/** Extrae lat/lng de distintos formatos (feed, notificación, Waze raw). */
+export function extractIncidentCoords(source: any): {
+  lat?: number;
+  lng?: number;
+} {
+  if (isValidCoord(source?.location?.lat, source?.location?.lng)) {
+    return { lat: source.location.lat, lng: source.location.lng };
+  }
+  if (isValidCoord(source?.location?.y, source?.location?.x)) {
+    return { lat: source.location.y, lng: source.location.x };
+  }
+  if (isValidCoord(source?.latitude, source?.longitude)) {
+    return { lat: source.latitude, lng: source.longitude };
+  }
+  return {};
+}
+
+/** Props de popup desde notificación o incidente forzado (sin esperar al feed). */
+export function buildPopupPropertiesFromForced(
+  source: Record<string, any>,
+  highlightId?: string | null,
+) {
+  const id =
+    source.id || source.uuid || source.alertId || highlightId || "unknown";
+  const ts =
+    source.timestamp ||
+    (source.pubMillis
+      ? new Date(source.pubMillis).toISOString()
+      : new Date().toISOString());
+  const coords = extractIncidentCoords(source);
+  const lat = coords.lat ?? 0;
+  const lng = coords.lng ?? 0;
+
+  return {
+    id,
+    isNew: 1,
+    description:
+      source.description ||
+      source.reportDescription ||
+      source.message ||
+      "Sin descripción",
+    street:
+      source.street ||
+      (isValidCoord(lat, lng)
+        ? `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+        : undefined),
+    type: (source.type || source.incidentType || "hazard").toLowerCase(),
+    subtype: (source.subtype || "").toLowerCase(),
+    timestamp: ts,
+    reportBy: source.reportBy,
+    nThumbsUp: source.nThumbsUp ?? source.thumbsUp ?? 0,
+    confidence:
+      typeof source.confidence === "number"
+        ? source.confidence
+        : Number(source.confidence) || 0,
+    magvar: source.magvar,
+  };
+}
+
+/** Convierte notificación/incidente forzado al shape del feed para dibujar marcador. */
+export function sourceToMapIncident(
+  source: Record<string, any> | null | undefined,
+): Incident | null {
+  if (!source) return null;
+
+  const coords = extractIncidentCoords(source);
+  if (!isValidCoord(coords.lat, coords.lng)) return null;
+
+  const id = String(source.id || source.uuid || source.alertId || "");
+  if (!id) return null;
+
+  const typeRaw = (source.type || source.incidentType || "hazard").toLowerCase();
+
+  return {
+    id,
+    polygonId: source.polygonId ?? null,
+    type: typeRaw as Incident["type"],
+    subtype: (source.subtype || "").toLowerCase() || undefined,
+    severity: Severity.MEDIUM,
+    description:
+      source.description || source.reportDescription || source.message || "",
+    timestamp: new Date(
+      source.timestamp || source.pubMillis || Date.now(),
+    ),
+    location: { lat: coords.lat!, lng: coords.lng! },
+    street: source.street,
+    city: source.city,
+    reportBy: source.reportBy,
+    confidence: source.confidence,
+    reliability: source.reliability,
+    nThumbsUp: source.nThumbsUp ?? source.thumbsUp,
+    magvar: source.magvar,
+  };
+}
+
+/** Feed del mapa + incidentes de notificación aún no presentes en /incidents/all. */
+export function mergeIncidentsForMap(
+  base: Incident[],
+  extras: Array<Record<string, any> | null | undefined>,
+): Incident[] {
+  const byId = new Map(base.map((i) => [i.id, i]));
+
+  for (const extra of extras) {
+    const mapped = sourceToMapIncident(extra);
+    if (!mapped) continue;
+
+    const existing = byId.get(mapped.id);
+    if (
+      !existing ||
+      !isValidCoord(existing.location?.lat, existing.location?.lng)
+    ) {
+      byId.set(mapped.id, mapped);
+    }
+  }
+
+  return Array.from(byId.values());
 }
 
 /** Valida que una polyline tenga al menos 2 puntos válidos. */

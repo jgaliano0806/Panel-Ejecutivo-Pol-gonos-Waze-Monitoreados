@@ -61,6 +61,7 @@ function weatherBackfillUserMessage(
 import { catalogSyncService } from "./services/catalogSyncService";
 import { wazePollingService } from "./services/wazePollingService";
 import { openMeteoService } from "./services/openMeteoService";
+import { incidentSimulationService } from "./services/incidentSimulationService";
 import { wazeAnalyticsService } from "./services/WazeAnalyticsService";
 import { websocketService } from "./services/websocketService";
 import rateLimit from "@fastify/rate-limit";
@@ -1868,6 +1869,15 @@ const start = async () => {
       new AccidentCaptureListener();
       new IncidentsHistoryListener();
       new NotificationListener(websocketService.getIO()!);
+
+      try {
+        await incidentSimulationService.initialize();
+      } catch (simError) {
+        console.warn(
+          "⚠️ Error al inicializar bot de simulación (continuando):",
+          simError,
+        );
+      }
 
       const { isRiskScoringEnabled } = await import("./config/features");
       if (isRiskScoringEnabled) {

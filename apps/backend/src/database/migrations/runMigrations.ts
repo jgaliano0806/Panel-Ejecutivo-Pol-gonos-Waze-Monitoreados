@@ -789,6 +789,28 @@ export async function runMigrations(): Promise<void> {
       }
     }
 
+    // Migración 050: bot de simulación de incidentes (presentaciones)
+    const migration050Path = path.join(
+      migrationsDir,
+      "050_incident_simulation_bot.sql",
+    );
+    if (fs.existsSync(migration050Path)) {
+      try {
+        const sql = fs.readFileSync(migration050Path, "utf-8");
+        await dbService.query(sql);
+        console.log(
+          "✅ Migración 050 ejecutada: setting incident_bot_enabled en system_settings",
+        );
+      } catch (migError: any) {
+        if (
+          !migError.message?.includes("already exists") &&
+          !migError.message?.includes("ya existe")
+        ) {
+          console.warn("⚠️ Migración 050:", migError.message);
+        }
+      }
+    }
+
     console.log("✅ Migraciones completadas exitosamente");
   } catch (error: any) {
     // Si el error es por tabla/columna ya existente, es OK

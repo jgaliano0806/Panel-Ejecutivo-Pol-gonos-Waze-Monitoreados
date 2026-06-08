@@ -138,7 +138,11 @@ const SystemSettings: React.FC = () => {
         {categories.map((category) => {
           const Icon = category.icon;
           const isActive = activeCategory === category.id;
-          const count = category.id === 'all' || category.id === 'voice' ? 1 : settings.filter(s => s.category === category.id).length;
+          const count = category.id === 'all'
+            ? 1
+            : category.id === 'voice'
+              ? 1
+              : settings.filter(s => s.category === category.id).length;
 
           return (
             <button
