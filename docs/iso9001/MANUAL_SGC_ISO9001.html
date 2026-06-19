@@ -1,0 +1,3673 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SGC ISO 9001:2015 – Panel Ejecutivo Waze</title>
+  <style>
+  @page { size: A4; margin: 20mm; }
+  @media print {
+    body { font-size: 10pt; }
+    .no-print { display: none !important; }
+    pre, code { font-size: 8pt; white-space: pre-wrap; word-break: break-word; }
+    h1, h2, h3, h4 { page-break-after: avoid; }
+    pre, table, .doc-section { page-break-inside: avoid; }
+    .page-break { page-break-before: always; }
+  }
+  @media screen {
+    .no-print {
+      position: fixed; top: 10px; right: 10px; z-index: 9999;
+      background: #1e3a5f; color: white; padding: 10px 20px;
+      border-radius: 8px; cursor: pointer; font-weight: bold;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .no-print:hover { background: #152a45; }
+  }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.55; max-width: 800px; margin: 0 auto;
+    padding: 2rem; color: #1f2937;
+  }
+  .cover {
+    text-align: center; padding: 4rem 2rem; margin-bottom: 2rem;
+    border: 2px solid #1e3a5f; border-radius: 8px;
+  }
+  .cover h1 { font-size: 1.8rem; color: #1e3a5f; border: none; margin-bottom: 0.5rem; }
+  .cover .subtitle { font-size: 1.1rem; color: #4b5563; margin: 1rem 0; }
+  .cover .meta { font-size: 0.9rem; color: #6b7280; }
+  .cover .iso-badge {
+    display: inline-block; background: #1e3a5f; color: white;
+    padding: 0.4rem 1.2rem; border-radius: 4px; font-size: 0.85rem;
+    margin-top: 1.5rem; letter-spacing: 0.05em;
+  }
+  h1 { color: #111827; border-bottom: 2px solid #1e3a5f; padding-bottom: 0.5rem; font-size: 1.5rem; }
+  h2 { color: #1e3a5f; margin-top: 1.8rem; font-size: 1.2rem; }
+  h3 { color: #2563eb; margin-top: 1.3rem; font-size: 1.05rem; }
+  h4 { color: #3b82f6; margin-top: 1rem; }
+  code, pre {
+    background: #f3f4f6; padding: 0.15em 0.35em; border-radius: 3px;
+    font-family: 'Consolas', 'Courier New', monospace; font-size: 0.88em;
+  }
+  pre {
+    padding: 0.8rem; overflow-x: auto; border-left: 4px solid #1e3a5f;
+    margin: 0.8rem 0;
+  }
+  pre code { padding: 0; background: none; }
+  table { border-collapse: collapse; width: 100%; margin: 0.8rem 0; font-size: 0.9em; }
+  th, td { border: 1px solid #d1d5db; padding: 0.4rem 0.6rem; text-align: left; }
+  th { background: #f3f4f6; font-weight: 600; }
+  blockquote {
+    border-left: 4px solid #1e3a5f; margin: 0.8rem 0;
+    padding: 0.5rem 1rem; color: #4b5563; background: #f9fafb;
+  }
+  hr { border: none; border-top: 1px solid #e5e7eb; margin: 1.5rem 0; }
+  .doc-meta { color: #6b7280; font-size: 0.85em; margin-bottom: 1rem; }
+  ul, ol { margin: 0.5rem 0; padding-left: 1.5rem; }
+  li { margin: 0.2rem 0; }
+  .toc { background: #f9fafb; padding: 1.5rem; border-radius: 8px; margin: 2rem 0; }
+  .toc h2 { margin-top: 0; }
+  .toc ol { line-height: 1.8; }
+  .footer-note {
+    margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;
+    font-size: 0.8em; color: #9ca3af; text-align: center;
+  }
+  .diagram-box {
+    background: #f0f4f8; border: 1px solid #c5d4e8; border-radius: 6px;
+    padding: 1rem; margin: 1rem 0; page-break-inside: avoid;
+  }
+  .diagram-box .diagram-title {
+    font-weight: 600; color: #1e3a5f; margin: 0 0 0.5rem 0; font-size: 0.95em;
+  }
+  .diagram-box pre { margin: 0; border-left: none; background: transparent; }
+  .mermaid { text-align: center; margin: 1rem 0; page-break-inside: avoid; }
+  .mermaid svg { max-width: 100%; height: auto; }
+</style>
+  
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'loose', fontFamily: 'Segoe UI, system-ui, sans-serif' });
+  </script>
+</head>
+<body>
+  <button class="no-print" onclick="window.print()">Guardar como PDF</button>
+  
+    <div class="cover">
+      <div class="iso-badge">ISO 9001:2015</div>
+      <h1>Sistema de Gestión de la Calidad</h1>
+      <p class="subtitle">Panel Ejecutivo Waze – Monitoreo de Tráfico en Tiempo Real</p>
+      <p class="meta">
+        <strong>Organización:</strong> CASISA – Caminos de las Sierras<br>
+        <strong>Área:</strong> GED (Gestión y Desarrollo)<br>
+        <strong>Versión:</strong> 1.0<br>
+        <strong>Fecha de emisión:</strong> 2026-06-08<br>
+        <strong>Estado:</strong> Vigente
+      </p>
+    </div>
+    <div class="toc">
+      <h2>Contenido</h2>
+      <ol>
+        <li>SGC-PWY-001 — Manual del Sistema de Gestión de la Calidad</li>
+        <li>SGC-PWY-MU-001 — Manual de Usuario</li>
+        <li>SGC-PWY-MP-001 — Manual de Procesos Operativos</li>
+        <li>SGC-PWY-IP-001 a IP-010 — Instructivos de procesos operativos</li>
+        <li>SGC-PWY-RP-001 a RP-010 — Registros de procesos operativos</li>
+        <li>SGC-PWY-PROC-001 — Control de documentos y registros</li>
+        <li>SGC-PWY-PROC-002 — Desarrollo de software</li>
+        <li>SGC-PWY-PROC-003 — Gestión de cambios</li>
+        <li>SGC-PWY-PROC-004 — Pruebas y verificación</li>
+        <li>SGC-PWY-PROC-005 — Despliegue y mantenimiento</li>
+        <li>SGC-PWY-PROC-006 — No conformidades y mejora continua</li>
+        <li>SGC-PWY-REG-001 — Registro maestro de documentación</li>
+        <li>SGC-PWY-REG-002 — Registro de riesgos y oportunidades</li>
+      </ol>
+    </div>
+    <div class="page-break"></div>
+  
+  <div class="doc-section"><h1>Manual del Sistema de Gestión de la Calidad</h1>
+<p><strong>Código:</strong> SGC-PWY-001  </p>
+<p><strong>Proyecto:</strong> Panel Ejecutivo Waze – Monitoreo de Tráfico en Tiempo Real  </p>
+<p><strong>Organización:</strong> CASISA – Caminos de las Sierras  </p>
+<p><strong>Norma de referencia:</strong> ISO 9001:2015  </p>
+<p><strong>Versión:</strong> 1.1  </p>
+<p><strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Estado:</strong> Vigente</p>
+<hr>
+<h2>Tabla de contenidos</h2>
+<ol>
+<li><a href="#1-introducción">Introducción</a></li>
+<li><a href="#2-alcance-del-sgc">Alcance del SGC</a></li>
+<li><a href="#3-referencias-normativas">Referencias normativas</a></li>
+<li><a href="#4-términos-y-definiciones">Términos y definiciones</a></li>
+<li><a href="#5-contexto-de-la-organización">Contexto de la organización</a></li>
+<li><a href="#6-liderazgo">Liderazgo</a></li>
+<li><a href="#7-planificación">Planificación</a></li>
+<li><a href="#8-apoyo">Apoyo</a></li>
+<li><a href="#9-operación">Operación</a></li>
+<li><a href="#10-evaluación-del-desempeño">Evaluación del desempeño</a></li>
+<li><a href="#11-mejora">Mejora</a></li>
+<li><a href="#12-matriz-de-procedimientos">Matriz de procedimientos</a></li>
+</ol>
+<hr>
+<h2>1. Introducción</h2>
+<h3>1.1 Propósito</h3>
+<p>Este manual establece el Sistema de Gestión de la Calidad (SGC) aplicable al desarrollo, mantenimiento y operación del <strong>Panel Ejecutivo Waze</strong>, sistema interno de CASISA para el monitoreo en tiempo real del tráfico vehicular en la red de autopistas de Córdoba, Argentina.</p>
+<p>El panel integra el feed de Waze, notificaciones en vivo, síntesis de voz (TTS), mapas interactivos y gestión de polígonos de monitoreo para la sala de control operativa.</p>
+<h3>1.2 Visión del producto</h3>
+<table>
+<tr><th>Atributo</th><th>Descripción</th></tr>
+<tr><td>Nombre comercial</td><td>Panel Ejecutivo Waze</td></tr>
+<tr><td>Versión del software</td><td>2.0.0</td></tr>
+<tr><td>Tipo de producto</td><td>Aplicación web de monitoreo operativo</td></tr>
+<tr><td>Usuarios objetivo</td><td>Operadores de sala de control, supervisores, administradores</td></tr>
+<tr><td>Entorno productivo</td><td>Windows Server 2022 (<code>10.1.0.136</code>)</td></tr>
+<tr><td>Equipo desarrollador</td><td>GED – CASISA</td></tr>
+</table>
+<hr>
+<h2>2. Alcance del SGC</h2>
+<h3>2.1 Alcance del sistema de gestión de la calidad</h3>
+<p>El SGC abarca el ciclo de vida completo del Panel Ejecutivo Waze:</p>
+<ul>
+<li>Análisis y definición de requisitos</li>
+<li>Diseño y arquitectura de software</li>
+<li>Desarrollo (frontend React, backend Fastify, paquetes compartidos)</li>
+<li>Pruebas (unitarias, integración, E2E)</li>
+<li>Despliegue en entornos preprod y producción</li>
+<li>Mantenimiento correctivo y evolutivo</li>
+<li>Gestión de incidentes operativos y no conformidades</li>
+</ul>
+<h3>2.2 Exclusiones</h3>
+<p>No se excluyen requisitos de ISO 9001:2015. Los procesos de adquisición de hardware y licencias de terceros (Waze CCP, Open-Meteo) se gestionan conforme a los procedimientos corporativos de CASISA y se documentan como entradas del proceso de operación.</p>
+<h3>2.3 Límites físicos y organizacionales</h3>
+<table>
+<tr><th>Límite</th><th>Detalle</th></tr>
+<tr><td>Organización</td><td>CASISA – Caminos de las Sierras</td></tr>
+<tr><td>Ubicación del código</td><td>Repositorio Git <code>Panel-Waze-Monitoreados</code></td></tr>
+<tr><td>Servidor productivo</td><td><code>D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados</code></td></tr>
+<tr><td>Ramas de control</td><td><code>main</code> (producción), <code>preprod</code> (staging), <code>feat/*</code>, <code>fix/*</code></td></tr>
+</table>
+<hr>
+<h2>3. Referencias normativas</h2>
+<table>
+<tr><th>Referencia</th><th>Título</th></tr>
+<tr><td>ISO 9001:2015</td><td>Sistemas de gestión de la calidad – Requisitos</td></tr>
+<tr><td>ISO 9000:2015</td><td>Sistemas de gestión de la calidad – Fundamentos y vocabulario</td></tr>
+<tr><td>ISO/IEC 12207:2017</td><td>Procesos del ciclo de vida del software</td></tr>
+<tr><td>Conventional Commits</td><td>Estándar de mensajes de commit del proyecto</td></tr>
+</table>
+<hr>
+<h2>4. Términos y definiciones</h2>
+<table>
+<tr><th>Término</th><th>Definición</th></tr>
+<tr><td>SGC</td><td>Sistema de Gestión de la Calidad</td></tr>
+<tr><td>NC</td><td>No Conformidad: incumplimiento de un requisito</td></tr>
+<tr><td>AC</td><td>Acción Correctiva: acción para eliminar la causa de una NC</td></tr>
+<tr><td>PR</td><td>Pull Request: solicitud de integración de código</td></tr>
+<tr><td>Preprod</td><td>Entorno de pre-producción para validación antes de <code>main</code></td></tr>
+<tr><td>Evidencia</td><td>Registro que demuestra la conformidad con un requisito</td></tr>
+<tr><td>Parte interesada</td><td>Persona u organización que puede afectar o ser afectada por el proyecto</td></tr>
+</table>
+<hr>
+<h2>5. Contexto de la organización</h2>
+<h3>5.1 Comprensión de la organización y su contexto (4.1)</h3>
+<p>CASISA opera infraestructura vial de peaje en Córdoba. El Panel Ejecutivo Waze responde a la necesidad de visibilidad en tiempo real sobre incidentes, congestión y condiciones meteorológicas en los corredores monitoreados.</p>
+<p><strong>Factores internos:</strong></p>
+<ul>
+<li>Equipo GED con competencias en desarrollo full-stack (TypeScript, React, Node.js)</li>
+<li>Infraestructura Windows Server con PostgreSQL y servicios NSSM</li>
+<li>Monorepo con workspaces npm para mantenibilidad</li>
+</ul>
+<p><strong>Factores externos:</strong></p>
+<ul>
+<li>Disponibilidad del feed Waze CCP (Partners)</li>
+<li>Conectividad de red LAN y acceso a APIs meteorológicas (Open-Meteo)</li>
+<li>Requisitos regulatorios de operación vial y seguridad de la información</li>
+</ul>
+<h3>5.2 Partes interesadas y sus requisitos (4.2)</h3>
+<table>
+<tr><th>Parte interesada</th><th>Requisitos</th><th>Cómo se satisface</th></tr>
+<tr><td>Operadores de sala de control</td><td>Alertas en tiempo real, mapa legible, TTS, zonas peligrosas</td><td>WebSocket, MapLibre GL, Edge TTS, <code>red_zone_critical_alert</code></td></tr>
+<tr><td>Supervisores</td><td>KPIs, histórico, siniestros, gestión de polígonos</td><td>Dashboard, <code>/estadisticas</code>, módulo RAC</td></tr>
+<tr><td>Administradores de sistema</td><td>Despliegue confiable, logs, health checks</td><td>NSSM, <code>/health</code>, scripts de reinicio</td></tr>
+<tr><td>GED / Desarrollo</td><td>Código mantenible, CI, documentación</td><td>Monorepo, lint, typecheck, docs</td></tr>
+<tr><td>CASISA (Gerencia)</td><td>Disponibilidad operativa, trazabilidad de cambios</td><td>Flujo preprod → main, registros Git</td></tr>
+</table>
+<h3>5.3 Determinación del alcance del SGC</h3>
+<p>Ver sección 2 de este manual.</p>
+<hr>
+<h2>6. Liderazgo</h2>
+<h3>6.1 Compromiso de la dirección (5.1)</h3>
+<p>La dirección de CASISA respalda el SGC del proyecto mediante:</p>
+<ul>
+<li>Asignación de recursos (servidor, licencias, tiempo del equipo GED)</li>
+<li>Definición de objetivos de calidad medibles (sección 7.2)</li>
+<li>Revisión periódica del desempeño del sistema</li>
+</ul>
+<h3>6.2 Política de calidad del proyecto (5.2)</h3>
+<blockquote><p><strong>Política de Calidad – Panel Ejecutivo Waze</strong></p></blockquote>
+<p>&gt;</p>
+<blockquote><p>CASISA se compromete a entregar y mantener un panel de monitoreo confiable, seguro y actualizado que apoye la toma de decisiones operativas en la sala de control. El equipo GED desarrolla software con trazabilidad de cambios, pruebas sistemáticas, documentación vigente y mejora continua conforme a ISO 9001:2015.</p></blockquote>
+<p><strong>Principios:</strong></p>
+<ol>
+<li><strong>Confiabilidad:</strong> El sistema debe estar disponible para operación 24/7 en producción.</li>
+<li><strong>Trazabilidad:</strong> Todo cambio de código se registra en Git con mensajes convencionales.</li>
+<li><strong>Seguridad:</strong> Autenticación JWT, RBAC y validación de entradas en todos los endpoints.</li>
+<li><strong>Mejora continua:</strong> Las NC se registran, analizan y se implementan acciones correctivas.</li>
+</ol>
+<h3>6.3 Roles y responsabilidades (5.3)</h3>
+<table>
+<tr><th>Rol</th><th>Responsabilidades</th></tr>
+<tr><td>Responsable del Proyecto</td><td>Aprobación de releases, priorización, revisión de riesgos</td></tr>
+<tr><td>Líder Técnico / Desarrollador</td><td>Implementación, revisión de código, arquitectura</td></tr>
+<tr><td>Responsable de Calidad</td><td>Auditorías internas, control documental, seguimiento de NC</td></tr>
+<tr><td>Operador / Usuario final</td><td>Reporte de incidencias, validación funcional en preprod</td></tr>
+<tr><td>Administrador de sistemas</td><td>Despliegue NSSM, backups BD, monitoreo de servicios</td></tr>
+</table>
+<hr>
+<h2>7. Planificación</h2>
+<h3>7.1 Riesgos y oportunidades (6.1)</h3>
+<p>El registro de riesgos y oportunidades se mantiene en <a href="./REG-002_Registro_Riesgos.md">REG-002_Registro_Riesgos.md</a>.</p>
+<p><strong>Riesgos principales identificados:</strong></p>
+<table>
+<tr><th>ID</th><th>Riesgo</th><th>Mitigación</th></tr>
+<tr><td>R-01</td><td>Caída del feed Waze</td><td>Reintentos, logs, alertas de health check</td></tr>
+<tr><td>R-02</td><td>Despliegue sin prueba en preprod</td><td>Flujo obligatorio preprod → main</td></tr>
+<tr><td>R-03</td><td>Pérdida de datos en BD</td><td>Backups PostgreSQL, migraciones versionadas</td></tr>
+<tr><td>R-04</td><td>Vulnerabilidad de seguridad</td><td>JWT, RBAC, rate limiting, validación de inputs</td></tr>
+</table>
+<h3>7.2 Objetivos de calidad (6.2)</h3>
+<table>
+<tr><th>ID</th><th>Objetivo</th><th>Indicador</th><th>Meta</th><th>Frecuencia de medición</th></tr>
+<tr><td>OQ-01</td><td>Disponibilidad del servicio</td><td>Uptime del endpoint <code>/health</code></td><td>≥ 99% mensual</td><td>Mensual</td></tr>
+<tr><td>OQ-02</td><td>Calidad de código</td><td>Resultado de <code>npm run lint</code> y <code>typecheck</code></td><td>0 errores en CI</td><td>Por commit/PR</td></tr>
+<tr><td>OQ-03</td><td>Cobertura de pruebas</td><td>Tests unitarios y E2E ejecutados</td><td>100% pasan antes de merge a preprod</td><td>Por PR</td></tr>
+<tr><td>OQ-04</td><td>Tiempo de actualización de datos Waze</td><td>Latencia ciclo de polling</td><td>≤ 30 segundos</td><td>Semanal</td></tr>
+<tr><td>OQ-05</td><td>Documentación vigente</td><td>Registros en REG-001 actualizados</td><td>100% docs críticos con versión</td><td>Trimestral</td></tr>
+</table>
+<h3>7.3 Planificación de cambios (6.3)</h3>
+<p>Los cambios al SGC se gestionan mediante <a href="./PROC-001_Control_Documentos.md">PROC-001_Control_Documentos.md</a>. Toda modificación de procedimiento requiere actualización de versión, fecha y registro en REG-001.</p>
+<hr>
+<h2>8. Apoyo</h2>
+<h3>8.1 Recursos (7.1)</h3>
+<table>
+<tr><th>Recurso</th><th>Especificación</th></tr>
+<tr><td>Servidor productivo</td><td>Windows Server 2022, 4+ GB RAM, PostgreSQL 18.3</td></tr>
+<tr><td>Herramientas de desarrollo</td><td>Node.js 20+ (mín. 18), npm 8+, Git, VS Code/Cursor</td></tr>
+<tr><td>CI/CD</td><td>GitHub Actions: lint, security audit, build, E2E, deploy automático en <code>main</code></td></tr>
+<tr><td>Reverse proxy</td><td>nginx :80 en producción (PanelWazeNginx via NSSM)</td></tr>
+<tr><td>Monitoreo</td><td>Health checks (<code>/health</code>, <code>/health/ready</code>, <code>/health/live</code>)</td></tr>
+</table>
+<h3>8.2 Competencia (7.2)</h3>
+<p>El equipo GED debe poseer competencia en:</p>
+<ul>
+<li>TypeScript, React, Fastify, PostgreSQL</li>
+<li>Git y flujo de ramas (preprod → main)</li>
+<li>Despliegue Windows con NSSM</li>
+<li>Lectura de documentación técnica del proyecto</li>
+</ul>
+<p>La evidencia de competencia se registra mediante formación interna, commits y revisiones de PR.</p>
+<h3>8.3 Toma de conciencia (7.3)</h3>
+<p>Todo miembro del equipo debe conocer:</p>
+<ul>
+<li>La política de calidad del proyecto</li>
+<li>Su rol y responsabilidades</li>
+<li>El impacto de no conformidades en la operación de sala de control</li>
+<li>Los canales de reporte de incidencias</li>
+</ul>
+<h3>8.4 Comunicación (7.4)</h3>
+<table>
+<tr><th>Tipo</th><th>Canal</th><th>Frecuencia</th></tr>
+<tr><td>Cambios de código</td><td>Pull Requests en GitHub</td><td>Por cambio</td></tr>
+<tr><td>Releases</td><td>Merge preprod → main</td><td>Según planificación</td></tr>
+<tr><td>Incidencias operativas</td><td>Canal interno GED / tickets</td><td>Inmediato</td></tr>
+<tr><td>Revisión de desempeño</td><td>Reunión de proyecto</td><td>Trimestral</td></tr>
+</table>
+<h3>8.5 Información documentada (7.5)</h3>
+<p>El control de documentos y registros se define en <a href="./PROC-001_Control_Documentos.md">PROC-001_Control_Documentos.md</a>.</p>
+<p><strong>Tipos de información documentada:</strong></p>
+<table>
+<tr><th>Tipo</th><th>Ejemplos</th><th>Control</th></tr>
+<tr><td>Manual del SGC</td><td>Este documento</td><td>Versión, aprobación</td></tr>
+<tr><td>Procedimientos</td><td>PROC-001 a PROC-006</td><td>Código, versión, fecha</td></tr>
+<tr><td>Registros</td><td>Commits Git, PRs, logs, auditorías</td><td>Inmutables, fechados</td></tr>
+<tr><td>Documentación técnica</td><td>ARCHITECTURE.md, API.md</td><td>Versión en repositorio</td></tr>
+</table>
+<hr>
+<h2>9. Operación</h2>
+<h3>9.1 Planificación y control operacional (8.1)</h3>
+<p>La operación del software se planifica mediante:</p>
+<ol>
+<li>Definición de requisitos (REQUISITOS_SISTEMA.md, historias de usuario)</li>
+<li>Diseño (ARCHITECTURE.md)</li>
+<li>Desarrollo (PROC-002)</li>
+<li>Verificación (PROC-004)</li>
+<li>Liberación (PROC-003, PROC-005)</li>
+</ol>
+<h3>9.2 Requisitos para productos y servicios (8.2)</h3>
+<table>
+<tr><th>Fuente de requisitos</th><th>Documento</th></tr>
+<tr><td>Operación de sala de control</td><td>Requisitos funcionales del dashboard</td></tr>
+<tr><td>Integración Waze</td><td>Feed CCP, catálogos de incidentes</td></tr>
+<tr><td>Infraestructura</td><td>REQUISITOS_SISTEMA.md</td></tr>
+<tr><td>Seguridad</td><td>JWT, RBAC, HTTPS en producción</td></tr>
+</table>
+<h3>9.3 Diseño y desarrollo (8.3)</h3>
+<p>Ver <a href="./PROC-002_Desarrollo_Software.md">PROC-002_Desarrollo_Software.md</a>.</p>
+<p><strong>Resumen del proceso:</strong></p>
+<pre><code>Requisitos → Diseño → Implementación → Revisión de código → Pruebas → Integración preprod → Validación → Producción</code></pre>
+<h3>9.4 Control de procesos externos (8.4)</h3>
+<table>
+<tr><th>Proveedor externo</th><th>Servicio</th><th>Control</th></tr>
+<tr><td>Waze (Google)</td><td>Feed de tráfico CCP</td><td>Monitoreo de disponibilidad, logs de polling</td></tr>
+<tr><td>Open-Meteo</td><td>Datos meteorológicos</td><td>Fallback, logs de errores HTTP</td></tr>
+<tr><td>Microsoft</td><td>Edge TTS</td><td>Configuración de voces, límites de cuota</td></tr>
+</table>
+<h3>9.5 Producción y provisión del servicio (8.5)</h3>
+<table>
+<tr><th>Subproceso</th><th>Procedimiento</th></tr>
+<tr><td>Despliegue</td><td>PROC-005, INSTRUCTIVO_DESPLIEGUE.md</td></tr>
+<tr><td>Identificación y trazabilidad</td><td>Commits Git, tags de versión</td></tr>
+<tr><td>Propiedad del cliente</td><td>Datos en PostgreSQL de CASISA</td></tr>
+<tr><td>Preservación</td><td>Backups BD, retención histórica 90 días</td></tr>
+<tr><td>Actividades posteriores</td><td>Mantenimiento, hotfixes documentados</td></tr>
+<tr><td>Control de cambios</td><td>PROC-003</td></tr>
+<tr><td>Liberación</td><td>Merge preprod → main con validación</td></tr>
+</table>
+<h3>9.6 Liberación de productos y servicios (8.6)</h3>
+<p><strong>Criterios de liberación a producción (<code>main</code>):</strong></p>
+<ul>
+<li>[ ] PR aprobado y mergeado en <code>preprod</code></li>
+<li>[ ] Pruebas en preprod exitosas (smoke, regresión del módulo)</li>
+<li>[ ] <code>npm run lint</code> y <code>npm run typecheck</code> sin errores</li>
+<li>[ ] Documentación actualizada si aplica</li>
+<li>[ ] Sin NC abiertas bloqueantes</li>
+</ul>
+<hr>
+<h2>10. Evaluación del desempeño</h2>
+<h3>10.1 Seguimiento, medición, análisis (9.1)</h3>
+<table>
+<tr><th>Qué se mide</th><th>Cómo</th><th>Responsable</th></tr>
+<tr><td>Disponibilidad</td><td>Health checks, logs NSSM</td><td>Admin sistemas</td></tr>
+<tr><td>Errores de aplicación</td><td>Logs backend (<code>LOG_LEVEL</code>)</td><td>GED</td></tr>
+<tr><td>Calidad de código</td><td>Lint, typecheck, auditorías</td><td>GED</td></tr>
+<tr><td>Satisfacción operador</td><td>Feedback en validación preprod</td><td>Responsable proyecto</td></tr>
+</table>
+<h3>10.2 Auditoría interna (9.2)</h3>
+<p><strong>Frecuencia:</strong> Semestral o ante cambios mayores de arquitectura.</p>
+<p><strong>Alcance de auditoría:</strong></p>
+<ul>
+<li>Cumplimiento del flujo preprod → main</li>
+<li>Vigencia de documentación (REG-001)</li>
+<li>Evidencia de pruebas en últimos releases</li>
+<li>Estado de NC y AC abiertas</li>
+</ul>
+<p><strong>Evidencia:</strong> Informes en <code>apps/frontend/docs/</code> y <code>apps/backend/docs/</code>.</p>
+<h3>10.3 Revisión por la dirección (9.3)</h3>
+<p><strong>Entradas:</strong> Objetivos de calidad (7.2), resultados de auditorías, feedback de operadores, riesgos (REG-002).</p>
+<p><strong>Salidas:</strong> Decisiones sobre mejoras, recursos, cambios al SGC.</p>
+<p><strong>Frecuencia:</strong> Trimestral.</p>
+<hr>
+<h2>11. Mejora</h2>
+<h3>11.1 Generalidades (10.1)</h3>
+<p>El equipo identifica oportunidades de mejora mediante retrospectivas, auditorías de código y análisis de incidentes operativos.</p>
+<h3>11.2 No conformidad y acción correctiva (10.2)</h3>
+<p>Ver <a href="./PROC-006_No_Conformidades_Mejora.md">PROC-006_No_Conformidades_Mejora.md</a>.</p>
+<h3>11.3 Mejora continua (10.3)</h3>
+<p>El SGC se mejora continuamente mediante:</p>
+<ul>
+<li>Actualización de procedimientos tras lecciones aprendidas</li>
+<li>Refactorización planificada en ramas dedicadas</li>
+<li>Optimización de rendimiento (polling, BD, caché Redis)</li>
+<li>Incorporación de feedback de operadores</li>
+</ul>
+<hr>
+<h2>12. Matriz de procedimientos</h2>
+<table>
+<tr><th>Código</th><th>Procedimiento</th><th>Cláusula ISO</th></tr>
+<tr><td>SGC-PWY-PROC-001</td><td>Control de documentos y registros</td><td>7.5</td></tr>
+<tr><td>SGC-PWY-PROC-002</td><td>Desarrollo de software</td><td>8.3</td></tr>
+<tr><td>SGC-PWY-PROC-003</td><td>Gestión de cambios</td><td>8.5.6</td></tr>
+<tr><td>SGC-PWY-PROC-004</td><td>Pruebas y verificación</td><td>8.3.4, 8.6</td></tr>
+<tr><td>SGC-PWY-PROC-005</td><td>Despliegue y mantenimiento</td><td>8.5.1, 8.5.5</td></tr>
+<tr><td>SGC-PWY-PROC-006</td><td>No conformidades y mejora continua</td><td>10.2, 10.3</td></tr>
+<tr><td>SGC-PWY-MU-001</td><td>Manual de Usuario</td><td>7.2, 7.3, 8.5</td></tr>
+<tr><td>SGC-PWY-MP-001</td><td>Manual de Procesos Operativos</td><td>8.1, 8.5</td></tr>
+<tr><td>SGC-PWY-RP-001…010</td><td>Registros de procesos operativos</td><td>7.5.2, 8.5.1</td></tr>
+<tr><td>SGC-PWY-REG-001</td><td>Registro maestro de documentación</td><td>7.5.3</td></tr>
+<tr><td>SGC-PWY-REG-002</td><td>Registro de riesgos y oportunidades</td><td>6.1</td></tr>
+</table>
+<hr>
+<p><strong>Fin del documento SGC-PWY-001</strong></p>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Elaborado por</td><td>GED – CASISA</td></tr>
+<tr><td>Revisado por</td><td>_Pendiente_</td></tr>
+<tr><td>Aprobado por</td><td>_Pendiente_</td></tr>
+<tr><td>Próxima revisión</td><td>Diciembre 2026</td></tr>
+</table></div>
+<div class="page-break"></div><div class="doc-section"><h1>Manual de Usuario</h1>
+<p><strong>Código:</strong> SGC-PWY-MU-001  </p>
+<p><strong>Proyecto:</strong> Panel Ejecutivo Waze – Monitoreo de Tráfico en Tiempo Real  </p>
+<p><strong>Organización:</strong> CASISA – Caminos de las Sierras  </p>
+<p><strong>Versión:</strong> 1.0  </p>
+<p><strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Cláusula ISO 9001:2015:</strong> 7.2, 7.3, 8.5 — Competencia, conciencia y operación</p>
+<hr>
+<h2>Tabla de contenidos</h2>
+<ol>
+<li><a href="#1-introducción">Introducción</a></li>
+<li><a href="#2-requisitos-de-acceso">Requisitos de acceso</a></li>
+<li><a href="#3-inicio-de-sesión-y-perfil">Inicio de sesión y perfil</a></li>
+<li><a href="#4-navegación-general">Navegación general</a></li>
+<li><a href="#5-módulo-mapa-y-zonas">Módulo Mapa y Zonas</a></li>
+<li><a href="#6-módulo-notificaciones">Módulo Notificaciones</a></li>
+<li><a href="#7-módulo-zonas-peligrosas">Módulo Zonas Peligrosas</a></li>
+<li><a href="#8-módulo-incidentes-waze">Módulo Incidentes Waze</a></li>
+<li><a href="#9-módulo-siniestros-viales">Módulo Siniestros Viales</a></li>
+<li><a href="#10-módulo-estadísticas">Módulo Estadísticas</a></li>
+<li><a href="#11-panel-de-administración">Panel de Administración</a></li>
+<li><a href="#12-alertas-de-voz-tts">Alertas de voz (TTS)</a></li>
+<li><a href="#13-roles-y-permisos">Roles y permisos</a></li>
+<li><a href="#14-resolución-de-problemas">Resolución de problemas</a></li>
+<li><a href="#15-registro-de-incidencias">Registro de incidencias</a></li>
+</ol>
+<hr>
+<h2>1. Introducción</h2>
+<h3>1.1 Propósito</h3>
+<p>Este manual guía a los usuarios del <strong>Panel Ejecutivo Waze</strong> en el uso correcto del sistema para el monitoreo operativo del tráfico en la red de autopistas de Córdoba.</p>
+<h3>1.2 Alcance</h3>
+<p>Este manual aplica a operadores de sala de control, supervisores y administradores que utilizan el panel en el entorno de producción.</p>
+<h3>1.3 URL de acceso</h3>
+<table>
+<tr><th>Entorno</th><th>URL</th></tr>
+<tr><td>Producción</td><td>http://10.1.0.136/</td></tr>
+<tr><td>Desarrollo local</td><td>http://localhost:5180</td></tr>
+</table>
+<hr>
+<h2>2. Requisitos de acceso</h2>
+<h3>2.1 Requisitos técnicos del puesto de trabajo</h3>
+<table>
+<tr><th>Requisito</th><th>Especificación</th></tr>
+<tr><td>Navegador</td><td>Chrome, Edge o Firefox (última versión estable)</td></tr>
+<tr><td>Resolución</td><td>Mínimo 1920×1080 recomendado para sala de control</td></tr>
+<tr><td>Red</td><td>Acceso LAN a <code>10.1.0.136</code></td></tr>
+<tr><td>Audio</td><td>Parlantes o auriculares para alertas TTS</td></tr>
+<tr><td>Credenciales</td><td>Usuario y contraseña asignados por administrador</td></tr>
+</table>
+<h3>2.2 Primera interacción obligatoria</h3>
+<p>Al iniciar el turno, el operador <strong>debe hacer clic en el icono de audio</strong> (altavoz) en la barra superior del panel para habilitar las alertas sonoras. Los navegadores bloquean el audio automático hasta que el usuario interactúa con la página.</p>
+<hr>
+<h2>3. Inicio de sesión y perfil</h2>
+<h3>3.1 Iniciar sesión</h3>
+<ol>
+<li>Abrir la URL del panel en el navegador.</li>
+<li>Ingresar <strong>email</strong> y <strong>contraseña</strong> en la pantalla de login.</li>
+<li>Presionar <strong>Iniciar sesión</strong>.</li>
+<li>El sistema redirige automáticamente al módulo Mapa (<code>/mapa</code>).</li>
+</ol>
+<h3>3.2 Cerrar sesión</h3>
+<ol>
+<li>Expandir el menú lateral (sidebar).</li>
+<li>Presionar el botón <strong>Cerrar sesión</strong> en la parte inferior.</li>
+<li>El sistema limpia las notificaciones locales y redirige al login.</li>
+</ol>
+<h3>3.3 Perfil de usuario</h3>
+<p>Ruta: <code>/perfil</code> (accesible desde el menú de usuario).</p>
+<table>
+<tr><th>Acción</th><th>Descripción</th></tr>
+<tr><td>Ver datos</td><td>Nombre, email, rol asignado</td></tr>
+<tr><td>Cambiar contraseña</td><td>Requiere contraseña actual y nueva</td></tr>
+<tr><td>Sesiones activas</td><td>Ver y revocar sesiones en otros equipos</td></tr>
+</table>
+<hr>
+<h2>4. Navegación general</h2>
+<h3>4.1 Menú lateral (sidebar)</h3>
+<p>El menú lateral muestra solo los módulos para los que el usuario tiene permiso:</p>
+<table>
+<tr><th>Ícono</th><th>Módulo</th><th>Ruta</th></tr>
+<tr><td>Mapa</td><td>Mapa y Zonas</td><td><code>/mapa</code></td></tr>
+<tr><td>Campana</td><td>Notificaciones</td><td><code>/notificaciones</code></td></tr>
+<tr><td>Escudo</td><td>Zonas peligrosas</td><td><code>/zonas-peligrosas</code></td></tr>
+<tr><td>Lupa</td><td>Incidentes Waze</td><td><code>/incidentes</code></td></tr>
+<tr><td>Auto</td><td>Siniestros viales</td><td><code>/siniestros</code></td></tr>
+<tr><td>Engranaje</td><td>Administración</td><td><code>/admin</code></td></tr>
+</table>
+<h3>4.2 Barra superior</h3>
+<table>
+<tr><th>Elemento</th><th>Función</th></tr>
+<tr><td>Logo CASISA</td><td>Identificación del sistema</td></tr>
+<tr><td>Indicador de conexión</td><td>Estado WebSocket (conectado/desconectado)</td></tr>
+<tr><td>Contador de notificaciones</td><td>Alertas no leídas</td></tr>
+<tr><td>Botón de audio</td><td>Activar/desactivar TTS y alertas sonoras</td></tr>
+<tr><td>Tema claro/oscuro</td><td>Cambiar apariencia visual</td></tr>
+</table>
+<h3>4.3 Actualización de datos</h3>
+<p>Los datos se actualizan automáticamente vía WebSocket cada vez que el backend completa un ciclo de ingesta Waze (aproximadamente cada 30 segundos). No es necesario refrescar la página manualmente.</p>
+<hr>
+<h2>5. Módulo Mapa y Zonas</h2>
+<p><strong>Ruta:</strong> <code>/mapa</code>  </p>
+<p><strong>Permiso:</strong> <code>map.view</code></p>
+<h3>5.1 Descripción</h3>
+<p>Vista principal de operación. Muestra el mapa interactivo con polígonos de monitoreo, incidentes Waze en tiempo real, congestión (jams) y KPIs de tráfico.</p>
+<h3>5.2 Elementos del mapa</h3>
+<table>
+<tr><th>Elemento</th><th>Significado</th></tr>
+<tr><td>Marcadores de colores</td><td>Incidentes Waze (accidentes, peligros, clima)</td></tr>
+<tr><td>Polígonos coloreados</td><td>Estado de tráfico por zona de monitoreo</td></tr>
+<tr><td>Líneas de congestión</td><td>Jams (embotellamientos) activos</td></tr>
+<tr><td>Popup al clic</td><td>Detalle del incidente: tipo, ubicación, hora, confianza</td></tr>
+</table>
+<h3>5.3 Filtros disponibles</h3>
+<ul>
+<li>Filtrar por tipo de incidente (accidente, peligro, clima, etc.)</li>
+<li>Filtrar por polígono o grupo de polígonos</li>
+<li>Filtrar por severidad</li>
+<li>Búsqueda por texto (calle, ciudad)</li>
+</ul>
+<h3>5.4 KPIs en dashboard</h3>
+<p>El panel lateral muestra indicadores en tiempo real:</p>
+<ul>
+<li>Total de incidentes activos</li>
+<li>Polígonos en estado crítico</li>
+<li>Comparación de velocidad vs. histórico</li>
+<li>Resumen meteorológico interpretado para gestión vial</li>
+</ul>
+<h3>5.5 Acciones del operador</h3>
+<table>
+<tr><th>Acción</th><th>Procedimiento</th></tr>
+<tr><td>Consultar incidente</td><td>Clic en marcador → leer popup</td></tr>
+<tr><td>Cambiar zoom</td><td>Rueda del mouse o controles +/-</td></tr>
+<tr><td>Cambiar basemap</td><td>Selector de mapa base (oscuro/claro)</td></tr>
+<tr><td>Centrar en polígono</td><td>Seleccionar polígono en lista lateral</td></tr>
+</table>
+<hr>
+<h2>6. Módulo Notificaciones</h2>
+<p><strong>Ruta:</strong> <code>/notificaciones</code>  </p>
+<p><strong>Permiso:</strong> <code>notifications.view</code></p>
+<h3>6.1 Descripción</h3>
+<p>Centro de notificaciones con historial de alertas Waze recibidas en tiempo real.</p>
+<h3>6.2 Funciones</h3>
+<table>
+<tr><th>Función</th><th>Descripción</th></tr>
+<tr><td>Listado cronológico</td><td>Alertas ordenadas por fecha/hora</td></tr>
+<tr><td>Marcar como leída</td><td>Clic en notificación individual</td></tr>
+<tr><td>Marcar todas leídas</td><td>Botón &quot;Marcar todas&quot;</td></tr>
+<tr><td>Filtro por tipo</td><td>Accidentes, peligros, clima</td></tr>
+<tr><td>Snackbar en mapa</td><td>Alerta flotante breve al recibir evento nuevo</td></tr>
+</table>
+<h3>6.3 Comportamiento en tiempo real</h3>
+<p>Cuando llega una alerta nueva:</p>
+<ol>
+<li>Aparece snackbar en la esquina del mapa (si está en <code>/mapa</code>).</li>
+<li>Se incrementa el contador de no leídas.</li>
+<li>Si TTS está activo, se reproduce mensaje de voz (ver sección 12).</li>
+</ol>
+<hr>
+<h2>7. Módulo Zonas Peligrosas</h2>
+<p><strong>Ruta:</strong> <code>/zonas-peligrosas</code>  </p>
+<p><strong>Permiso:</strong> <code>danger_zones.view</code> (ver), <code>danger_zones.edit</code> (editar)</p>
+<h3>7.1 Descripción</h3>
+<p>Gestión y visualización de zonas peligrosas (geofencing) sobre el mapa. Cuando un incidente Waze cae dentro de una zona peligrosa, el sistema emite una <strong>alerta crítica</strong> con sirena y TTS prioritario.</p>
+<h3>7.2 Visualización</h3>
+<ul>
+<li>Las zonas peligrosas se muestran como polígonos resaltados en el mapa.</li>
+<li>Color según nivel de peligrosidad configurado.</li>
+<li>Al detectar incidente dentro de la zona: alerta <code>red_zone_critical_alert</code>.</li>
+</ul>
+<h3>7.3 Edición (requiere <code>danger_zones.edit</code>)</h3>
+<table>
+<tr><th>Acción</th><th>Procedimiento</th></tr>
+<tr><td>Crear zona</td><td>Dibujar polígono en mapa → completar nombre y nivel</td></tr>
+<tr><td>Editar zona</td><td>Seleccionar zona → modificar geometría o atributos</td></tr>
+<tr><td>Eliminar zona</td><td>Seleccionar zona → confirmar eliminación</td></tr>
+</table>
+<hr>
+<h2>8. Módulo Incidentes Waze</h2>
+<p><strong>Ruta:</strong> <code>/incidentes</code>  </p>
+<p><strong>Permiso:</strong> <code>incidents.view</code></p>
+<h3>8.1 Descripción</h3>
+<p>Módulo de consulta y gestión de incidentes reportados por Waze con filtros avanzados, histórico y exportación.</p>
+<h3>8.2 Submódulos</h3>
+<table>
+<tr><th>Ruta</th><th>Función</th></tr>
+<tr><td><code>/incidentes</code></td><td>Listado activo con filtros y búsqueda</td></tr>
+<tr><td><code>/incidentes/historico</code></td><td>Consulta de incidentes históricos por fecha y polígono</td></tr>
+<tr><td><code>/estadisticas</code></td><td>Analítica operativa: tendencias, disponibilidad, hotspots</td></tr>
+</table>
+<h3>8.3 Filtros de consulta</h3>
+<ul>
+<li>Tipo y subtipo de incidente</li>
+<li>Rango de fechas (desde / hasta)</li>
+<li>Polígono específico</li>
+<li>Estado activo/inactivo</li>
+<li>Búsqueda por texto libre</li>
+</ul>
+<h3>8.4 Exportación</h3>
+<p>Usuarios con permiso <code>incidents.export</code> pueden exportar listados filtrados.</p>
+<hr>
+<h2>9. Módulo Siniestros Viales</h2>
+<p><strong>Ruta:</strong> <code>/siniestros</code>  </p>
+<p><strong>Permisos:</strong> <code>accidents.view</code> (ver), <code>accidents.create</code> (crear), <code>accidents.export</code> (exportar)</p>
+<h3>9.1 Descripción</h3>
+<p>Registro y consulta de siniestros viales (RAC) con datos de ubicación, clima histórico, multimedia y exportación a PDF.</p>
+<h3>9.2 Consultar siniestros</h3>
+<ol>
+<li>Acceder a <code>/siniestros</code>.</li>
+<li>Usar filtros: fecha, ruta, estado, tipo.</li>
+<li>Seleccionar un siniestro de la lista para ver detalle.</li>
+<li>El panel de detalle muestra:</li>
+</ol>
+<p>   - Ubicación en mini-mapa</p>
+<p>   - Datos del siniestro (fecha, tipo, descripción)</p>
+<p>   - <strong>Clima histórico</strong> al momento del siniestro (temperatura, viento, visibilidad, precipitación)</p>
+<p>   - Resumen meteorológico interpretado para gestión vial</p>
+<p>   - Multimedia adjunta (fotos, videos)</p>
+<p>   - Referencia kilométrica (mojón más cercano)</p>
+<h3>9.3 Registrar nuevo siniestro (requiere <code>accidents.create</code>)</h3>
+<ol>
+<li>Presionar <strong>Nuevo siniestro</strong>.</li>
+<li>Completar campos obligatorios: ubicación, fecha/hora, tipo, descripción.</li>
+<li>Opcionalmente adjuntar multimedia.</li>
+<li>Guardar. El sistema consulta clima histórico automáticamente.</li>
+</ol>
+<h3>9.4 Actualizar clima histórico</h3>
+<p>Si un siniestro no tiene datos meteorológicos:</p>
+<ol>
+<li>Seleccionar el siniestro.</li>
+<li>Presionar <strong>Actualizar clima</strong>.</li>
+<li>El sistema consulta Open-Meteo para la fecha y ubicación del siniestro (hasta 92 días de antigüedad).</li>
+</ol>
+<h3>9.5 Exportar a PDF (requiere <code>accidents.export</code>)</h3>
+<ol>
+<li>Seleccionar siniestro.</li>
+<li>Presionar <strong>Exportar PDF</strong>.</li>
+<li>Se genera documento con datos, mapa, clima y multimedia.</li>
+</ol>
+<hr>
+<h2>10. Módulo Estadísticas</h2>
+<p><strong>Ruta:</strong> <code>/estadisticas</code>  </p>
+<p><strong>Permiso:</strong> <code>incidents.view</code></p>
+<h3>10.1 Descripción</h3>
+<p>Dashboard de analítica operativa con métricas diarias, semanales y mensuales.</p>
+<h3>10.2 Contenido</h3>
+<table>
+<tr><th>Sección</th><th>Datos</th></tr>
+<tr><td>Tendencias</td><td>Evolución de incidentes en el tiempo</td></tr>
+<tr><td>Disponibilidad</td><td>Porcentaje de tiempo con datos Waze activos</td></tr>
+<tr><td>Hotspots</td><td>Zonas con mayor concentración de incidentes</td></tr>
+<tr><td>Comparación grupal</td><td>Métricas por grupo de polígonos</td></tr>
+</table>
+<hr>
+<h2>11. Panel de Administración</h2>
+<p><strong>Ruta:</strong> <code>/admin</code>  </p>
+<p><strong>Permiso:</strong> <code>admin</code></p>
+<h3>11.1 Secciones</h3>
+<table>
+<tr><th>Sección</th><th>Función</th></tr>
+<tr><td><strong>Polígonos Waze</strong></td><td>Crear, editar, eliminar polígonos de monitoreo. Importar/exportar CSV</td></tr>
+<tr><td><strong>Catálogos</strong></td><td>Gestionar tipos y subtipos de incidentes. Sincronizar con Waze</td></tr>
+<tr><td><strong>Usuarios y Perfiles</strong></td><td>CRUD usuarios, asignar roles y permisos</td></tr>
+<tr><td><strong>Mojones Kilométricos</strong></td><td>Gestionar hitos kilométricos por ruta (geo-referencia)</td></tr>
+<tr><td><strong>Configuración Sistema</strong></td><td>Parámetros generales, voz TTS, umbrales de alerta</td></tr>
+</table>
+<h3>11.2 Gestión de usuarios</h3>
+<table>
+<tr><th>Acción</th><th>Procedimiento</th></tr>
+<tr><td>Crear usuario</td><td>Usuarios → Nuevo → email, nombre, rol</td></tr>
+<tr><td>Asignar rol</td><td>Seleccionar rol predefinido (Administrador, Supervisor, Operador, Visualizador)</td></tr>
+<tr><td>Permisos personalizados</td><td>Editar permisos individuales del rol</td></tr>
+<tr><td>Desactivar usuario</td><td>Cambiar estado a inactivo</td></tr>
+</table>
+<h3>11.3 Configuración TTS</h3>
+<p>Ruta: Admin → Configuración Sistema → Voz (TTS)</p>
+<table>
+<tr><th>Parámetro</th><th>Descripción</th></tr>
+<tr><td>Voz</td><td>Elena (AR), Tomás (AR), Dalia (MX), Jorge (MX)</td></tr>
+<tr><td>Velocidad</td><td>Rate de reproducción</td></tr>
+<tr><td>Tono</td><td>Pitch de la voz</td></tr>
+<tr><td>Filtros</td><td>Tipos de incidente que activan TTS</td></tr>
+</table>
+<hr>
+<h2>12. Alertas de voz (TTS)</h2>
+<h3>12.1 Activación</h3>
+<ol>
+<li>Hacer clic en el icono de <strong>altavoz</strong> en la barra superior.</li>
+<li>El icono cambia de estado (activo/silenciado).</li>
+<li>La preferencia se guarda en el navegador.</li>
+</ol>
+<h3>12.2 Tipos de alerta sonora</h3>
+<table>
+<tr><th>Evento</th><th>Comportamiento</th></tr>
+<tr><td>Alerta estándar</td><td>Beep + lectura TTS del incidente</td></tr>
+<tr><td>Zona peligrosa</td><td><strong>Sirena</strong> + TTS prioritario (no se repite en alerta estándar)</td></tr>
+<tr><td>Mute activo</td><td>Sin sonido ni TTS (solo visual)</td></tr>
+</table>
+<h3>12.3 Mensaje TTS</h3>
+<p>El sistema construye un mensaje en lenguaje natural con:</p>
+<ul>
+<li>Tipo de incidente traducido al español</li>
+<li>Ubicación (calle, ruta, mojón kilométrico si disponible)</li>
+<li>Polígono de monitoreo afectado</li>
+</ul>
+<hr>
+<h2>13. Roles y permisos</h2>
+<h3>13.1 Roles predefinidos</h3>
+<table>
+<tr><th>Rol</th><th>Permisos</th><th>Uso típico</th></tr>
+<tr><td><strong>Administrador</strong></td><td>Todos (<code>admin</code>)</td><td>Gestión del sistema</td></tr>
+<tr><td><strong>Supervisor</strong></td><td>Todos excepto <code>admin</code></td><td>Supervisión operativa</td></tr>
+<tr><td><strong>Operador</strong></td><td>map, zonas (ver/editar), notificaciones, siniestros (ver/crear), incidentes</td><td>Sala de control</td></tr>
+<tr><td><strong>Visualizador</strong></td><td>map, notificaciones, siniestros (ver), incidentes (ver)</td><td>Consulta sin edición</td></tr>
+</table>
+<h3>13.2 Matriz de permisos</h3>
+<table>
+<tr><th>Permiso</th><th>Mapa</th><th>Zonas</th><th>Notif.</th><th>Siniestros</th><th>Incidentes</th><th>Admin</th></tr>
+<tr><td><code>map.view</code></td><td>Ver</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td><code>danger_zones.view</code></td><td>—</td><td>Ver</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td><code>danger_zones.edit</code></td><td>—</td><td>Editar</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td><code>notifications.view</code></td><td>—</td><td>—</td><td>Ver</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td><code>accidents.view</code></td><td>—</td><td>—</td><td>—</td><td>Ver</td><td>—</td><td>—</td></tr>
+<tr><td><code>accidents.create</code></td><td>—</td><td>—</td><td>—</td><td>Crear</td><td>—</td><td>—</td></tr>
+<tr><td><code>accidents.export</code></td><td>—</td><td>—</td><td>—</td><td>Exportar</td><td>—</td><td>—</td></tr>
+<tr><td><code>incidents.view</code></td><td>—</td><td>—</td><td>—</td><td>—</td><td>Ver</td><td>—</td></tr>
+<tr><td><code>incidents.export</code></td><td>—</td><td>—</td><td>—</td><td>—</td><td>Exportar</td><td>—</td></tr>
+<tr><td><code>admin</code></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>Total</td></tr>
+</table>
+<h3>13.3 Acceso denegado</h3>
+<p>Si el usuario intenta acceder a un módulo sin permiso, el sistema muestra <strong>&quot;Acceso Denegado&quot;</strong> con enlace a la primera ruta disponible según sus permisos.</p>
+<hr>
+<h2>14. Resolución de problemas</h2>
+<table>
+<tr><th>Problema</th><th>Causa probable</th><th>Solución</th></tr>
+<tr><td>Pantalla en blanco tras login</td><td>Sin permisos asignados</td><td>Contactar administrador</td></tr>
+<tr><td>Mapa sin incidentes</td><td>Feed Waze caído o sin datos</td><td>Verificar <code>/health</code>; esperar próximo ciclo (30 s)</td></tr>
+<tr><td>Sin alertas de voz</td><td>Audio no habilitado</td><td>Clic en icono altavoz</td></tr>
+<tr><td>&quot;Desconectado&quot; en barra</td><td>WebSocket caído</td><td>Refrescar página; verificar red</td></tr>
+<tr><td>Datos desactualizados</td><td>Caché del navegador</td><td>Ctrl+F5 (recarga forzada)</td></tr>
+<tr><td>Error al exportar PDF</td><td>Permiso <code>accidents.export</code> ausente</td><td>Solicitar permiso al administrador</td></tr>
+<tr><td>Clima histórico vacío</td><td>Siniestro &gt; 92 días o sin coordenadas</td><td>Usar &quot;Actualizar clima&quot; o verificar ubicación</td></tr>
+</table>
+<hr>
+<h2>15. Registro de incidencias</h2>
+<p>Si detecta un comportamiento anómalo del sistema durante la operación:</p>
+<ol>
+<li>Anotar: fecha, hora, módulo, descripción del problema, captura de pantalla si es posible.</li>
+<li>Reportar al supervisor o al equipo GED.</li>
+<li>El supervisor registra la incidencia conforme a <a href="./PROC-006_No_Conformidades_Mejora.md">PROC-006_No_Conformidades_Mejora.md</a>.</li>
+</ol>
+<hr>
+<p><strong>Historial de revisiones</strong></p>
+<table>
+<tr><th>Versión</th><th>Fecha</th><th>Cambio</th><th>Autor</th></tr>
+<tr><td>1.0</td><td>2026-06-08</td><td>Emisión inicial</td><td>GED</td></tr>
+</table>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Elaborado por</td><td>GED – CASISA</td></tr>
+<tr><td>Revisado por</td><td>_Pendiente_</td></tr>
+<tr><td>Aprobado por</td><td>_Pendiente_</td></tr>
+<tr><td>Próxima revisión</td><td>Diciembre 2026</td></tr>
+</table></div>
+<div class="page-break"></div><div class="doc-section"><h1>Manual de Procesos Operativos</h1>
+<p><strong>Código:</strong> SGC-PWY-MP-001  </p>
+<p><strong>Proyecto:</strong> Panel Ejecutivo Waze – Monitoreo de Tráfico en Tiempo Real  </p>
+<p><strong>Organización:</strong> CASISA – Caminos de las Sierras  </p>
+<p><strong>Versión:</strong> 1.0  </p>
+<p><strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Cláusula ISO 9001:2015:</strong> 8.1, 8.5 — Planificación y control operacional</p>
+<hr>
+<h2>Tabla de contenidos</h2>
+<ol>
+<li><a href="#1-introducción">Introducción</a></li>
+<li><a href="#2-mapa-de-procesos">Mapa de procesos</a></li>
+<li><a href="#3-pro-op-001-monitoreo-de-tráfico-en-tiempo-real">PRO-OP-001: Monitoreo de tráfico en tiempo real</a></li>
+<li><a href="#4-pro-op-002-gestión-de-alertas-y-notificaciones">PRO-OP-002: Gestión de alertas y notificaciones</a></li>
+<li><a href="#5-pro-op-003-respuesta-a-zonas-peligrosas">PRO-OP-003: Respuesta a zonas peligrosas</a></li>
+<li><a href="#6-pro-op-004-registro-de-siniestros-viales">PRO-OP-004: Registro de siniestros viales</a></li>
+<li><a href="#7-pro-op-005-consulta-de-incidentes-e-histórico">PRO-OP-005: Consulta de incidentes e histórico</a></li>
+<li><a href="#8-pro-op-006-análisis-estadístico-operativo">PRO-OP-006: Análisis estadístico operativo</a></li>
+<li><a href="#9-pro-op-007-administración-del-sistema">PRO-OP-007: Administración del sistema</a></li>
+<li><a href="#10-pro-op-008-gestión-de-usuarios-y-accesos">PRO-OP-008: Gestión de usuarios y accesos</a></li>
+<li><a href="#11-pro-op-009-inicio-y-cierre-de-turno">PRO-OP-009: Inicio y cierre de turno</a></li>
+<li><a href="#12-pro-op-010-gestión-de-incidencias-operativas">PRO-OP-010: Gestión de incidencias operativas</a></li>
+<li><a href="#13-indicadores-de-proceso">Indicadores de proceso</a></li>
+<li><a href="#14-referencias-cruzadas">Referencias cruzadas</a></li>
+</ol>
+<hr>
+<h2>1. Introducción</h2>
+<h3>1.1 Propósito</h3>
+<p>Este manual describe los <strong>procesos operativos</strong> que CASISA ejecuta a través del Panel Ejecutivo Waze para monitorear el tráfico vehicular. Cada proceso documenta sus entradas, actividades, salidas, responsables y registros asociados.</p>
+<h3>1.2 Alcance</h3>
+<p>Este manual aplica a los procesos de sala de control y a las tareas de administración del sistema en el entorno de producción.</p>
+<h3>1.3 Definiciones</h3>
+<table>
+<tr><th>Término</th><th>Definición</th></tr>
+<tr><td>Operador</td><td>Usuario de sala de control con rol Operador o superior</td></tr>
+<tr><td>Supervisor</td><td>Usuario con rol Supervisor, responsable de validar acciones operativas</td></tr>
+<tr><td>Ciclo de ingesta</td><td>Intervalo de ~30 s en que el backend consulta feeds Waze y actualiza datos</td></tr>
+<tr><td>Zona peligrosa</td><td>Área geográfica delimitada donde un incidente genera alerta crítica</td></tr>
+<tr><td>RAC</td><td>Registro de Accidentes y Siniestros viales</td></tr>
+</table>
+<hr>
+<h2>2. Mapa de procesos</h2>
+<div class="mermaid">flowchart TD
+    A[PRO-OP-009 Inicio de turno] --> B[PRO-OP-001 Monitoreo en tiempo real]
+    B --> C{¿Alerta detectada?}
+    C -->|Alerta estándar| D[PRO-OP-002 Gestión de alertas]
+    C -->|Zona peligrosa| E[PRO-OP-003 Respuesta zonas peligrosas]
+    C -->|Siniestro vial| F[PRO-OP-004 Registro siniestros]
+    B --> G[PRO-OP-005 Consulta incidentes]
+    G --> H[PRO-OP-006 Análisis estadístico]
+    D --> I{¿Incidencia del sistema?}
+    E --> I
+    F --> I
+    I -->|Sí| J[PRO-OP-010 Gestión incidencias]
+    I -->|No| B
+    K[PRO-OP-007 Administración] -.-> B
+    L[PRO-OP-008 Gestión usuarios] -.-> A
+    B --> M[PRO-OP-009 Cierre de turno]</div>
+<hr>
+<h2>3. PRO-OP-001: Monitoreo de tráfico en tiempo real</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td><strong>Código</strong></td><td>PRO-OP-001</td></tr>
+<tr><td><strong>Responsable</strong></td><td>Operador de sala de control</td></tr>
+<tr><td><strong>Frecuencia</strong></td><td>Continua (24/7 en producción)</td></tr>
+<tr><td><strong>Módulo</strong></td><td><code>/mapa</code></td></tr>
+</table>
+<h3>Entradas</h3>
+<ul>
+<li>Feed Waze CCP (alertas, jams, irregularities)</li>
+<li>Datos meteorológicos Open-Meteo</li>
+<li>Configuración de polígonos de monitoreo</li>
+<li>Sesión de usuario autenticada</li>
+</ul>
+<h3>Actividades</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th><th>Responsable</th></tr>
+<tr><td>1</td><td>Iniciar sesión y habilitar audio (ver PRO-OP-009)</td><td>Operador</td></tr>
+<tr><td>2</td><td>Abrir módulo Mapa (<code>/mapa</code>)</td><td>Operador</td></tr>
+<tr><td>3</td><td>Verificar indicador de conexión WebSocket (verde)</td><td>Operador</td></tr>
+<tr><td>4</td><td>Observar mapa: marcadores, polígonos, jams</td><td>Operador</td></tr>
+<tr><td>5</td><td>Revisar KPIs laterales: incidentes activos, polígonos críticos</td><td>Operador</td></tr>
+<tr><td>6</td><td>Aplicar filtros si se requiere foco en zona o tipo</td><td>Operador</td></tr>
+<tr><td>7</td><td>Consultar detalle de incidente (clic en marcador)</td><td>Operador</td></tr>
+<tr><td>8</td><td>El sistema actualiza automáticamente cada ~30 s vía WebSocket</td><td>Sistema</td></tr>
+</table>
+<h3>Salidas</h3>
+<ul>
+<li>Visualización actualizada del estado de tráfico</li>
+<li>Identificación de situaciones que requieren acción (alertas, zonas críticas)</li>
+<li>Registro implícito en logs del backend</li>
+</ul>
+<h3>Registros</h3>
+<ul>
+<li>Logs de polling Waze (<code>wazePollingService</code>)</li>
+<li>Eventos WebSocket <code>waze:data_updated</code></li>
+<li>Datos en tablas <code>waze_alerts</code>, <code>waze_jams</code>, <code>waze_irregularities</code></li>
+</ul>
+<h3>Criterios de conformidad</h3>
+<ul>
+<li>[ ] Mapa carga con polígonos visibles</li>
+<li>[ ] Indicador WebSocket en estado conectado</li>
+<li>[ ] Datos actualizados en últimos 60 segundos</li>
+<li>[ ] KPIs reflejan conteo coherente con marcadores</li>
+</ul>
+<hr>
+<h2>4. PRO-OP-002: Gestión de alertas y notificaciones</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td><strong>Código</strong></td><td>PRO-OP-002</td></tr>
+<tr><td><strong>Responsable</strong></td><td>Operador de sala de control</td></tr>
+<tr><td><strong>Disparador</strong></td><td>Evento <code>notification:new</code> vía WebSocket</td></tr>
+<tr><td><strong>Módulo</strong></td><td><code>/mapa</code>, <code>/notificaciones</code></td></tr>
+</table>
+<h3>Entradas</h3>
+<ul>
+<li>Alerta Waze nueva (accidente, peligro, clima, congestión)</li>
+<li>Configuración de filtros TTS</li>
+<li>Estado de audio del navegador (habilitado/deshabilitado)</li>
+</ul>
+<h3>Actividades</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th><th>Responsable</th></tr>
+<tr><td>1</td><td>El sistema recibe <code>notification:new</code> y muestra snackbar</td><td>Sistema</td></tr>
+<tr><td>2</td><td>Si audio activo: reproducir beep + TTS con descripción del incidente</td><td>Sistema</td></tr>
+<tr><td>3</td><td>Operador lee la alerta en snackbar o panel de notificaciones</td><td>Operador</td></tr>
+<tr><td>4</td><td>Operador evalúa severidad y ubicación</td><td>Operador</td></tr>
+<tr><td>5</td><td>Si requiere acción operativa externa: comunicar a patrulla/gerencia</td><td>Operador</td></tr>
+<tr><td>6</td><td>Marcar notificación como leída</td><td>Operador</td></tr>
+<tr><td>7</td><td>Si es falsa alarma o dato incorrecto: reportar incidencia (PRO-OP-010)</td><td>Operador</td></tr>
+</table>
+<h3>Salidas</h3>
+<ul>
+<li>Alerta atendida y marcada como leída</li>
+<li>Comunicación externa si aplica (fuera del sistema)</li>
+<li>Incidencia registrada si hay anomalía de datos</li>
+</ul>
+<h3>Registros</h3>
+<ul>
+<li>Tabla <code>notifications</code></li>
+<li>Store local de notificaciones (frontend)</li>
+<li>Log de eventos TTS</li>
+</ul>
+<hr>
+<h2>5. PRO-OP-003: Respuesta a zonas peligrosas</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td><strong>Código</strong></td><td>PRO-OP-003</td></tr>
+<tr><td><strong>Responsable</strong></td><td>Operador de sala de control</td></tr>
+<tr><td><strong>Disparador</strong></td><td>Evento <code>red_zone_critical_alert</code> vía WebSocket</td></tr>
+<tr><td><strong>Módulo</strong></td><td><code>/zonas-peligrosas</code>, <code>/mapa</code></td></tr>
+</table>
+<h3>Entradas</h3>
+<ul>
+<li>Incidente Waze dentro de polígono de zona peligrosa</li>
+<li>Configuración de zonas peligrosas (<code>zonas_peligrosas</code>)</li>
+<li>Nivel de peligrosidad de la zona</li>
+</ul>
+<h3>Actividades</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th><th>Responsable</th></tr>
+<tr><td>1</td><td>El sistema detecta incidente dentro de zona peligrosa</td><td>Sistema</td></tr>
+<tr><td>2</td><td>Emite <code>red_zone_critical_alert</code>: <strong>sirena + TTS prioritario</strong></td><td>Sistema</td></tr>
+<tr><td>3</td><td>Operador identifica la zona y el incidente en el mapa</td><td>Operador</td></tr>
+<tr><td>4</td><td>Operador evalúa nivel de riesgo según configuración de la zona</td><td>Operador</td></tr>
+<tr><td>5</td><td>Activar protocolo operativo CASISA según severidad</td><td>Operador / Supervisor</td></tr>
+<tr><td>6</td><td>Documentar acción tomada (comunicación, cierre de carril, etc.)</td><td>Operador</td></tr>
+<tr><td>7</td><td>Verificar resolución del incidente en mapa</td><td>Operador</td></tr>
+</table>
+<h3>Salidas</h3>
+<ul>
+<li>Respuesta operativa activada según protocolo CASISA</li>
+<li>Incidente monitoreado hasta resolución</li>
+<li>Registro en bitácora operativa (externa al sistema)</li>
+</ul>
+<h3>Registros</h3>
+<ul>
+<li>Evento <code>red_zone_critical_alert</code> en logs WebSocket</li>
+<li>Datos en <code>zonas_peligrosas</code> y <code>waze_alerts</code></li>
+<li>Notificación en store con flag <code>isRedZone</code></li>
+</ul>
+<h3>Criterios de conformidad</h3>
+<ul>
+<li>[ ] Alerta sonora se reproduce dentro de 5 segundos del incidente</li>
+<li>[ ] TTS incluye ubicación y tipo de incidente</li>
+<li>[ ] No se duplica lectura TTS (deduplicación activa)</li>
+</ul>
+<hr>
+<h2>6. PRO-OP-004: Registro de siniestros viales</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td><strong>Código</strong></td><td>PRO-OP-004</td></tr>
+<tr><td><strong>Responsable</strong></td><td>Operador (crear), Supervisor (validar)</td></tr>
+<tr><td><strong>Permisos</strong></td><td><code>accidents.view</code>, <code>accidents.create</code>, <code>accidents.export</code></td></tr>
+<tr><td><strong>Módulo</strong></td><td><code>/siniestros</code></td></tr>
+</table>
+<h3>Entradas</h3>
+<ul>
+<li>Información del siniestro (ubicación, fecha, tipo, descripción)</li>
+<li>Coordenadas GPS o selección en mapa</li>
+<li>Multimedia opcional (fotos, videos)</li>
+<li>Datos de rutas y mojones kilométricos</li>
+</ul>
+<h3>Actividades</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th><th>Responsable</th></tr>
+<tr><td>1</td><td>Acceder a <code>/siniestros</code></td><td>Operador</td></tr>
+<tr><td>2</td><td>Presionar &quot;Nuevo siniestro&quot;</td><td>Operador</td></tr>
+<tr><td>3</td><td>Completar formulario: ubicación, fecha/hora, tipo, descripción</td><td>Operador</td></tr>
+<tr><td>4</td><td>Seleccionar ubicación en mini-mapa o ingresar coordenadas</td><td>Operador</td></tr>
+<tr><td>5</td><td>Adjuntar multimedia si está disponible</td><td>Operador</td></tr>
+<tr><td>6</td><td>Guardar registro</td><td>Operador</td></tr>
+<tr><td>7</td><td>El sistema consulta clima histórico automáticamente (Open-Meteo)</td><td>Sistema</td></tr>
+<tr><td>8</td><td>Verificar resumen meteorológico interpretado en detalle</td><td>Operador</td></tr>
+<tr><td>9</td><td>Si clima vacío: ejecutar &quot;Actualizar clima&quot; (hasta 92 días)</td><td>Operador</td></tr>
+<tr><td>10</td><td>Exportar PDF si se requiere documentación formal</td><td>Operador</td></tr>
+<tr><td>11</td><td>Supervisor valida datos del registro</td><td>Supervisor</td></tr>
+</table>
+<h3>Salidas</h3>
+<ul>
+<li>Registro en tabla <code>road_accidents</code> con clima histórico</li>
+<li>PDF exportado (si aplica)</li>
+<li>Geo-referencia con mojón kilométrico más cercano</li>
+</ul>
+<h3>Registros</h3>
+<ul>
+<li>Tabla <code>road_accidents</code> y <code>accident_media</code></li>
+<li>Datos meteorológicos asociados al siniestro</li>
+<li>PDF generado (archivo local del operador)</li>
+</ul>
+<h3>Criterios de conformidad</h3>
+<ul>
+<li>[ ] Campos obligatorios completos</li>
+<li>[ ] Ubicación con coordenadas válidas</li>
+<li>[ ] Clima histórico presente o justificación documentada</li>
+<li>[ ] Supervisor validó el registro</li>
+</ul>
+<hr>
+<h2>7. PRO-OP-005: Consulta de incidentes e histórico</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td><strong>Código</strong></td><td>PRO-OP-005</td></tr>
+<tr><td><strong>Responsable</strong></td><td>Operador, Supervisor</td></tr>
+<tr><td><strong>Permiso</strong></td><td><code>incidents.view</code></td></tr>
+<tr><td><strong>Módulo</strong></td><td><code>/incidentes</code>, <code>/incidentes/historico</code></td></tr>
+</table>
+<h3>Entradas</h3>
+<ul>
+<li>Criterios de búsqueda (tipo, fecha, polígono, texto)</li>
+<li>Datos históricos en BD</li>
+</ul>
+<h3>Actividades</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th><th>Responsable</th></tr>
+<tr><td>1</td><td>Acceder a <code>/incidentes</code></td><td>Usuario</td></tr>
+<tr><td>2</td><td>Aplicar filtros: tipo, rango de fechas, polígono</td><td>Usuario</td></tr>
+<tr><td>3</td><td>Revisar listado paginado de incidentes</td><td>Usuario</td></tr>
+<tr><td>4</td><td>Para histórico: navegar a <code>/incidentes/historico</code></td><td>Usuario</td></tr>
+<tr><td>5</td><td>Exportar resultados si tiene permiso <code>incidents.export</code></td><td>Usuario</td></tr>
+</table>
+<h3>Salidas</h3>
+<ul>
+<li>Listado filtrado de incidentes</li>
+<li>Exportación de datos (si aplica)</li>
+</ul>
+<h3>Registros</h3>
+<ul>
+<li>Consultas registradas en logs de API</li>
+<li>Datos de <code>waze_alerts</code>, <code>incidents_history</code></li>
+</ul>
+<hr>
+<h2>8. PRO-OP-006: Análisis estadístico operativo</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td><strong>Código</strong></td><td>PRO-OP-006</td></tr>
+<tr><td><strong>Responsable</strong></td><td>Supervisor</td></tr>
+<tr><td><strong>Permiso</strong></td><td><code>incidents.view</code></td></tr>
+<tr><td><strong>Módulo</strong></td><td><code>/estadisticas</code></td></tr>
+<tr><td><strong>Frecuencia</strong></td><td>Diaria / semanal / según necesidad</td></tr>
+</table>
+<h3>Entradas</h3>
+<ul>
+<li>Datos históricos agregados (diarios, semanales, mensuales)</li>
+<li>Configuración de polígonos y grupos</li>
+</ul>
+<h3>Actividades</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th><th>Responsable</th></tr>
+<tr><td>1</td><td>Acceder a <code>/estadisticas</code></td><td>Supervisor</td></tr>
+<tr><td>2</td><td>Revisar tendencias de incidentes</td><td>Supervisor</td></tr>
+<tr><td>3</td><td>Analizar hotspots (zonas de alta concentración)</td><td>Supervisor</td></tr>
+<tr><td>4</td><td>Evaluar disponibilidad de datos Waze</td><td>Supervisor</td></tr>
+<tr><td>5</td><td>Comparar métricas entre grupos de polígonos</td><td>Supervisor</td></tr>
+<tr><td>6</td><td>Elaborar informe o comunicar hallazgos a gerencia</td><td>Supervisor</td></tr>
+</table>
+<h3>Salidas</h3>
+<ul>
+<li>Informe de tendencias (externo al sistema)</li>
+<li>Decisiones sobre ajuste de polígonos o zonas peligrosas</li>
+<li>Input para revisión por dirección (cláusula 9.3 ISO)</li>
+</ul>
+<h3>Registros</h3>
+<ul>
+<li>Datos de <code>/api/stats/daily|weekly|monthly</code></li>
+<li>Datos de <code>/api/historical/trends</code>, <code>/api/historical/incidents/hotspots</code></li>
+</ul>
+<hr>
+<h2>9. PRO-OP-007: Administración del sistema</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td><strong>Código</strong></td><td>PRO-OP-007</td></tr>
+<tr><td><strong>Responsable</strong></td><td>Administrador</td></tr>
+<tr><td><strong>Permiso</strong></td><td><code>admin</code></td></tr>
+<tr><td><strong>Módulo</strong></td><td><code>/admin</code></td></tr>
+</table>
+<h3>9.1 Gestión de polígonos</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th></tr>
+<tr><td>1</td><td>Admin → Polígonos Waze</td></tr>
+<tr><td>2</td><td>Crear/editar/eliminar polígonos de monitoreo</td></tr>
+<tr><td>3</td><td>Configurar feed URL y parámetros de cada polígono</td></tr>
+<tr><td>4</td><td>Importar/exportar configuración CSV</td></tr>
+<tr><td>5</td><td>Verificar que el polling Waze incluye el polígono nuevo</td></tr>
+</table>
+<h3>9.2 Gestión de catálogos</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th></tr>
+<tr><td>1</td><td>Admin → Catálogos</td></tr>
+<tr><td>2</td><td>Revisar tipos y subtipos de incidentes</td></tr>
+<tr><td>3</td><td>Ejecutar sincronización con Waze si hay cambios</td></tr>
+<tr><td>4</td><td>Crear/editar tipos personalizados si aplica</td></tr>
+</table>
+<h3>9.3 Gestión de mojones kilométricos</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th></tr>
+<tr><td>1</td><td>Admin → Mojones Kilométricos</td></tr>
+<tr><td>2</td><td>Crear/editar/eliminar hitos por ruta</td></tr>
+<tr><td>3</td><td>Verificar geo-referencia en alertas nuevas</td></tr>
+</table>
+<h3>9.4 Configuración del sistema</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th></tr>
+<tr><td>1</td><td>Admin → Configuración Sistema</td></tr>
+<tr><td>2</td><td>Ajustar parámetros TTS (voz, velocidad, filtros)</td></tr>
+<tr><td>3</td><td>Configurar umbrales de alerta y retención</td></tr>
+<tr><td>4</td><td>Verificar health check tras cambios</td></tr>
+</table>
+<h3>Registros</h3>
+<ul>
+<li>Cambios en tablas <code>polygons</code>, <code>catalogs</code>, <code>kilometer_markers</code></li>
+<li>Commits Git si el cambio requiere despliegue</li>
+<li>Log de auditoría de cambios administrativos</li>
+</ul>
+<hr>
+<h2>10. PRO-OP-008: Gestión de usuarios y accesos</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td><strong>Código</strong></td><td>PRO-OP-008</td></tr>
+<tr><td><strong>Responsable</strong></td><td>Administrador</td></tr>
+<tr><td><strong>Permiso</strong></td><td><code>admin</code></td></tr>
+<tr><td><strong>Módulo</strong></td><td><code>/admin</code> → Usuarios y Perfiles</td></tr>
+</table>
+<h3>Actividades</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th><th>Responsable</th></tr>
+<tr><td>1</td><td>Recibir solicitud de alta/baja de usuario</td><td>Administrador</td></tr>
+<tr><td>2</td><td>Crear usuario con email, nombre y rol</td><td>Administrador</td></tr>
+<tr><td>3</td><td>Asignar rol según función (Operador, Supervisor, etc.)</td><td>Administrador</td></tr>
+<tr><td>4</td><td>Verificar permisos efectivos en vista de preview</td><td>Administrador</td></tr>
+<tr><td>5</td><td>Comunicar credenciales al usuario por canal seguro</td><td>Administrador</td></tr>
+<tr><td>6</td><td>En baja: desactivar usuario y revocar sesiones</td><td>Administrador</td></tr>
+</table>
+<h3>Salidas</h3>
+<ul>
+<li>Usuario creado/modificado/desactivado</li>
+<li>Sesiones revocadas si aplica</li>
+</ul>
+<h3>Registros</h3>
+<ul>
+<li>Tabla <code>users</code>, <code>roles</code>, <code>permissions</code>, <code>sessions</code></li>
+<li>Solicitud de alta/baja (ticket o email)</li>
+</ul>
+<h3>Criterios de conformidad</h3>
+<ul>
+<li>[ ] Principio de mínimo privilegio aplicado</li>
+<li>[ ] Credenciales entregadas por canal seguro (no por email sin cifrar)</li>
+<li>[ ] Usuario inactivo no puede iniciar sesión</li>
+</ul>
+<hr>
+<h2>11. PRO-OP-009: Inicio y cierre de turno</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td><strong>Código</strong></td><td>PRO-OP-009</td></tr>
+<tr><td><strong>Responsable</strong></td><td>Operador de sala de control</td></tr>
+<tr><td><strong>Frecuencia</strong></td><td>Por turno</td></tr>
+</table>
+<h3>11.1 Inicio de turno</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th><th>Verificación</th></tr>
+<tr><td>1</td><td>Encender equipos de sala de control</td><td>Hardware operativo</td></tr>
+<tr><td>2</td><td>Abrir navegador → http://10.1.0.136/</td><td>Página de login carga</td></tr>
+<tr><td>3</td><td>Iniciar sesión con credenciales personales</td><td>Redirige a <code>/mapa</code></td></tr>
+<tr><td>4</td><td><strong>Clic en icono de audio</strong> (altavoz)</td><td>Audio habilitado</td></tr>
+<tr><td>5</td><td>Verificar indicador WebSocket: conectado</td><td>Estado verde</td></tr>
+<tr><td>6</td><td>Verificar <code>/health</code> si hay dudas (opcional)</td><td>HTTP 200</td></tr>
+<tr><td>7</td><td>Revisar notificaciones pendientes del turno anterior</td><td>Listado en <code>/notificaciones</code></td></tr>
+<tr><td>8</td><td>Confirmar con supervisor relevo de situación</td><td>Comunicación verbal</td></tr>
+</table>
+<h3>11.2 Cierre de turno</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th></tr>
+<tr><td>1</td><td>Informar al relevo situación actual (incidentes activos, zonas críticas)</td></tr>
+<tr><td>2</td><td>Marcar notificaciones pendientes como leídas o informar al relevo</td></tr>
+<tr><td>3</td><td>Cerrar sesión (sidebar → Cerrar sesión)</td></tr>
+<tr><td>4</td><td>Apagar o bloquear equipo según política CASISA</td></tr>
+</table>
+<h3>Registros</h3>
+<ul>
+<li>Sesión de login/logout en tabla <code>sessions</code></li>
+<li>Bitácora operativa de turno (externa)</li>
+</ul>
+<hr>
+<h2>12. PRO-OP-010: Gestión de incidencias operativas</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td><strong>Código</strong></td><td>PRO-OP-010</td></tr>
+<tr><td><strong>Responsable</strong></td><td>Operador (detecta), Supervisor (gestiona)</td></tr>
+<tr><td><strong>Vinculación ISO</strong></td><td>PROC-006 (No conformidades)</td></tr>
+</table>
+<h3>Entradas</h3>
+<ul>
+<li>Comportamiento anómalo del sistema detectado por el operador</li>
+<li>Falla de servicio reportada por monitoreo</li>
+</ul>
+<h3>Actividades</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th><th>Responsable</th></tr>
+<tr><td>1</td><td>Detectar anomalía (mapa vacío, sin audio, error de login, etc.)</td><td>Operador</td></tr>
+<tr><td>2</td><td>Intentar resolución básica (refrescar, re-login, verificar audio)</td><td>Operador</td></tr>
+<tr><td>3</td><td>Si persiste: reportar al supervisor con descripción y captura</td><td>Operador</td></tr>
+<tr><td>4</td><td>Supervisor clasifica severidad (crítica/mayor/menor)</td><td>Supervisor</td></tr>
+<tr><td>5</td><td>Si crítica: contactar GED / admin sistemas</td><td>Supervisor</td></tr>
+<tr><td>6</td><td>Registrar NC conforme a PROC-006</td><td>Supervisor</td></tr>
+<tr><td>7</td><td>Verificar resolución y cerrar NC</td><td>Supervisor</td></tr>
+</table>
+<h3>Salidas</h3>
+<ul>
+<li>Incidencia resuelta o escalada</li>
+<li>NC registrada si aplica</li>
+<li>AC implementada si hay recurrencia</li>
+</ul>
+<h3>Registros</h3>
+<ul>
+<li>Formato NC-PWY-YYYY-NNN (PROC-006)</li>
+<li>Ticket o issue en sistema de seguimiento</li>
+</ul>
+<hr>
+<h2>13. Indicadores de proceso</h2>
+<table>
+<tr><th>ID</th><th>Proceso</th><th>Indicador</th><th>Meta</th><th>Frecuencia</th><th>Registro</th></tr>
+<tr><td>IP-01</td><td>PRO-OP-001</td><td>Tiempo de actualización de datos en mapa</td><td>≤ 30 s</td><td>Continuo</td><td><a href="./registros/RP-001_Registro_Monitoreo.md">RP-001</a></td></tr>
+<tr><td>IP-02</td><td>PRO-OP-002</td><td>Alertas atendidas en &lt; 2 min</td><td>≥ 95%</td><td>Diario</td><td><a href="./registros/RP-002_Registro_Alertas.md">RP-002</a></td></tr>
+<tr><td>IP-03</td><td>PRO-OP-003</td><td>Tiempo de respuesta a zona peligrosa</td><td>≤ 5 s (alerta sonora)</td><td>Por evento</td><td><a href="./registros/RP-003_Registro_Zonas_Peligrosas.md">RP-003</a></td></tr>
+<tr><td>IP-04</td><td>PRO-OP-004</td><td>Siniestros con clima histórico completo</td><td>≥ 90%</td><td>Mensual</td><td><a href="./registros/RP-004_Registro_Siniestros.md">RP-004</a></td></tr>
+<tr><td>IP-05</td><td>PRO-OP-009</td><td>Turnos con audio habilitado al inicio</td><td>100%</td><td>Diario</td><td><a href="./registros/RP-009_Bitacora_Turno.md">RP-009</a></td></tr>
+<tr><td>IP-06</td><td>PRO-OP-010</td><td>NC críticas abiertas &gt; 48 h</td><td>0</td><td>Semanal</td><td><a href="./registros/RP-010_Registro_No_Conformidades.md">RP-010</a></td></tr>
+</table>
+<hr>
+<h2>14. Referencias cruzadas</h2>
+<table>
+<tr><th>Documento</th><th>Relación</th></tr>
+<tr><td><a href="./MANUAL_USUARIO.md">MANUAL_USUARIO.md</a></td><td>Instrucciones detalladas de uso por módulo</td></tr>
+<tr><td><a href="./instructivos/README.md">instructivos/</a></td><td>Instructivos paso a paso IP-001 a IP-010 por proceso</td></tr>
+<tr><td><a href="./registros/README.md">registros/</a></td><td>Registros de evidencia RP-001 a RP-010 por proceso</td></tr>
+<tr><td><a href="./PROC-006_No_Conformidades_Mejora.md">PROC-006_No_Conformidades_Mejora.md</a></td><td>Gestión de NC operativas</td></tr>
+<tr><td><a href="./MANUAL_SGC_ISO9001.md">MANUAL_SGC_ISO9001.md</a></td><td>Marco del SGC</td></tr>
+<tr><td><a href="../TTS.md">TTS.md</a></td><td>Detalle técnico de alertas de voz</td></tr>
+<tr><td><a href="../API.md">API.md</a></td><td>Endpoints utilizados por los procesos</td></tr>
+</table>
+<hr>
+<p><strong>Historial de revisiones</strong></p>
+<table>
+<tr><th>Versión</th><th>Fecha</th><th>Cambio</th><th>Autor</th></tr>
+<tr><td>1.0</td><td>2026-06-08</td><td>Emisión inicial con 10 procesos operativos</td><td>GED</td></tr>
+</table>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Elaborado por</td><td>GED – CASISA</td></tr>
+<tr><td>Revisado por</td><td>_Pendiente_</td></tr>
+<tr><td>Aprobado por</td><td>_Pendiente_</td></tr>
+<tr><td>Próxima revisión</td><td>Diciembre 2026</td></tr>
+</table></div>
+<div class="page-break"></div><div class="doc-section"><h1>Instructivo IP-001: Monitoreo de tráfico en tiempo real</h1>
+<p><strong>Código:</strong> SGC-PWY-IP-001  </p>
+<p><strong>Proceso:</strong> PRO-OP-001  </p>
+<p><strong>Versión:</strong> 1.0 | <strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Responsable:</strong> Operador de sala de control  </p>
+<p><strong>Indicador:</strong> IP-01 — Actualización de datos ≤ 30 s</p>
+<hr>
+<h2>1. Objetivo</h2>
+<p>Ejecutar el monitoreo continuo del tráfico vehicular mediante el módulo Mapa, verificando que los datos Waze se actualicen en tiempo real.</p>
+<h2>2. Alcance</h2>
+<p>Turno operativo en sala de control. Módulo <code>/mapa</code>.</p>
+<h2>3. Precondiciones</h2>
+<ul>
+<li>[ ] Equipo encendido y conectado a red LAN</li>
+<li>[ ] Sesión iniciada (ver IP-009)</li>
+<li>[ ] Audio habilitado (icono altavoz activo)</li>
+<li>[ ] Indicador WebSocket en estado <strong>Conectado</strong></li>
+</ul>
+<h2>4. Instructivo paso a paso</h2>
+<h3>Paso 1 — Acceder al mapa</h3>
+<ol>
+<li>Abrir navegador en <code>http://10.1.0.136/</code></li>
+<li>Si no hay sesión, iniciar sesión (IP-009)</li>
+<li>Verificar que la ruta activa es <code>/mapa</code></li>
+<li>Esperar carga completa del mapa (polígonos y leyenda visibles)</li>
+</ol>
+<h3>Paso 2 — Verificar conexión en tiempo real</h3>
+<ol>
+<li>Observar indicador de conexión en barra superior</li>
+<li><strong>Conectado (verde):</strong> continuar</li>
+<li><strong>Desconectado (rojo):</strong></li>
+</ol>
+<p>   - Presionar F5 para refrescar</p>
+<p>   - Si persiste: ejecutar IP-010</p>
+<h3>Paso 3 — Revisar estado general</h3>
+<ol>
+<li>Leer KPIs del panel lateral:</li>
+</ol>
+<p>   - Total incidentes activos</p>
+<p>   - Polígonos en estado crítico</p>
+<p>   - Resumen meteorológico vial</p>
+<ol>
+<li>Comparar conteo de KPIs con marcadores visibles en mapa</li>
+<li>Si hay discrepancia mayor: anotar y reportar (IP-010)</li>
+</ol>
+<h3>Paso 4 — Monitoreo activo</h3>
+<ol>
+<li>Observar marcadores de incidentes (colores según tipo)</li>
+<li>Revisar líneas de congestión (jams)</li>
+<li>Al recibir actualización automática (~30 s): verificar que KPIs cambian</li>
+<li>Para foco en zona específica:</li>
+</ol>
+<p>   - Seleccionar polígono en lista lateral, o</p>
+<p>   - Aplicar filtro por tipo de incidente</p>
+<h3>Paso 5 — Consultar detalle de incidente</h3>
+<ol>
+<li>Hacer clic en marcador del mapa</li>
+<li>Leer popup: tipo, subtipo, ubicación, hora, confianza</li>
+<li>Si requiere acción: derivar a IP-002 o IP-003 según tipo</li>
+<li>Cerrar popup y continuar monitoreo</li>
+</ol>
+<h3>Paso 6 — Verificación periódica (cada 30 min)</h3>
+<table>
+<tr><th>Verificación</th><th>Criterio OK</th></tr>
+<tr><td>WebSocket conectado</td><td>Indicador verde</td></tr>
+<tr><td>Última actualización</td><td>KPIs cambiaron en últimos 60 s</td></tr>
+<tr><td>Mapa interactivo</td><td>Zoom y clic funcionan</td></tr>
+<tr><td>Audio activo</td><td>Icono altavoz sin tachar</td></tr>
+</table>
+<h2>5. Registro</h2>
+<ul>
+<li>Logs automáticos: eventos <code>waze:data_updated</code> en backend</li>
+<li>Bitácora de turno: anotar eventos relevantes manualmente</li>
+</ul>
+<h2>6. Medición del indicador IP-01</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Fórmula</td><td>Tiempo entre dos eventos <code>waze:data_updated</code> consecutivos</td></tr>
+<tr><td>Fuente</td><td>Logs backend o consola navegador (F12 → Network → WS)</td></tr>
+<tr><td>Meta</td><td>≤ 30 segundos</td></tr>
+<tr><td>Frecuencia</td><td>Muestra aleatoria 3 veces por turno</td></tr>
+</table>
+<h2>7. Desviaciones</h2>
+<table>
+<tr><th>Situación</th><th>Acción</th></tr>
+<tr><td>Mapa vacío sin incidentes &gt; 5 min</td><td>Verificar <code>/health</code>; reportar IP-010</td></tr>
+<tr><td>Datos con más de 60 s de retraso</td><td>Refrescar página; si persiste IP-010</td></tr>
+<tr><td>Polígono sin datos</td><td>Informar a supervisor para revisar feed Waze</td></tr>
+</table>
+<hr>
+<p><strong>Aprobación:</strong> _Pendiente_</p></div>
+<div class="page-break"></div><div class="doc-section"><h1>Instructivo IP-002: Gestión de alertas y notificaciones</h1>
+<p><strong>Código:</strong> SGC-PWY-IP-002  </p>
+<p><strong>Proceso:</strong> PRO-OP-002  </p>
+<p><strong>Versión:</strong> 1.0 | <strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Responsable:</strong> Operador de sala de control  </p>
+<p><strong>Indicador:</strong> IP-02 — ≥ 95% alertas atendidas en &lt; 2 min</p>
+<hr>
+<h2>1. Objetivo</h2>
+<p>Atender las alertas Waze recibidas en tiempo real, evaluarlas y registrar su tratamiento.</p>
+<h2>2. Disparadores</h2>
+<ul>
+<li>Evento WebSocket <code>notification:new</code></li>
+<li>Snackbar flotante en mapa</li>
+<li>Contador de notificaciones incrementado</li>
+</ul>
+<h2>3. Precondiciones</h2>
+<ul>
+<li>[ ] Audio habilitado (IP-009)</li>
+<li>[ ] Permiso <code>notifications.view</code></li>
+<li>[ ] Módulo mapa o notificaciones accesible</li>
+</ul>
+<h2>4. Instructivo paso a paso</h2>
+<h3>Paso 1 — Recepción de alerta</h3>
+<ol>
+<li>Al sonar beep o aparecer snackbar: <strong>detener otra tarea</strong> y leer alerta</li>
+<li>Anotar hora de recepción (para indicador IP-02)</li>
+<li>Leer: tipo de incidente, ubicación, polígono afectado</li>
+<li>Si TTS activo: escuchar mensaje de voz completo</li>
+</ol>
+<h3>Paso 2 — Evaluación de severidad</h3>
+<table>
+<tr><th>Severidad</th><th>Criterio</th><th>Acción</th></tr>
+<tr><td>Alta</td><td>Accidente mayor, vía cerrada, múltiples reportes</td><td>Comunicar inmediatamente a patrulla/supervisor</td></tr>
+<tr><td>Media</td><td>Congestión severa, peligro en calzada</td><td>Monitorear evolución; comunicar si persiste &gt; 15 min</td></tr>
+<tr><td>Baja</td><td>Incidente menor, reporte aislado</td><td>Registrar y monitorear</td></tr>
+</table>
+<h3>Paso 3 — Verificar en mapa</h3>
+<ol>
+<li>Localizar marcador correspondiente en <code>/mapa</code></li>
+<li>Confirmar que coincide con la alerta recibida</li>
+<li>Si es zona peligrosa: <strong>derivar a IP-003</strong> (no duplicar atención)</li>
+</ol>
+<h3>Paso 4 — Registrar atención</h3>
+<ol>
+<li>Ir a <code>/notificaciones</code></li>
+<li>Localizar la alerta en el listado</li>
+<li>Presionar para marcar como <strong>leída</strong></li>
+<li>Si requiere seguimiento: anotar en bitácora de turno</li>
+</ol>
+<h3>Paso 5 — Comunicación externa (si aplica)</h3>
+<ol>
+<li>Contactar patrulla o gerencia según protocolo CASISA</li>
+<li>Informar: tipo, ubicación, km de referencia, hora</li>
+<li>Anotar hora de comunicación en bitácora</li>
+</ol>
+<h3>Paso 6 — Cierre de la alerta</h3>
+<ol>
+<li>Verificar que la alerta está marcada como leída</li>
+<li>Calcular tiempo de atención: recepción → marcada leída</li>
+<li>Meta: <strong>&lt; 2 minutos</strong></li>
+</ol>
+<h2>5. Medición del indicador IP-02</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Fórmula</td><td>(Alertas atendidas en &lt; 2 min / Total alertas del turno) × 100</td></tr>
+<tr><td>Registro</td><td>Bitácora de turno con hora recepción y hora atención</td></tr>
+<tr><td>Meta</td><td>≥ 95% diario</td></tr>
+<tr><td>Responsable medición</td><td>Supervisor al cierre de turno</td></tr>
+</table>
+<h2>6. Plantilla de registro (bitácora)</h2>
+<pre><code>Fecha: ____/____/____  Turno: ______  Operador: ______________
+
+| Hora alerta | Tipo        | Ubicación     | Hora atendida | Δ min | OK/NOK |
+|-------------|-------------|---------------|---------------|-------|--------|
+|             |             |               |               |       |        |</code></pre>
+<h2>7. Desviaciones</h2>
+<table>
+<tr><th>Situación</th><th>Acción</th></tr>
+<tr><td>Alerta duplicada</td><td>Marcar una; ignorar duplicado (deduplicación activa)</td></tr>
+<tr><td>Falsa alarma</td><td>Marcar leída; reportar IP-010 si recurrente</td></tr>
+<tr><td>Sin audio en alerta</td><td>Verificar icono altavoz; ejecutar IP-009 paso 4</td></tr>
+</table>
+<hr>
+<p><strong>Aprobación:</strong> _Pendiente_</p></div>
+<div class="page-break"></div><div class="doc-section"><h1>Instructivo IP-003: Respuesta a zonas peligrosas</h1>
+<p><strong>Código:</strong> SGC-PWY-IP-003  </p>
+<p><strong>Proceso:</strong> PRO-OP-003  </p>
+<p><strong>Versión:</strong> 1.0 | <strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Responsable:</strong> Operador de sala de control  </p>
+<p><strong>Indicador:</strong> IP-03 — Alerta sonora en ≤ 5 s</p>
+<hr>
+<h2>1. Objetivo</h2>
+<p>Responder de inmediato cuando un incidente Waze ocurre dentro de una zona peligrosa configurada (geofencing RAC).</p>
+<h2>2. Disparador</h2>
+<ul>
+<li>Evento WebSocket <code>red_zone_critical_alert</code></li>
+<li><strong>Sirena</strong> + TTS prioritario (diferente de alerta estándar)</li>
+</ul>
+<h2>3. Precondiciones</h2>
+<ul>
+<li>[ ] Audio <strong>obligatoriamente</strong> habilitado</li>
+<li>[ ] Permiso <code>danger_zones.view</code></li>
+<li>[ ] Conocimiento de protocolo CASISA para zonas críticas</li>
+</ul>
+<h2>4. Instructivo paso a paso</h2>
+<h3>Paso 1 — Reconocer alerta crítica</h3>
+<ol>
+<li>Al escuchar <strong>sirena</strong> (no solo beep): es zona peligrosa</li>
+<li>Anotar hora exacta de la sirena (indicador IP-03)</li>
+<li>Escuchar mensaje TTS prioritario completo</li>
+<li><strong>No esperar</strong> segunda alerta por <code>notification:new</code> (está deduplicada)</li>
+</ol>
+<h3>Paso 2 — Identificar en mapa</h3>
+<ol>
+<li>Ir a <code>/mapa</code> o <code>/zonas-peligrosas</code></li>
+<li>Localizar zona peligrosa resaltada</li>
+<li>Identificar marcador del incidente dentro de la zona</li>
+<li>Leer popup: tipo, ubicación, nivel de peligrosidad de la zona</li>
+</ol>
+<h3>Paso 3 — Evaluar riesgo</h3>
+<table>
+<tr><th>Nivel zona</th><th>Acción inmediata</th></tr>
+<tr><td>Extrema</td><td>Activar protocolo de emergencia CASISA</td></tr>
+<tr><td>Alta</td><td>Comunicar a patrulla y supervisor</td></tr>
+<tr><td>Media</td><td>Monitoreo reforzado + comunicación preventiva</td></tr>
+</table>
+<h3>Paso 4 — Activar protocolo operativo</h3>
+<ol>
+<li>Comunicar por canal oficial CASISA:</li>
+</ol>
+<p>   - Nombre de la zona peligrosa</p>
+<p>   - Tipo de incidente</p>
+<p>   - Ubicación y km de referencia</p>
+<p>   - Hora del evento</p>
+<ol>
+<li>Esperar confirmación de recepción</li>
+<li>Mantener monitoreo en mapa hasta resolución del incidente</li>
+</ol>
+<h3>Paso 5 — Seguimiento</h3>
+<ol>
+<li>Verificar cada 5 min si el incidente sigue activo</li>
+<li>Si el incidente se resuelve (marcador desaparece): informar cierre</li>
+<li>Registrar acciones en bitácora de turno</li>
+</ol>
+<h3>Paso 6 — Edición de zonas (solo con <code>danger_zones.edit</code>)</h3>
+<ol>
+<li>Ir a <code>/zonas-peligrosas</code></li>
+<li>Para crear: dibujar polígono → nombre + nivel</li>
+<li>Para modificar: seleccionar zona → editar geometría o atributos</li>
+<li>Para eliminar: confirmar con supervisor antes de borrar</li>
+</ol>
+<h2>5. Medición del indicador IP-03</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Fórmula</td><td>Tiempo entre emisión backend y primera sirena en cliente</td></tr>
+<tr><td>Método</td><td>Comparar timestamp del evento WS con hora anotada por operador</td></tr>
+<tr><td>Meta</td><td>≤ 5 segundos</td></tr>
+<tr><td>Frecuencia</td><td>Por cada evento de zona peligrosa</td></tr>
+</table>
+<h2>6. Desviaciones</h2>
+<table>
+<tr><th>Situación</th><th>Acción</th></tr>
+<tr><td>Sirena sin sonido</td><td>Verificar audio (IP-009); reportar IP-010</td></tr>
+<tr><td>Incidente fuera de zona visible</td><td>Refrescar mapa; verificar en <code>/zonas-peligrosas</code></td></tr>
+<tr><td>Zona mal configurada</td><td>Escalar a administrador (IP-007)</td></tr>
+</table>
+<hr>
+<p><strong>Aprobación:</strong> _Pendiente_</p></div>
+<div class="page-break"></div><div class="doc-section"><h1>Instructivo IP-004: Registro de siniestros viales</h1>
+<p><strong>Código:</strong> SGC-PWY-IP-004  </p>
+<p><strong>Proceso:</strong> PRO-OP-004  </p>
+<p><strong>Versión:</strong> 1.0 | <strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Responsable:</strong> Operador (registro), Supervisor (validación)  </p>
+<p><strong>Indicador:</strong> IP-04 — ≥ 90% siniestros con clima histórico completo</p>
+<hr>
+<h2>1. Objetivo</h2>
+<p>Registrar siniestros viales en el módulo RAC con datos completos, clima histórico y multimedia.</p>
+<h2>2. Permisos requeridos</h2>
+<table>
+<tr><th>Acción</th><th>Permiso</th></tr>
+<tr><td>Consultar</td><td><code>accidents.view</code></td></tr>
+<tr><td>Crear</td><td><code>accidents.create</code></td></tr>
+<tr><td>Exportar PDF</td><td><code>accidents.export</code></td></tr>
+</table>
+<h2>3. Precondiciones</h2>
+<ul>
+<li>[ ] Sesión activa con permisos correspondientes</li>
+<li>[ ] Datos del siniestro disponibles (ubicación, fecha, tipo)</li>
+</ul>
+<h2>4. Instructivo — Consulta de siniestros</h2>
+<h3>Paso 1 — Acceder al módulo</h3>
+<ol>
+<li>Navegar a <code>/siniestros</code></li>
+<li>Verificar carga del listado</li>
+</ol>
+<h3>Paso 2 — Filtrar y buscar</h3>
+<ol>
+<li>Aplicar filtros: fecha, ruta, tipo, estado</li>
+<li>Seleccionar siniestro de la lista</li>
+<li>Revisar panel de detalle:</li>
+</ol>
+<p>   - Mini-mapa con ubicación</p>
+<p>   - Datos del siniestro</p>
+<p>   - Clima histórico (temperatura, viento, visibilidad, precipitación)</p>
+<p>   - Resumen meteorológico interpretado</p>
+<p>   - Multimedia adjunta</p>
+<p>   - Mojón kilométrico de referencia</p>
+<h2>5. Instructivo — Registro de nuevo siniestro</h2>
+<h3>Paso 1 — Iniciar registro</h3>
+<ol>
+<li>Presionar botón <strong>Nuevo siniestro</strong></li>
+<li>Completar campos obligatorios:</li>
+</ol>
+<table>
+<tr><th>Campo</th><th>Obligatorio</th><th>Notas</th></tr>
+<tr><td>Fecha y hora</td><td>Sí</td><td>Hora del siniestro, no de registro</td></tr>
+<tr><td>Tipo</td><td>Sí</td><td>Seleccionar de catálogo</td></tr>
+<tr><td>Descripción</td><td>Sí</td><td>Texto claro y objetivo</td></tr>
+<tr><td>Ubicación</td><td>Sí</td><td>Clic en mini-mapa o coordenadas</td></tr>
+</table>
+<h3>Paso 2 — Ubicación</h3>
+<ol>
+<li>Hacer clic en mini-mapa para marcar punto exacto</li>
+<li>Verificar que coordenadas son correctas</li>
+<li>Confirmar que mojón kilométrico aparece (si hay datos cargados)</li>
+</ol>
+<h3>Paso 3 — Multimedia (opcional)</h3>
+<ol>
+<li>Presionar <strong>Adjuntar</strong> foto o video</li>
+<li>Seleccionar archivo (formatos soportados: JPG, PNG, MP4)</li>
+<li>Esperar confirmación de carga</li>
+</ol>
+<h3>Paso 4 — Guardar</h3>
+<ol>
+<li>Presionar <strong>Guardar</strong></li>
+<li>El sistema consulta clima histórico automáticamente (Open-Meteo)</li>
+<li>Esperar carga del panel de clima (puede tardar unos segundos)</li>
+</ol>
+<h3>Paso 5 — Verificar clima histórico</h3>
+<ol>
+<li>Revisar sección clima en detalle del siniestro</li>
+<li>Verificar campos: temperatura, viento, visibilidad, precipitación</li>
+<li>Leer resumen meteorológico interpretado</li>
+<li>Si clima vacío:</li>
+</ol>
+<p>   - Presionar <strong>Actualizar clima</strong></p>
+<p>   - Verificar que fecha del siniestro no supere 92 días</p>
+<p>   - Si persiste: anotar y reportar IP-010</p>
+<h3>Paso 6 — Exportar PDF (opcional)</h3>
+<ol>
+<li>Presionar <strong>Exportar PDF</strong></li>
+<li>Guardar archivo en ubicación definida por CASISA</li>
+<li>Entregar a supervisor si se requiere documentación formal</li>
+</ol>
+<h3>Paso 7 — Validación por supervisor</h3>
+<ol>
+<li>Supervisor revisa registro en <code>/siniestros</code></li>
+<li>Verifica completitud de datos y clima</li>
+<li>Aprueba o solicita corrección</li>
+</ol>
+<h2>6. Medición del indicador IP-04</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Fórmula</td><td>(Siniestros con clima completo / Total siniestros del mes) × 100</td></tr>
+<tr><td>Fuente</td><td>Consulta en <code>/siniestros</code> + BD <code>road_accidents</code></td></tr>
+<tr><td>Meta</td><td>≥ 90% mensual</td></tr>
+<tr><td>Responsable</td><td>Supervisor — primer día hábil del mes siguiente</td></tr>
+</table>
+<h2>7. Desviaciones</h2>
+<table>
+<tr><th>Situación</th><th>Acción</th></tr>
+<tr><td>Siniestro &gt; 92 días sin clima</td><td>Documentar imposibilidad técnica en observaciones</td></tr>
+<tr><td>Coordenadas incorrectas</td><td>Editar ubicación antes de guardar definitivo</td></tr>
+<tr><td>Error al subir multimedia</td><td>Reintentar; verificar tamaño &lt; límite del sistema</td></tr>
+</table>
+<hr>
+<p><strong>Aprobación:</strong> _Pendiente_</p></div>
+<div class="page-break"></div><div class="doc-section"><h1>Instructivo IP-005: Consulta de incidentes e histórico</h1>
+<p><strong>Código:</strong> SGC-PWY-IP-005  </p>
+<p><strong>Proceso:</strong> PRO-OP-005  </p>
+<p><strong>Versión:</strong> 1.0 | <strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Responsable:</strong> Operador, Supervisor  </p>
+<p><strong>Permiso:</strong> <code>incidents.view</code></p>
+<hr>
+<h2>1. Objetivo</h2>
+<p>Consultar incidentes Waze activos e históricos con filtros avanzados para análisis operativo.</p>
+<h2>2. Módulos</h2>
+<table>
+<tr><th>Ruta</th><th>Función</th></tr>
+<tr><td><code>/incidentes</code></td><td>Listado activo con filtros</td></tr>
+<tr><td><code>/incidentes/historico</code></td><td>Consulta histórica por fechas</td></tr>
+</table>
+<h2>3. Instructivo — Incidentes activos</h2>
+<h3>Paso 1 — Acceder</h3>
+<ol>
+<li>Navegar a <code>/incidentes</code></li>
+<li>Verificar carga del listado paginado</li>
+</ol>
+<h3>Paso 2 — Aplicar filtros</h3>
+<table>
+<tr><th>Filtro</th><th>Uso</th></tr>
+<tr><td>Tipo</td><td>Accidente, peligro, clima, etc.</td></tr>
+<tr><td>Subtipo</td><td>Detalle del tipo</td></tr>
+<tr><td>Fecha desde/hasta</td><td>Rango temporal</td></tr>
+<tr><td>Polígono</td><td>Zona específica</td></tr>
+<tr><td>Estado</td><td>Activo / inactivo</td></tr>
+<tr><td>Búsqueda</td><td>Texto libre (calle, ciudad)</td></tr>
+</table>
+<h3>Paso 3 — Revisar resultados</h3>
+<ol>
+<li>Leer columnas: tipo, ubicación, fecha, polígono, confianza</li>
+<li>Clic en fila para ver detalle expandido</li>
+<li>Navegar páginas si hay más de 50 resultados</li>
+</ol>
+<h3>Paso 4 — Exportar (si tiene <code>incidents.export</code>)</h3>
+<ol>
+<li>Aplicar filtros deseados</li>
+<li>Presionar <strong>Exportar</strong></li>
+<li>Guardar archivo generado</li>
+</ol>
+<h2>4. Instructivo — Histórico</h2>
+<h3>Paso 1 — Acceder</h3>
+<ol>
+<li>Navegar a <code>/incidentes/historico</code></li>
+<li>Seleccionar rango de fechas amplio (ej. últimos 7 días)</li>
+</ol>
+<h3>Paso 2 — Filtrar</h3>
+<ol>
+<li>Seleccionar polígono si se analiza zona específica</li>
+<li>Filtrar por tipo si se busca patrón</li>
+<li>Aplicar filtro</li>
+</ol>
+<h3>Paso 3 — Analizar</h3>
+<ol>
+<li>Revisar tendencia de incidentes en el período</li>
+<li>Identificar horarios pico</li>
+<li>Comunicar hallazgos al supervisor</li>
+</ol>
+<h2>5. Registro</h2>
+<ul>
+<li>Consultas quedan en logs de API (automático)</li>
+<li>Análisis relevante: anotar en bitácora o informe</li>
+</ul>
+<h2>6. Desviaciones</h2>
+<table>
+<tr><th>Situación</th><th>Acción</th></tr>
+<tr><td>Listado vacío inesperado</td><td>Verificar filtros; revisar <code>/mapa</code> para datos en vivo</td></tr>
+<tr><td>Exportación fallida</td><td>Verificar permiso <code>incidents.export</code></td></tr>
+<tr><td>Datos incoherentes con mapa</td><td>Reportar IP-010</td></tr>
+</table>
+<hr>
+<p><strong>Aprobación:</strong> _Pendiente_</p></div>
+<div class="page-break"></div><div class="doc-section"><h1>Instructivo IP-006: Análisis estadístico operativo</h1>
+<p><strong>Código:</strong> SGC-PWY-IP-006  </p>
+<p><strong>Proceso:</strong> PRO-OP-006  </p>
+<p><strong>Versión:</strong> 1.0 | <strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Responsable:</strong> Supervisor  </p>
+<p><strong>Permiso:</strong> <code>incidents.view</code></p>
+<hr>
+<h2>1. Objetivo</h2>
+<p>Realizar análisis periódico de tendencias, hotspots y disponibilidad de datos para la toma de decisiones operativas.</p>
+<h2>2. Frecuencia</h2>
+<table>
+<tr><th>Análisis</th><th>Frecuencia</th></tr>
+<tr><td>Revisión rápida</td><td>Diaria (5 min)</td></tr>
+<tr><td>Informe de tendencias</td><td>Semanal</td></tr>
+<tr><td>Revisión para dirección</td><td>Trimestral (input cláusula 9.3 ISO)</td></tr>
+</table>
+<h2>3. Instructivo paso a paso</h2>
+<h3>Paso 1 — Acceder a estadísticas</h3>
+<ol>
+<li>Iniciar sesión con rol Supervisor</li>
+<li>Navegar a <code>/estadisticas</code></li>
+<li>Esperar carga del dashboard analítico</li>
+</ol>
+<h3>Paso 2 — Revisar tendencias</h3>
+<ol>
+<li>Seleccionar período: diario / semanal / mensual</li>
+<li>Observar gráfico de evolución de incidentes</li>
+<li>Identificar:</li>
+</ol>
+<p>   - Picos anómalos</p>
+<p>   - Tendencia creciente o decreciente</p>
+<p>   - Correlación con eventos externos (clima, obras)</p>
+<h3>Paso 3 — Analizar hotspots</h3>
+<ol>
+<li>Revisar sección de zonas de alta concentración</li>
+<li>Anotar polígonos con mayor densidad de incidentes</li>
+<li>Evaluar si requiere:</li>
+</ol>
+<p>   - Nueva zona peligrosa (IP-007 + IP-003)</p>
+<p>   - Ajuste de polígonos de monitoreo</p>
+<p>   - Comunicación a operación vial</p>
+<h3>Paso 4 — Verificar disponibilidad de datos</h3>
+<ol>
+<li>Revisar indicador de disponibilidad Waze</li>
+<li>Si &lt; 95%: investigar causa (feed caído, polígono mal configurado)</li>
+<li>Escalar a GED si es falla técnica (IP-010)</li>
+</ol>
+<h3>Paso 5 — Comparar grupos de polígonos</h3>
+<ol>
+<li>Seleccionar grupos de polígonos en filtros</li>
+<li>Comparar métricas entre corredores</li>
+<li>Identificar corredor con mayor criticidad</li>
+</ol>
+<h3>Paso 6 — Elaborar informe</h3>
+<ol>
+<li>Documentar hallazgos en formato CASISA:</li>
+</ol>
+<pre><code>INFORME ESTADÍSTICO — Panel Waze
+Período: ____/____/____ al ____/____/____
+Elaborado por: ______________
+
+1. Resumen ejecutivo (3 líneas)
+2. Tendencia general: ▲ / ▼ / →
+3. Hotspots identificados: [lista]
+4. Disponibilidad datos: ___%
+5. Recomendaciones: [acciones propuestas]
+6. Próxima revisión: ____/____/____</code></pre>
+<ol>
+<li>Enviar a gerencia según calendario de revisión</li>
+</ol>
+<h2>4. Registro</h2>
+<ul>
+<li>Informe guardado en carpeta de documentos CASISA</li>
+<li>Datos fuente: <code>/api/stats/daily|weekly|monthly</code>, <code>/api/historical/trends</code></li>
+</ul>
+<h2>5. Desviaciones</h2>
+<table>
+<tr><th>Situación</th><th>Acción</th></tr>
+<tr><td>Dashboard sin datos</td><td>Verificar <code>/health</code>; reportar IP-010</td></tr>
+<tr><td>Hotspot en zona sin polígono</td><td>Proponer nuevo polígono vía IP-007</td></tr>
+</table>
+<hr>
+<p><strong>Aprobación:</strong> _Pendiente_</p></div>
+<div class="page-break"></div><div class="doc-section"><h1>Instructivo IP-007: Administración del sistema</h1>
+<p><strong>Código:</strong> SGC-PWY-IP-007  </p>
+<p><strong>Proceso:</strong> PRO-OP-007  </p>
+<p><strong>Versión:</strong> 1.0 | <strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Responsable:</strong> Administrador  </p>
+<p><strong>Permiso:</strong> <code>admin</code></p>
+<hr>
+<h2>1. Objetivo</h2>
+<p>Administrar la configuración del Panel Ejecutivo Waze: polígonos, catálogos, mojones y parámetros del sistema.</p>
+<h2>2. Precondiciones</h2>
+<ul>
+<li>[ ] Rol Administrador asignado</li>
+<li>[ ] Cambios coordinados con supervisor (evitar impacto en operación)</li>
+</ul>
+<h2>3. Instructivo — Polígonos Waze</h2>
+<h3>Paso 1 — Acceder</h3>
+<ol>
+<li>Navegar a <code>/admin</code> → <strong>Polígonos Waze</strong></li>
+</ol>
+<h3>Paso 2 — Crear polígono</h3>
+<ol>
+<li>Presionar <strong>Nuevo polígono</strong></li>
+<li>Completar: nombre, feed URL Waze, coordenadas/geometría</li>
+<li>Asignar a grupo si aplica</li>
+<li>Guardar</li>
+<li>Esperar próximo ciclo de polling (~30 s)</li>
+<li>Verificar en <code>/mapa</code> que el polígono aparece con datos</li>
+</ol>
+<h3>Paso 3 — Editar polígono</h3>
+<ol>
+<li>Seleccionar polígono existente</li>
+<li>Modificar campos necesarios</li>
+<li>Guardar</li>
+<li>Verificar en mapa</li>
+</ol>
+<h3>Paso 4 — Importar/exportar</h3>
+<ol>
+<li><strong>Exportar CSV:</strong> respaldo antes de cambios masivos</li>
+<li><strong>Importar CSV:</strong> validar formato → importar → verificar conteo</li>
+</ol>
+<h2>4. Instructivo — Catálogos</h2>
+<h3>Paso 1 — Acceder</h3>
+<ol>
+<li><code>/admin</code> → <strong>Catálogos</strong></li>
+</ol>
+<h3>Paso 2 — Sincronizar con Waze</h3>
+<ol>
+<li>Presionar <strong>Sincronizar</strong></li>
+<li>Esperar finalización</li>
+<li>Verificar que tipos/subtipos se actualizaron</li>
+</ol>
+<h3>Paso 3 — Crear tipo personalizado (si necesario)</h3>
+<ol>
+<li>Nuevo tipo → nombre, código, icono</li>
+<li>Agregar subtipos asociados</li>
+<li>Guardar</li>
+</ol>
+<h2>5. Instructivo — Mojones kilométricos</h2>
+<h3>Paso 1 — Acceder</h3>
+<ol>
+<li><code>/admin</code> → <strong>Mojones Kilométricos</strong></li>
+</ol>
+<h3>Paso 2 — Crear mojón</h3>
+<ol>
+<li>Nuevo → ruta, km, coordenadas lat/lng</li>
+<li>Guardar</li>
+<li>Verificar que alertas nuevas muestran referencia km</li>
+</ol>
+<h2>6. Instructivo — Configuración del sistema</h2>
+<h3>Paso 1 — Acceder</h3>
+<ol>
+<li><code>/admin</code> → <strong>Configuración Sistema</strong></li>
+</ol>
+<h3>Paso 2 — TTS</h3>
+<table>
+<tr><th>Parámetro</th><th>Valor recomendado</th></tr>
+<tr><td>Voz</td><td><code>es-AR-ElenaNeural</code></td></tr>
+<tr><td>Velocidad</td><td>Predeterminado</td></tr>
+<tr><td>Filtros</td><td>Tipos críticos activos</td></tr>
+</table>
+<h3>Paso 3 — Verificar tras cambios</h3>
+<ol>
+<li>Abrir <code>http://10.1.0.136/health</code> → HTTP 200</li>
+<li>Smoke test en <code>/mapa</code></li>
+<li>Probar TTS con alerta de prueba (solo en horario de bajo tráfico)</li>
+</ol>
+<h2>7. Registro de cambios administrativos</h2>
+<table>
+<tr><th>Campo</th><th>Registrar</th></tr>
+<tr><td>Fecha/hora</td><td></td></tr>
+<tr><td>Administrador</td><td></td></tr>
+<tr><td>Sección modificada</td><td>Polígonos / Catálogos / Mojones / Config</td></tr>
+<tr><td>Descripción del cambio</td><td></td></tr>
+<tr><td>Verificación post-cambio</td><td>OK / NOK</td></tr>
+</table>
+<h2>8. Desviaciones</h2>
+<table>
+<tr><th>Situación</th><th>Acción</th></tr>
+<tr><td>Polígono sin datos tras crear</td><td>Verificar feed URL; revisar logs backend</td></tr>
+<tr><td>Cambio rompe operación</td><td>Rollback vía PROC-003 / contactar GED</td></tr>
+</table>
+<hr>
+<p><strong>Aprobación:</strong> _Pendiente_</p></div>
+<div class="page-break"></div><div class="doc-section"><h1>Instructivo IP-008: Gestión de usuarios y accesos</h1>
+<p><strong>Código:</strong> SGC-PWY-IP-008  </p>
+<p><strong>Proceso:</strong> PRO-OP-008  </p>
+<p><strong>Versión:</strong> 1.0 | <strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Responsable:</strong> Administrador</p>
+<hr>
+<h2>1. Objetivo</h2>
+<p>Gestionar el ciclo de vida de usuarios: alta, modificación, baja y control de accesos RBAC.</p>
+<h2>2. Precondiciones</h2>
+<ul>
+<li>[ ] Solicitud formal de alta/baja (email o ticket)</li>
+<li>[ ] Rol Administrador</li>
+</ul>
+<h2>3. Instructivo — Alta de usuario</h2>
+<h3>Paso 1 — Recibir solicitud</h3>
+<ol>
+<li>Verificar solicitud con nombre, email, rol solicitado y área</li>
+<li>Validar con supervisor que el rol es el mínimo necesario</li>
+</ol>
+<h3>Paso 2 — Crear usuario</h3>
+<ol>
+<li><code>/admin</code> → <strong>Usuarios y Perfiles</strong></li>
+<li>Presionar <strong>Nuevo usuario</strong></li>
+<li>Completar:</li>
+</ol>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Email</td><td>Correo corporativo del solicitante</td></tr>
+<tr><td>Nombre</td><td>Nombre completo</td></tr>
+<tr><td>Rol</td><td>Según función (ver tabla abajo)</td></tr>
+<tr><td>Estado</td><td>Activo</td></tr>
+</table>
+<h3>Paso 3 — Asignar rol</h3>
+<table>
+<tr><th>Función solicitada</th><th>Rol asignar</th></tr>
+<tr><td>Sala de control operativa</td><td>Operador</td></tr>
+<tr><td>Supervisión</td><td>Supervisor</td></tr>
+<tr><td>Solo consulta</td><td>Visualizador</td></tr>
+<tr><td>Gestión del sistema</td><td>Administrador</td></tr>
+</table>
+<h3>Paso 4 — Verificar permisos</h3>
+<ol>
+<li>Revisar vista preview de permisos del rol</li>
+<li>Confirmar que tiene acceso a módulos requeridos</li>
+<li>Confirmar que <strong>no</strong> tiene permisos excesivos</li>
+</ol>
+<h3>Paso 5 — Entregar credenciales</h3>
+<ol>
+<li>Generar contraseña temporal segura (mín. 12 caracteres)</li>
+<li>Entregar por <strong>canal seguro</strong> (presencial, teléfono, no email sin cifrar)</li>
+<li>Indicar al usuario que debe cambiar contraseña en <code>/perfil</code></li>
+</ol>
+<h2>4. Instructivo — Modificación de usuario</h2>
+<h3>Paso 1 — Localizar usuario</h3>
+<ol>
+<li><code>/admin</code> → Usuarios → buscar por email o nombre</li>
+</ol>
+<h3>Paso 2 — Modificar</h3>
+<ol>
+<li>Cambiar rol si cambió función</li>
+<li>Ajustar permisos individuales solo si es excepción justificada</li>
+<li>Guardar</li>
+</ol>
+<h3>Paso 3 — Notificar al usuario</h3>
+<ol>
+<li>Informar cambios de acceso al usuario afectado</li>
+</ol>
+<h2>5. Instructivo — Baja de usuario</h2>
+<h3>Paso 1 — Recibir solicitud de baja</h3>
+<ol>
+<li>Verificar con RRHH o supervisor</li>
+</ol>
+<h3>Paso 2 — Desactivar</h3>
+<ol>
+<li>Cambiar estado a <strong>Inactivo</strong></li>
+<li>Presionar <strong>Revocar todas las sesiones</strong></li>
+<li>Verificar que el usuario no puede iniciar sesión</li>
+</ol>
+<h3>Paso 3 — Registrar</h3>
+<ol>
+<li>Anotar fecha de baja y motivo en registro administrativo</li>
+</ol>
+<h2>6. Instructivo — Cambio de contraseña (usuario)</h2>
+<p>El usuario puede cambiar su propia contraseña:</p>
+<ol>
+<li><code>/perfil</code> → Cambiar contraseña</li>
+<li>Ingresar contraseña actual y nueva</li>
+<li>Guardar</li>
+</ol>
+<h2>7. Registro</h2>
+<table>
+<tr><th>Acción</th><th>Evidencia</th></tr>
+<tr><td>Alta</td><td>Solicitud + usuario creado en BD</td></tr>
+<tr><td>Baja</td><td>Solicitud + estado inactivo</td></tr>
+<tr><td>Cambio rol</td><td>Ticket o email de autorización</td></tr>
+</table>
+<h2>8. Desviaciones</h2>
+<table>
+<tr><th>Situación</th><th>Acción</th></tr>
+<tr><td>Usuario sin acceso tras alta</td><td>Verificar rol y permisos; verificar estado Activo</td></tr>
+<tr><td>Credenciales comprometidas</td><td>Revocar sesiones + forzar cambio de contraseña</td></tr>
+</table>
+<hr>
+<p><strong>Aprobación:</strong> _Pendiente_</p></div>
+<div class="page-break"></div><div class="doc-section"><h1>Instructivo IP-009: Inicio y cierre de turno</h1>
+<p><strong>Código:</strong> SGC-PWY-IP-009  </p>
+<p><strong>Proceso:</strong> PRO-OP-009  </p>
+<p><strong>Versión:</strong> 1.0 | <strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Responsable:</strong> Operador de sala de control  </p>
+<p><strong>Indicador:</strong> IP-05 — 100% turnos con audio habilitado al inicio</p>
+<hr>
+<h2>1. Objetivo</h2>
+<p>Estandarizar el inicio y cierre de cada turno de monitoreo para garantizar continuidad operativa.</p>
+<h2>2. Instructivo — Inicio de turno</h2>
+<h3>Checklist de inicio (completar en orden)</h3>
+<table>
+<tr><th>#</th><th>Paso</th><th>Verificación</th><th>OK</th></tr>
+<tr><td>1</td><td>Encender equipo de sala de control</td><td>Pantalla y red activas</td><td>☐</td></tr>
+<tr><td>2</td><td>Abrir navegador → <code>http://10.1.0.136/</code></td><td>Página de login visible</td><td>☐</td></tr>
+<tr><td>3</td><td>Iniciar sesión con credenciales personales</td><td>Redirige a <code>/mapa</code></td><td>☐</td></tr>
+<tr><td>4</td><td><strong>Clic en icono de audio (altavoz)</strong></td><td>Icono activo, sin tachar</td><td>☐</td></tr>
+<tr><td>5</td><td>Verificar indicador WebSocket</td><td>Estado <strong>Conectado</strong> (verde)</td><td>☐</td></tr>
+<tr><td>6</td><td>Verificar mapa carga con polígonos</td><td>Polígonos visibles</td><td>☐</td></tr>
+<tr><td>7</td><td>Revisar KPIs: incidentes activos</td><td>Números coherentes</td><td>☐</td></tr>
+<tr><td>8</td><td>Ir a <code>/notificaciones</code></td><td>Revisar pendientes del turno anterior</td><td>☐</td></tr>
+<tr><td>9</td><td>Recibir relevo del operador saliente</td><td>Situación actual comunicada</td><td>☐</td></tr>
+<tr><td>10</td><td>Anotar en bitácora: hora inicio, operador, novedades</td><td>Bitácora actualizada</td><td>☐</td></tr>
+</table>
+<h3>Paso crítico — Audio (IP-05)</h3>
+<blockquote><p><strong>OBLIGATORIO:</strong> El paso 4 (habilitar audio) debe completarse en <strong>todos</strong> los turnos.</p></blockquote>
+<blockquote><p>El supervisor verifica al cierre del día que el 100% de turnos registraron audio habilitado.</p></blockquote>
+<h3>Verificación opcional de salud</h3>
+<pre><code># Desde navegador o terminal
+http://10.1.0.136/health
+# Respuesta esperada: HTTP 200</code></pre>
+<h2>3. Instructivo — Durante el turno</h2>
+<ol>
+<li>Ejecutar IP-001 (monitoreo continuo)</li>
+<li>Atender alertas según IP-002 e IP-003</li>
+<li>Registrar siniestros según IP-004 si ocurren</li>
+<li>Anotar incidencias del sistema según IP-010</li>
+</ol>
+<h2>4. Instructivo — Cierre de turno</h2>
+<h3>Checklist de cierre</h3>
+<table>
+<tr><th>#</th><th>Paso</th><th>Verificación</th><th>OK</th></tr>
+<tr><td>1</td><td>Informar al relevo: incidentes activos, zonas críticas</td><td>Comunicación verbal completada</td><td>☐</td></tr>
+<tr><td>2</td><td>Informar alertas pendientes no atendidas</td><td>Relevo informado</td><td>☐</td></tr>
+<tr><td>3</td><td>Marcar notificaciones propias como leídas o informar</td><td>Sin pendientes ocultos</td><td>☐</td></tr>
+<tr><td>4</td><td>Anotar en bitácora: hora cierre, novedades del turno</td><td>Bitácora actualizada</td><td>☐</td></tr>
+<tr><td>5</td><td>Cerrar sesión (sidebar → Cerrar sesión)</td><td>Redirige a login</td><td>☐</td></tr>
+<tr><td>6</td><td>Bloquear o apagar equipo según política CASISA</td><td>Equipo seguro</td><td>☐</td></tr>
+</table>
+<h2>5. Plantilla bitácora de turno</h2>
+<pre><code>BITÁCORA DE TURNO — Panel Waze
+Fecha: ____/____/____
+
+INICIO
+Hora: ______  Operador: ______________  Relevo de: ______________
+Audio habilitado: SÍ ☐  NO ☐
+WebSocket OK: SÍ ☐  NO ☐
+Novedades del turno anterior: _________________________________
+
+DURANTE EL TURNO
+| Hora | Evento / Acción                          |
+|------|------------------------------------------|
+|      |                                          |
+
+CIERRE
+Hora: ______  Relevo a: ______________
+Incidentes activos al cierre: ______________
+Novedades para próximo turno: _________________________________</code></pre>
+<h2>6. Medición del indicador IP-05</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Fórmula</td><td>(Turnos con audio=SÍ / Total turnos del día) × 100</td></tr>
+<tr><td>Fuente</td><td>Bitácora de turno, campo &quot;Audio habilitado&quot;</td></tr>
+<tr><td>Meta</td><td>100% diario</td></tr>
+<tr><td>Responsable</td><td>Supervisor al cierre del día</td></tr>
+</table>
+<h2>7. Desviaciones</h2>
+<table>
+<tr><th>Situación</th><th>Acción</th></tr>
+<tr><td>No se pudo habilitar audio</td><td>Probar otro navegador; reportar IP-010</td></tr>
+<tr><td>Relevo ausente</td><td>Informar a supervisor; no cerrar sesión hasta relevo</td></tr>
+</table>
+<hr>
+<p><strong>Aprobación:</strong> _Pendiente_</p></div>
+<div class="page-break"></div><div class="doc-section"><h1>Instructivo IP-010: Gestión de incidencias operativas</h1>
+<p><strong>Código:</strong> SGC-PWY-IP-010  </p>
+<p><strong>Proceso:</strong> PRO-OP-010  </p>
+<p><strong>Versión:</strong> 1.0 | <strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Responsable:</strong> Operador (detecta), Supervisor (gestiona)  </p>
+<p><strong>Indicador:</strong> IP-06 — 0 NC críticas abiertas &gt; 48 h  </p>
+<p><strong>Vinculación:</strong> PROC-006 (No conformidades)</p>
+<hr>
+<h2>1. Objetivo</h2>
+<p>Detectar, clasificar, escalar y resolver incidencias operativas del Panel Ejecutivo Waze.</p>
+<h2>2. Tipos de incidencia</h2>
+<table>
+<tr><th>Tipo</th><th>Ejemplos</th></tr>
+<tr><td><strong>Funcional</strong></td><td>Mapa vacío, filtros no funcionan, export PDF falla</td></tr>
+<tr><td><strong>Rendimiento</strong></td><td>Datos con &gt; 60 s de retraso, lentitud general</td></tr>
+<tr><td><strong>Audio/TTS</strong></td><td>Sin sonido, TTS no habla, sirena ausente</td></tr>
+<tr><td><strong>Conectividad</strong></td><td>WebSocket desconectado, login fallido</td></tr>
+<tr><td><strong>Datos</strong></td><td>Incidente falso, clima incorrecto, conteo erróneo</td></tr>
+</table>
+<h2>3. Instructivo — Detección y contención (Operador)</h2>
+<h3>Paso 1 — Identificar</h3>
+<ol>
+<li>Detectar comportamiento anómalo durante operación normal</li>
+<li>Anotar: fecha, hora, módulo, descripción, captura de pantalla</li>
+</ol>
+<h3>Paso 2 — Resolución básica</h3>
+<table>
+<tr><th>Problema</th><th>Acción inmediata</th></tr>
+<tr><td>Mapa no carga</td><td>F5 (refrescar)</td></tr>
+<tr><td>Sin audio</td><td>Clic en altavoz (IP-009 paso 4)</td></tr>
+<tr><td>WebSocket desconectado</td><td>F5; si persiste → Paso 3</td></tr>
+<tr><td>Login fallido</td><td>Verificar credenciales; reintentar</td></tr>
+<tr><td>Datos desactualizados</td><td>Esperar 30 s; F5 si persiste</td></tr>
+</table>
+<h3>Paso 3 — Escalar si persiste</h3>
+<ol>
+<li>Contactar supervisor (teléfono o canal interno)</li>
+<li>Enviar: descripción + captura + hora de inicio</li>
+<li>Continuar operación con workaround si existe (ej. usar otro módulo)</li>
+</ol>
+<h2>4. Instructivo — Gestión (Supervisor)</h2>
+<h3>Paso 1 — Clasificar severidad</h3>
+<table>
+<tr><th>Nivel</th><th>Criterio</th><th>Tiempo de respuesta</th></tr>
+<tr><td><strong>Crítica</strong></td><td>Sistema inoperativo, sala de control ciega</td><td>&lt; 1 hora</td></tr>
+<tr><td><strong>Mayor</strong></td><td>Funcionalidad clave degradada</td><td>&lt; 24 horas</td></tr>
+<tr><td><strong>Menor</strong></td><td>Impacto limitado, workaround disponible</td><td>&lt; 5 días</td></tr>
+<tr><td><strong>Observación</strong></td><td>Mejora sugerida, sin impacto operativo</td><td>Planificada</td></tr>
+</table>
+<h3>Paso 2 — Registrar NC</h3>
+<ol>
+<li>Asignar ID: <code>NC-PWY-YYYY-NNN</code></li>
+<li>Completar formulario (PROC-006 sección 8):</li>
+</ol>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>ID NC</td><td>NC-PWY-____-___</td></tr>
+<tr><td>Fecha detección</td><td></td></tr>
+<tr><td>Detectado por</td><td></td></tr>
+<tr><td>Descripción</td><td></td></tr>
+<tr><td>Severidad</td><td></td></tr>
+<tr><td>Acción inmediata</td><td></td></tr>
+<tr><td>Estado</td><td>Abierta</td></tr>
+</table>
+<h3>Paso 3 — Escalar según severidad</h3>
+<table>
+<tr><th>Severidad</th><th>Escalamiento</th></tr>
+<tr><td>Crítica</td><td>Contactar GED + admin sistemas inmediatamente</td></tr>
+<tr><td>Mayor</td><td>Crear ticket GED con prioridad alta</td></tr>
+<tr><td>Menor</td><td>Ticket GED prioridad normal</td></tr>
+</table>
+<h3>Paso 4 — Seguimiento</h3>
+<ol>
+<li>Verificar resolución con operador</li>
+<li>Confirmar que el problema no recurre</li>
+<li>Cerrar NC con fecha y evidencia</li>
+</ol>
+<h3>Paso 5 — Acción correctiva (si recurrencia)</h3>
+<ol>
+<li>Analizar causa raíz (5 porqués)</li>
+<li>Definir AC con responsable y fecha límite</li>
+<li>Verificar eficacia a 30 días</li>
+</ol>
+<h2>5. Medición del indicador IP-06</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Fórmula</td><td>Conteo de NC con severidad Crítica y estado Abierta &gt; 48 h</td></tr>
+<tr><td>Fuente</td><td>Registro de NC (PROC-006)</td></tr>
+<tr><td>Meta</td><td>0</td></tr>
+<tr><td>Frecuencia</td><td>Revisión semanal por Responsable de Calidad</td></tr>
+</table>
+<h2>6. Contactos de escalamiento</h2>
+<table>
+<tr><th>Nivel</th><th>Contacto</th><th>Canal</th></tr>
+<tr><td>Supervisor de turno</td><td>Según organigrama CASISA</td><td>Teléfono interno</td></tr>
+<tr><td>GED (desarrollo)</td><td>Equipo GED</td><td>Ticket / email interno</td></tr>
+<tr><td>Admin sistemas</td><td>Administrador servidor</td><td>Ticket infraestructura</td></tr>
+</table>
+<h2>7. Desviaciones del instructivo</h2>
+<p>Si una NC crítica supera 48 h sin cierre:</p>
+<ol>
+<li>Escalar a Responsable del Proyecto</li>
+<li>Registrar desviación en revisión por dirección (cláusula 9.3)</li>
+<li>Implementar AC de emergencia</li>
+</ol>
+<hr>
+<p><strong>Aprobación:</strong> _Pendiente_</p></div>
+<div class="page-break"></div><div class="doc-section"><h1>Registro RP-001: Verificación de monitoreo en tiempo real</h1>
+<p><strong>Código:</strong> SGC-PWY-RP-001  </p>
+<p><strong>Proceso:</strong> PRO-OP-001 | <strong>Instructivo:</strong> IP-001  </p>
+<p><strong>Indicador:</strong> IP-01 — Actualización de datos ≤ 30 s  </p>
+<p><strong>Retención:</strong> 90 días | <strong>Versión:</strong> 1.0</p>
+<hr>
+<h2>Datos del registro</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>ID registro</td><td>RP-001-________</td></tr>
+<tr><td>Fecha</td><td>____/____/____</td></tr>
+<tr><td>Turno</td><td>Mañana / Tarde / Noche</td></tr>
+<tr><td>Operador</td><td></td></tr>
+<tr><td>Supervisor</td><td></td></tr>
+</table>
+<hr>
+<h2>Muestreo de actualización de datos (IP-01)</h2>
+<p>Realizar <strong>3 mediciones</strong> por turno. Registrar tiempo entre eventos <code>waze:data_updated</code> consecutivos.</p>
+<table>
+<tr><th>Muestra</th><th>Hora inicio</th><th>Hora actualización</th><th>Δ segundos</th><th>≤ 30 s (Sí/No)</th></tr>
+<tr><td>1</td><td></td><td></td><td></td><td></td></tr>
+<tr><td>2</td><td></td><td></td><td></td><td></td></tr>
+<tr><td>3</td><td></td><td></td><td></td><td></td></tr>
+</table>
+<p><strong>Promedio del turno:</strong> ______ segundos  </p>
+<p><strong>Meta IP-01:</strong> ≤ 30 s — <strong>Cumple:</strong> Sí ☐  No ☐</p>
+<hr>
+<h2>Checklist de verificación (cada 30 min)</h2>
+<table>
+<tr><th>Hora</th><th>WebSocket OK</th><th>Mapa OK</th><th>KPIs coherentes</th><th>Audio activo</th><th>Observaciones</th></tr>
+<tr><td></td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td></td></tr>
+<tr><td></td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td></td></tr>
+<tr><td></td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td></td></tr>
+</table>
+<hr>
+<h2>Incidencias del turno relacionadas con monitoreo</h2>
+<table>
+<tr><th>Hora</th><th>Descripción</th><th>Acción tomada</th><th>Derivado a RP-010</th></tr>
+<tr><td></td><td></td><td></td><td>Sí ☐  No ☐</td></tr>
+</table>
+<hr>
+<h2>Cierre</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Firma operador</td><td>_________________________</td></tr>
+<tr><td>Firma supervisor (revisión)</td><td>_________________________</td></tr>
+<tr><td>Fecha cierre</td><td>____/____/____</td></tr>
+</table></div>
+<div class="page-break"></div><div class="doc-section"><h1>Registro RP-002: Alertas atendidas</h1>
+<p><strong>Código:</strong> SGC-PWY-RP-002  </p>
+<p><strong>Proceso:</strong> PRO-OP-002 | <strong>Instructivo:</strong> IP-002  </p>
+<p><strong>Indicador:</strong> IP-02 — ≥ 95% alertas atendidas en &lt; 2 min  </p>
+<p><strong>Retención:</strong> 90 días | <strong>Versión:</strong> 1.0</p>
+<hr>
+<h2>Datos del registro</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>ID registro</td><td>RP-002-________</td></tr>
+<tr><td>Fecha</td><td>____/____/____</td></tr>
+<tr><td>Turno</td><td></td></tr>
+<tr><td>Operador</td><td></td></tr>
+</table>
+<hr>
+<h2>Detalle de alertas</h2>
+<table>
+<tr><th>#</th><th>Hora recepción</th><th>Tipo incidente</th><th>Ubicación / Polígono</th><th>Hora atendida</th><th>Δ min</th><th>&lt; 2 min</th><th>Comunicación externa</th><th>Marcada leída</th></tr>
+<tr><td>1</td><td></td><td></td><td></td><td></td><td></td><td>Sí ☐ No ☐</td><td>Sí ☐ No ☐</td><td>Sí ☐</td></tr>
+<tr><td>2</td><td></td><td></td><td></td><td></td><td></td><td>Sí ☐ No ☐</td><td>Sí ☐ No ☐</td><td>Sí ☐</td></tr>
+<tr><td>3</td><td></td><td></td><td></td><td></td><td></td><td>Sí ☐ No ☐</td><td>Sí ☐ No ☐</td><td>Sí ☐</td></tr>
+<tr><td>4</td><td></td><td></td><td></td><td></td><td></td><td>Sí ☐ No ☐</td><td>Sí ☐ No ☐</td><td>Sí ☐</td></tr>
+<tr><td>5</td><td></td><td></td><td></td><td></td><td></td><td>Sí ☐ No ☐</td><td>Sí ☐ No ☐</td><td>Sí ☐</td></tr>
+</table>
+<p>_(Adjuntar hojas adicionales si el turno supera 5 alertas)_</p>
+<hr>
+<h2>Resumen del indicador IP-02</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Total alertas del turno</td><td></td></tr>
+<tr><td>Atendidas en &lt; 2 min</td><td></td></tr>
+<tr><td>Porcentaje</td><td>______%</td></tr>
+<tr><td>Meta ≥ 95%</td><td>Cumple: Sí ☐  No ☐</td></tr>
+</table>
+<hr>
+<h2>Cierre</h2>
+<table>
+<tr><th>Firma operador</th><th>_________________________</th></tr>
+<tr><td>Firma supervisor</td><td>_________________________</td></tr>
+<tr><td>Fecha</td><td>____/____/____</td></tr>
+</table></div>
+<div class="page-break"></div><div class="doc-section"><h1>Registro RP-003: Respuesta a zonas peligrosas</h1>
+<p><strong>Código:</strong> SGC-PWY-RP-003  </p>
+<p><strong>Proceso:</strong> PRO-OP-003 | <strong>Instructivo:</strong> IP-003  </p>
+<p><strong>Indicador:</strong> IP-03 — Alerta sonora ≤ 5 s  </p>
+<p><strong>Retención:</strong> 1 año | <strong>Versión:</strong> 1.0</p>
+<hr>
+<h2>Datos del evento</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>ID registro</td><td>RP-003-________</td></tr>
+<tr><td>Fecha</td><td>____/____/____</td></tr>
+<tr><td>Hora emisión backend</td><td>:</td></tr>
+<tr><td>Hora sirena en cliente</td><td>:</td></tr>
+<tr><td>Δ segundos (IP-03)</td><td></td></tr>
+<tr><td>Meta ≤ 5 s</td><td>Cumple: Sí ☐  No ☐</td></tr>
+<tr><td>Operador</td><td></td></tr>
+</table>
+<hr>
+<h2>Detalle del incidente en zona peligrosa</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Nombre zona peligrosa</td><td></td></tr>
+<tr><td>Nivel de peligrosidad</td><td>Extrema / Alta / Media</td></tr>
+<tr><td>Tipo de incidente Waze</td><td></td></tr>
+<tr><td>Ubicación / Km referencia</td><td></td></tr>
+<tr><td>Polígono afectado</td><td></td></tr>
+<tr><td>UUID incidente (si disponible)</td><td></td></tr>
+</table>
+<hr>
+<h2>Acciones tomadas</h2>
+<table>
+<tr><th>Hora</th><th>Acción</th><th>Responsable</th><th>Resultado</th></tr>
+<tr><td></td><td>Comunicación a patrulla</td><td></td><td></td></tr>
+<tr><td></td><td>Comunicación a supervisor</td><td></td><td></td></tr>
+<tr><td></td><td>Protocolo CASISA activado</td><td></td><td></td></tr>
+<tr><td></td><td>Incidente resuelto en mapa</td><td></td><td></td></tr>
+</table>
+<hr>
+<h2>Seguimiento</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Hora cierre del incidente</td><td>:</td></tr>
+<tr><td>Duración total del evento</td><td>min</td></tr>
+<tr><td>Observaciones</td><td></td></tr>
+</table>
+<hr>
+<h2>Cierre</h2>
+<table>
+<tr><th>Firma operador</th><th>_________________________</th></tr>
+<tr><td>Firma supervisor</td><td>_________________________</td></tr>
+<tr><td>Fecha</td><td>____/____/____</td></tr>
+</table></div>
+<div class="page-break"></div><div class="doc-section"><h1>Registro RP-004: Validación de siniestros viales</h1>
+<p><strong>Código:</strong> SGC-PWY-RP-004  </p>
+<p><strong>Proceso:</strong> PRO-OP-004 | <strong>Instructivo:</strong> IP-004  </p>
+<p><strong>Indicador:</strong> IP-04 — ≥ 90% con clima histórico completo  </p>
+<p><strong>Retención:</strong> 5 años | <strong>Versión:</strong> 1.0</p>
+<hr>
+<h2>Registro individual de siniestro</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>ID registro</td><td>RP-004-________</td></tr>
+<tr><td>ID siniestro en sistema</td><td></td></tr>
+<tr><td>Fecha del siniestro</td><td>____/____/____ :</td></tr>
+<tr><td>Fecha de registro en sistema</td><td>____/____/____</td></tr>
+<tr><td>Operador que registró</td><td></td></tr>
+<tr><td>Supervisor que validó</td><td></td></tr>
+</table>
+<hr>
+<h2>Checklist de completitud</h2>
+<table>
+<tr><th>#</th><th>Requisito</th><th>Cumple</th><th>Observación</th></tr>
+<tr><td>1</td><td>Fecha y hora del siniestro</td><td>Sí ☐ No ☐</td><td></td></tr>
+<tr><td>2</td><td>Tipo de siniestro seleccionado</td><td>Sí ☐ No ☐</td><td></td></tr>
+<tr><td>3</td><td>Descripción completa</td><td>Sí ☐ No ☐</td><td></td></tr>
+<tr><td>4</td><td>Coordenadas / ubicación en mapa</td><td>Sí ☐ No ☐</td><td></td></tr>
+<tr><td>5</td><td>Mojón kilométrico de referencia</td><td>Sí ☐ No ☐ N/A</td><td></td></tr>
+<tr><td>6</td><td>Clima histórico cargado</td><td>Sí ☐ No ☐</td><td></td></tr>
+<tr><td>7</td><td>Temperatura registrada</td><td>Sí ☐ No ☐</td><td></td></tr>
+<tr><td>8</td><td>Viento registrado</td><td>Sí ☐ No ☐</td><td></td></tr>
+<tr><td>9</td><td>Visibilidad registrada</td><td>Sí ☐ No ☐</td><td></td></tr>
+<tr><td>10</td><td>Precipitación registrada</td><td>Sí ☐ No ☐</td><td></td></tr>
+<tr><td>11</td><td>Resumen meteorológico presente</td><td>Sí ☐ No ☐</td><td></td></tr>
+<tr><td>12</td><td>Multimedia adjunta (si aplica)</td><td>Sí ☐ No ☐ N/A</td><td></td></tr>
+<tr><td>13</td><td>PDF exportado (si aplica)</td><td>Sí ☐ No ☐ N/A</td><td></td></tr>
+</table>
+<p><strong>Registro completo:</strong> Sí ☐  No ☐  </p>
+<p><strong>Cuenta para IP-04:</strong> Sí ☐  No ☐</p>
+<hr>
+<h2>Resumen mensual IP-04 (completar supervisor — primer día hábil del mes)</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Mes / Año</td><td>____/____</td></tr>
+<tr><td>Total siniestros del mes</td><td></td></tr>
+<tr><td>Con clima histórico completo</td><td></td></tr>
+<tr><td>Porcentaje</td><td>______%</td></tr>
+<tr><td>Meta ≥ 90%</td><td>Cumple: Sí ☐  No ☐</td></tr>
+<tr><td>Firma supervisor</td><td>_________________________</td></tr>
+</table></div>
+<div class="page-break"></div><div class="doc-section"><h1>Registro RP-005: Consulta de incidentes</h1>
+<p><strong>Código:</strong> SGC-PWY-RP-005  </p>
+<p><strong>Proceso:</strong> PRO-OP-005 | <strong>Instructivo:</strong> IP-005  </p>
+<p><strong>Retención:</strong> 90 días | <strong>Versión:</strong> 1.0</p>
+<hr>
+<h2>Datos de la consulta</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>ID registro</td><td>RP-005-________</td></tr>
+<tr><td>Fecha</td><td>____/____/____</td></tr>
+<tr><td>Usuario</td><td></td></tr>
+<tr><td>Módulo consultado</td><td><code>/incidentes</code> / <code>/incidentes/historico</code> / <code>/estadisticas</code></td></tr>
+</table>
+<hr>
+<h2>Criterios de búsqueda aplicados</h2>
+<table>
+<tr><th>Filtro</th><th>Valor</th></tr>
+<tr><td>Tipo de incidente</td><td></td></tr>
+<tr><td>Subtipo</td><td></td></tr>
+<tr><td>Fecha desde</td><td>____/____/____</td></tr>
+<tr><td>Fecha hasta</td><td>____/____/____</td></tr>
+<tr><td>Polígono</td><td></td></tr>
+<tr><td>Estado activo/inactivo</td><td></td></tr>
+<tr><td>Texto de búsqueda</td><td></td></tr>
+</table>
+<hr>
+<h2>Resultado</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Cantidad de resultados</td><td></td></tr>
+<tr><td>Exportación generada</td><td>Sí ☐  No ☐</td></tr>
+<tr><td>Nombre archivo exportado</td><td></td></tr>
+<tr><td>Hallazgo relevante</td><td></td></tr>
+<tr><td>Acción derivada</td><td>Ninguna / Comunicar supervisor / Ajustar zona / Otro: ______</td></tr>
+</table>
+<hr>
+<h2>Cierre</h2>
+<table>
+<tr><th>Firma usuario</th><th>_________________________</th></tr>
+<tr><td>Fecha</td><td>____/____/____</td></tr>
+</table></div>
+<div class="page-break"></div><div class="doc-section"><h1>Registro RP-006: Informe estadístico operativo</h1>
+<p><strong>Código:</strong> SGC-PWY-RP-006  </p>
+<p><strong>Proceso:</strong> PRO-OP-006 | <strong>Instructivo:</strong> IP-006  </p>
+<p><strong>Retención:</strong> 2 años | <strong>Versión:</strong> 1.0</p>
+<hr>
+<h2>Datos del informe</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>ID registro</td><td>RP-006-________</td></tr>
+<tr><td>Período analizado</td><td>Del ____/____/____ al ____/____/____</td></tr>
+<tr><td>Frecuencia</td><td>Semanal / Mensual / Trimestral</td></tr>
+<tr><td>Elaborado por</td><td></td></tr>
+<tr><td>Fecha de emisión</td><td>____/____/____</td></tr>
+</table>
+<hr>
+<h2>1. Resumen ejecutivo</h2>
+<p>_(Máximo 5 líneas)_</p>
+<hr>
+<h2>2. Tendencia de incidentes</h2>
+<table>
+<tr><th>Indicador</th><th>Valor período anterior</th><th>Valor período actual</th><th>Tendencia ▲▼→</th></tr>
+<tr><td>Total incidentes</td><td></td><td></td><td></td></tr>
+<tr><td>Incidentes críticos</td><td></td><td></td><td></td></tr>
+<tr><td>Polígonos en estado crítico (promedio)</td><td></td><td></td><td></td></tr>
+</table>
+<hr>
+<h2>3. Hotspots identificados</h2>
+<table>
+<tr><th>#</th><th>Polígono / Zona</th><th>Cantidad incidentes</th><th>Acción propuesta</th></tr>
+<tr><td>1</td><td></td><td></td><td></td></tr>
+<tr><td>2</td><td></td><td></td><td></td></tr>
+<tr><td>3</td><td></td><td></td><td></td></tr>
+</table>
+<hr>
+<h2>4. Disponibilidad de datos Waze</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Disponibilidad del período</td><td>______%</td></tr>
+<tr><td>Meta referencia</td><td>≥ 95%</td></tr>
+<tr><td>Cumple</td><td>Sí ☐  No ☐</td></tr>
+<tr><td>Causas de indisponibilidad (si aplica)</td><td></td></tr>
+</table>
+<hr>
+<h2>5. Comparación por grupos de polígonos</h2>
+<table>
+<tr><th>Grupo</th><th>Incidentes</th><th>Velocidad promedio</th><th>Observación</th></tr>
+<tr><td></td><td></td><td></td><td></td></tr>
+<tr><td></td><td></td><td></td><td></td></tr>
+</table>
+<hr>
+<h2>6. Recomendaciones</h2>
+<table>
+<tr><th>#</th><th>Recomendación</th><th>Responsable</th><th>Plazo</th></tr>
+<tr><td>1</td><td></td><td></td><td></td></tr>
+<tr><td>2</td><td></td><td></td><td></td></tr>
+</table>
+<hr>
+<h2>7. Aprobación</h2>
+<table>
+<tr><th>Firma supervisor</th><th>_________________________</th></tr>
+<tr><td>Firma gerencia (trimestral)</td><td>_________________________</td></tr>
+<tr><td>Próxima revisión</td><td>____/____/____</td></tr>
+</table></div>
+<div class="page-break"></div><div class="doc-section"><h1>Registro RP-007: Cambios administrativos del sistema</h1>
+<p><strong>Código:</strong> SGC-PWY-RP-007  </p>
+<p><strong>Proceso:</strong> PRO-OP-007 | <strong>Instructivo:</strong> IP-007  </p>
+<p><strong>Retención:</strong> 2 años | <strong>Versión:</strong> 1.0</p>
+<hr>
+<h2>Datos del cambio</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>ID registro</td><td>RP-007-________</td></tr>
+<tr><td>Fecha / Hora</td><td>____/____/____  :</td></tr>
+<tr><td>Administrador</td><td></td></tr>
+<tr><td>Sección modificada</td><td>Polígonos / Catálogos / Mojones / Config TTS / Otro</td></tr>
+</table>
+<hr>
+<h2>Descripción del cambio</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Tipo</td><td>Alta / Modificación / Baja / Sincronización</td></tr>
+<tr><td>Elemento afectado (ID/nombre)</td><td></td></tr>
+<tr><td>Motivo del cambio</td><td></td></tr>
+<tr><td>Impacto estimado</td><td>Bajo / Medio / Alto</td></tr>
+</table>
+<hr>
+<h2>Detalle técnico</h2>
+<pre><code>Descripción del cambio realizado:
+_________________________________________________________________
+_________________________________________________________________
+_________________________________________________________________</code></pre>
+<hr>
+<h2>Verificación post-cambio</h2>
+<table>
+<tr><th>Verificación</th><th>Resultado</th><th>Hora</th></tr>
+<tr><td><code>/health</code> → HTTP 200</td><td>OK ☐  FAIL ☐</td><td>:</td></tr>
+<tr><td>Smoke test <code>/mapa</code></td><td>OK ☐  FAIL ☐</td><td>:</td></tr>
+<tr><td>Polling Waze incluye cambio</td><td>OK ☐  FAIL ☐ N/A</td><td>:</td></tr>
+<tr><td>TTS funcional (si aplica)</td><td>OK ☐  FAIL ☐ N/A</td><td>:</td></tr>
+</table>
+<p><strong>Cambio exitoso:</strong> Sí ☐  No ☐  </p>
+<p><strong>Rollback requerido:</strong> Sí ☐  No ☐</p>
+<hr>
+<h2>Autorización</h2>
+<table>
+<tr><th>Solicitado por</th><th></th></tr>
+<tr><td>Autorizado por (supervisor)</td><td></td></tr>
+<tr><td>Firma administrador</td><td>_________________________</td></tr>
+</table></div>
+<div class="page-break"></div><div class="doc-section"><h1>Registro RP-008: Gestión de usuarios y accesos</h1>
+<p><strong>Código:</strong> SGC-PWY-RP-008  </p>
+<p><strong>Proceso:</strong> PRO-OP-008 | <strong>Instructivo:</strong> IP-008  </p>
+<p><strong>Retención:</strong> 5 años | <strong>Versión:</strong> 1.0</p>
+<hr>
+<h2>Datos de la operación</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>ID registro</td><td>RP-008-________</td></tr>
+<tr><td>Fecha</td><td>____/____/____</td></tr>
+<tr><td>Tipo de operación</td><td>Alta / Modificación / Baja / Revocación sesiones / Cambio contraseña forzado</td></tr>
+<tr><td>Administrador</td><td></td></tr>
+</table>
+<hr>
+<h2>Datos del usuario</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Email</td><td></td></tr>
+<tr><td>Nombre completo</td><td></td></tr>
+<tr><td>Área / Puesto</td><td></td></tr>
+<tr><td>Rol asignado</td><td>Administrador / Supervisor / Operador / Visualizador</td></tr>
+<tr><td>Estado</td><td>Activo / Inactivo</td></tr>
+</table>
+<hr>
+<h2>Permisos asignados (verificar mínimo privilegio)</h2>
+<table>
+<tr><th>Permiso</th><th>Asignado</th></tr>
+<tr><td><code>admin</code></td><td>☐</td></tr>
+<tr><td><code>map.view</code></td><td>☐</td></tr>
+<tr><td><code>danger_zones.view</code></td><td>☐</td></tr>
+<tr><td><code>danger_zones.edit</code></td><td>☐</td></tr>
+<tr><td><code>notifications.view</code></td><td>☐</td></tr>
+<tr><td><code>accidents.view</code></td><td>☐</td></tr>
+<tr><td><code>accidents.create</code></td><td>☐</td></tr>
+<tr><td><code>accidents.export</code></td><td>☐</td></tr>
+<tr><td><code>incidents.view</code></td><td>☐</td></tr>
+<tr><td><code>incidents.export</code></td><td>☐</td></tr>
+</table>
+<hr>
+<h2>Solicitud y autorización</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>N° solicitud / ticket</td><td></td></tr>
+<tr><td>Solicitado por</td><td></td></tr>
+<tr><td>Autorizado por (supervisor)</td><td></td></tr>
+<tr><td>Canal entrega credenciales</td><td>Presencial / Teléfono / Otro seguro</td></tr>
+<tr><td>Fecha entrega credenciales</td><td>____/____/____</td></tr>
+<tr><td>Usuario confirmó primer login</td><td>Sí ☐  No ☐  Pendiente ☐</td></tr>
+</table>
+<hr>
+<h2>Baja de usuario (completar si aplica)</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Motivo de baja</td><td>Rotación / Renuncia / Cambio de función / Otro</td></tr>
+<tr><td>Fecha efectiva de baja</td><td>____/____/____</td></tr>
+<tr><td>Sesiones revocadas</td><td>Sí ☐</td></tr>
+<tr><td>Verificado: no puede iniciar sesión</td><td>Sí ☐</td></tr>
+</table>
+<hr>
+<h2>Cierre</h2>
+<table>
+<tr><th>Firma administrador</th><th>_________________________</th></tr>
+<tr><td>Fecha</td><td>____/____/____</td></tr>
+</table></div>
+<div class="page-break"></div><div class="doc-section"><h1>Registro RP-009: Bitácora de turno</h1>
+<p><strong>Código:</strong> SGC-PWY-RP-009  </p>
+<p><strong>Proceso:</strong> PRO-OP-009 | <strong>Instructivo:</strong> IP-009  </p>
+<p><strong>Indicador:</strong> IP-05 — 100% turnos con audio habilitado  </p>
+<p><strong>Retención:</strong> 90 días | <strong>Versión:</strong> 1.0</p>
+<hr>
+<h2>INICIO DE TURNO</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>ID registro</td><td>RP-009-________</td></tr>
+<tr><td>Fecha</td><td>____/____/____</td></tr>
+<tr><td>Hora inicio</td><td>:</td></tr>
+<tr><td>Operador entrante</td><td></td></tr>
+<tr><td>Operador saliente (relevo de)</td><td></td></tr>
+<tr><td>Turno</td><td>Mañana / Tarde / Noche</td></tr>
+</table>
+<h3>Checklist de inicio</h3>
+<table>
+<tr><th>#</th><th>Verificación</th><th>OK</th></tr>
+<tr><td>1</td><td>Login exitoso en <code>http://10.1.0.136/</code></td><td>☐</td></tr>
+<tr><td>2</td><td><strong>Audio habilitado</strong> (icono altavoz activo)</td><td>☐</td></tr>
+<tr><td>3</td><td>WebSocket conectado (verde)</td><td>☐</td></tr>
+<tr><td>4</td><td>Mapa carga con polígonos</td><td>☐</td></tr>
+<tr><td>5</td><td>KPIs coherentes</td><td>☐</td></tr>
+<tr><td>6</td><td>Notificaciones pendientes revisadas</td><td>☐</td></tr>
+<tr><td>7</td><td>Relevo verbal completado</td><td>☐</td></tr>
+</table>
+<p><strong>Audio habilitado (IP-05):</strong> Sí ☐  No ☐</p>
+<h3>Novedades del turno anterior</h3>
+<hr>
+<h2>DURANTE EL TURNO — Registro de eventos</h2>
+<table>
+<tr><th>Hora</th><th>Evento / Acción</th><th>Módulo</th><th>Derivado a RP</th></tr>
+<tr><td></td><td></td><td></td><td>RP-002 / RP-003 / RP-004 / RP-010</td></tr>
+<tr><td></td><td></td><td></td><td></td></tr>
+<tr><td></td><td></td><td></td><td></td></tr>
+<tr><td></td><td></td><td></td><td></td></tr>
+<tr><td></td><td></td><td></td><td></td></tr>
+</table>
+<hr>
+<h2>CIERRE DE TURNO</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Hora cierre</td><td>:</td></tr>
+<tr><td>Operador relevo (entrega a)</td><td></td></tr>
+<tr><td>Incidentes activos al cierre</td><td></td></tr>
+<tr><td>Alertas pendientes informadas al relevo</td><td>Sí ☐  No ☐  N/A ☐</td></tr>
+</table>
+<h3>Novedades para el próximo turno</h3>
+<hr>
+<h3>Firmas</h3>
+<table>
+<tr><th>Operador saliente</th><th>_________________________</th></tr>
+<tr><td>Operador entrante (recibe relevo)</td><td>_________________________</td></tr>
+<tr><td>Supervisor (revisión diaria IP-05)</td><td>_________________________</td></tr>
+</table>
+<hr>
+<h2>Resumen diario IP-05 (completar supervisor)</h2>
+<table>
+<tr><th>Fecha</th><th>Total turnos del día</th><th>Con audio=SÍ</th><th>%</th><th>Meta 100%</th></tr>
+<tr><td>____/____/____</td><td></td><td></td><td>%</td><td>Cumple: Sí ☐ No ☐</td></tr>
+</table></div>
+<div class="page-break"></div><div class="doc-section"><h1>Registro RP-010: No conformidades operativas</h1>
+<p><strong>Código:</strong> SGC-PWY-RP-010  </p>
+<p><strong>Proceso:</strong> PRO-OP-010 | <strong>Instructivo:</strong> IP-010  </p>
+<p><strong>Indicador:</strong> IP-06 — 0 NC críticas abiertas &gt; 48 h  </p>
+<p><strong>Vinculación:</strong> PROC-006  </p>
+<p><strong>Retención:</strong> 5 años | <strong>Versión:</strong> 1.0</p>
+<hr>
+<h2>Identificación de la NC</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>ID NC</td><td>NC-PWY-____-___</td></tr>
+<tr><td>ID registro RP</td><td>RP-010-________</td></tr>
+<tr><td>Fecha de detección</td><td>____/____/____  :</td></tr>
+<tr><td>Detectado por</td><td></td></tr>
+<tr><td>Módulo / Proceso afectado</td><td></td></tr>
+<tr><td>Tipo</td><td>Funcional / Rendimiento / Audio-TTS / Conectividad / Datos</td></tr>
+</table>
+<hr>
+<h2>Descripción</h2>
+<p><strong>¿Qué ocurrió?</strong></p>
+<hr>
+<p><strong>¿Cuál fue el impacto operativo?</strong></p>
+<hr>
+<p><strong>Captura de pantalla adjunta:</strong> Sí ☐  No ☐ — Archivo: _______________</p>
+<hr>
+<h2>Clasificación</h2>
+<table>
+<tr><th>Severidad</th><th>☐ Crítica  ☐ Mayor  ☐ Menor  ☐ Observación</th></tr>
+<tr><td>Tiempo máximo de respuesta</td><td>Crítica: 1 h / Mayor: 24 h / Menor: 5 días</td></tr>
+</table>
+<hr>
+<h2>Acción inmediata (contención)</h2>
+<table>
+<tr><th>Hora</th><th>Acción realizada</th><th>Responsable</th><th>Resultado</th></tr>
+<tr><td></td><td></td><td></td><td></td></tr>
+</table>
+<hr>
+<h2>Análisis de causa raíz</h2>
+<table>
+<tr><th>Pregunta</th><th>Respuesta</th></tr>
+<tr><td>¿Por qué ocurrió?</td><td></td></tr>
+<tr><td>¿Por qué no se detectó antes?</td><td></td></tr>
+<tr><td>¿Por qué no se previno?</td><td></td></tr>
+</table>
+<hr>
+<h2>Acción correctiva (AC)</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Descripción de la AC</td><td></td></tr>
+<tr><td>Responsable AC</td><td></td></tr>
+<tr><td>Fecha límite AC</td><td>____/____/____</td></tr>
+<tr><td>AC implementada</td><td>Sí ☐  No ☐  Fecha: ____/____/____</td></tr>
+</table>
+<hr>
+<h2>Verificación de eficacia</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Fecha verificación</td><td>____/____/____</td></tr>
+<tr><td>Método de verificación</td><td></td></tr>
+<tr><td>NC se repitió en 30/90 días</td><td>Sí ☐  No ☐</td></tr>
+<tr><td>AC eficaz</td><td>Sí ☐  No ☐</td></tr>
+</table>
+<hr>
+<h2>Cierre</h2>
+<table>
+<tr><th>Estado</th><th>☐ Abierta  ☐ En tratamiento  ☐ Cerrada</th></tr>
+<tr><td>Fecha de cierre</td><td>____/____/____</td></tr>
+<tr><td>Firma supervisor</td><td>_________________________</td></tr>
+<tr><td>Firma responsable de calidad</td><td>_________________________</td></tr>
+</table>
+<hr>
+<h2>Control IP-06 (revisión semanal)</h2>
+<table>
+<tr><th>Semana</th><th>NC críticas abiertas &gt; 48 h</th><th>Meta = 0</th><th>Cumple</th></tr>
+<tr><td></td><td></td><td></td><td>Sí ☐ No ☐</td></tr>
+</table></div>
+<div class="page-break"></div><div class="doc-section"><h1>Procedimiento: Control de Documentos y Registros</h1>
+<p><strong>Código:</strong> SGC-PWY-PROC-001  </p>
+<p><strong>Versión:</strong> 1.0  </p>
+<p><strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Cláusula ISO 9001:2015:</strong> 7.5 – Información documentada</p>
+<hr>
+<h2>1. Objetivo</h2>
+<p>Establecer los criterios para la creación, actualización, control de versiones, distribución, almacenamiento y retención de la información documentada del SGC del Panel Ejecutivo Waze.</p>
+<h2>2. Alcance</h2>
+<p>Aplica a toda la documentación del SGC (manuales, procedimientos, registros) y a la documentación técnica vinculada al proyecto almacenada en el repositorio Git.</p>
+<h2>3. Responsabilidades</h2>
+<table>
+<tr><th>Rol</th><th>Actividad</th></tr>
+<tr><td>Responsable de Calidad</td><td>Mantener REG-001, aprobar versiones de procedimientos</td></tr>
+<tr><td>GED</td><td>Crear y actualizar documentación técnica</td></tr>
+<tr><td>Responsable del Proyecto</td><td>Aprobar cambios al Manual del SGC</td></tr>
+</table>
+<h2>4. Definiciones</h2>
+<table>
+<tr><th>Término</th><th>Definición</th></tr>
+<tr><td>Documento</td><td>Información controlada que requiere revisión y aprobación</td></tr>
+<tr><td>Registro</td><td>Evidencia de actividades realizadas; no se edita tras su creación</td></tr>
+<tr><td>Versión</td><td>Identificador secuencial de revisiones de un documento</td></tr>
+</table>
+<h2>5. Procedimiento</h2>
+<h3>5.1 Codificación de documentos</h3>
+<table>
+<tr><th>Prefijo</th><th>Tipo</th><th>Ejemplo</th></tr>
+<tr><td>SGC-PWY-XXX</td><td>Manual / documento maestro</td><td>SGC-PWY-001</td></tr>
+<tr><td>SGC-PWY-PROC-XXX</td><td>Procedimiento</td><td>SGC-PWY-PROC-002</td></tr>
+<tr><td>SGC-PWY-REG-XXX</td><td>Registro / plantilla</td><td>SGC-PWY-REG-001</td></tr>
+</table>
+<h3>5.2 Creación de documentos</h3>
+<ol>
+<li>Elaborar el borrador en formato Markdown (<code>.md</code>) en <code>docs/</code> o <code>docs/iso9001/</code>.</li>
+<li>Asignar código, versión inicial <code>1.0</code> y fecha de emisión.</li>
+<li>Registrar el documento en <a href="./REG-001_Registro_Documentos.md">REG-001_Registro_Documentos.md</a>.</li>
+<li>Solicitar revisión al Responsable de Calidad o Responsable del Proyecto.</li>
+<li>Tras aprobación, commitear en Git con mensaje <code>docs: &lt;descripción&gt;</code>.</li>
+</ol>
+<h3>5.3 Actualización de documentos</h3>
+<ol>
+<li>Identificar la necesidad de cambio (revisión programada, cambio de proceso, NC).</li>
+<li>Incrementar versión:</li>
+</ol>
+<p>   - Cambio menor (correcciones): incremento decimal (1.0 → 1.1)</p>
+<p>   - Cambio mayor (reestructuración): incremento entero (1.x → 2.0)</p>
+<ol>
+<li>Registrar el cambio en la tabla de historial del documento.</li>
+<li>Actualizar REG-001 con nueva versión y fecha.</li>
+<li>Commitear y, si aplica, regenerar PDF con <code>npm run docs:iso-pdf</code>.</li>
+</ol>
+<h3>5.4 Control de registros</h3>
+<p>Los registros se generan automáticamente o manualmente y no se modifican después de su creación.</p>
+<table>
+<tr><th>Registro</th><th>Ubicación</th><th>Retención</th></tr>
+<tr><td>Historial de commits</td><td>Git (<code>git log</code>)</td><td>Permanente</td></tr>
+<tr><td>Pull Requests</td><td>GitHub</td><td>Permanente</td></tr>
+<tr><td>Logs de aplicación</td><td>Servidor / archivos de log</td><td>90 días mínimo</td></tr>
+<tr><td>Registros de proceso (RP-001…010)</td><td>Sala de control / calidad CASISA</td><td>90 días – 5 años (ver cada RP)</td></tr>
+<tr><td>Bitácoras de turno (RP-009)</td><td>Carpeta turno / digital</td><td>90 días</td></tr>
+<tr><td>NC operativas (RP-010)</td><td>Tickets + archivo calidad</td><td>5 años</td></tr>
+<tr><td>Auditorías de código</td><td><code>apps/*/docs/CODE_AUDIT_REPORT.md</code></td><td>Permanente</td></tr>
+<tr><td>Migraciones de BD</td><td><code>apps/backend/src/migrations/</code></td><td>Permanente</td></tr>
+<tr><td>Backups PostgreSQL</td><td>Servidor (admin sistemas)</td><td>Según política CASISA</td></tr>
+</table>
+<h3>5.5 Distribución y acceso</h3>
+<ul>
+<li><strong>Documentación del SGC:</strong> Repositorio Git, carpeta <code>docs/iso9001/</code></li>
+<li><strong>PDFs:</strong> Generados localmente o en CI; almacenados en <code>docs/iso9001/</code></li>
+<li><strong>Acceso:</strong> Miembros del equipo GED y auditores autorizados por CASISA</li>
+</ul>
+<h3>5.6 Documentos obsoletos</h3>
+<p>Los documentos obsoletos no se eliminan del historial Git. Se marcan como <strong>Obsoleto</strong> en REG-001 y se reemplazan por la versión vigente. Las versiones anteriores permanecen accesibles mediante <code>git log</code>.</p>
+<h3>5.7 Documentos de origen externo</h3>
+<table>
+<tr><th>Documento externo</th><th>Control</th></tr>
+<tr><td>ISO 9001:2015</td><td>Referencia normativa; actualización según ISO</td></tr>
+<tr><td>Documentación Waze CCP</td><td>Versión según portal de partners</td></tr>
+<tr><td>Dependencias npm</td><td>Versionado en <code>package-lock.json</code></td></tr>
+</table>
+<h2>6. Registros generados</h2>
+<ul>
+<li>REG-001: Registro maestro de documentación</li>
+<li>Historial de versiones en cada documento</li>
+<li>Commits Git con prefijo <code>docs:</code></li>
+</ul>
+<h2>7. Indicadores</h2>
+<table>
+<tr><th>Indicador</th><th>Meta</th></tr>
+<tr><td>Documentos críticos con versión vigente en REG-001</td><td>100%</td></tr>
+<tr><td>Tiempo de actualización tras cambio de proceso</td><td>≤ 15 días hábiles</td></tr>
+</table>
+<hr>
+<p><strong>Historial de revisiones</strong></p>
+<table>
+<tr><th>Versión</th><th>Fecha</th><th>Cambio</th><th>Autor</th></tr>
+<tr><td>1.0</td><td>2026-06-08</td><td>Emisión inicial</td><td>GED</td></tr>
+</table></div>
+<div class="page-break"></div><div class="doc-section"><h1>Procedimiento: Desarrollo de Software</h1>
+<p><strong>Código:</strong> SGC-PWY-PROC-002  </p>
+<p><strong>Versión:</strong> 1.1  </p>
+<p><strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Cláusula ISO 9001:2015:</strong> 8.3 – Diseño y desarrollo de productos y servicios</p>
+<hr>
+<h2>1. Objetivo</h2>
+<p>Definir las etapas, entradas, salidas y controles del proceso de diseño y desarrollo del Panel Ejecutivo Waze.</p>
+<h2>2. Alcance</h2>
+<p>Aplica al desarrollo de funcionalidades en:</p>
+<ul>
+<li><code>apps/frontend</code> — Aplicación React (Vite + TypeScript)</li>
+<li><code>apps/backend</code> — API Fastify (Node.js + TypeScript)</li>
+<li><code>packages/*</code> — Tipos, configuración y utilidades compartidas</li>
+</ul>
+<h2>3. Entradas del proceso</h2>
+<table>
+<tr><th>Entrada</th><th>Fuente</th><th>Documento</th></tr>
+<tr><td>Requisitos funcionales</td><td>Operación / Gerencia</td><td>Historias de usuario, tickets</td></tr>
+<tr><td>Requisitos no funcionales</td><td>Arquitectura</td><td>REQUISITOS_SISTEMA.md</td></tr>
+<tr><td>Diseño de arquitectura</td><td>GED</td><td>ARCHITECTURE.md</td></tr>
+<tr><td>Especificación de API</td><td>GED</td><td>API.md</td></tr>
+<tr><td>Restricciones técnicas</td><td>Infraestructura</td><td>INSTRUCTIVO_DESPLIEGUE.md</td></tr>
+</table>
+<h2>4. Salidas del proceso</h2>
+<table>
+<tr><th>Salida</th><th>Destino</th></tr>
+<tr><td>Código fuente versionado</td><td>Repositorio Git</td></tr>
+<tr><td>Migraciones de BD</td><td><code>apps/backend/src/database/migrations/</code></td></tr>
+<tr><td>Documentación actualizada</td><td><code>docs/</code></td></tr>
+<tr><td>Pull Request con descripción</td><td>GitHub</td></tr>
+<tr><td>Build compilado</td><td><code>apps/*/dist/</code></td></tr>
+</table>
+<h2>5. Etapas del proceso</h2>
+<h3>5.1 Planificación del cambio</h3>
+<ol>
+<li>Identificar el tipo de cambio: <code>feat</code>, <code>fix</code>, <code>refactor</code>, <code>docs</code>, <code>chore</code>.</li>
+<li>Evaluar alcance:</li>
+</ol>
+<p>   - <strong>Cambio menor:</strong> 1-2 archivos, un solo módulo → rama <code>fix/*</code> o <code>feat/*</code></p>
+<p>   - <strong>Cambio mayor:</strong> frontend + backend, API, BD, CI → rama dedicada obligatoria</p>
+<ol>
+<li>Crear rama desde <code>preprod</code> actualizada:</li>
+</ol>
+<pre><code>git checkout preprod
+git pull origin preprod
+git checkout -b feat/descripcion-corta</code></pre>
+<h3>5.2 Diseño</h3>
+<p>Antes de implementar cambios significativos, el desarrollador debe:</p>
+<ol>
+<li>Revisar ARCHITECTURE.md y patrones existentes (hexagonal, CQRS donde aplique).</li>
+<li>Definir impacto en API, BD y frontend.</li>
+<li>Documentar decisiones de diseño en el PR o en <code>docs/</code> si el cambio es estructural.</li>
+</ol>
+<p><strong>Criterios de diseño:</strong></p>
+<ul>
+<li>Reutilizar paquetes compartidos (<code>packages/types</code>, <code>packages/shared</code>)</li>
+<li>Mantener separación de capas (routes → services → models)</li>
+<li>Validar entradas en backend; tipos compartidos entre front y back</li>
+</ul>
+<h3>5.3 Implementación</h3>
+<ol>
+<li>Escribir código conforme a estándares del proyecto (ESLint, TypeScript strict).</li>
+<li>Crear migraciones de BD si el esquema cambia.</li>
+<li>Actualizar tipos en <code>packages/types</code> si los contratos cambian.</li>
+<li>Commits atómicos con Conventional Commits:</li>
+</ol>
+<pre><code>feat(frontend): añadir filtro de incidentes por polígono
+fix(backend): corregir timeout en polling Waze
+docs: actualizar API de catálogos</code></pre>
+<h3>5.4 Revisión de código</h3>
+<p>Todo cambio requiere Pull Request hacia <code>preprod</code> con:</p>
+<ul>
+<li>Descripción del cambio y motivación</li>
+<li>Lista de archivos modificados</li>
+<li>Riesgos identificados (API, BD, deploy)</li>
+<li>Evidencia de pruebas ejecutadas</li>
+</ul>
+<p><strong>Checklist de revisión:</strong></p>
+<ul>
+<li>[ ] El código sigue convenciones del proyecto</li>
+<li>[ ] No hay secretos ni credenciales hardcodeadas</li>
+<li>[ ] Tipos TypeScript correctos</li>
+<li>[ ] Migraciones de BD reversibles o documentadas</li>
+<li>[ ] Sin regresiones evidentes</li>
+</ul>
+<h3>5.5 Verificación del diseño</h3>
+<table>
+<tr><th>Actividad</th><th>Comando / Método</th></tr>
+<tr><td>Linting</td><td><code>npm run lint</code></td></tr>
+<tr><td>Type checking</td><td><code>npm run typecheck</code></td></tr>
+<tr><td>Tests unitarios</td><td><code>npm run test</code></td></tr>
+<tr><td>Tests E2E</td><td><code>npm run test:e2e</code></td></tr>
+<tr><td>Smoke manual</td><td>Validar módulo en entorno local</td></tr>
+</table>
+<p>Ver detalle en <a href="./PROC-004_Pruebas_Verificacion.md">PROC-004_Pruebas_Verificacion.md</a>.</p>
+<h3>5.6 Validación</h3>
+<ol>
+<li>Merge del PR a <code>preprod</code>.</li>
+<li>Deploy en entorno preprod.</li>
+<li>Validación funcional por operador o responsable del proyecto.</li>
+<li>Registro de OK o NC en PROC-006 si hay hallazgos.</li>
+</ol>
+<h3>5.7 Liberación a producción</h3>
+<p>Solo tras validación exitosa en preprod:</p>
+<pre><code>git checkout main
+git pull origin main
+git merge preprod
+git push origin main</code></pre>
+<p>El push a <code>main</code> dispara deploy NSSM en el servidor productivo.</p>
+<h2>6. Control de cambios de diseño</h2>
+<p>Los cambios de diseño durante el desarrollo se documentan en:</p>
+<ul>
+<li>Comentarios del PR</li>
+<li>Actualización de ARCHITECTURE.md (si es cambio estructural)</li>
+<li>Registro en PROC-003</li>
+</ul>
+<h2>7. Registros</h2>
+<table>
+<tr><th>Registro</th><th>Evidencia</th></tr>
+<tr><td>Código fuente</td><td>Commits Git</td></tr>
+<tr><td>Revisiones</td><td>PRs en GitHub</td></tr>
+<tr><td>Diseño</td><td>ARCHITECTURE.md, diagramas Mermaid</td></tr>
+<tr><td>Pruebas</td><td>Resultados de CI, logs de test</td></tr>
+</table>
+<h2>8. Indicadores</h2>
+<table>
+<tr><th>Indicador</th><th>Meta</th></tr>
+<tr><td>PRs con revisión antes de merge</td><td>100%</td></tr>
+<tr><td>Errores de lint/typecheck en main</td><td>0</td></tr>
+<tr><td>Cambios mayores sin rama dedicada</td><td>0</td></tr>
+</table>
+<hr>
+<p><strong>Historial de revisiones</strong></p>
+<table>
+<tr><th>Versión</th><th>Fecha</th><th>Cambio</th><th>Autor</th></tr>
+<tr><td>1.0</td><td>2026-06-08</td><td>Emisión inicial</td><td>GED</td></tr>
+<tr><td>1.1</td><td>2026-06-08</td><td>Ruta migraciones, módulos RAC/siniestros/zonas peligrosas</td><td>GED</td></tr>
+</table></div>
+<div class="page-break"></div><div class="doc-section"><h1>Procedimiento: Gestión de Cambios</h1>
+<p><strong>Código:</strong> SGC-PWY-PROC-003  </p>
+<p><strong>Versión:</strong> 1.0  </p>
+<p><strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Cláusula ISO 9001:2015:</strong> 8.5.6 – Control de cambios</p>
+<hr>
+<h2>1. Objetivo</h2>
+<p>Asegurar que los cambios al Panel Ejecutivo Waze se identifican, evalúan, aprueban, implementan y verifican de manera controlada, manteniendo la trazabilidad y la estabilidad operativa.</p>
+<h2>2. Alcance</h2>
+<p>Aplica a cambios en:</p>
+<ul>
+<li>Código fuente (frontend, backend, packages)</li>
+<li>Esquema de base de datos (migraciones)</li>
+<li>Configuración de despliegue (NSSM, variables de entorno, scripts)</li>
+<li>Documentación del SGC y técnica</li>
+<li>Dependencias npm</li>
+</ul>
+<h2>3. Clasificación de cambios</h2>
+<table>
+<tr><th>Tipo</th><th>Descripción</th><th>Flujo</th><th>Ejemplo</th></tr>
+<tr><td><strong>Estándar</strong></td><td>Feature o fix planificado</td><td>feat/fix → preprod → main</td><td>Nuevo filtro en dashboard</td></tr>
+<tr><td><strong>Emergencia (hotfix)</strong></td><td>Corrección urgente en producción</td><td>hotfix desde main → main + sync preprod</td><td>Caída del servicio backend</td></tr>
+<tr><td><strong>Configuración</strong></td><td>Cambio de variables, sin código</td><td>Documentar + aplicar en servidor</td><td>Cambio de JWT_SECRET</td></tr>
+<tr><td><strong>Infraestructura</strong></td><td>BD, NSSM, firewall</td><td>PROC-005 + registro</td><td>Actualización PostgreSQL</td></tr>
+</table>
+<h2>4. Procedimiento</h2>
+<h3>4.1 Solicitud de cambio</h3>
+<p>Toda solicitud de cambio debe incluir:</p>
+<ol>
+<li><strong>Descripción</strong> del cambio propuesto</li>
+<li><strong>Motivo</strong> (requisito, bug, mejora, NC)</li>
+<li><strong>Impacto</strong> estimado (módulos, API, BD, usuarios)</li>
+<li><strong>Riesgos</strong> asociados</li>
+<li><strong>Plan de pruebas</strong> y rollback</li>
+</ol>
+<h3>4.2 Evaluación de impacto</h3>
+<table>
+<tr><th>Área</th><th>Preguntas de evaluación</th></tr>
+<tr><td>Frontend</td><td>¿Cambia UI, rutas, permisos?</td></tr>
+<tr><td>Backend</td><td>¿Nuevos endpoints, cambio de contrato?</td></tr>
+<tr><td>Base de datos</td><td>¿Requiere migración? ¿Es reversible?</td></tr>
+<tr><td>Despliegue</td><td>¿Requiere reinicio de servicios NSSM?</td></tr>
+<tr><td>Operación</td><td>¿Afecta sala de control en horario pico?</td></tr>
+</table>
+<p><strong>Matriz de decisión:</strong></p>
+<table>
+<tr><th>Impacto</th><th>Aprobación requerida</th></tr>
+<tr><td>Bajo (1 módulo, sin BD)</td><td>Desarrollador + revisión PR</td></tr>
+<tr><td>Medio (API, BD, 2+ módulos)</td><td>Líder técnico + validación preprod</td></tr>
+<tr><td>Alto (arquitectura, seguridad, prod)</td><td>Responsable del proyecto</td></tr>
+</table>
+<h3>4.3 Implementación controlada</h3>
+<ol>
+<li>Crear rama desde <code>preprod</code> (o <code>main</code> para hotfix).</li>
+<li>Implementar cambio con commits trazables.</li>
+<li>Ejecutar pruebas (PROC-004).</li>
+<li>Abrir PR con plantilla de descripción.</li>
+<li>Merge a <code>preprod</code> tras aprobación.</li>
+</ol>
+<h3>4.4 Flujo de ramas obligatorio</h3>
+<pre><code>feat/fix/refactor/*  →  preprod  →  main</code></pre>
+<p><strong>Reglas:</strong></p>
+<ul>
+<li>Nunca mergear directo a <code>main</code> saltando <code>preprod</code> (excepto hotfix documentado).</li>
+<li><code>preprod</code> debe estar sincronizada con <code>main</code> antes de abrir ramas nuevas.</li>
+<li>Ramas experimentales (ej. <code>group-kpis-display</code>) no se integran sin decisión de producto.</li>
+</ul>
+<h3>4.5 Hotfix de emergencia</h3>
+<p>Cuando un fix va directo a producción por urgencia:</p>
+<ol>
+<li>Crear rama <code>hotfix/descripcion</code> desde <code>main</code>.</li>
+<li>Implementar, probar mínimamente, merge a <code>main</code> y desplegar.</li>
+<li><strong>Inmediatamente</strong> sincronizar <code>preprod</code> con <code>main</code>.</li>
+<li>Documentar el desvío del flujo estándar y la causa.</li>
+<li>Backportar a ramas feature abiertas si aplica.</li>
+</ol>
+<h3>4.6 Control de versiones del software</h3>
+<table>
+<tr><th>Elemento</th><th>Mecanismo</th></tr>
+<tr><td>Versión del monorepo</td><td><code>package.json</code> → <code>version</code> (actual: 2.0.0)</td></tr>
+<tr><td>Historial de cambios</td><td>Commits Git (Conventional Commits)</td></tr>
+<tr><td>Tags de release</td><td><code>git tag v2.0.0</code> (opcional, para hitos mayores)</td></tr>
+<tr><td>Migraciones BD</td><td>Numeración secuencial en carpeta migrations</td></tr>
+</table>
+<h3>4.7 Verificación post-cambio</h3>
+<p>Tras cada despliegue:</p>
+<ol>
+<li>Verificar <code>/health</code> y <code>/health/ready</code></li>
+<li>Smoke test del módulo afectado</li>
+<li>Revisar logs del backend (<code>LOG_LEVEL=info</code>)</li>
+<li>Confirmar polling Waze activo (ciclo ≤ 30 s)</li>
+</ol>
+<h2>5. Registros</h2>
+<table>
+<tr><th>Registro</th><th>Ubicación</th></tr>
+<tr><td>Solicitud de cambio</td><td>Descripción del PR</td></tr>
+<tr><td>Aprobación</td><td>Review/merge en GitHub</td></tr>
+<tr><td>Implementación</td><td>Commits asociados al PR</td></tr>
+<tr><td>Verificación</td><td>Comentarios del PR, logs de deploy</td></tr>
+</table>
+<h2>6. Indicadores</h2>
+<table>
+<tr><th>Indicador</th><th>Meta</th></tr>
+<tr><td>Cambios desplegados sin pasar por preprod</td><td>0 (excepto hotfix documentados)</td></tr>
+<tr><td>Rollbacks por cambio defectuoso</td><td>Tendencia decreciente</td></tr>
+</table>
+<hr>
+<p><strong>Historial de revisiones</strong></p>
+<table>
+<tr><th>Versión</th><th>Fecha</th><th>Cambio</th><th>Autor</th></tr>
+<tr><td>1.0</td><td>2026-06-08</td><td>Emisión inicial</td><td>GED</td></tr>
+</table></div>
+<div class="page-break"></div><div class="doc-section"><h1>Procedimiento: Pruebas y Verificación</h1>
+<p><strong>Código:</strong> SGC-PWY-PROC-004  </p>
+<p><strong>Versión:</strong> 1.1  </p>
+<p><strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Cláusula ISO 9001:2015:</strong> 8.3.4, 8.6 – Control de diseño y desarrollo; Liberación</p>
+<hr>
+<h2>1. Objetivo</h2>
+<p>Establecer las actividades de verificación y validación que aseguran que el Panel Ejecutivo Waze cumple los requisitos especificados antes de su liberación.</p>
+<h2>2. Alcance</h2>
+<p>Aplica a pruebas en:</p>
+<ul>
+<li>Código fuente (unitarias, integración)</li>
+<li>API REST y WebSocket</li>
+<li>Interfaz de usuario (E2E)</li>
+<li>Despliegue en preprod y producción</li>
+</ul>
+<h2>3. Tipos de prueba</h2>
+<table>
+<tr><th>Tipo</th><th>Herramienta</th><th>Alcance</th><th>Cuándo ejecutar</th></tr>
+<tr><td><strong>Linting</strong></td><td>ESLint</td><td>Estilo y errores estáticos</td><td>Pre-commit, CI, antes de PR</td></tr>
+<tr><td><strong>Type checking</strong></td><td>TypeScript</td><td>Tipos y contratos</td><td>Pre-commit, CI, antes de PR</td></tr>
+<tr><td><strong>Unitarias</strong></td><td>Vitest/Jest (workspaces)</td><td>Funciones, servicios, utils</td><td>Desarrollo, CI</td></tr>
+<tr><td><strong>Integración</strong></td><td>Tests de API/rutas</td><td>Endpoints, middleware</td><td>Desarrollo, CI</td></tr>
+<tr><td><strong>E2E</strong></td><td>Playwright</td><td>Flujos de usuario completos</td><td>Pre-merge a preprod</td></tr>
+<tr><td><strong>Smoke</strong></td><td>Manual / script</td><td>Health, login, mapa carga</td><td>Post-deploy preprod y prod</td></tr>
+<tr><td><strong>Regresión</strong></td><td>Manual</td><td>Módulo afectado + dependencias</td><td>Validación en preprod</td></tr>
+</table>
+<h2>4. Procedimiento</h2>
+<h3>4.1 Pruebas en desarrollo</h3>
+<p>Antes de abrir un PR, el desarrollador ejecuta:</p>
+<pre><code>npm run lint
+npm run typecheck
+npm run test</code></pre>
+<p>Si el cambio afecta flujos de UI:</p>
+<pre><code>npm run test:e2e</code></pre>
+<h3>4.2 Pruebas en CI (GitHub Actions)</h3>
+<p>El pipeline (<code>.github/workflows/ci-cd.yml</code>) valida en push a <code>main</code> y <code>preprod</code>:</p>
+<table>
+<tr><th>Job</th><th>Contenido</th></tr>
+<tr><td><code>lint</code></td><td>ESLint + TypeScript check (frontend y backend)</td></tr>
+<tr><td><code>security</code></td><td>npm audit (nivel high) en root, backend y frontend</td></tr>
+<tr><td><code>build-frontend</code> / <code>build-backend</code></td><td>Compilación de artefactos</td></tr>
+<tr><td><code>test</code></td><td>Tests unitarios (Vitest)</td></tr>
+<tr><td><code>e2e</code></td><td>Playwright E2E (incluye <code>/mapa</code> con mocks)</td></tr>
+<tr><td><code>deploy</code></td><td>Solo en <code>main</code>: deploy NSSM + nginx con health-check y rollback</td></tr>
+<tr><td><code>pipeline-status</code></td><td>Falla el pipeline si cualquier job crítico falla</td></tr>
+</table>
+<p><strong>Criterio:</strong> El PR no se mergea si CI falla. Node.js 20 en CI.</p>
+<h3>4.3 Pruebas en preprod</h3>
+<p>Tras merge a <code>preprod</code> y deploy:</p>
+<table>
+<tr><th>Verificación</th><th>Método</th><th>Criterio de aceptación</th></tr>
+<tr><td>Health general</td><td><code>GET /health</code></td><td>Status 200, sin errores</td></tr>
+<tr><td>Readiness</td><td><code>GET /health/ready</code></td><td>BD y servicios OK</td></tr>
+<tr><td>API incidentes</td><td><code>GET /api/incidents</code></td><td>Respuesta JSON válida</td></tr>
+<tr><td>WebSocket</td><td>Conexión Socket.IO</td><td>Eventos <code>waze:data_updated</code> recibidos</td></tr>
+<tr><td>Frontend</td><td>Navegación manual</td><td>Mapa carga, markers visibles</td></tr>
+<tr><td>TTS</td><td>Alerta de prueba</td><td>Audio reproducido (si aplica)</td></tr>
+<tr><td>Módulo modificado</td><td>Casos de prueba del PR</td><td>Funcionalidad según especificación</td></tr>
+</table>
+<h3>4.4 Pruebas de regresión</h3>
+<p>Para cambios que afectan módulos compartidos, validar:</p>
+<ul>
+<li>Autenticación y permisos (RBAC)</li>
+<li>Polling Waze (alertas, jams, irregularities)</li>
+<li>Gestión de polígonos</li>
+<li>Panel de administración</li>
+<li>Catálogos de incidentes</li>
+</ul>
+<h3>4.5 Criterios de liberación (8.6)</h3>
+<p>El software se libera a producción (<code>main</code>) solo si:</p>
+<table>
+<tr><th>#</th><th>Criterio</th><th>Evidencia</th></tr>
+<tr><td>1</td><td>CI verde en el commit de preprod</td><td>GitHub Actions</td></tr>
+<tr><td>2</td><td>Smoke test en preprod exitoso</td><td>Registro en PR o ticket</td></tr>
+<tr><td>3</td><td>Sin NC bloqueantes abiertas</td><td>PROC-006</td></tr>
+<tr><td>4</td><td>Documentación actualizada (si aplica)</td><td>Commits <code>docs:</code></td></tr>
+<tr><td>5</td><td>Migraciones de BD ejecutadas en preprod</td><td>Log de <code>npm run db:migrate</code></td></tr>
+</table>
+<h3>4.6 Gestión de defectos encontrados en pruebas</h3>
+<ol>
+<li>Registrar el defecto como NC (PROC-006) o issue en GitHub.</li>
+<li>Clasificar severidad:</li>
+</ol>
+<p>   - <strong>Crítica:</strong> Bloquea operación → hotfix</p>
+<p>   - <strong>Mayor:</strong> Funcionalidad degradada → fix en rama dedicada</p>
+<p>   - <strong>Menor:</strong> Cosmético → backlog</p>
+<ol>
+<li>No liberar a producción con defectos críticos o mayores sin resolver.</li>
+</ol>
+<h2>5. Entornos de prueba</h2>
+<table>
+<tr><th>Entorno</th><th>URL / Acceso</th><th>Propósito</th></tr>
+<tr><td>Local</td><td><code>localhost:5180</code> / <code>:3002</code></td><td>Desarrollo</td></tr>
+<tr><td>Preprod</td><td>Servidor staging</td><td>Validación pre-liberación</td></tr>
+<tr><td>Producción</td><td><code>10.1.0.136:5180</code></td><td>Operación (smoke post-deploy)</td></tr>
+</table>
+<h2>6. Registros</h2>
+<table>
+<tr><th>Registro</th><th>Ubicación</th></tr>
+<tr><td>Resultados CI</td><td>GitHub Actions logs</td></tr>
+<tr><td>Resultados tests</td><td>Salida de <code>npm run test</code></td></tr>
+<tr><td>Reportes E2E</td><td>Playwright reports</td></tr>
+<tr><td>Validación preprod</td><td>Comentarios PR / tickets</td></tr>
+<tr><td>Auditorías de código</td><td><code>apps/*/docs/CODE_AUDIT_REPORT.md</code></td></tr>
+</table>
+<h2>7. Indicadores</h2>
+<table>
+<tr><th>Indicador</th><th>Meta</th></tr>
+<tr><td>Tests pasando antes de merge a preprod</td><td>100%</td></tr>
+<tr><td>Defectos críticos en producción</td><td>0</td></tr>
+<tr><td>Smoke test post-deploy</td><td>Ejecutado en cada release</td></tr>
+</table>
+<hr>
+<p><strong>Historial de revisiones</strong></p>
+<table>
+<tr><th>Versión</th><th>Fecha</th><th>Cambio</th><th>Autor</th></tr>
+<tr><td>1.0</td><td>2026-06-08</td><td>Emisión inicial</td><td>GED</td></tr>
+<tr><td>1.1</td><td>2026-06-08</td><td>CI/CD completo: security, E2E, deploy automático</td><td>GED</td></tr>
+</table></div>
+<div class="page-break"></div><div class="doc-section"><h1>Procedimiento: Despliegue y Mantenimiento</h1>
+<p><strong>Código:</strong> SGC-PWY-PROC-005  </p>
+<p><strong>Versión:</strong> 1.1  </p>
+<p><strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Cláusula ISO 9001:2015:</strong> 8.5.1, 8.5.5 – Producción y provisión del servicio</p>
+<hr>
+<h2>1. Objetivo</h2>
+<p>Definir las actividades controladas para el despliegue, operación y mantenimiento del Panel Ejecutivo Waze en entornos de preproducción y producción.</p>
+<h2>2. Alcance</h2>
+<p>Aplica a despliegue en:</p>
+<ul>
+<li><strong>Producción actual:</strong> Windows Server 2022 (<code>10.1.0.136</code>) con NSSM</li>
+<li><strong>Alternativas:</strong> Red Hat (systemd + Nginx), Docker Compose, PC productiva</li>
+</ul>
+<p>Documentación operativa:</p>
+<ul>
+<li><a href="../../deploy/INSTRUCCIONES-DESPLIEGUE.md">deploy/INSTRUCCIONES-DESPLIEGUE.md</a> — referencia principal Windows</li>
+<li><a href="../INSTRUCTIVO_DESPLIEGUE.md">INSTRUCTIVO_DESPLIEGUE.md</a> — instructivo completo multi-plataforma</li>
+</ul>
+<h2>3. Entornos</h2>
+<table>
+<tr><th>Entorno</th><th>Rama Git</th><th>Método de deploy</th><th>URL</th></tr>
+<tr><td>Desarrollo local</td><td>cualquiera</td><td><code>npm run dev:all</code></td><td>localhost:5180</td></tr>
+<tr><td>Preprod</td><td><code>preprod</code></td><td>Manual / CI</td><td>Según configuración</td></tr>
+<tr><td>Producción</td><td><code>main</code></td><td>CI/CD → NSSM + nginx (auto en push)</td><td>http://10.1.0.136/</td></tr>
+</table>
+<h2>4. Despliegue en producción (Windows Server)</h2>
+<h3>4.1 Prerrequisitos</h3>
+<table>
+<tr><th>Componente</th><th>Ubicación / Versión</th></tr>
+<tr><td>Node.js</td><td>18+</td></tr>
+<tr><td>PostgreSQL</td><td>18.3 en <code>D:\postgreSQL</code></td></tr>
+<tr><td>Redis / Memurai</td><td>Opcional (fallback en memoria)</td></tr>
+<tr><td>NSSM</td><td>Gestor de servicios Windows</td></tr>
+<tr><td>Proyecto</td><td><code>D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados</code></td></tr>
+</table>
+<h3>4.2 Procedimiento de despliegue estándar</h3>
+<ol>
+<li>Validar que <code>preprod</code> fue probado (PROC-004).</li>
+<li>Merge <code>preprod</code> → <code>main</code> y push.</li>
+<li><strong>CI/CD automático</strong> (<code>.github/workflows/ci-cd.yml</code>):</li>
+</ol>
+<p>   - Build frontend y backend</p>
+<p>   - Deploy vía <code>deploy/manage-services.ps1</code> en runner self-hosted</p>
+<p>   - Health-check autoritativo post-deploy</p>
+<p>   - <strong>Rollback automático</strong> al SHA anterior si falla</p>
+<ol>
+<li><strong>Despliegue manual</strong> (si CI no disponible):</li>
+</ol>
+<pre><code>cd &quot;D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados\deploy&quot;
+.\manage-services.ps1 -Action update</code></pre>
+<ol>
+<li>Ejecutar migraciones si hay cambios de BD: <code>npm run db:migrate</code></li>
+<li>Verificar salud del sistema (sección 4.4).</li>
+</ol>
+<h3>4.3 Instalación inicial de servicios</h3>
+<p>Para primera instalación o reinstalación completa:</p>
+<pre><code># Ejecutar como Administrador
+scripts\INSTALAR-NSSM.bat</code></pre>
+<table>
+<tr><th>Servicio NSSM</th><th>Puerto</th><th>Función</th></tr>
+<tr><td>PanelWazeNginx</td><td>80</td><td>Reverse proxy, sirve <code>dist</code>, proxy <code>/api</code> y <code>/socket.io</code></td></tr>
+<tr><td>PanelWazeBackend</td><td>3002</td><td>API Fastify + Socket.IO</td></tr>
+<tr><td>PanelWazeFrontend</td><td>5180</td><td>Preview Vite (solo dev; producción usa nginx :80)</td></tr>
+</table>
+<h3>4.4 Verificación post-despliegue</h3>
+<table>
+<tr><th>Verificación</th><th>Comando / Acción</th><th>Resultado esperado</th></tr>
+<tr><td>Health</td><td><code>curl http://10.1.0.136/health</code></td><td>HTTP 200 (vía nginx)</td></tr>
+<tr><td>Readiness</td><td><code>curl http://10.1.0.136/health/ready</code></td><td>BD conectada</td></tr>
+<tr><td>Frontend</td><td>Abrir http://10.1.0.136/</td><td>Login y mapa cargan</td></tr>
+<tr><td>WebSocket</td><td>Consola navegador</td><td>Sin errores Socket.IO</td></tr>
+<tr><td>Polling Waze</td><td>Revisar logs backend</td><td>Ciclo cada 30 s</td></tr>
+<tr><td>WebSocket</td><td>Consola del navegador</td><td>Sin errores de conexión</td></tr>
+</table>
+<h3>4.5 Variables de entorno críticas</h3>
+<p>Configurar en <code>apps/backend/.env</code> (ver <code>.env.example</code>):</p>
+<table>
+<tr><th>Variable</th><th>Obligatoria</th><th>Notas</th></tr>
+<tr><td>DB_PASSWORD</td><td>Sí</td><td>Credencial PostgreSQL</td></tr>
+<tr><td>JWT_SECRET</td><td>Sí</td><td>Cambiar en producción</td></tr>
+<tr><td>FRONTEND_URL</td><td>Sí</td><td>URL del frontend</td></tr>
+<tr><td>PORT</td><td>Sí</td><td>3002 (backend)</td></tr>
+<tr><td>REDIS_HOST</td><td>No</td><td>Fallback en memoria si ausente</td></tr>
+</table>
+<h2>5. Mantenimiento</h2>
+<h3>5.1 Mantenimiento preventivo</h3>
+<table>
+<tr><th>Actividad</th><th>Frecuencia</th><th>Responsable</th></tr>
+<tr><td>Backup PostgreSQL</td><td>Diario</td><td>Admin sistemas</td></tr>
+<tr><td>Revisión de logs</td><td>Semanal</td><td>GED</td></tr>
+<tr><td>Actualización de dependencias</td><td>Mensual</td><td>GED</td></tr>
+<tr><td>Verificación de espacio en disco</td><td>Mensual</td><td>Admin sistemas</td></tr>
+<tr><td>Revisión de retención histórica (90 días)</td><td>Trimestral</td><td>GED</td></tr>
+</table>
+<h3>5.2 Mantenimiento correctivo</h3>
+<ol>
+<li>Detectar incidencia (operador, health check, logs).</li>
+<li>Clasificar severidad (PROC-006).</li>
+<li>Aplicar hotfix si es crítico (PROC-003).</li>
+<li>Documentar causa raíz y AC.</li>
+</ol>
+<h3>5.3 Rollback</h3>
+<p>Si un despliegue falla:</p>
+<ol>
+<li>Revertir al commit anterior en <code>main</code>:</li>
+</ol>
+<pre><code>git revert HEAD
+git push origin main</code></pre>
+<ol>
+<li>En el servidor: <code>git pull</code>, <code>npm run build</code>, reiniciar servicios.</li>
+<li>Si hay migración de BD incompatible, restaurar backup y documentar NC.</li>
+</ol>
+<h2>6. Preservación de datos</h2>
+<table>
+<tr><th>Dato</th><th>Mecanismo</th><th>Retención</th></tr>
+<tr><td>Incidentes Waze</td><td>PostgreSQL (<code>waze_alerts</code>, <code>waze_jams</code>)</td><td>Activo + histórico 90 días</td></tr>
+<tr><td>Snapshots / TVT</td><td><code>historical_snapshots</code>, <code>polygon_snapshots</code></td><td>30 días (migración 049); notifications 90 días</td></tr>
+<tr><td>Configuración</td><td>Git + <code>.env</code> (no en repo)</td><td>Permanente</td></tr>
+<tr><td>Logs</td><td>Archivos de log del servidor</td><td>90 días mínimo</td></tr>
+</table>
+<h2>7. Registros</h2>
+<table>
+<tr><th>Registro</th><th>Ubicación</th></tr>
+<tr><td>Deploy log</td><td>Commits en <code>main</code>, logs NSSM</td></tr>
+<tr><td>Migraciones ejecutadas</td><td>Salida de <code>db:migrate</code></td></tr>
+<tr><td>Backups BD</td><td>Servidor (admin)</td></tr>
+<tr><td>Incidencias</td><td>PROC-006, tickets</td></tr>
+</table>
+<h2>8. Indicadores</h2>
+<table>
+<tr><th>Indicador</th><th>Meta</th></tr>
+<tr><td>Uptime mensual <code>/health</code></td><td>≥ 99%</td></tr>
+<tr><td>Tiempo de recuperación ante caída (MTTR)</td><td>≤ 2 horas</td></tr>
+<tr><td>Backups BD exitosos</td><td>100% diario</td></tr>
+</table>
+<hr>
+<p><strong>Historial de revisiones</strong></p>
+<table>
+<tr><th>Versión</th><th>Fecha</th><th>Cambio</th><th>Autor</th></tr>
+<tr><td>1.0</td><td>2026-06-08</td><td>Emisión inicial</td><td>GED</td></tr>
+<tr><td>1.1</td><td>2026-06-08</td><td>nginx :80, CI/CD automático, rollback, retención 30d</td><td>GED</td></tr>
+</table></div>
+<div class="page-break"></div><div class="doc-section"><h1>Procedimiento: No Conformidades y Mejora Continua</h1>
+<p><strong>Código:</strong> SGC-PWY-PROC-006  </p>
+<p><strong>Versión:</strong> 1.0  </p>
+<p><strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Cláusula ISO 9001:2015:</strong> 10.2, 10.3 – No conformidad y mejora continua</p>
+<hr>
+<h2>1. Objetivo</h2>
+<p>Establecer el proceso para identificar, registrar, analizar, corregir y prevenir no conformidades (NC) relacionadas con el Panel Ejecutivo Waze, promoviendo la mejora continua del SGC.</p>
+<h2>2. Alcance</h2>
+<p>Aplica a NC detectadas en:</p>
+<ul>
+<li>Desarrollo y pruebas de software</li>
+<li>Despliegue y operación en producción</li>
+<li>Documentación del SGC</li>
+<li>Feedback de operadores de sala de control</li>
+<li>Auditorías internas y externas</li>
+</ul>
+<h2>3. Definiciones</h2>
+<table>
+<tr><th>Término</th><th>Definición</th></tr>
+<tr><td>NC</td><td>Incumplimiento de un requisito (funcional, técnico, documental o de proceso)</td></tr>
+<tr><td>AC</td><td>Acción Correctiva: elimina la causa raíz para evitar recurrencia</td></tr>
+<tr><td>Acción inmediata</td><td>Corrección puntual sin análisis de causa raíz (contención)</td></tr>
+</table>
+<h2>4. Fuentes de detección</h2>
+<table>
+<tr><th>Fuente</th><th>Ejemplos</th></tr>
+<tr><td>Operador / usuario</td><td>Mapa no carga, alertas tardías, TTS sin audio</td></tr>
+<tr><td>Monitoreo</td><td>Health check fallido, logs de error</td></tr>
+<tr><td>Pruebas</td><td>Test fallido en CI, defecto en preprod</td></tr>
+<tr><td>Auditoría de código</td><td>Hallazgos en CODE_AUDIT_REPORT.md</td></tr>
+<tr><td>Revisión por dirección</td><td>Objetivo de calidad no cumplido</td></tr>
+</table>
+<h2>5. Clasificación de severidad</h2>
+<table>
+<tr><th>Nivel</th><th>Descripción</th><th>Tiempo de respuesta</th><th>Ejemplo</th></tr>
+<tr><td><strong>Crítica</strong></td><td>Sistema inoperativo o riesgo operativo</td><td>Inmediato (&lt; 1 h)</td><td>Backend caído, BD inaccesible</td></tr>
+<tr><td><strong>Mayor</strong></td><td>Funcionalidad clave degradada</td><td>&lt; 24 h</td><td>Polling Waze detenido, login fallido</td></tr>
+<tr><td><strong>Menor</strong></td><td>Impacto limitado, workaround disponible</td><td>&lt; 5 días</td><td>Error visual, filtro no funciona</td></tr>
+<tr><td><strong>Observación</strong></td><td>Oportunidad de mejora, sin NC formal</td><td>Planificada</td><td>Refactor sugerido en auditoría</td></tr>
+</table>
+<h2>6. Procedimiento</h2>
+<h3>6.1 Detección y registro</h3>
+<ol>
+<li>Identificar la NC (qué, cuándo, dónde, quién detectó).</li>
+<li>Registrar en el formato de la sección 8 o como issue en GitHub con etiqueta <code>nc</code>.</li>
+<li>Asignar responsable de investigación.</li>
+<li>Para NC críticas: activar acción inmediata (rollback, hotfix, reinicio de servicio).</li>
+</ol>
+<h3>6.2 Contención (acción inmediata)</h3>
+<table>
+<tr><th>Acción</th><th>Cuándo</th></tr>
+<tr><td>Reiniciar servicio NSSM</td><td>Servicio no responde</td></tr>
+<tr><td>Rollback de deploy</td><td>Regresión post-release</td></tr>
+<tr><td>Deshabilitar feature</td><td>Módulo defectuoso no crítico</td></tr>
+<tr><td>Restaurar backup BD</td><td>Corrupción de datos</td></tr>
+</table>
+<h3>6.3 Análisis de causa raíz</h3>
+<p>Para NC mayores y críticas, realizar análisis de causa raíz:</p>
+<ol>
+<li><strong>¿Qué ocurrió?</strong> — Descripción factual</li>
+<li><strong>¿Por qué ocurrió?</strong> — Cadena de causas (5 porqués o diagrama de Ishikawa)</li>
+<li><strong>¿Por qué no se detectó antes?</strong> — Falla en pruebas, proceso, revisión</li>
+<li><strong>¿Qué se hará para evitar recurrencia?</strong> — AC propuesta</li>
+</ol>
+<h3>6.4 Acción correctiva (AC)</h3>
+<p>La AC debe ser:</p>
+<ul>
+<li>Específica y medible</li>
+<li>Con responsable y fecha límite</li>
+<li>Verificable (cómo se confirma la eficacia)</li>
+</ul>
+<p><strong>Ejemplos de AC:</strong></p>
+<table>
+<tr><th>NC</th><th>AC</th></tr>
+<tr><td>Deploy sin prueba en preprod</td><td>Reforzar checklist de liberación en PROC-004</td></tr>
+<tr><td>Timeout en polling Waze</td><td>Añadir retry con backoff + alerta en health</td></tr>
+<tr><td>Documento desactualizado</td><td>Actualizar REG-001 y regenerar PDF</td></tr>
+</table>
+<h3>6.5 Verificación de eficacia</h3>
+<ol>
+<li>Tras implementar la AC, verificar que la NC no se repite.</li>
+<li>Plazo de verificación: 30 días para NC mayores, 90 días para críticas.</li>
+<li>Registrar resultado: <strong>Eficaz</strong> / <strong>No eficaz</strong> (requiere nueva AC).</li>
+</ol>
+<h3>6.6 Cierre</h3>
+<p>Una NC se cierra cuando:</p>
+<ul>
+<li>La acción inmediata resolvió el síntoma</li>
+<li>La AC se implementó y verificó como eficaz</li>
+<li>La evidencia se registró (commit, PR, actualización de procedimiento)</li>
+</ul>
+<h2>7. Mejora continua (10.3)</h2>
+<p>Además de las AC por NC, el equipo promueve mejoras proactivas:</p>
+<table>
+<tr><th>Actividad</th><th>Frecuencia</th></tr>
+<tr><td>Retrospectiva de sprint/release</td><td>Por release</td></tr>
+<tr><td>Actualización de REG-002 (riesgos)</td><td>Trimestral</td></tr>
+<tr><td>Revisión de objetivos de calidad (OQ-01 a OQ-05)</td><td>Trimestral</td></tr>
+<tr><td>Auditoría interna del SGC</td><td>Semestral</td></tr>
+<tr><td>Optimización de rendimiento</td><td>Según métricas</td></tr>
+</table>
+<h2>8. Formato de registro de NC</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>ID NC</td><td>NC-PWY-YYYY-NNN</td></tr>
+<tr><td>Fecha de detección</td><td></td></tr>
+<tr><td>Detectado por</td><td></td></tr>
+<tr><td>Descripción</td><td></td></tr>
+<tr><td>Severidad</td><td>Crítica / Mayor / Menor / Observación</td></tr>
+<tr><td>Acción inmediata</td><td></td></tr>
+<tr><td>Causa raíz</td><td></td></tr>
+<tr><td>Acción correctiva</td><td></td></tr>
+<tr><td>Responsable AC</td><td></td></tr>
+<tr><td>Fecha límite AC</td><td></td></tr>
+<tr><td>Verificación de eficacia</td><td></td></tr>
+<tr><td>Estado</td><td>Abierta / En tratamiento / Cerrada</td></tr>
+<tr><td>Fecha de cierre</td><td></td></tr>
+</table>
+<h2>9. Registros</h2>
+<ul>
+<li>Issues GitHub con etiqueta <code>nc</code> o <code>bug</code></li>
+<li>Tabla de NC (puede mantenerse en este documento o herramienta de tickets)</li>
+<li>Commits de fixes asociados (<code>fix:</code> en Conventional Commits)</li>
+<li>Actualizaciones de procedimientos derivadas de AC</li>
+</ul>
+<h2>10. Indicadores</h2>
+<table>
+<tr><th>Indicador</th><th>Meta</th></tr>
+<tr><td>NC críticas abiertas &gt; 48 h</td><td>0</td></tr>
+<tr><td>AC implementadas en plazo</td><td>≥ 90%</td></tr>
+<tr><td>Recurrencia de misma NC</td><td>0</td></tr>
+</table>
+<hr>
+<p><strong>Historial de revisiones</strong></p>
+<table>
+<tr><th>Versión</th><th>Fecha</th><th>Cambio</th><th>Autor</th></tr>
+<tr><td>1.0</td><td>2026-06-08</td><td>Emisión inicial</td><td>GED</td></tr>
+</table></div>
+<div class="page-break"></div><div class="doc-section"><h1>Registro Maestro de Documentación</h1>
+<p><strong>Código:</strong> SGC-PWY-REG-001  </p>
+<p><strong>Versión:</strong> 1.2  </p>
+<p><strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Cláusula ISO 9001:2015:</strong> 7.5.3 – Control de información documentada</p>
+<hr>
+<h2>1. Propósito</h2>
+<p>Este registro identifica y controla todas las piezas de información documentada del SGC y la documentación técnica vinculada al Panel Ejecutivo Waze.</p>
+<h2>2. Documentos del SGC</h2>
+<table>
+<tr><th>Código</th><th>Título</th><th>Versión</th><th>Fecha</th><th>Estado</th><th>Ubicación</th></tr>
+<tr><td>SGC-PWY-001</td><td>Manual del SGC</td><td>1.1</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/MANUAL_SGC_ISO9001.md</td></tr>
+<tr><td>SGC-PWY-MU-001</td><td>Manual de Usuario</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/MANUAL_USUARIO.md</td></tr>
+<tr><td>SGC-PWY-MP-001</td><td>Manual de Procesos Operativos</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/MANUAL_PROCESOS.md</td></tr>
+<tr><td>SGC-PWY-IP-001</td><td>Instructivo monitoreo tiempo real</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/instructivos/IP-001_Monitoreo_Tiempo_Real.md</td></tr>
+<tr><td>SGC-PWY-IP-002</td><td>Instructivo gestión de alertas</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/instructivos/IP-002_Gestion_Alertas.md</td></tr>
+<tr><td>SGC-PWY-IP-003</td><td>Instructivo zonas peligrosas</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/instructivos/IP-003_Zonas_Peligrosas.md</td></tr>
+<tr><td>SGC-PWY-IP-004</td><td>Instructivo registro siniestros</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/instructivos/IP-004_Registro_Siniestros.md</td></tr>
+<tr><td>SGC-PWY-IP-005</td><td>Instructivo consulta incidentes</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/instructivos/IP-005_Consulta_Incidentes.md</td></tr>
+<tr><td>SGC-PWY-IP-006</td><td>Instructivo análisis estadístico</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/instructivos/IP-006_Analisis_Estadistico.md</td></tr>
+<tr><td>SGC-PWY-IP-007</td><td>Instructivo administración sistema</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/instructivos/IP-007_Administracion_Sistema.md</td></tr>
+<tr><td>SGC-PWY-IP-008</td><td>Instructivo gestión usuarios</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/instructivos/IP-008_Gestion_Usuarios.md</td></tr>
+<tr><td>SGC-PWY-IP-009</td><td>Instructivo inicio/cierre turno</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/instructivos/IP-009_Inicio_Cierre_Turno.md</td></tr>
+<tr><td>SGC-PWY-IP-010</td><td>Instructivo incidencias operativas</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/instructivos/IP-010_Incidencias_Operativas.md</td></tr>
+<tr><td>SGC-PWY-RP-001</td><td>Registro verificación monitoreo</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/registros/RP-001_Registro_Monitoreo.md</td></tr>
+<tr><td>SGC-PWY-RP-002</td><td>Registro alertas atendidas</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/registros/RP-002_Registro_Alertas.md</td></tr>
+<tr><td>SGC-PWY-RP-003</td><td>Registro zonas peligrosas</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/registros/RP-003_Registro_Zonas_Peligrosas.md</td></tr>
+<tr><td>SGC-PWY-RP-004</td><td>Registro validación siniestros</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/registros/RP-004_Registro_Siniestros.md</td></tr>
+<tr><td>SGC-PWY-RP-005</td><td>Registro consulta incidentes</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/registros/RP-005_Registro_Consulta_Incidentes.md</td></tr>
+<tr><td>SGC-PWY-RP-006</td><td>Informe estadístico operativo</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/registros/RP-006_Informe_Estadistico.md</td></tr>
+<tr><td>SGC-PWY-RP-007</td><td>Registro cambios administrativos</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/registros/RP-007_Registro_Cambios_Admin.md</td></tr>
+<tr><td>SGC-PWY-RP-008</td><td>Registro gestión usuarios</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/registros/RP-008_Registro_Usuarios.md</td></tr>
+<tr><td>SGC-PWY-RP-009</td><td>Bitácora de turno</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/registros/RP-009_Bitacora_Turno.md</td></tr>
+<tr><td>SGC-PWY-RP-010</td><td>Registro no conformidades operativas</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/registros/RP-010_Registro_No_Conformidades.md</td></tr>
+<tr><td>SGC-PWY-PROC-001</td><td>Control de documentos y registros</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/PROC-001_Control_Documentos.md</td></tr>
+<tr><td>SGC-PWY-PROC-002</td><td>Desarrollo de software</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/PROC-002_Desarrollo_Software.md</td></tr>
+<tr><td>SGC-PWY-PROC-003</td><td>Gestión de cambios</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/PROC-003_Gestion_Cambios.md</td></tr>
+<tr><td>SGC-PWY-PROC-004</td><td>Pruebas y verificación</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/PROC-004_Pruebas_Verificacion.md</td></tr>
+<tr><td>SGC-PWY-PROC-005</td><td>Despliegue y mantenimiento</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/PROC-005_Despliegue_Mantenimiento.md</td></tr>
+<tr><td>SGC-PWY-PROC-006</td><td>No conformidades y mejora continua</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/PROC-006_No_Conformidades_Mejora.md</td></tr>
+<tr><td>SGC-PWY-REG-001</td><td>Registro maestro de documentación</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/REG-001_Registro_Documentos.md</td></tr>
+<tr><td>SGC-PWY-REG-002</td><td>Registro de riesgos y oportunidades</td><td>1.0</td><td>2026-06-08</td><td>Vigente</td><td>docs/iso9001/REG-002_Registro_Riesgos.md</td></tr>
+</table>
+<h2>3. Documentación técnica vinculada</h2>
+<table>
+<tr><th>Código ref.</th><th>Título</th><th>Versión</th><th>Fecha</th><th>Estado</th><th>Ubicación</th></tr>
+<tr><td>DOC-PWY-001</td><td>README del proyecto</td><td>—</td><td>2026-06</td><td>Vigente</td><td>README.md</td></tr>
+<tr><td>DOC-PWY-002</td><td>Índice de documentación</td><td>—</td><td>2026-06</td><td>Vigente</td><td>docs/README.md</td></tr>
+<tr><td>DOC-PWY-003</td><td>Arquitectura del sistema</td><td>—</td><td>2026-06</td><td>Vigente</td><td>docs/ARCHITECTURE.md</td></tr>
+<tr><td>DOC-PWY-004</td><td>Documentación de API</td><td>—</td><td>2026-06</td><td>Vigente</td><td>docs/API.md</td></tr>
+<tr><td>DOC-PWY-005</td><td>Requisitos del sistema</td><td>—</td><td>2026-03</td><td>Vigente</td><td>docs/REQUISITOS_SISTEMA.md</td></tr>
+<tr><td>DOC-PWY-006</td><td>Instructivo de despliegue</td><td>—</td><td>2026-06</td><td>Vigente</td><td>docs/INSTRUCTIVO_DESPLIEGUE.md</td></tr>
+<tr><td>DOC-PWY-007</td><td>Manual de despliegue servidor</td><td>1.0</td><td>2025-02</td><td>Vigente</td><td>docs/MANUAL_DESPLIEGUE_SERVIDOR.md</td></tr>
+<tr><td>DOC-PWY-008</td><td>Guía de contribución</td><td>—</td><td>2026-03</td><td>Vigente</td><td>docs/CONTRIBUTING.md</td></tr>
+<tr><td>DOC-PWY-009</td><td>TTS (Text-to-Speech)</td><td>—</td><td>2026-06</td><td>Vigente</td><td>docs/TTS.md</td></tr>
+<tr><td>DOC-PWY-010</td><td>Catálogos de incidentes</td><td>—</td><td>2026-03</td><td>Vigente</td><td>docs/CATALOGOS_INCIDENTES.md</td></tr>
+<tr><td>DOC-PWY-011</td><td>Deployment rápido</td><td>—</td><td>2026-03</td><td>Vigente</td><td>docs/DEPLOYMENT.md</td></tr>
+<tr><td>DOC-PWY-012</td><td>Despliegue Windows (nginx/NSSM)</td><td>—</td><td>2026-06</td><td>Vigente</td><td>deploy/INSTRUCCIONES-DESPLIEGUE.md</td></tr>
+<tr><td>DOC-PWY-013</td><td>Reporte polling Waze</td><td>—</td><td>2026-03</td><td>Vigente</td><td>docs/REPORTE_POLLING_WAZE.md</td></tr>
+</table>
+<h2>4. Registros (evidencias)</h2>
+<table>
+<tr><th>Código ref.</th><th>Título</th><th>Tipo</th><th>Retención</th><th>Ubicación</th></tr>
+<tr><td>REG-PWY-001</td><td>Historial de commits</td><td>Registro</td><td>Permanente</td><td>Git (<code>git log</code>)</td></tr>
+<tr><td>REG-PWY-002</td><td>Pull Requests</td><td>Registro</td><td>Permanente</td><td>GitHub</td></tr>
+<tr><td>REG-PWY-003</td><td>Logs de aplicación</td><td>Registro</td><td>≥ 90 días</td><td>Servidor productivo</td></tr>
+<tr><td>REG-PWY-004</td><td>Auditoría código frontend</td><td>Registro</td><td>Permanente</td><td>apps/frontend/docs/CODE_AUDIT_REPORT.md</td></tr>
+<tr><td>REG-PWY-005</td><td>Auditoría código backend</td><td>Registro</td><td>Permanente</td><td>apps/backend/docs/CODE_AUDIT_REPORT.md</td></tr>
+<tr><td>REG-PWY-006</td><td>Auditoría base de datos</td><td>Registro</td><td>Permanente</td><td>apps/backend/docs/DB_AUDIT_REPORT.md</td></tr>
+<tr><td>REG-PWY-007</td><td>Migraciones de BD</td><td>Registro</td><td>Permanente</td><td>apps/backend/src/database/migrations/</td></tr>
+<tr><td>REG-PWY-009</td><td>Pipeline CI/CD</td><td>Registro</td><td>Permanente</td><td>.github/workflows/ci-cd.yml</td></tr>
+<tr><td>REG-PWY-008</td><td>Backups PostgreSQL</td><td>Registro</td><td>Según política CASISA</td><td>Servidor (admin)</td></tr>
+<tr><td>REG-PWY-010</td><td>Registros de proceso completados (RP-001…010)</td><td>Registro</td><td>90 días – 5 años según RP</td><td>Sala de control / carpeta calidad CASISA</td></tr>
+<tr><td>REG-PWY-011</td><td>Bitácoras de turno (RP-009)</td><td>Registro</td><td>90 días</td><td>Sala de control</td></tr>
+<tr><td>REG-PWY-012</td><td>NC operativas (RP-010)</td><td>Registro</td><td>5 años</td><td>Sistema tickets + calidad</td></tr>
+</table>
+<h2>5. Salidas PDF</h2>
+<table>
+<tr><th>Archivo</th><th>Generado desde</th><th>Comando</th></tr>
+<tr><td>MANUAL_SGC_ISO9001.pdf</td><td>Paquete ISO 9001 completo</td><td><code>npm run docs:iso-pdf</code></td></tr>
+<tr><td>MANUAL_USUARIO.pdf</td><td>Manual de Usuario</td><td><code>npm run docs:iso-pdf-usuario</code></td></tr>
+<tr><td>MANUAL_PROCESOS.pdf</td><td>Manual de Procesos</td><td><code>npm run docs:iso-pdf-procesos</code></td></tr>
+<tr><td>INSTRUCTIVOS_PROCESOS.pdf</td><td>Instructivos IP-001 a IP-010</td><td><code>npm run docs:iso-pdf-instructivos</code></td></tr>
+<tr><td>REGISTROS_PROCESOS.pdf</td><td>Registros RP-001 a RP-010</td><td><code>npm run docs:iso-pdf-registros</code></td></tr>
+<tr><td>MANUAL_DESPLIEGUE_SERVIDOR.pdf</td><td>Manual de despliegue</td><td><code>npm run docs:pdf</code></td></tr>
+</table>
+<h2>6. Historial de cambios del registro</h2>
+<table>
+<tr><th>Versión</th><th>Fecha</th><th>Cambio</th><th>Autor</th></tr>
+<tr><td>1.0</td><td>2026-06-08</td><td>Emisión inicial con 9 documentos SGC + 11 docs técnicos</td><td>GED</td></tr>
+<tr><td>1.1</td><td>2026-06-08</td><td>Actualización docs técnicos, deploy/, CI/CD, rutas migraciones</td><td>GED</td></tr>
+<tr><td>1.2</td><td>2026-06-08</td><td>Registros de proceso RP-001 a RP-010</td><td>GED</td></tr>
+</table>
+<hr>
+<p><strong>Próxima revisión programada:</strong> Diciembre 2026</p></div>
+<div class="page-break"></div><div class="doc-section"><h1>Registro de Riesgos y Oportunidades</h1>
+<p><strong>Código:</strong> SGC-PWY-REG-002  </p>
+<p><strong>Versión:</strong> 1.0  </p>
+<p><strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Cláusula ISO 9001:2015:</strong> 6.1 – Acciones para abordar riesgos y oportunidades</p>
+<hr>
+<h2>1. Propósito</h2>
+<p>Identificar, evaluar y gestionar los riesgos y oportunidades que pueden afectar la conformidad del Panel Ejecutivo Waze con sus requisitos y la eficacia del SGC.</p>
+<h2>2. Metodología de evaluación</h2>
+<table>
+<tr><th>Parámetro</th><th>Escala</th></tr>
+<tr><td><strong>Probabilidad</strong></td><td>1 (Muy baja) – 5 (Muy alta)</td></tr>
+<tr><td><strong>Impacto</strong></td><td>1 (Mínimo) – 5 (Crítico)</td></tr>
+<tr><td><strong>Nivel de riesgo</strong></td><td>Probabilidad × Impacto</td></tr>
+</table>
+<table>
+<tr><th>Nivel</th><th>Rango</th><th>Acción</th></tr>
+<tr><td>Bajo</td><td>1–6</td><td>Monitorear</td></tr>
+<tr><td>Medio</td><td>7–14</td><td>Mitigar</td></tr>
+<tr><td>Alto</td><td>15–25</td><td>Mitigar urgentemente + plan de contingencia</td></tr>
+</table>
+<h2>3. Registro de riesgos</h2>
+<table>
+<tr><th>ID</th><th>Riesgo</th><th>Prob.</th><th>Imp.</th><th>Nivel</th><th>Mitigación</th><th>Responsable</th><th>Estado</th></tr>
+<tr><td>R-01</td><td>Indisponibilidad del feed Waze CCP</td><td>3</td><td>5</td><td>15</td><td>Reintentos automáticos, logs, alertas health check, monitoreo de ciclo polling</td><td>GED</td><td>Activo</td></tr>
+<tr><td>R-02</td><td>Despliegue a producción sin validación en preprod</td><td>2</td><td>5</td><td>10</td><td>Flujo obligatorio preprod → main (PROC-003)</td><td>GED</td><td>Activo</td></tr>
+<tr><td>R-03</td><td>Pérdida o corrupción de datos en PostgreSQL</td><td>2</td><td>5</td><td>10</td><td>Backups diarios, migraciones versionadas, rollback documentado</td><td>Admin sistemas</td><td>Activo</td></tr>
+<tr><td>R-04</td><td>Vulnerabilidad de seguridad (acceso no autorizado)</td><td>2</td><td>5</td><td>10</td><td>JWT, RBAC, rate limiting, validación de inputs, HTTPS</td><td>GED</td><td>Activo</td></tr>
+<tr><td>R-05</td><td>Saturación de BD por crecimiento de histórico</td><td>3</td><td>3</td><td>9</td><td>Retención 30 días snapshots/TVT (migr. 049), 90 días notifications</td><td>GED</td><td>Activo</td></tr>
+<tr><td>R-06</td><td>Fallo de servicio NSSM en Windows Server</td><td>2</td><td>4</td><td>8</td><td>Scripts de reinicio, monitoreo health, documentación PROC-005</td><td>Admin sistemas</td><td>Activo</td></tr>
+<tr><td>R-07</td><td>Dependencia de APIs externas (Open-Meteo, Edge TTS)</td><td>3</td><td>3</td><td>9</td><td>Fallback en memoria, logs de errores, voces alternativas</td><td>GED</td><td>Activo</td></tr>
+<tr><td>R-08</td><td>Pérdida de conocimiento (rotación de personal GED)</td><td>2</td><td>4</td><td>8</td><td>Documentación SGC, README, procedimientos ISO</td><td>Responsable proyecto</td><td>Activo</td></tr>
+<tr><td>R-09</td><td>Regresión por cambio en paquetes compartidos</td><td>3</td><td>3</td><td>9</td><td>Tests unitarios, typecheck, revisión de PR</td><td>GED</td><td>Activo</td></tr>
+<tr><td>R-10</td><td>Indisponibilidad de Redis (rate limiting)</td><td>3</td><td>2</td><td>6</td><td>Fallback en memoria implementado en backend</td><td>GED</td><td>Activo</td></tr>
+</table>
+<h2>4. Registro de oportunidades</h2>
+<table>
+<tr><th>ID</th><th>Oportunidad</th><th>Beneficio esperado</th><th>Acción propuesta</th><th>Responsable</th><th>Estado</th></tr>
+<tr><td>O-01</td><td>Migración a WebSocket puro (sin polling frontend)</td><td>Menor latencia, menor carga de red</td><td>Ya implementado: broadcast <code>waze:data_updated</code></td><td>GED</td><td>Implementado</td></tr>
+<tr><td>O-02</td><td>Caché Redis para feeds Waze y clima</td><td>Menor carga en BD y APIs externas</td><td>Configurar Redis/Memurai en producción</td><td>Admin sistemas</td><td>Planificado</td></tr>
+<tr><td>O-03</td><td>Dashboard de KPIs / risk scoring por grupo</td><td>Mejor visibilidad para supervisores</td><td>Backend en <code>risk.routes.ts</code> (<code>ENABLE_RISK_SCORING=1</code>); frontend no integrado en main</td><td>GED</td><td>Backend listo, UI pendiente</td></tr>
+<tr><td>O-04</td><td>Automatización de CI/CD completo</td><td>Menor error humano en deploy</td><td>GitHub Actions + deploy NSSM/nginx con rollback</td><td>GED</td><td><strong>Implementado</strong></td></tr>
+<tr><td>O-05</td><td>Certificación SSL/HTTPS en producción</td><td>Seguridad y cumplimiento</td><td>Configurar certificado en Nginx/reverse proxy</td><td>Admin sistemas</td><td>Planificado</td></tr>
+</table>
+<h2>5. Revisión</h2>
+<table>
+<tr><th>Fecha revisión</th><th>Revisado por</th><th>Cambios</th></tr>
+<tr><td>2026-06-08</td><td>GED</td><td>Emisión inicial con 10 riesgos y 5 oportunidades</td></tr>
+<tr><td>_Próxima: 2026-12-08_</td><td></td><td></td></tr>
+</table>
+<hr>
+<p><strong>Historial de revisiones</strong></p>
+<table>
+<tr><th>Versión</th><th>Fecha</th><th>Cambio</th><th>Autor</th></tr>
+<tr><td>1.0</td><td>2026-06-08</td><td>Emisión inicial</td><td>GED</td></tr>
+</table></div>
+  <div class="footer-note">
+    Documento generado automáticamente — CASISA / GED — Panel Ejecutivo Waze — ISO 9001:2015
+  </div>
+</body>
+</html>

@@ -12,8 +12,11 @@
 | IP LAN | `10.1.0.136` |
 | Ruta del proyecto | `D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados` |
 | PostgreSQL | 18.3 en `D:\postgreSQL` |
-| Backend (servicio) | NSSM → `PanelWazeBackend` (puerto 3002) |
-| Frontend | http://10.1.0.136:5180 |
+| Acceso web (producción) | http://10.1.0.136/ — nginx :80 (proxy `/api`, `/socket.io`, sirve `dist`) |
+| Backend (servicio NSSM) | `PanelWazeBackend` → puerto 3002 |
+| Nginx (servicio NSSM) | `PanelWazeNginx` → puerto 80 |
+| Frontend directo (dev/preview) | http://10.1.0.136:5180 |
+| CI/CD | GitHub Actions — deploy automático en push a `main` con rollback |
 
 ## Inicio Rápido
 
@@ -62,7 +65,14 @@ scripts\INSTALAR-NSSM.bat
 scripts\REINICIAR-SERVICIOS.bat
 ```
 
-Ver [docs/INSTRUCTIVO_DESPLIEGUE.md](./docs/INSTRUCTIVO_DESPLIEGUE.md) para el procedimiento completo.
+Ver [deploy/INSTRUCCIONES-DESPLIEGUE.md](./deploy/INSTRUCCIONES-DESPLIEGUE.md) (nginx + NSSM) y [docs/INSTRUCTIVO_DESPLIEGUE.md](./docs/INSTRUCTIVO_DESPLIEGUE.md) para el procedimiento completo.
+
+```powershell
+# Gestión de servicios en producción (nginx + backend)
+cd deploy
+.\manage-services.ps1 -Action status
+.\manage-services.ps1 -Action update   # git pull + build + restart + health-check
+```
 
 ## 🏗️ Arquitectura
 
@@ -77,8 +87,10 @@ panel-waze-monorepo/
 │   ├── types/                     # Definiciones TypeScript (Waze, clima, etc.)
 │   ├── config/                    # Configuraciones compartidas
 │   └── shared/                    # Utilidades y helpers
+├── deploy/                        # Despliegue Windows (nginx, NSSM, CI)
 ├── docker/                        # Configuración Docker y Nginx
 ├── docs/                          # Documentación del proyecto
+│   └── iso9001/                   # SGC ISO 9001:2015
 ├── scripts/                       # Scripts de automatización
 └── tests/                         # Tests E2E (Playwright)
 ```
@@ -87,10 +99,10 @@ panel-waze-monorepo/
 
 ### Prerrequisitos
 
-- Node.js 18+
+- Node.js 20+ (CI y producción; mínimo 18)
 - npm 8+
-- PostgreSQL 16+ (PostGIS recomendado)
-- Redis (Memurai para Windows)
+- PostgreSQL 18+ (producción CASISA: 18.3)
+- Redis / Memurai (opcional — fallback en memoria)
 - Docker & Docker Compose (opcional)
 
 ### Instalación
@@ -164,17 +176,21 @@ Utilidades, helpers y lógica reutilizable compartida.
 
 ### Esquema Principal
 
-- **Usuarios y Roles**: Sistema de autenticación y permisos
+Migraciones en `apps/backend/src/database/migrations/` (49+ archivos).
+
+- **Usuarios y Roles**: Autenticación JWT, sesiones, permisos granulares (RBAC)
 - **Catálogos**: Tipos y subtipos de incidentes (sincronizables con Waze)
-- **Polígonos**: Configuración de áreas de monitoreo
-- **Incidentes**:
-  - `waze_alerts`: Accidentes, peligros y otros reportes (Puntos)
-  - `waze_jams`: Congestión vehicular (Líneas)
-  - `waze_irregularities`: Anomalías de tráfico
-  - `incidents_history`: Histórico consolidado para estadísticas
-- **Clima**:
-  - `polygon_weather_data`: Datos meteorológicos por polígono (Open-Meteo)
-- **Auditoría**: Logs de cambios y operaciones
+- **Polígonos y grupos**: Áreas de monitoreo y agrupaciones (`polygon_groups`)
+- **Incidentes Waze**:
+  - `waze_alerts`, `waze_jams`, `waze_irregularities`, `waze_cameras`
+  - Geo-referencia con hitos kilométricos (`kilometer_markers`)
+- **Siniestros viales (RAC)**: `road_accidents`, multimedia, clima histórico por siniestro
+- **Zonas peligrosas**: `zonas_peligrosas` (geofencing activo con RBAC)
+- **Clima**: `polygon_weather_data` con particionado automático (Open-Meteo)
+- **Histórico y métricas**: snapshots, TVT, estadísticas diarias, retención configurable
+- **Auditoría**: Logs de cambios, sesiones y operaciones
+
+> **Risk scoring** (`/api/risk/*`): disponible solo con `ENABLE_RISK_SCORING=1` (no activo en producción actual).
 
 ### Integración Waze
 
@@ -183,13 +199,29 @@ El sistema consume el **Waze Traffic Feed** (Partners).
 - **Alertas**: Accidentes, peligros, clima (con iconos SVG oficiales).
 - **Jams**: Congestión vehicular con polígonos de tráfico.
 - **Catálogos**: Gestión centralizada de tipos de incidentes (`/api/catalogs`).
-- **Notificaciones en tiempo real**: WebSocket (`notification:new`) para alertas al instante.
+- **Notificaciones en tiempo real**: WebSocket con broadcast global al completar cada ciclo de ingesta.
+- **Polling backend**: Ciclo Waze cada 30 s, TVT cada 60 s, clima cada 1 h (mutex anti-solapamiento).
+
+### Módulos del frontend
+
+| Ruta | Módulo | Permiso RBAC |
+|------|--------|--------------|
+| `/mapa`, `/dashboard` | Mapa operativo y KPIs | `map.view` |
+| `/siniestros` | Siniestros viales (RAC) | `accidents.view` |
+| `/zonas-peligrosas` | Zonas peligrosas geofencing | `danger_zones.view` |
+| `/incidentes` | Gestión de incidentes | `incidents.view` |
+| `/incidentes/historico` | Histórico de incidentes | `incidents.view` |
+| `/estadisticas` | Analítica operativa | `incidents.view` |
+| `/notificaciones` | Centro de notificaciones | `incidents.view` |
+| `/admin` | Administración (polígonos, usuarios, TTS) | `admin` |
+| `/perfil` | Perfil y cambio de contraseña | autenticado |
+| `/login` | Inicio de sesión | público |
 
 ### Notificaciones y TTS
 
-- **Sincronización en tiempo real vía WebSockets**: Todos los centros de monitoreo reciben actualizaciones en el mismo instante. El servidor emite broadcast global (`waze:data_updated`, `play_audio_alert`) al completar cada ciclo de ingesta, eliminando la necesidad de polling.
-- **TTS (Text-to-Speech)**: Lectura en voz alta con **Edge TTS** (Microsoft), voces neuronales gratuitas. Configuración en `/admin` → Voz (TTS).
-- **Cola local**: El frontend mantiene una cola de mensajes por reproducir; ver `getTTSQueueStatus()` en `lib/tts-service.ts` para consultar pendientes.
+- **WebSocket**: `waze:data_updated` invalida caches React Query; `notification:new` para alertas individuales; `red_zone_critical_alert` para zonas peligrosas (sirena + TTS prioritario).
+- **TTS (Edge TTS)**: Voces neuronales gratuitas. Configuración en `/admin` → Voz (TTS).
+- **Cola local**: Ver `getTTSQueueStatus()` en `lib/tts-service.ts`.
 
 ### Migraciones
 
@@ -227,6 +259,11 @@ npm run db:seed          # Datos de prueba
 # Docker
 npm run docker:compose:dev   # Desarrollo con Docker
 npm run docker:compose:prod  # Producción con Docker
+
+# Documentación PDF
+npm run docs:iso-pdf         # SGC ISO 9001:2015
+npm run docs:pdf             # Manual de despliegue
+npm run docs:all-pdf         # Ambos PDFs
 ```
 
 ### Estructura de Commits
@@ -261,14 +298,14 @@ Referencia completa en `apps/backend/.env.example`. Variables principales:
 # Backend (apps/backend/.env)
 NODE_ENV=production
 PORT=3002
-FRONTEND_URL=http://10.1.0.136:5180
+FRONTEND_URL=http://10.1.0.136
 
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=panel_waze
 DB_USER=postgres
 DB_PASSWORD=           # obligatorio
-DB_POOL_MAX=50
+DB_POOL_MAX=25         # ajustar según carga (ver .env.example)
 
 JWT_SECRET=            # cambiar en producción
 JWT_EXPIRATION=8h
@@ -298,6 +335,7 @@ VITE_API_URL=/api      # o http://10.1.0.136:3002 para acceso directo
 - `/health` - Estado general del sistema
 - `/health/live` - Liveness probe
 - `/health/ready` - Readiness probe
+- `/health/detailed` - Diagnóstico extendido (BD, servicios, recursos)
 
 ### Métricas
 
@@ -308,11 +346,11 @@ VITE_API_URL=/api      # o http://10.1.0.136:3002 para acceso directo
 
 ## 🔐 Seguridad
 
-- **Autenticación**: JWT + SSO (Microsoft/Google)
-- **Autorización**: Role-based access control (RBAC)
-- **Validación**: Input sanitization y validation
-- **Rate Limiting**: Protección contra abuso
-- **HTTPS**: En producción con certificados válidos
+- **Autenticación**: JWT con email/password, sesiones en BD, revocación de tokens
+- **Autorización**: RBAC granular por ruta (`routePermissions.ts`) y endpoint
+- **Validación**: Sanitización y validación de entradas en Fastify
+- **Rate Limiting**: `@fastify/rate-limit` (100 req/min por cliente)
+- **HTTPS**: Recomendado en producción (nginx como terminador TLS)
 
 ## 📚 Documentación
 
@@ -327,6 +365,10 @@ VITE_API_URL=/api      # o http://10.1.0.136:3002 para acceso directo
 | [Catálogos de incidentes](./docs/CATALOGOS_INCIDENTES.md)     | Tipos y subtipos, sincronización con Waze                                 |
 | [Deployment](./docs/DEPLOYMENT.md)                            | Despliegue local, Docker, variables de entorno                            |
 | [Contribución](./docs/CONTRIBUTING.md)                        | Cómo contribuir, convenciones, PRs                                        |
+| [SGC ISO 9001:2015](./docs/iso9001/README.md)               | Sistema de Gestión de la Calidad: manual, procedimientos y registros      |
+| [Manual de Usuario ISO](./docs/iso9001/MANUAL_USUARIO.md)   | Guía de uso para operadores, supervisores y administradores               |
+| [Manual de Procesos ISO](./docs/iso9001/MANUAL_PROCESOS.md) | Procesos operativos de sala de control (10 procesos)                      |
+| [Despliegue Windows (deploy)](./deploy/INSTRUCCIONES-DESPLIEGUE.md) | nginx :80, NSSM, `manage-services.ps1`, CI/CD automático          |
 
 ## 🌿 Ramas (Branches)
 
@@ -355,4 +397,4 @@ Este proyecto es propiedad de **CASISA - Caminos de las Sierras**.
 
 **Desarrollado por el equipo de GED**
 
-_Última actualización: Marzo 2026_
+_Última actualización: Junio 2026_

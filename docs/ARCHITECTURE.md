@@ -68,12 +68,7 @@ panel-waze-monorepo/
 │   │   │   ├── environments.ts   # Config por entorno
 │   │   │   └── validation.ts     # Reglas de validación
 │   │   └── package.json
-│   ├── database/                  # 🗄️ Capa de Datos
-│   │   ├── src/
-│   │   │   ├── migrations/       # Scripts de migración
-│   │   │   ├── seeds/            # Datos de prueba
-│   │   │   ├── connection.ts     # Configuración de conexión
-│   │   │   └── queries/          # Consultas reutilizables
+│   ├── database/                  # 🗄️ Stub (reservado; migraciones en backend)
 │   │   └── package.json
 │   └── shared/                    # 🔧 Utilidades Compartidas
 │       ├── src/
@@ -144,8 +139,8 @@ panel-waze-monorepo/
 ├─────────────────────────────────────────────────┤
 │  🗄️  Database Models/Repositories               │
 │  📡 External API Clients                        │
-│  🗃️  Caching Layer (Redis)                      │
-│  📋 Queue System (Bull)                         │
+│  🗃️  Caching Layer (Redis, fallback en memoria)  │
+│  🔄 Polling Services (Waze, clima, TVT)         │
 ├─────────────────────────────────────────────────┤
 │               INFRASTRUCTURE LAYER              │
 ├─────────────────────────────────────────────────┤
@@ -252,10 +247,11 @@ El sistema usa **WebSockets (Socket.IO)** como canal primario de actualización.
 | Evento | Dirección | Destinatario | Descripción |
 |--------|-----------|-------------|-------------|
 | `waze:data_updated` | Server → All clients | Broadcast global | Emitido al finalizar cada ciclo de ingesta. Todos los clientes invalidan sus caches de React Query simultáneamente. |
-| `play_audio_alert` | Server → All clients | Broadcast global | Emitido cuando hay alertas críticas nuevas (severity >= 3). Los clientes reproducen un sonido de alerta. |
-| `waze:update` | Server → Room | Room `polygon:{id}` | Datos actualizados de un polígono específico. |
 | `notification:new` | Server → All clients | Broadcast global | Notificación individual (accidente, peligro, etc.) para TTS y snackbar. |
-| `risk:update` | Server → Room | Room `polygon:{id}` | Score de riesgo recalculado para un polígono. |
+| `red_zone_critical_alert` | Server → All clients | Broadcast global | Incidente en zona peligrosa RAC: sirena + TTS prioritario. |
+| `play_audio_alert` | Server → All clients | Broadcast global | Emitido con alertas críticas; sonido delegado a `notification:new` / `red_zone_critical_alert`. |
+| `waze:update` | Server → Room | Room `polygon:{id}` | Datos actualizados de un polígono específico. |
+| `risk:update` | Server → Room | Room `polygon:{id}` | Score de riesgo (solo con `ENABLE_RISK_SCORING=1`). |
 
 #### Diagrama de Flujo
 
@@ -288,11 +284,14 @@ sequenceDiagram
         WS-->>Fn: waze:data_updated
     end
 
+    alt Incidente en zona peligrosa
+        SS->>WS: io.emit("red_zone_critical_alert", payload)
+        WS-->>F1: Sirena + TTS prioritario
+    end
+
     alt Alertas críticas nuevas
-        SS->>WS: io.emit("play_audio_alert", {count})
-        WS-->>F1: Beep + /alert.mp3
-        WS-->>F2: Beep + /alert.mp3
-        WS-->>Fn: Beep + /alert.mp3
+        SS->>WS: io.emit("notification:new", alert)
+        WS-->>F1: Beep + TTS (si no deduplicado)
     end
 
     rect rgb(255, 248, 240)
@@ -428,7 +427,9 @@ Para jams y polígonos se usa `queryRenderedFeatures` vía `mousedown`/`mouseup`
 │  • Page layouts, Grid systems                    │
 ├─────────────────────────────────────────────────┤
 │  🏠 Pages                                        │
-│  • Dashboard, Admin, Reports                    │
+│  • Mapa, Siniestros, Incidentes, Estadísticas   │
+│  • Zonas peligrosas, Notificaciones, Admin      │
+│  • Login, Perfil                                │
 └─────────────────────────────────────────────────┘
 ```
 

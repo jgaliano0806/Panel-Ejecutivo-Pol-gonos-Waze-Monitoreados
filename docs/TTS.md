@@ -64,10 +64,25 @@ const { pendingCount, isPlaying, totalPending } = getTTSQueueStatus();
 
 ## Flujo de una notificación con voz
 
-1. **Backend**: El feed de Waze (o el servicio que emite alertas) detecta un incidente y emite por Socket.IO el evento `notification:new`.
-2. **Frontend** (`websocket.ts`): Recibe el evento, traduce el mensaje, añade la notificación al store, aplica filtros TTS y, si pasa, reproduce beep + llama a `speakNotification(mensajeTTS, "")`.
-3. **TTS** (`tts-service.ts`): Construye el mensaje natural, lo encola, y `processQueue()` pide el audio al backend (`/api/tts/speak`) y lo reproduce.
-4. Si el backend TTS falla, se usa el fallback Web Speech API.
+### Alerta estándar (`notification:new`)
+
+1. **Backend**: Tras el ciclo de polling Waze, emite `notification:new` por Socket.IO.
+2. **Frontend** (`websocket.ts`): Recibe el evento, traduce el mensaje, añade la notificación al store.
+3. Si el incidente **no** es de zona peligrosa (ya anunciado por `red_zone_critical_alert`), aplica filtros TTS y reproduce beep + `speakNotification()`.
+4. **TTS** (`tts-service.ts`): Encola el mensaje, pide audio a `/api/tts/speak` y reproduce. Fallback: Web Speech API.
+
+### Alerta zona peligrosa (`red_zone_critical_alert`)
+
+Cuando un incidente cae dentro de una zona peligrosa RAC:
+
+1. El backend emite `red_zone_critical_alert` con datos del incidente y la zona.
+2. El frontend reproduce **sirena + TTS prioritario** inmediatamente.
+3. El UUID del incidente se registra para **no repetir** la lectura cuando llegue el mismo evento vía `notification:new`.
+4. Los filtros TTS de `notification:new` omiten incidentes ya anunciados por zona roja.
+
+### Evento `play_audio_alert`
+
+El servidor emite `play_audio_alert` al detectar alertas críticas (severity ≥ 3), pero el **sonido real se delega** a `notification:new` y `red_zone_critical_alert` para evitar falsas alertas. El frontend solo registra el evento en logs.
 
 Los filtros de qué tipos/subtipos activan TTS están en `config/notificationFilters.ts` (`TTS_SNACKBAR_ALLOWED_INCIDENTS`).
 

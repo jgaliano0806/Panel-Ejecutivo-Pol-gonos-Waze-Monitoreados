@@ -30,7 +30,14 @@
     "docker:compose:prod": "docker-compose --profile prod up -d",
     "db:migrate": "npm run migrate --workspace=apps/backend",
 "db:seed": "npm run seed --workspace=apps/backend",
-    "docs:pdf": "node scripts/generate-pdf.js"
+    "docs:pdf": "node scripts/generate-pdf.js",
+    "docs:iso-pdf": "node scripts/generate-iso-pdf.js full",
+    "docs:iso-pdf-usuario": "node scripts/generate-iso-pdf.js usuario",
+    "docs:iso-pdf-procesos": "node scripts/generate-iso-pdf.js procesos",
+    "docs:iso-pdf-instructivos": "node scripts/generate-iso-pdf.js instructivos",
+    "docs:iso-pdf-registros": "node scripts/generate-iso-pdf.js registros",
+    "docs:all-pdf": "npm run docs:iso-pdf && npm run docs:iso-pdf-usuario && npm run docs:iso-pdf-procesos && npm run docs:iso-pdf-instructivos && npm run docs:iso-pdf-registros && npm run docs:pdf",
+    "docs:iso-publish": "node scripts/copy-iso-pdfs-to-ged.js"
 },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

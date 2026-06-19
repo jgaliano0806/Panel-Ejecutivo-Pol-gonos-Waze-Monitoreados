@@ -22,7 +22,7 @@ Guía de instalación y configuración para entornos productivos. Cubre el **ser
 
 | Opción | Entorno | Uso típico |
 |--------|---------|------------|
-| **A** | Windows Server 2022 (entorno actual CASISA) | Servidor de sala de control, acceso por red LAN. |
+| **A** | Windows Server 2022 (entorno actual CASISA) | Servidor de sala de control, nginx :80, CI/CD automático. |
 | **B** | Servidor Red Hat (RHEL / Rocky / Alma) | Producción centralizada Linux. |
 | **C** | PC local (Windows o Linux) | Sala de control, equipo fijo. |
 
@@ -43,15 +43,19 @@ Stack en todos los casos: Node.js 18+, PostgreSQL 18, Redis (opcional), frontend
 > | Ruta del proyecto | `D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados` |
 > | PostgreSQL | 18.3 en `D:\postgreSQL` |
 > | Gestor de servicios | NSSM (Chocolatey) |
-> | Servicio backend | `PanelWazeBackend` → `apps\backend\dist\server.js` |
-> | Frontend | http://10.1.0.136:5180 |
-> | API | http://10.1.0.136:3002 |
+> | Nginx (proxy) | `PanelWazeNginx` → puerto **80** (sirve `dist`, proxy `/api` y `/socket.io`) |
+> | Servicio backend | `PanelWazeBackend` → `apps\backend\dist\server.js` (:3002) |
+> | Acceso web | **http://10.1.0.136/** (nginx) |
+> | Frontend directo | http://10.1.0.136:5180 (solo dev/preview) |
+> | CI/CD | Push a `main` → GitHub Actions → deploy + rollback automático |
+
+> **Referencia operativa actualizada:** [deploy/INSTRUCCIONES-DESPLIEGUE.md](../deploy/INSTRUCCIONES-DESPLIEGUE.md) y `deploy/manage-services.ps1`.
 
 ### 2.1. Prerrequisitos
 
 | Software | Versión | Notas |
 |----------|---------|-------|
-| Node.js | 18+ | [nodejs.org](https://nodejs.org) |
+| Node.js | 20+ (CI/prod; mín. 18) | [nodejs.org](https://nodejs.org) |
 | PostgreSQL | 18.3 | Instalado en `D:\postgreSQL` |
 | NSSM | latest | `choco install nssm` |
 | Redis/Memurai | 7+ | Opcional – [memurai.com](https://www.memurai.com/) |
