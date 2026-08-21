@@ -76,6 +76,54 @@ const MOCK_INCIDENTS = [
   },
 ];
 
+export const MOCK_ACCIDENTS = [
+  {
+    id: "acc-grave-1",
+    incident_id: "waze-1",
+    type: "ACCIDENT",
+    subtype: "ACCIDENT_MAJOR",
+    severity: 5,
+    street: "Av. Circunvalación",
+    location_lat: -31.4201,
+    location_lng: -64.1888,
+    accident_at: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    polygon_id: "poly-apc",
+    weather_data: {},
+    waze_data: {},
+  },
+  {
+    id: "acc-mod-1",
+    incident_id: "waze-2",
+    type: "ACCIDENT",
+    subtype: "NO_SUBTYPE",
+    severity: 3,
+    street: "Ruta 9",
+    location_lat: -31.4301,
+    location_lng: -64.1988,
+    accident_at: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    polygon_id: "poly-apc",
+    weather_data: {},
+    waze_data: {},
+  },
+  {
+    id: "acc-leve-1",
+    incident_id: "waze-3",
+    type: "ACCIDENT",
+    subtype: "ACCIDENT_MINOR",
+    severity: 1,
+    street: "Calle San Martín",
+    location_lat: -31.4101,
+    location_lng: -64.1788,
+    accident_at: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    polygon_id: null,
+    weather_data: {},
+    waze_data: {},
+  },
+];
+
 function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({
     status,
@@ -128,6 +176,21 @@ export async function setupApiMocks(page: Page) {
   );
 
   await page.route("**/api/historical/**", (route) => json(route, []));
+
+  await page.route("**/api/kilometers**", (route) => json(route, { data: [] }));
+
+  await page.route("**/api/accidents?**", (route) =>
+    json(route, {
+      data: MOCK_ACCIDENTS,
+      total: MOCK_ACCIDENTS.length,
+    }),
+  );
+
+  await page.route("**/api/accidents/*", (route) => {
+    const id = route.request().url().split("/").pop()?.split("?")[0];
+    const found = MOCK_ACCIDENTS.find((a) => a.id === id) ?? MOCK_ACCIDENTS[0];
+    return json(route, { ...found, media: [] });
+  });
 
   await page.route("**/api/incidents/blocking-analysis**", (route) =>
     json(route, {
