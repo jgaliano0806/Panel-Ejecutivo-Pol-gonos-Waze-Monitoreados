@@ -12,6 +12,11 @@ const RoadAccidentsPage = lazy(() =>
     default: m.RoadAccidentsPage,
   })),
 );
+const AccidentsHeatmapPage = lazy(() =>
+  import("./pages/AccidentsHeatmapPage").then((m) => ({
+    default: m.AccidentsHeatmapPage,
+  })),
+);
 const IncidentsModule = lazy(() =>
   import("./pages/IncidentsModule").then((m) => ({
     default: m.IncidentsModule,
@@ -93,6 +98,18 @@ export const router = createBrowserRouter(
           <AppLayout>
             <SectionErrorBoundary sectionName="Siniestros">
               {withSuspense(<RoadAccidentsPage />)}
+            </SectionErrorBoundary>
+          </AppLayout>
+        </ProtectedRoute>
+      ),
+    },
+    {
+      path: "/siniestros/heatmap",
+      element: (
+        <ProtectedRoute requiredPermissions={[ROUTE_PERMISSIONS.siniestros]}>
+          <AppLayout>
+            <SectionErrorBoundary sectionName="Mapa de calor de siniestros">
+              {withSuspense(<AccidentsHeatmapPage />)}
             </SectionErrorBoundary>
           </AppLayout>
         </ProtectedRoute>

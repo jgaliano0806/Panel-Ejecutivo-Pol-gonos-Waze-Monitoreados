@@ -1,8 +1,12 @@
-import React, { useState, useCallback, memo } from "react";
+import React, { useState, useCallback, memo, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Car,
   Cloud,
+  Flame,
+  ArrowRight,
+  ArrowLeft,
   Thermometer,
   Wind,
   Eye,
@@ -38,6 +42,7 @@ import { realCordobaPolygons } from "../data/mock/realCordobaPolygons";
 import { usePolygonsStatus } from "../hooks/useWazeData";
 import { RoadAccident } from "../hooks/useRoadAccidents";
 import { exportAccidentToPDF } from "../lib/pdf-export";
+import { hasHeatmapReturnView } from "../lib/heatmapReturnView";
 import { useAuthStore } from "../stores/useAuthStore";
 
 function getAccidentSubtypeLabel(subtype?: string): string {
@@ -262,6 +267,28 @@ export const RoadAccidentsPage: React.FC = () => {
   const uploadMediaMutation = useUploadAccidentMedia();
   const createAccidentMutation = useCreateAccident();
   const refreshWeatherMutation = useRefreshAccidentWeather();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [cameFromHeatmap, setCameFromHeatmap] = useState(
+    () => hasHeatmapReturnView(),
+  );
+
+  // Deep-link desde el heatmap: /siniestros?accident=<id>&from=heatmap
+  // selecciona el incidente y habilita "Volver al mapa de calor".
+  useEffect(() => {
+    const accidentIdFromUrl = searchParams.get("accident");
+    const fromHeatmap = searchParams.get("from") === "heatmap";
+    if (fromHeatmap || hasHeatmapReturnView()) {
+      setCameFromHeatmap(true);
+    }
+    if (!accidentIdFromUrl) return;
+    setSelectedAccidentId(accidentIdFromUrl);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("accident");
+    nextParams.delete("from");
+    setSearchParams(nextParams, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleBackfillWeather = async () => {
     if (isBackfilling) return;
@@ -453,6 +480,29 @@ export const RoadAccidentsPage: React.FC = () => {
             </div>
             <div className="flex gap-2">
               <button
+                type="button"
+                onClick={() => navigate("/siniestros/heatmap")}
+                title="Ver mapa de calor con polígonos y mojones RAC"
+                aria-label="Abrir mapa de calor de incidentes"
+                className="group relative inline-flex min-h-[36px] items-center gap-2 overflow-hidden rounded-full bg-gradient-to-r from-red-500 via-red-500 to-orange-500 pl-3 pr-3.5 py-1.5 text-xs font-semibold text-white shadow-md shadow-red-500/25 ring-1 ring-inset ring-white/10 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lg hover:shadow-red-500/40 hover:from-red-500 hover:to-orange-400 active:translate-y-0 active:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-veltrix-card motion-reduce:transition-none motion-reduce:hover:transform-none"
+              >
+                <span
+                  className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-full"
+                  aria-hidden="true"
+                />
+                <span className="relative flex h-5 w-5 items-center justify-center rounded-full bg-white/15 ring-1 ring-inset ring-white/25">
+                  <Flame
+                    className="h-3.5 w-3.5 drop-shadow-sm transition-transform duration-200 group-hover:scale-110 group-active:scale-95"
+                    aria-hidden="true"
+                  />
+                </span>
+                <span className="relative hidden sm:inline">Mapa de calor</span>
+                <ArrowRight
+                  className="relative hidden h-3.5 w-3.5 -translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 sm:inline-block"
+                  aria-hidden="true"
+                />
+              </button>
+              <button
                 onClick={handleBackfillWeather}
                 disabled={isBackfilling}
                 className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed relative"
@@ -571,7 +621,21 @@ export const RoadAccidentsPage: React.FC = () => {
                     {accident.location_lng.toFixed(5)}
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 justify-end">
+                  {cameFromHeatmap && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        navigate("/siniestros/heatmap?restore=1")
+                      }
+                      aria-label="Volver al mapa de calor"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all active:scale-95 bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-sm shadow-red-500/20 hover:opacity-95"
+                      title="Volver al mapa de calor"
+                    >
+                      <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+                      Volver al mapa de calor
+                    </button>
+                  )}
                   {hasPermission("accidents.export") && (
                     <button
                       onClick={() => {
@@ -780,9 +844,9 @@ export const RoadAccidentsPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
                 {/* Minimapa */}
-                <div className="bg-white dark:bg-veltrix-card rounded-2xl shadow-sm border border-gray-100 dark:border-veltrix-border overflow-hidden h-[350px] relative">
+                <div className="bg-white dark:bg-veltrix-card rounded-2xl shadow-sm border border-gray-100 dark:border-veltrix-border overflow-hidden h-[380px] relative">
                   <MiniMapLibre
                     center={[accident.location_lat, accident.location_lng]}
                     zoom={15}
@@ -831,7 +895,7 @@ export const RoadAccidentsPage: React.FC = () => {
                 </div>
 
                 {/* Información Climática */}
-                <div className="bg-white dark:bg-veltrix-card rounded-2xl shadow-sm border border-gray-100 dark:border-veltrix-border p-6 flex flex-col">
+                <div className="bg-white dark:bg-veltrix-card rounded-2xl shadow-sm border border-gray-100 dark:border-veltrix-border p-6 flex flex-col h-[380px] overflow-y-auto">
                   <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2 flex-wrap">
                     <Cloud className="w-5 h-5 text-blue-500" />
                     Condiciones Climáticas al Momento

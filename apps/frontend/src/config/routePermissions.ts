@@ -69,6 +69,7 @@ export const PATH_TO_PERMISSION: Record<string, PermissionCode> = {
   "/zonas-peligrosas": ROUTE_PERMISSIONS.zonasPeligrosas,
   "/notificaciones": ROUTE_PERMISSIONS.notificaciones,
   "/siniestros": ROUTE_PERMISSIONS.siniestros,
+  "/siniestros/heatmap": ROUTE_PERMISSIONS.siniestros,
   "/incidentes": ROUTE_PERMISSIONS.incidentes,
   "/incidentes/historico": ROUTE_PERMISSIONS.incidentes,
   "/estadisticas": ROUTE_PERMISSIONS.incidentes,
