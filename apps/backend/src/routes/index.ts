@@ -21,6 +21,7 @@ import usersRoutes from "./users.routes";
 import rolesRoutes from "./roles.routes";
 import kilometerMarkersRoutes from "./kilometerMarkers.routes";
 import tileProxyRoutes from "./tileProxy.routes";
+import vectorTilesRoutes from "./vectorTiles.routes";
 import dangerZonesRoutes from "./dangerZones.routes";
 import zonasPeligrosasRoutes from "./zonasPeligrosas.routes";
 import metricsRoutes from "./metrics.routes";
@@ -39,6 +40,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
   // Proxy de tiles (CARTO, OSM) - para producción cuando serve no tiene proxy
   await app.register(tileProxyRoutes);
+  // Mapa base vectorial CARTO (Dark Matter / Positron) vía backend
+  await app.register(vectorTilesRoutes);
 
   // Autenticación (login, logout, sesiones)
   await app.register(authRoutes, { prefix: "/api/auth" });

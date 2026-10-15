@@ -21,6 +21,7 @@ import { useIncidentDetail } from "../../hooks/useIncidentsModule";
 import { IncidentDetailModal } from "../incidents/IncidentDetailModal";
 import { exportIncidentToPDF } from "../../lib/pdf-export";
 import { API_CONFIG, TILES_VERSION } from "../../config/constants";
+import { useBasemapStyle } from "../../hooks/useBasemapStyle";
 import { getWazeIconSvg } from "../../utils/wazeIcons";
 
 import { MapContextMenu } from "./MapContextMenu";
@@ -535,7 +536,8 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
   }, [mapLoaded, showWazeIncidents, onPolygonClick]);
 
   const tilesBase = API_CONFIG.tilesBase || "";
-  const mapStyle = useMemo((): maplibregl.StyleSpecification => ({
+  // Fallback raster: solo se usa si el mapa base vectorial no está disponible
+  const rasterStyle = useMemo((): maplibregl.StyleSpecification => ({
     version: 8,
     sources: {
       basemap: {
@@ -567,6 +569,9 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
       },
     ],
   }), [isDark, tilesBase]);
+
+  // Mapa base: CARTO vectorial (Dark Matter / Positron) vía backend
+  const { style: mapStyle } = useBasemapStyle(isDark, rasterStyle);
 
   return (
     <div

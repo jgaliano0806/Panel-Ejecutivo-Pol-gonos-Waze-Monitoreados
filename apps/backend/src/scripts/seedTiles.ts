@@ -21,6 +21,18 @@
 import axios from "axios";
 import fs from "fs";
 import path from "path";
+import {
+  getCartoApiKey,
+  CARTO_SUBDOMAINS,
+  ESRI_DARK_BASE,
+  ESRI_LIGHT_BASE,
+  OSM_BASE,
+  TILE_FETCH_HEADERS,
+  buildCartoRasterUrl,
+  cartoVariant,
+  isCartoWatermarkTile,
+  parseTileBuffer,
+} from "../services/tileProviders";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Configuración
@@ -164,33 +176,26 @@ function generateJobs(): TileJob[] {
 // Descarga de un tile
 // ──────────────────────────────────────────────────────────────────────────────
 
-const CARTO_SUBDOMAINS = ["a", "b", "c", "d"] as const;
+const CARTO_SUBDOMAINS_LOCAL = CARTO_SUBDOMAINS;
 
-// ESRI World Gray Canvas como fallback (gratuito, sin API key). Ojo: el orden
-// del path es {z}/{y}/{x}, NO {z}/{x}/{y} (igual que en tileProxy.routes.ts).
-const ESRI_DARK =
-  "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile";
-const ESRI_LIGHT =
-  "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile";
-
-/**
- * URLs candidatas para un tile, en orden de preferencia. Empieza por el
- * subdominio CARTO determinístico, rota por los otros 3 (reparte carga y
- * sortea 429), y cierra con ESRI del color correcto para no dejar el tile sin
- * bajar. Para OSM solo hay una fuente.
- */
 function tileUrlCandidates(style: string, z: number, x: number, y: number): string[] {
   if (style === "osm") {
-    return [`https://tile.openstreetmap.org/${z}/${x}/${y}.png`];
+    return [`${OSM_BASE}/${z}/${x}/${y}.png`];
   }
-  const variant = style === "carto-light" ? "light_all" : "dark_all";
-  const startIdx = (z + x + y) % CARTO_SUBDOMAINS.length;
-  const cartoUrls = CARTO_SUBDOMAINS.map((_, i) => {
-    const sub = CARTO_SUBDOMAINS[(startIdx + i) % CARTO_SUBDOMAINS.length];
-    return `https://${sub}.basemaps.cartocdn.com/rastertiles/${variant}/${z}/${x}/${y}.png`;
+  const variant = cartoVariant(
+    style === "carto-light" ? "carto-light" : "carto-dark",
+  );
+  const startIdx = (z + x + y) % CARTO_SUBDOMAINS_LOCAL.length;
+  const cartoUrls = CARTO_SUBDOMAINS_LOCAL.map((_, i) => {
+    const sub = CARTO_SUBDOMAINS_LOCAL[(startIdx + i) % CARTO_SUBDOMAINS_LOCAL.length];
+    return buildCartoRasterUrl(sub, variant, String(z), String(x), String(y));
   });
-  const esriBase = style === "carto-light" ? ESRI_LIGHT : ESRI_DARK;
-  return [...cartoUrls, `${esriBase}/${z}/${y}/${x}`];
+  const esriBase = style === "carto-light" ? ESRI_LIGHT_BASE : ESRI_DARK_BASE;
+  const esriUrl = `${esriBase}/${z}/${y}/${x}`;
+  if (!getCartoApiKey()) {
+    return [esriUrl, ...cartoUrls];
+  }
+  return [...cartoUrls, esriUrl];
 }
 
 function tileFilePath(style: string, z: number, x: number, y: number): string {
@@ -201,21 +206,25 @@ async function fetchBuffer(url: string): Promise<Buffer> {
   const res = await axios.get(url, {
     responseType: "arraybuffer",
     timeout: 8000,
-    headers: {
-      "User-Agent": "PanelWaze-CASISA/1.0 (Tile Pre-Seeder)",
-      Accept: "image/png,image/*",
-      Referer: "https://caminosdelassierras.com.ar/",
-    },
+    headers: TILE_FETCH_HEADERS,
     validateStatus: (s) => s === 200,
   });
-  return Buffer.from(res.data);
+  return parseTileBuffer(Buffer.from(res.data)).buf;
 }
 
 async function downloadTile(job: TileJob): Promise<"hit" | "ok" | "error"> {
   const fp = tileFilePath(job.style, job.z, job.x, job.y);
 
-  // Ya existe en cache → skip
-  if (fs.existsSync(fp)) return "hit";
+  // Ya existe en cache → validar que no sea watermark CARTO
+  if (fs.existsSync(fp)) {
+    try {
+      const existing = fs.readFileSync(fp);
+      if (!isCartoWatermarkTile(existing)) return "hit";
+      fs.unlinkSync(fp);
+    } catch {
+      // re-descargar
+    }
+  }
 
   // Prueba cada candidato (4 subdominios CARTO + ESRI) hasta que uno responda 200.
   // Así un 429/404 puntual no deja el tile sin bajar (que luego saldría blanco).

@@ -68,7 +68,7 @@ export const API_CONFIG = {
 // no los vuelve a pedir aunque el server empiece a devolver otra imagen.
 // Subir este número invalida los tiles cacheados en TODOS los navegadores tras
 // un deploy, sin que cada usuario tenga que limpiar caché manualmente.
-export const TILES_VERSION = "2";
+export const TILES_VERSION = "3";
 
 // ============================================
 // UMBRALES DE SEVERIDAD
