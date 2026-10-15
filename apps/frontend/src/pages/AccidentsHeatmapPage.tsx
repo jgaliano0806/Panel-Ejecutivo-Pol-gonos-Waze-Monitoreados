@@ -49,6 +49,7 @@ import {
 } from "../lib/heatmapReturnView";
 import { realCordobaPolygons } from "../data/mock/realCordobaPolygons";
 import { API_CONFIG, TILES_VERSION } from "../config/constants";
+import { useBasemapStyle } from "../hooks/useBasemapStyle";
 import { INITIAL_VIEW_STATE } from "../components/map/mapUtils";
 
 const HEATMAP_MAX_ZOOM_STOP = 15;
@@ -269,7 +270,8 @@ export function AccidentsHeatmapPage() {
   }, [kilometerMarkers]);
 
   const tilesBase = API_CONFIG.tilesBase || "";
-  const mapStyle = useMemo(
+  // Fallback raster: solo se usa si el mapa base vectorial no está disponible
+  const rasterStyle = useMemo(
     () =>
       ({
         version: 8,
@@ -309,6 +311,9 @@ export function AccidentsHeatmapPage() {
       }) as maplibregl.StyleSpecification,
     [isDark, tilesBase],
   );
+
+  // Mapa base: CARTO vectorial (Dark Matter / Positron) vía backend
+  const { style: mapStyle } = useBasemapStyle(isDark, rasterStyle);
 
   // Ajustar vista: restaurar zoom/posición al volver del detalle,
   // o fitBounds a los siniestros en la primera carga.

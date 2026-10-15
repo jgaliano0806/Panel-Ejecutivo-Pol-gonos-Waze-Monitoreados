@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { createRoot } from "react-dom/client";
@@ -8,6 +8,7 @@ import {
   getWazePartnerHubIconUrl,
 } from "../../utils/wazeIcons";
 import { API_CONFIG, TILES_VERSION } from "../../config/constants";
+import { useBasemapStyle } from "../../hooks/useBasemapStyle";
 
 interface MarkerData {
   lat: number;
@@ -77,48 +78,62 @@ export const MiniMapLibre: React.FC<MiniMapLibreProps> = ({
   // Obtener tema actual
   const isDark = useThemeStore((state: { isDark: boolean }) => state.isDark);
 
-  // STYLE DINÁMICO (tiles raster via proxy interno o backend en producción)
+  // Fallback raster (via proxy interno): solo si el mapa base vectorial falla
   const tilesBase = API_CONFIG.tilesBase || "";
-  const mapStyleUrl = {
-    version: 8 as const,
-    sources: {
-      basemap: {
-        type: "raster" as const,
-        tiles: isDark
-          ? [`${tilesBase}/tiles/v2/carto-dark/{z}/{x}/{y}.png?v=${TILES_VERSION}`]
-          : [`${tilesBase}/tiles/v2/carto-light/{z}/{x}/{y}.png?v=${TILES_VERSION}`],
-        tileSize: 256,
-        attribution: "&copy; CARTO",
-        minzoom: 0,
-        maxzoom: 19,
-      },
-    },
-    layers: [
-      // Fondo sólido: evita zócalos blancos/negros mientras los tiles cargan
-      {
-        id: "background",
-        type: "background" as const,
-        paint: {
-          "background-color": isDark ? "#1a1b2e" : "#e8e0d8",
-          "background-opacity": 1,
+  const rasterStyle = useMemo(
+    () => ({
+      version: 8 as const,
+      sources: {
+        basemap: {
+          type: "raster" as const,
+          tiles: isDark
+            ? [`${tilesBase}/tiles/v2/carto-dark/{z}/{x}/{y}.png?v=${TILES_VERSION}`]
+            : [`${tilesBase}/tiles/v2/carto-light/{z}/{x}/{y}.png?v=${TILES_VERSION}`],
+          tileSize: 256,
+          attribution: "&copy; CARTO",
+          minzoom: 0,
+          maxzoom: 19,
         },
       },
-      {
-        id: "basemap",
-        type: "raster" as const,
-        source: "basemap",
-        paint: { "raster-fade-duration": 200 },
-      },
-    ],
-  };
+      layers: [
+        // Fondo sólido: evita zócalos blancos/negros mientras los tiles cargan
+        {
+          id: "background",
+          type: "background" as const,
+          paint: {
+            "background-color": isDark ? "#1a1b2e" : "#e8e0d8",
+            "background-opacity": 1,
+          },
+        },
+        {
+          id: "basemap",
+          type: "raster" as const,
+          source: "basemap",
+          paint: { "raster-fade-duration": 200 },
+        },
+      ],
+    }),
+    [isDark, tilesBase],
+  );
+
+  // Mapa base: CARTO vectorial (Dark Matter / Positron) vía backend.
+  // El mapa se crea recién cuando el estilo está listo.
+  const { style: mapStyle, ready: styleReady } = useBasemapStyle(
+    isDark,
+    rasterStyle,
+  );
+  const appliedStyleRef = useRef<maplibregl.StyleSpecification | null>(null);
+  // Se incrementa tras cada setStyle (que borra las capas propias) para redibujarlas
+  const [styleTick, setStyleTick] = useState(0);
 
   // Inicializar mapa
   useEffect(() => {
-    if (!mapContainer.current || map.current) return;
+    if (!styleReady || !mapContainer.current || map.current) return;
 
+    appliedStyleRef.current = mapStyle;
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: mapStyleUrl, // Usar estilo Carto
+      style: mapStyle,
       center: [center[1], center[0]], // MapLibre usa [lng, lat]
       zoom: zoom,
       attributionControl: { compact: true },
@@ -132,22 +147,26 @@ export const MiniMapLibre: React.FC<MiniMapLibreProps> = ({
     map.current.on("load", () => {
       setMapLoaded(true);
     });
+  }, [styleReady]); // Se crea una sola vez, cuando el estilo está listo
 
-    // Cleanup
+  // Limpieza al desmontar
+  useEffect(() => {
     return () => {
       if (map.current) {
         map.current.remove();
         map.current = null;
       }
     };
-  }, []); // Solo inicializar una vez
+  }, []);
 
   // Actualizar estilo cuando cambia el tema
   useEffect(() => {
-    if (map.current) {
-      map.current.setStyle(mapStyleUrl);
-    }
-  }, [isDark]);
+    const m = map.current;
+    if (!m || !styleReady || appliedStyleRef.current === mapStyle) return;
+    appliedStyleRef.current = mapStyle;
+    m.setStyle(mapStyle);
+    m.once("style.load", () => setStyleTick((t) => t + 1));
+  }, [mapStyle, styleReady]);
 
   // Actualizar centro cuando cambia
   useEffect(() => {
@@ -433,7 +452,7 @@ export const MiniMapLibre: React.FC<MiniMapLibreProps> = ({
 
       shapesRef.current.push(id, sourceId);
     });
-  }, [polygons, polylines, mapLoaded]);
+  }, [polygons, polylines, mapLoaded, styleTick]);
 
   return (
     <div
