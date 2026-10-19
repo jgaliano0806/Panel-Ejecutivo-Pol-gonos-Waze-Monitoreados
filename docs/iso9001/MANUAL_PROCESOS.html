@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual de Procesos – Panel Ejecutivo Waze</title>
+  <style>
+  @page { size: A4; margin: 20mm; }
+  @media print {
+    body { font-size: 10pt; }
+    .no-print { display: none !important; }
+    pre, code { font-size: 8pt; white-space: pre-wrap; word-break: break-word; }
+    h1, h2, h3, h4 { page-break-after: avoid; }
+    pre, table, .doc-section { page-break-inside: avoid; }
+    .page-break { page-break-before: always; }
+  }
+  @media screen {
+    .no-print {
+      position: fixed; top: 10px; right: 10px; z-index: 9999;
+      background: #1e3a5f; color: white; padding: 10px 20px;
+      border-radius: 8px; cursor: pointer; font-weight: bold;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .no-print:hover { background: #152a45; }
+  }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.55; max-width: 800px; margin: 0 auto;
+    padding: 2rem; color: #1f2937;
+  }
+  .cover {
+    text-align: center; padding: 4rem 2rem; margin-bottom: 2rem;
+    border: 2px solid #1e3a5f; border-radius: 8px;
+  }
+  .cover h1 { font-size: 1.8rem; color: #1e3a5f; border: none; margin-bottom: 0.5rem; }
+  .cover .subtitle { font-size: 1.1rem; color: #4b5563; margin: 1rem 0; }
+  .cover .meta { font-size: 0.9rem; color: #6b7280; }
+  .cover .iso-badge {
+    display: inline-block; background: #1e3a5f; color: white;
+    padding: 0.4rem 1.2rem; border-radius: 4px; font-size: 0.85rem;
+    margin-top: 1.5rem; letter-spacing: 0.05em;
+  }
+  h1 { color: #111827; border-bottom: 2px solid #1e3a5f; padding-bottom: 0.5rem; font-size: 1.5rem; }
+  h2 { color: #1e3a5f; margin-top: 1.8rem; font-size: 1.2rem; }
+  h3 { color: #2563eb; margin-top: 1.3rem; font-size: 1.05rem; }
+  h4 { color: #3b82f6; margin-top: 1rem; }
+  code, pre {
+    background: #f3f4f6; padding: 0.15em 0.35em; border-radius: 3px;
+    font-family: 'Consolas', 'Courier New', monospace; font-size: 0.88em;
+  }
+  pre {
+    padding: 0.8rem; overflow-x: auto; border-left: 4px solid #1e3a5f;
+    margin: 0.8rem 0;
+  }
+  pre code { padding: 0; background: none; }
+  table { border-collapse: collapse; width: 100%; margin: 0.8rem 0; font-size: 0.9em; }
+  th, td { border: 1px solid #d1d5db; padding: 0.4rem 0.6rem; text-align: left; }
+  th { background: #f3f4f6; font-weight: 600; }
+  blockquote {
+    border-left: 4px solid #1e3a5f; margin: 0.8rem 0;
+    padding: 0.5rem 1rem; color: #4b5563; background: #f9fafb;
+  }
+  hr { border: none; border-top: 1px solid #e5e7eb; margin: 1.5rem 0; }
+  .doc-meta { color: #6b7280; font-size: 0.85em; margin-bottom: 1rem; }
+  ul, ol { margin: 0.5rem 0; padding-left: 1.5rem; }
+  li { margin: 0.2rem 0; }
+  .toc { background: #f9fafb; padding: 1.5rem; border-radius: 8px; margin: 2rem 0; }
+  .toc h2 { margin-top: 0; }
+  .toc ol { line-height: 1.8; }
+  .footer-note {
+    margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;
+    font-size: 0.8em; color: #9ca3af; text-align: center;
+  }
+  .diagram-box {
+    background: #f0f4f8; border: 1px solid #c5d4e8; border-radius: 6px;
+    padding: 1rem; margin: 1rem 0; page-break-inside: avoid;
+  }
+  .diagram-box .diagram-title {
+    font-weight: 600; color: #1e3a5f; margin: 0 0 0.5rem 0; font-size: 0.95em;
+  }
+  .diagram-box pre { margin: 0; border-left: none; background: transparent; }
+  .mermaid { text-align: center; margin: 1rem 0; page-break-inside: avoid; }
+  .mermaid svg { max-width: 100%; height: auto; }
+</style>
+  
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'loose', fontFamily: 'Segoe UI, system-ui, sans-serif' });
+  </script>
+</head>
+<body>
+  <button class="no-print" onclick="window.print()">Guardar como PDF</button>
+  
+    <div class="cover">
+      <div class="iso-badge">SGC-PWY-MP-001</div>
+      <h1>Manual de Procesos Operativos</h1>
+      <p class="subtitle">Panel Ejecutivo Waze – Monitoreo de Tráfico en Tiempo Real</p>
+      <p class="meta">
+        <strong>Organización:</strong> CASISA – Caminos de las Sierras<br>
+        <strong>Área:</strong> GED (Gestión y Desarrollo)<br>
+        <strong>Versión:</strong> 1.0<br>
+        <strong>Fecha de emisión:</strong> 2026-06-08<br>
+        <strong>Estado:</strong> Vigente
+      </p>
+    </div>
+    <div class="toc">
+      <h2>Contenido</h2>
+      <ol>
+        <li>PRO-OP-001 — Monitoreo de tráfico en tiempo real</li>
+        <li>PRO-OP-002 — Gestión de alertas y notificaciones</li>
+        <li>PRO-OP-003 — Respuesta a zonas peligrosas</li>
+        <li>PRO-OP-004 — Registro de siniestros viales</li>
+        <li>PRO-OP-005 — Consulta de incidentes e histórico</li>
+        <li>PRO-OP-006 — Análisis estadístico operativo</li>
+        <li>PRO-OP-007 — Administración del sistema</li>
+        <li>PRO-OP-008 — Gestión de usuarios y accesos</li>
+        <li>PRO-OP-009 — Inicio y cierre de turno</li>
+        <li>PRO-OP-010 — Gestión de incidencias operativas</li>
+      </ol>
+    </div>
+    <div class="page-break"></div>
+  
+  <div class="doc-section"><h1>Manual de Procesos Operativos</h1>
+<p><strong>Código:</strong> SGC-PWY-MP-001  </p>
+<p><strong>Proyecto:</strong> Panel Ejecutivo Waze – Monitoreo de Tráfico en Tiempo Real  </p>
+<p><strong>Organización:</strong> CASISA – Caminos de las Sierras  </p>
+<p><strong>Versión:</strong> 1.0  </p>
+<p><strong>Fecha:</strong> Junio 2026  </p>
+<p><strong>Cláusula ISO 9001:2015:</strong> 8.1, 8.5 — Planificación y control operacional</p>
+<hr>
+<h2>Tabla de contenidos</h2>
+<ol>
+<li><a href="#1-introducción">Introducción</a></li>
+<li><a href="#2-mapa-de-procesos">Mapa de procesos</a></li>
+<li><a href="#3-pro-op-001-monitoreo-de-tráfico-en-tiempo-real">PRO-OP-001: Monitoreo de tráfico en tiempo real</a></li>
+<li><a href="#4-pro-op-002-gestión-de-alertas-y-notificaciones">PRO-OP-002: Gestión de alertas y notificaciones</a></li>
+<li><a href="#5-pro-op-003-respuesta-a-zonas-peligrosas">PRO-OP-003: Respuesta a zonas peligrosas</a></li>
+<li><a href="#6-pro-op-004-registro-de-siniestros-viales">PRO-OP-004: Registro de siniestros viales</a></li>
+<li><a href="#7-pro-op-005-consulta-de-incidentes-e-histórico">PRO-OP-005: Consulta de incidentes e histórico</a></li>
+<li><a href="#8-pro-op-006-análisis-estadístico-operativo">PRO-OP-006: Análisis estadístico operativo</a></li>
+<li><a href="#9-pro-op-007-administración-del-sistema">PRO-OP-007: Administración del sistema</a></li>
+<li><a href="#10-pro-op-008-gestión-de-usuarios-y-accesos">PRO-OP-008: Gestión de usuarios y accesos</a></li>
+<li><a href="#11-pro-op-009-inicio-y-cierre-de-turno">PRO-OP-009: Inicio y cierre de turno</a></li>
+<li><a href="#12-pro-op-010-gestión-de-incidencias-operativas">PRO-OP-010: Gestión de incidencias operativas</a></li>
+<li><a href="#13-indicadores-de-proceso">Indicadores de proceso</a></li>
+<li><a href="#14-referencias-cruzadas">Referencias cruzadas</a></li>
+</ol>
+<hr>
+<h2>1. Introducción</h2>
+<h3>1.1 Propósito</h3>
+<p>Este manual describe los <strong>procesos operativos</strong> que CASISA ejecuta a través del Panel Ejecutivo Waze para monitorear el tráfico vehicular. Cada proceso documenta sus entradas, actividades, salidas, responsables y registros asociados.</p>
+<h3>1.2 Alcance</h3>
+<p>Este manual aplica a los procesos de sala de control y a las tareas de administración del sistema en el entorno de producción.</p>
+<h3>1.3 Definiciones</h3>
+<table>
+<tr><th>Término</th><th>Definición</th></tr>
+<tr><td>Operador</td><td>Usuario de sala de control con rol Operador o superior</td></tr>
+<tr><td>Supervisor</td><td>Usuario con rol Supervisor, responsable de validar acciones operativas</td></tr>
+<tr><td>Ciclo de ingesta</td><td>Intervalo de ~30 s en que el backend consulta feeds Waze y actualiza datos</td></tr>
+<tr><td>Zona peligrosa</td><td>Área geográfica delimitada donde un incidente genera alerta crítica</td></tr>
+<tr><td>RAC</td><td>Registro de Accidentes y Siniestros viales</td></tr>
+</table>
+<hr>
+<h2>2. Mapa de procesos</h2>
+<div class="mermaid">flowchart TD
+    A[PRO-OP-009 Inicio de turno] --> B[PRO-OP-001 Monitoreo en tiempo real]
+    B --> C{¿Alerta detectada?}
+    C -->|Alerta estándar| D[PRO-OP-002 Gestión de alertas]
+    C -->|Zona peligrosa| E[PRO-OP-003 Respuesta zonas peligrosas]
+    C -->|Siniestro vial| F[PRO-OP-004 Registro siniestros]
+    B --> G[PRO-OP-005 Consulta incidentes]
+    G --> H[PRO-OP-006 Análisis estadístico]
+    D --> I{¿Incidencia del sistema?}
+    E --> I
+    F --> I
+    I -->|Sí| J[PRO-OP-010 Gestión incidencias]
+    I -->|No| B
+    K[PRO-OP-007 Administración] -.-> B
+    L[PRO-OP-008 Gestión usuarios] -.-> A
+    B --> M[PRO-OP-009 Cierre de turno]</div>
+<hr>
+<h2>3. PRO-OP-001: Monitoreo de tráfico en tiempo real</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td><strong>Código</strong></td><td>PRO-OP-001</td></tr>
+<tr><td><strong>Responsable</strong></td><td>Operador de sala de control</td></tr>
+<tr><td><strong>Frecuencia</strong></td><td>Continua (24/7 en producción)</td></tr>
+<tr><td><strong>Módulo</strong></td><td><code>/mapa</code></td></tr>
+</table>
+<h3>Entradas</h3>
+<ul>
+<li>Feed Waze CCP (alertas, jams, irregularities)</li>
+<li>Datos meteorológicos Open-Meteo</li>
+<li>Configuración de polígonos de monitoreo</li>
+<li>Sesión de usuario autenticada</li>
+</ul>
+<h3>Actividades</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th><th>Responsable</th></tr>
+<tr><td>1</td><td>Iniciar sesión y habilitar audio (ver PRO-OP-009)</td><td>Operador</td></tr>
+<tr><td>2</td><td>Abrir módulo Mapa (<code>/mapa</code>)</td><td>Operador</td></tr>
+<tr><td>3</td><td>Verificar indicador de conexión WebSocket (verde)</td><td>Operador</td></tr>
+<tr><td>4</td><td>Observar mapa: marcadores, polígonos, jams</td><td>Operador</td></tr>
+<tr><td>5</td><td>Revisar KPIs laterales: incidentes activos, polígonos críticos</td><td>Operador</td></tr>
+<tr><td>6</td><td>Aplicar filtros si se requiere foco en zona o tipo</td><td>Operador</td></tr>
+<tr><td>7</td><td>Consultar detalle de incidente (clic en marcador)</td><td>Operador</td></tr>
+<tr><td>8</td><td>El sistema actualiza automáticamente cada ~30 s vía WebSocket</td><td>Sistema</td></tr>
+</table>
+<h3>Salidas</h3>
+<ul>
+<li>Visualización actualizada del estado de tráfico</li>
+<li>Identificación de situaciones que requieren acción (alertas, zonas críticas)</li>
+<li>Registro implícito en logs del backend</li>
+</ul>
+<h3>Registros</h3>
+<ul>
+<li>Logs de polling Waze (<code>wazePollingService</code>)</li>
+<li>Eventos WebSocket <code>waze:data_updated</code></li>
+<li>Datos en tablas <code>waze_alerts</code>, <code>waze_jams</code>, <code>waze_irregularities</code></li>
+</ul>
+<h3>Criterios de conformidad</h3>
+<ul>
+<li>[ ] Mapa carga con polígonos visibles</li>
+<li>[ ] Indicador WebSocket en estado conectado</li>
+<li>[ ] Datos actualizados en últimos 60 segundos</li>
+<li>[ ] KPIs reflejan conteo coherente con marcadores</li>
+</ul>
+<hr>
+<h2>4. PRO-OP-002: Gestión de alertas y notificaciones</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td><strong>Código</strong></td><td>PRO-OP-002</td></tr>
+<tr><td><strong>Responsable</strong></td><td>Operador de sala de control</td></tr>
+<tr><td><strong>Disparador</strong></td><td>Evento <code>notification:new</code> vía WebSocket</td></tr>
+<tr><td><strong>Módulo</strong></td><td><code>/mapa</code>, <code>/notificaciones</code></td></tr>
+</table>
+<h3>Entradas</h3>
+<ul>
+<li>Alerta Waze nueva (accidente, peligro, clima, congestión)</li>
+<li>Configuración de filtros TTS</li>
+<li>Estado de audio del navegador (habilitado/deshabilitado)</li>
+</ul>
+<h3>Actividades</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th><th>Responsable</th></tr>
+<tr><td>1</td><td>El sistema recibe <code>notification:new</code> y muestra snackbar</td><td>Sistema</td></tr>
+<tr><td>2</td><td>Si audio activo: reproducir beep + TTS con descripción del incidente</td><td>Sistema</td></tr>
+<tr><td>3</td><td>Operador lee la alerta en snackbar o panel de notificaciones</td><td>Operador</td></tr>
+<tr><td>4</td><td>Operador evalúa severidad y ubicación</td><td>Operador</td></tr>
+<tr><td>5</td><td>Si requiere acción operativa externa: comunicar a patrulla/gerencia</td><td>Operador</td></tr>
+<tr><td>6</td><td>Marcar notificación como leída</td><td>Operador</td></tr>
+<tr><td>7</td><td>Si es falsa alarma o dato incorrecto: reportar incidencia (PRO-OP-010)</td><td>Operador</td></tr>
+</table>
+<h3>Salidas</h3>
+<ul>
+<li>Alerta atendida y marcada como leída</li>
+<li>Comunicación externa si aplica (fuera del sistema)</li>
+<li>Incidencia registrada si hay anomalía de datos</li>
+</ul>
+<h3>Registros</h3>
+<ul>
+<li>Tabla <code>notifications</code></li>
+<li>Store local de notificaciones (frontend)</li>
+<li>Log de eventos TTS</li>
+</ul>
+<hr>
+<h2>5. PRO-OP-003: Respuesta a zonas peligrosas</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td><strong>Código</strong></td><td>PRO-OP-003</td></tr>
+<tr><td><strong>Responsable</strong></td><td>Operador de sala de control</td></tr>
+<tr><td><strong>Disparador</strong></td><td>Evento <code>red_zone_critical_alert</code> vía WebSocket</td></tr>
+<tr><td><strong>Módulo</strong></td><td><code>/zonas-peligrosas</code>, <code>/mapa</code></td></tr>
+</table>
+<h3>Entradas</h3>
+<ul>
+<li>Incidente Waze dentro de polígono de zona peligrosa</li>
+<li>Configuración de zonas peligrosas (<code>zonas_peligrosas</code>)</li>
+<li>Nivel de peligrosidad de la zona</li>
+</ul>
+<h3>Actividades</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th><th>Responsable</th></tr>
+<tr><td>1</td><td>El sistema detecta incidente dentro de zona peligrosa</td><td>Sistema</td></tr>
+<tr><td>2</td><td>Emite <code>red_zone_critical_alert</code>: <strong>sirena + TTS prioritario</strong></td><td>Sistema</td></tr>
+<tr><td>3</td><td>Operador identifica la zona y el incidente en el mapa</td><td>Operador</td></tr>
+<tr><td>4</td><td>Operador evalúa nivel de riesgo según configuración de la zona</td><td>Operador</td></tr>
+<tr><td>5</td><td>Activar protocolo operativo CASISA según severidad</td><td>Operador / Supervisor</td></tr>
+<tr><td>6</td><td>Documentar acción tomada (comunicación, cierre de carril, etc.)</td><td>Operador</td></tr>
+<tr><td>7</td><td>Verificar resolución del incidente en mapa</td><td>Operador</td></tr>
+</table>
+<h3>Salidas</h3>
+<ul>
+<li>Respuesta operativa activada según protocolo CASISA</li>
+<li>Incidente monitoreado hasta resolución</li>
+<li>Registro en bitácora operativa (externa al sistema)</li>
+</ul>
+<h3>Registros</h3>
+<ul>
+<li>Evento <code>red_zone_critical_alert</code> en logs WebSocket</li>
+<li>Datos en <code>zonas_peligrosas</code> y <code>waze_alerts</code></li>
+<li>Notificación en store con flag <code>isRedZone</code></li>
+</ul>
+<h3>Criterios de conformidad</h3>
+<ul>
+<li>[ ] Alerta sonora se reproduce dentro de 5 segundos del incidente</li>
+<li>[ ] TTS incluye ubicación y tipo de incidente</li>
+<li>[ ] No se duplica lectura TTS (deduplicación activa)</li>
+</ul>
+<hr>
+<h2>6. PRO-OP-004: Registro de siniestros viales</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td><strong>Código</strong></td><td>PRO-OP-004</td></tr>
+<tr><td><strong>Responsable</strong></td><td>Operador (crear), Supervisor (validar)</td></tr>
+<tr><td><strong>Permisos</strong></td><td><code>accidents.view</code>, <code>accidents.create</code>, <code>accidents.export</code></td></tr>
+<tr><td><strong>Módulo</strong></td><td><code>/siniestros</code></td></tr>
+</table>
+<h3>Entradas</h3>
+<ul>
+<li>Información del siniestro (ubicación, fecha, tipo, descripción)</li>
+<li>Coordenadas GPS o selección en mapa</li>
+<li>Multimedia opcional (fotos, videos)</li>
+<li>Datos de rutas y mojones kilométricos</li>
+</ul>
+<h3>Actividades</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th><th>Responsable</th></tr>
+<tr><td>1</td><td>Acceder a <code>/siniestros</code></td><td>Operador</td></tr>
+<tr><td>2</td><td>Presionar &quot;Nuevo siniestro&quot;</td><td>Operador</td></tr>
+<tr><td>3</td><td>Completar formulario: ubicación, fecha/hora, tipo, descripción</td><td>Operador</td></tr>
+<tr><td>4</td><td>Seleccionar ubicación en mini-mapa o ingresar coordenadas</td><td>Operador</td></tr>
+<tr><td>5</td><td>Adjuntar multimedia si está disponible</td><td>Operador</td></tr>
+<tr><td>6</td><td>Guardar registro</td><td>Operador</td></tr>
+<tr><td>7</td><td>El sistema consulta clima histórico automáticamente (Open-Meteo)</td><td>Sistema</td></tr>
+<tr><td>8</td><td>Verificar resumen meteorológico interpretado en detalle</td><td>Operador</td></tr>
+<tr><td>9</td><td>Si clima vacío: ejecutar &quot;Actualizar clima&quot; (hasta 92 días)</td><td>Operador</td></tr>
+<tr><td>10</td><td>Exportar PDF si se requiere documentación formal</td><td>Operador</td></tr>
+<tr><td>11</td><td>Supervisor valida datos del registro</td><td>Supervisor</td></tr>
+</table>
+<h3>Salidas</h3>
+<ul>
+<li>Registro en tabla <code>road_accidents</code> con clima histórico</li>
+<li>PDF exportado (si aplica)</li>
+<li>Geo-referencia con mojón kilométrico más cercano</li>
+</ul>
+<h3>Registros</h3>
+<ul>
+<li>Tabla <code>road_accidents</code> y <code>accident_media</code></li>
+<li>Datos meteorológicos asociados al siniestro</li>
+<li>PDF generado (archivo local del operador)</li>
+</ul>
+<h3>Criterios de conformidad</h3>
+<ul>
+<li>[ ] Campos obligatorios completos</li>
+<li>[ ] Ubicación con coordenadas válidas</li>
+<li>[ ] Clima histórico presente o justificación documentada</li>
+<li>[ ] Supervisor validó el registro</li>
+</ul>
+<hr>
+<h2>7. PRO-OP-005: Consulta de incidentes e histórico</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td><strong>Código</strong></td><td>PRO-OP-005</td></tr>
+<tr><td><strong>Responsable</strong></td><td>Operador, Supervisor</td></tr>
+<tr><td><strong>Permiso</strong></td><td><code>incidents.view</code></td></tr>
+<tr><td><strong>Módulo</strong></td><td><code>/incidentes</code>, <code>/incidentes/historico</code></td></tr>
+</table>
+<h3>Entradas</h3>
+<ul>
+<li>Criterios de búsqueda (tipo, fecha, polígono, texto)</li>
+<li>Datos históricos en BD</li>
+</ul>
+<h3>Actividades</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th><th>Responsable</th></tr>
+<tr><td>1</td><td>Acceder a <code>/incidentes</code></td><td>Usuario</td></tr>
+<tr><td>2</td><td>Aplicar filtros: tipo, rango de fechas, polígono</td><td>Usuario</td></tr>
+<tr><td>3</td><td>Revisar listado paginado de incidentes</td><td>Usuario</td></tr>
+<tr><td>4</td><td>Para histórico: navegar a <code>/incidentes/historico</code></td><td>Usuario</td></tr>
+<tr><td>5</td><td>Exportar resultados si tiene permiso <code>incidents.export</code></td><td>Usuario</td></tr>
+</table>
+<h3>Salidas</h3>
+<ul>
+<li>Listado filtrado de incidentes</li>
+<li>Exportación de datos (si aplica)</li>
+</ul>
+<h3>Registros</h3>
+<ul>
+<li>Consultas registradas en logs de API</li>
+<li>Datos de <code>waze_alerts</code>, <code>incidents_history</code></li>
+</ul>
+<hr>
+<h2>8. PRO-OP-006: Análisis estadístico operativo</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td><strong>Código</strong></td><td>PRO-OP-006</td></tr>
+<tr><td><strong>Responsable</strong></td><td>Supervisor</td></tr>
+<tr><td><strong>Permiso</strong></td><td><code>incidents.view</code></td></tr>
+<tr><td><strong>Módulo</strong></td><td><code>/estadisticas</code></td></tr>
+<tr><td><strong>Frecuencia</strong></td><td>Diaria / semanal / según necesidad</td></tr>
+</table>
+<h3>Entradas</h3>
+<ul>
+<li>Datos históricos agregados (diarios, semanales, mensuales)</li>
+<li>Configuración de polígonos y grupos</li>
+</ul>
+<h3>Actividades</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th><th>Responsable</th></tr>
+<tr><td>1</td><td>Acceder a <code>/estadisticas</code></td><td>Supervisor</td></tr>
+<tr><td>2</td><td>Revisar tendencias de incidentes</td><td>Supervisor</td></tr>
+<tr><td>3</td><td>Analizar hotspots (zonas de alta concentración)</td><td>Supervisor</td></tr>
+<tr><td>4</td><td>Evaluar disponibilidad de datos Waze</td><td>Supervisor</td></tr>
+<tr><td>5</td><td>Comparar métricas entre grupos de polígonos</td><td>Supervisor</td></tr>
+<tr><td>6</td><td>Elaborar informe o comunicar hallazgos a gerencia</td><td>Supervisor</td></tr>
+</table>
+<h3>Salidas</h3>
+<ul>
+<li>Informe de tendencias (externo al sistema)</li>
+<li>Decisiones sobre ajuste de polígonos o zonas peligrosas</li>
+<li>Input para revisión por dirección (cláusula 9.3 ISO)</li>
+</ul>
+<h3>Registros</h3>
+<ul>
+<li>Datos de <code>/api/stats/daily|weekly|monthly</code></li>
+<li>Datos de <code>/api/historical/trends</code>, <code>/api/historical/incidents/hotspots</code></li>
+</ul>
+<hr>
+<h2>9. PRO-OP-007: Administración del sistema</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td><strong>Código</strong></td><td>PRO-OP-007</td></tr>
+<tr><td><strong>Responsable</strong></td><td>Administrador</td></tr>
+<tr><td><strong>Permiso</strong></td><td><code>admin</code></td></tr>
+<tr><td><strong>Módulo</strong></td><td><code>/admin</code></td></tr>
+</table>
+<h3>9.1 Gestión de polígonos</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th></tr>
+<tr><td>1</td><td>Admin → Polígonos Waze</td></tr>
+<tr><td>2</td><td>Crear/editar/eliminar polígonos de monitoreo</td></tr>
+<tr><td>3</td><td>Configurar feed URL y parámetros de cada polígono</td></tr>
+<tr><td>4</td><td>Importar/exportar configuración CSV</td></tr>
+<tr><td>5</td><td>Verificar que el polling Waze incluye el polígono nuevo</td></tr>
+</table>
+<h3>9.2 Gestión de catálogos</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th></tr>
+<tr><td>1</td><td>Admin → Catálogos</td></tr>
+<tr><td>2</td><td>Revisar tipos y subtipos de incidentes</td></tr>
+<tr><td>3</td><td>Ejecutar sincronización con Waze si hay cambios</td></tr>
+<tr><td>4</td><td>Crear/editar tipos personalizados si aplica</td></tr>
+</table>
+<h3>9.3 Gestión de mojones kilométricos</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th></tr>
+<tr><td>1</td><td>Admin → Mojones Kilométricos</td></tr>
+<tr><td>2</td><td>Crear/editar/eliminar hitos por ruta</td></tr>
+<tr><td>3</td><td>Verificar geo-referencia en alertas nuevas</td></tr>
+</table>
+<h3>9.4 Configuración del sistema</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th></tr>
+<tr><td>1</td><td>Admin → Configuración Sistema</td></tr>
+<tr><td>2</td><td>Ajustar parámetros TTS (voz, velocidad, filtros)</td></tr>
+<tr><td>3</td><td>Configurar umbrales de alerta y retención</td></tr>
+<tr><td>4</td><td>Verificar health check tras cambios</td></tr>
+</table>
+<h3>Registros</h3>
+<ul>
+<li>Cambios en tablas <code>polygons</code>, <code>catalogs</code>, <code>kilometer_markers</code></li>
+<li>Commits Git si el cambio requiere despliegue</li>
+<li>Log de auditoría de cambios administrativos</li>
+</ul>
+<hr>
+<h2>10. PRO-OP-008: Gestión de usuarios y accesos</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td><strong>Código</strong></td><td>PRO-OP-008</td></tr>
+<tr><td><strong>Responsable</strong></td><td>Administrador</td></tr>
+<tr><td><strong>Permiso</strong></td><td><code>admin</code></td></tr>
+<tr><td><strong>Módulo</strong></td><td><code>/admin</code> → Usuarios y Perfiles</td></tr>
+</table>
+<h3>Actividades</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th><th>Responsable</th></tr>
+<tr><td>1</td><td>Recibir solicitud de alta/baja de usuario</td><td>Administrador</td></tr>
+<tr><td>2</td><td>Crear usuario con email, nombre y rol</td><td>Administrador</td></tr>
+<tr><td>3</td><td>Asignar rol según función (Operador, Supervisor, etc.)</td><td>Administrador</td></tr>
+<tr><td>4</td><td>Verificar permisos efectivos en vista de preview</td><td>Administrador</td></tr>
+<tr><td>5</td><td>Comunicar credenciales al usuario por canal seguro</td><td>Administrador</td></tr>
+<tr><td>6</td><td>En baja: desactivar usuario y revocar sesiones</td><td>Administrador</td></tr>
+</table>
+<h3>Salidas</h3>
+<ul>
+<li>Usuario creado/modificado/desactivado</li>
+<li>Sesiones revocadas si aplica</li>
+</ul>
+<h3>Registros</h3>
+<ul>
+<li>Tabla <code>users</code>, <code>roles</code>, <code>permissions</code>, <code>sessions</code></li>
+<li>Solicitud de alta/baja (ticket o email)</li>
+</ul>
+<h3>Criterios de conformidad</h3>
+<ul>
+<li>[ ] Principio de mínimo privilegio aplicado</li>
+<li>[ ] Credenciales entregadas por canal seguro (no por email sin cifrar)</li>
+<li>[ ] Usuario inactivo no puede iniciar sesión</li>
+</ul>
+<hr>
+<h2>11. PRO-OP-009: Inicio y cierre de turno</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td><strong>Código</strong></td><td>PRO-OP-009</td></tr>
+<tr><td><strong>Responsable</strong></td><td>Operador de sala de control</td></tr>
+<tr><td><strong>Frecuencia</strong></td><td>Por turno</td></tr>
+</table>
+<h3>11.1 Inicio de turno</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th><th>Verificación</th></tr>
+<tr><td>1</td><td>Encender equipos de sala de control</td><td>Hardware operativo</td></tr>
+<tr><td>2</td><td>Abrir navegador → http://10.1.0.136/</td><td>Página de login carga</td></tr>
+<tr><td>3</td><td>Iniciar sesión con credenciales personales</td><td>Redirige a <code>/mapa</code></td></tr>
+<tr><td>4</td><td><strong>Clic en icono de audio</strong> (altavoz)</td><td>Audio habilitado</td></tr>
+<tr><td>5</td><td>Verificar indicador WebSocket: conectado</td><td>Estado verde</td></tr>
+<tr><td>6</td><td>Verificar <code>/health</code> si hay dudas (opcional)</td><td>HTTP 200</td></tr>
+<tr><td>7</td><td>Revisar notificaciones pendientes del turno anterior</td><td>Listado en <code>/notificaciones</code></td></tr>
+<tr><td>8</td><td>Confirmar con supervisor relevo de situación</td><td>Comunicación verbal</td></tr>
+</table>
+<h3>11.2 Cierre de turno</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th></tr>
+<tr><td>1</td><td>Informar al relevo situación actual (incidentes activos, zonas críticas)</td></tr>
+<tr><td>2</td><td>Marcar notificaciones pendientes como leídas o informar al relevo</td></tr>
+<tr><td>3</td><td>Cerrar sesión (sidebar → Cerrar sesión)</td></tr>
+<tr><td>4</td><td>Apagar o bloquear equipo según política CASISA</td></tr>
+</table>
+<h3>Registros</h3>
+<ul>
+<li>Sesión de login/logout en tabla <code>sessions</code></li>
+<li>Bitácora operativa de turno (externa)</li>
+</ul>
+<hr>
+<h2>12. PRO-OP-010: Gestión de incidencias operativas</h2>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td><strong>Código</strong></td><td>PRO-OP-010</td></tr>
+<tr><td><strong>Responsable</strong></td><td>Operador (detecta), Supervisor (gestiona)</td></tr>
+<tr><td><strong>Vinculación ISO</strong></td><td>PROC-006 (No conformidades)</td></tr>
+</table>
+<h3>Entradas</h3>
+<ul>
+<li>Comportamiento anómalo del sistema detectado por el operador</li>
+<li>Falla de servicio reportada por monitoreo</li>
+</ul>
+<h3>Actividades</h3>
+<table>
+<tr><th>Paso</th><th>Actividad</th><th>Responsable</th></tr>
+<tr><td>1</td><td>Detectar anomalía (mapa vacío, sin audio, error de login, etc.)</td><td>Operador</td></tr>
+<tr><td>2</td><td>Intentar resolución básica (refrescar, re-login, verificar audio)</td><td>Operador</td></tr>
+<tr><td>3</td><td>Si persiste: reportar al supervisor con descripción y captura</td><td>Operador</td></tr>
+<tr><td>4</td><td>Supervisor clasifica severidad (crítica/mayor/menor)</td><td>Supervisor</td></tr>
+<tr><td>5</td><td>Si crítica: contactar GED / admin sistemas</td><td>Supervisor</td></tr>
+<tr><td>6</td><td>Registrar NC conforme a PROC-006</td><td>Supervisor</td></tr>
+<tr><td>7</td><td>Verificar resolución y cerrar NC</td><td>Supervisor</td></tr>
+</table>
+<h3>Salidas</h3>
+<ul>
+<li>Incidencia resuelta o escalada</li>
+<li>NC registrada si aplica</li>
+<li>AC implementada si hay recurrencia</li>
+</ul>
+<h3>Registros</h3>
+<ul>
+<li>Formato NC-PWY-YYYY-NNN (PROC-006)</li>
+<li>Ticket o issue en sistema de seguimiento</li>
+</ul>
+<hr>
+<h2>13. Indicadores de proceso</h2>
+<table>
+<tr><th>ID</th><th>Proceso</th><th>Indicador</th><th>Meta</th><th>Frecuencia</th><th>Registro</th></tr>
+<tr><td>IP-01</td><td>PRO-OP-001</td><td>Tiempo de actualización de datos en mapa</td><td>≤ 30 s</td><td>Continuo</td><td><a href="./registros/RP-001_Registro_Monitoreo.md">RP-001</a></td></tr>
+<tr><td>IP-02</td><td>PRO-OP-002</td><td>Alertas atendidas en &lt; 2 min</td><td>≥ 95%</td><td>Diario</td><td><a href="./registros/RP-002_Registro_Alertas.md">RP-002</a></td></tr>
+<tr><td>IP-03</td><td>PRO-OP-003</td><td>Tiempo de respuesta a zona peligrosa</td><td>≤ 5 s (alerta sonora)</td><td>Por evento</td><td><a href="./registros/RP-003_Registro_Zonas_Peligrosas.md">RP-003</a></td></tr>
+<tr><td>IP-04</td><td>PRO-OP-004</td><td>Siniestros con clima histórico completo</td><td>≥ 90%</td><td>Mensual</td><td><a href="./registros/RP-004_Registro_Siniestros.md">RP-004</a></td></tr>
+<tr><td>IP-05</td><td>PRO-OP-009</td><td>Turnos con audio habilitado al inicio</td><td>100%</td><td>Diario</td><td><a href="./registros/RP-009_Bitacora_Turno.md">RP-009</a></td></tr>
+<tr><td>IP-06</td><td>PRO-OP-010</td><td>NC críticas abiertas &gt; 48 h</td><td>0</td><td>Semanal</td><td><a href="./registros/RP-010_Registro_No_Conformidades.md">RP-010</a></td></tr>
+</table>
+<hr>
+<h2>14. Referencias cruzadas</h2>
+<table>
+<tr><th>Documento</th><th>Relación</th></tr>
+<tr><td><a href="./MANUAL_USUARIO.md">MANUAL_USUARIO.md</a></td><td>Instrucciones detalladas de uso por módulo</td></tr>
+<tr><td><a href="./instructivos/README.md">instructivos/</a></td><td>Instructivos paso a paso IP-001 a IP-010 por proceso</td></tr>
+<tr><td><a href="./registros/README.md">registros/</a></td><td>Registros de evidencia RP-001 a RP-010 por proceso</td></tr>
+<tr><td><a href="./PROC-006_No_Conformidades_Mejora.md">PROC-006_No_Conformidades_Mejora.md</a></td><td>Gestión de NC operativas</td></tr>
+<tr><td><a href="./MANUAL_SGC_ISO9001.md">MANUAL_SGC_ISO9001.md</a></td><td>Marco del SGC</td></tr>
+<tr><td><a href="../TTS.md">TTS.md</a></td><td>Detalle técnico de alertas de voz</td></tr>
+<tr><td><a href="../API.md">API.md</a></td><td>Endpoints utilizados por los procesos</td></tr>
+</table>
+<hr>
+<p><strong>Historial de revisiones</strong></p>
+<table>
+<tr><th>Versión</th><th>Fecha</th><th>Cambio</th><th>Autor</th></tr>
+<tr><td>1.0</td><td>2026-06-08</td><td>Emisión inicial con 10 procesos operativos</td><td>GED</td></tr>
+</table>
+<table>
+<tr><th>Campo</th><th>Valor</th></tr>
+<tr><td>Elaborado por</td><td>GED – CASISA</td></tr>
+<tr><td>Revisado por</td><td>_Pendiente_</td></tr>
+<tr><td>Aprobado por</td><td>_Pendiente_</td></tr>
+<tr><td>Próxima revisión</td><td>Diciembre 2026</td></tr>
+</table></div>
+  <div class="footer-note">
+    Documento generado automáticamente — CASISA / GED — Panel Ejecutivo Waze — ISO 9001:2015
+  </div>
+</body>
+</html>

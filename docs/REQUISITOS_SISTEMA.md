@@ -60,7 +60,7 @@ El backend realiza **polling periódico** a Waze y Open-Meteo; la base de datos 
 
 | Componente | Versión mínima | Notas |
 |------------|----------------|-------|
-| **Node.js** | 18.x LTS | `package.json` declara `"node": ">=18.0.0"`. |
+| **Node.js** | 20.x LTS (CI/prod; mín. 18) | CI usa Node 20; `package.json` declara `"node": ">=18.0.0"`. |
 | **npm** | 8.x | Incluido con Node. |
 | **PostgreSQL** | 16+ | Requerido para migraciones y esquema actual. |
 | **Redis** | 6+ | Opcional; en Windows puede usarse Memurai. |

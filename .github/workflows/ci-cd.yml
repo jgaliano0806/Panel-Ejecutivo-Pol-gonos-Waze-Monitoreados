@@ -152,7 +152,7 @@ jobs:
           npm run test --workspace=apps/backend
 
   # =============================================
-  # TESTS E2E (Playwright) — /mapa con mocks de API (sin backend real)
+  # TESTS E2E (Playwright) — /mapa + /siniestros/heatmap (mocks API, sin backend real)
   # =============================================
   test-e2e:
     name: 🎭 E2E Tests
@@ -230,6 +230,35 @@ jobs:
           $InstallDir = $env:DEPLOY_PATH
           if (-not $InstallDir) { $InstallDir = "D:\Aplicaciones CASISA\Panel-Ejecutivo-Pol-gonos-Waze-Monitoreados" }
           $manage = "$InstallDir\deploy\manage-services.ps1"
+          $prevSha = $null
+          $deployedSha = $null
+          $healthOk = $false
+          $rolledBack = $false
+          $deployOutcome = "pending"
+
+          function Write-DeploySummary {
+            $healthLabel = if ($script:healthOk) { "OK" } else { "FAIL" }
+            $rollbackLabel = if ($script:rolledBack) { "Si" } else { "No" }
+            $prev = if ($script:prevSha) { $script:prevSha } else { "n/a" }
+            $dep = if ($script:deployedSha) { $script:deployedSha } else { $env:GITHUB_SHA }
+            $lines = @(
+              "## Deploy NSSM (production)",
+              "",
+              "| Campo | Valor |",
+              "|-------|-------|",
+              "| Outcome | $($script:deployOutcome) |",
+              "| SHA previo (rollback) | ``$prev`` |",
+              "| SHA desplegado | ``$dep`` |",
+              "| Health backend+nginx | $healthLabel |",
+              "| Rollback aplicado | $rollbackLabel |",
+              "| InstallDir | ``$InstallDir`` |",
+              "",
+              "Estado de servicios: ``deploy\manage-services.ps1 -Action status``",
+              "",
+              "Seguimiento: ``deploy\check-deploy-status.ps1`` o docs en ``deploy\INSTRUCCIONES-DESPLIEGUE.md``."
+            )
+            $lines -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          }
 
           Write-Host "================================================"
           Write-Host " Deploy Panel Waze -> $InstallDir"
@@ -237,6 +266,7 @@ jobs:
           Write-Host "================================================"
 
           if (-not (Test-Path $manage)) {
+            $deployOutcome = "error"
             throw "No se encontro manage-services.ps1 en $InstallDir\deploy"
           }
 
@@ -272,7 +302,6 @@ jobs:
           $env:GIT_CONFIG_KEY_0 = "http.https://github.com/.extraheader"
           $env:GIT_CONFIG_VALUE_0 = "AUTHORIZATION: basic $b64"
           $env:SKIP_GIT_SYNC = "1"
-          $prevSha = $null
 
           try {
             $safeDir = ($InstallDir -replace '\\', '/')
@@ -293,6 +322,7 @@ jobs:
               if ($LASTEXITCODE -ne 0) { throw "git checkout main fallo (exit $LASTEXITCODE)" }
               git reset --hard $target
               if ($LASTEXITCODE -ne 0) { throw "git reset fallo (exit $LASTEXITCODE)" }
+              $deployedSha = (git rev-parse HEAD).Trim()
               Write-Host "HEAD nuevo: $(git rev-parse --short HEAD)"
             } finally {
               Pop-Location
@@ -302,19 +332,26 @@ jobs:
               & $manage -Action update -InstallDir $InstallDir
               if ($LASTEXITCODE -ne 0) { throw "manage-services update fallo (exit $LASTEXITCODE)" }
               if (-not (Test-DeployHealth)) { throw "health-check fallo tras desplegar $target" }
+              $healthOk = $true
+              $deployOutcome = "success"
               $global:LASTEXITCODE = 0
               Write-Host "[OK] Deploy completado y saludable: $env:GITHUB_SHA"
             } catch {
               $deployErr = $_.Exception.Message
+              $deployOutcome = "failed"
               Write-Host "##[error] Deploy fallo: $deployErr" -ForegroundColor Red
               if ($prevSha) {
+                $rolledBack = $true
                 Write-Host "[ROLLBACK] Volviendo a last-good $prevSha..."
                 Push-Location $InstallDir
                 try { git reset --hard $prevSha } finally { Pop-Location }
                 & $manage -Action update -InstallDir $InstallDir
                 if (Test-DeployHealth) {
+                  $healthOk = $true
+                  $deployedSha = $prevSha
                   Write-Host "[ROLLBACK] Produccion restaurada en $prevSha (saludable)"
                 } else {
+                  $healthOk = $false
                   Write-Host "##[error] ROLLBACK no saludable: intervencion manual requerida"
                 }
               } else {
@@ -323,6 +360,7 @@ jobs:
               throw "Deploy fallo y se aplico rollback a $prevSha. Causa: $deployErr"
             }
           } finally {
+            Write-DeploySummary
             Remove-Item Env:SKIP_GIT_SYNC -ErrorAction SilentlyContinue
             Remove-Item Env:GIT_CONFIG_COUNT -ErrorAction SilentlyContinue
             Remove-Item Env:GIT_CONFIG_KEY_0 -ErrorAction SilentlyContinue
@@ -341,7 +379,7 @@ jobs:
 
   # =============================================
   # RESUMEN — jobs críticos deben pasar
-  # E2E es informativo; deploy NSSM es obligatorio en main
+  # E2E obligatorio; deploy NSSM es obligatorio en main
   # =============================================
   pipeline-status:
     name: ✅ Pipeline Status
@@ -356,8 +394,46 @@ jobs:
       - deploy
     if: always()
     steps:
-      - name: Verificar jobs críticos
+      - name: Verificar jobs críticos + Job Summary
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_SHA: ${{ github.sha }}
+          LINT: ${{ needs.lint.result }}
+          SECURITY: ${{ needs.security.result }}
+          BUILD_FE: ${{ needs.build-frontend.result }}
+          BUILD_BE: ${{ needs.build-backend.result }}
+          UNIT: ${{ needs.test-unit.result }}
+          E2E: ${{ needs.test-e2e.result }}
+          DEPLOY: ${{ needs.deploy.result }}
         run: |
+          {
+            echo "## Pipeline Status"
+            echo ""
+            echo "| Job | Resultado |"
+            echo "|-----|----------|"
+            echo "| lint | ${LINT} |"
+            echo "| security | ${SECURITY} |"
+            echo "| build-frontend | ${BUILD_FE} |"
+            echo "| build-backend | ${BUILD_BE} |"
+            echo "| test-unit | ${UNIT} |"
+            echo "| test-e2e | ${E2E} |"
+            echo "| deploy | ${DEPLOY} |"
+            echo ""
+            echo "- **ref:** \`${REF_NAME}\`"
+            echo "- **sha:** \`${HEAD_SHA}\`"
+            echo "- **event:** \`${EVENT_NAME}\`"
+            if [ "${REF_NAME}" = "main" ] && [ "${EVENT_NAME}" = "push" ]; then
+              echo "- **deploy NSSM:** aplicable (production)"
+            elif [ "${REF_NAME}" = "preprod" ]; then
+              echo "- **deploy NSSM:** no aplica (solo CI de staging)"
+              echo ""
+              echo "> Staging CI OK si los jobs criticos pasan — sin deploy NSSM. Listo para merge a main tras smoke manual."
+            else
+              echo "- **deploy NSSM:** no aplica"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
           check() {
             local name="$1"
             local result="$2"
@@ -368,19 +444,19 @@ jobs:
             echo "✅ $name: $result"
           }
 
-          check "lint" "${{ needs.lint.result }}"
-          check "security" "${{ needs.security.result }}"
-          check "build-frontend" "${{ needs.build-frontend.result }}"
-          check "build-backend" "${{ needs.build-backend.result }}"
-          check "test-unit" "${{ needs.test-unit.result }}"
+          check "lint" "${LINT}"
+          check "security" "${SECURITY}"
+          check "build-frontend" "${BUILD_FE}"
+          check "build-backend" "${BUILD_BE}"
+          check "test-unit" "${UNIT}"
 
           # En push a main, deploy NSSM es obligatorio (sin Docker)
-          if [ "${{ github.ref }}" = "refs/heads/main" ] && [ "${{ github.event_name }}" = "push" ]; then
-            check "deploy" "${{ needs.deploy.result }}"
+          if [ "${REF_NAME}" = "main" ] && [ "${EVENT_NAME}" = "push" ]; then
+            check "deploy" "${DEPLOY}"
           fi
 
-          # E2E debe pasar; fallos indican regresión en /mapa o mocks
-          e2e_result="${{ needs.test-e2e.result }}"
+          # E2E debe pasar; fallos indican regresión en /mapa, heatmap o mocks
+          e2e_result="${E2E}"
           if [ "$e2e_result" = "skipped" ]; then
             echo "⏭️  test-e2e: skipped"
           elif [ "$e2e_result" != "success" ]; then

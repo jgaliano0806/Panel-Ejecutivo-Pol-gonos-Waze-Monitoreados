@@ -149,6 +149,45 @@ con `Upgrade` y `Connection` headers (ya incluida en `nginx-prod.conf`).
 
 ---
 
+## Seguimiento CI/CD
+
+El pipeline vive en `.github/workflows/ci-cd.yml` (push a `main` / `preprod`) y
+`.github/workflows/pr-checks.yml` (PRs). Solo **push a `main`** dispara deploy NSSM
+al environment GitHub `production` (servidor self-hosted Windows).
+
+### Script rápido
+
+Desde la raíz del repo (requiere [`gh`](https://cli.github.com/) autenticado):
+
+```powershell
+.\deploy\check-deploy-status.ps1
+.\deploy\check-deploy-status.ps1 -CompareMain
+```
+
+### Comandos `gh` (sin script)
+
+```powershell
+# Últimos runs del pipeline
+gh run list --workflow=ci-cd.yml --branch main --limit 5
+gh run list --workflow=ci-cd.yml --branch preprod --limit 5
+
+# Detalle de un run (jobs + conclusión)
+gh run view <run-id>
+
+# Último deployment a production
+gh api repos/:owner/:repo/deployments?environment=production&per_page=1
+
+# Estado del deployment (success / failure / …)
+gh api repos/:owner/:repo/deployments/<id>/statuses
+```
+
+En cada run, revisar también el **Job Summary** de los jobs `Deploy to Production`
+y `Pipeline Status` (SHA, health, rollback, tabla de resultados).
+
+Flujo esperado: `feat|fix/*` → `preprod` (CI sin NSSM + smoke) → `main` (CI + deploy).
+
+---
+
 ## Actualización del sistema
 
 Para actualizar a una nueva versión:
