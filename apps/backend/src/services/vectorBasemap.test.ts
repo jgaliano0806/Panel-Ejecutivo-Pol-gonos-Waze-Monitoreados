@@ -5,6 +5,7 @@ import {
   isValidGlyphRange,
   isValidSpriteFile,
   isVectorStyleName,
+  resolveFontstack,
   rewriteStyle,
   upstreamFontUrl,
   upstreamMvtUrl,
@@ -29,6 +30,22 @@ describe("vectorBasemap", () => {
     expect(upstreamFontUrl("Open Sans Bold", "0-255.pbf")).toBe(
       "https://tiles.basemaps.cartocdn.com/fonts/Open%20Sans%20Bold/0-255.pbf",
     );
+  });
+
+  it("resuelve fontstacks con comas a una fuente disponible en CARTO", () => {
+    expect(resolveFontstack("Open Sans Regular")).toBe("Open Sans Regular");
+    expect(resolveFontstack("Open Sans Regular,Arial Unicode MS Regular")).toBe(
+      "Open Sans Regular",
+    );
+    expect(resolveFontstack("Montserrat Medium,Open Sans Bold,Noto Sans Regular")).toBe(
+      "Montserrat Medium",
+    );
+    expect(resolveFontstack("Open Sans Semibold,Arial Unicode MS Regular")).toBe(
+      "Open Sans Bold",
+    );
+    expect(resolveFontstack("Fuente Inexistente,Otra")).toBe("Open Sans Regular");
+    expect(resolveFontstack("../../x")).toBeNull();
+    expect(resolveFontstack("A,B,C,D,E,F,G")).toBeNull();
   });
 
   it("elige subdominio mvt de forma determinística", () => {

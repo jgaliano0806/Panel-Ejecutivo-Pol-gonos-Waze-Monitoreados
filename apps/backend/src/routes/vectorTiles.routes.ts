@@ -16,10 +16,10 @@ import fs from "fs";
 import path from "path";
 import { TILE_FETCH_HEADERS } from "../services/tileProviders";
 import {
-  isValidFontstack,
   isValidGlyphRange,
   isValidSpriteFile,
   isVectorStyleName,
+  resolveFontstack,
   rewriteStyle,
   upstreamFontUrl,
   upstreamMvtUrl,
@@ -190,8 +190,9 @@ export default async function vectorTilesRoutes(app: FastifyInstance) {
     "/tiles/vector/fonts/:fontstack/:range",
     opts,
     async (req, reply) => {
-      const { fontstack, range } = req.params;
-      if (!isValidFontstack(fontstack) || !isValidGlyphRange(range)) {
+      const { range } = req.params;
+      const fontstack = resolveFontstack(req.params.fontstack);
+      if (!fontstack || !isValidGlyphRange(range)) {
         return reply.status(400).send();
       }
       try {
