@@ -56,6 +56,45 @@ export function isValidFontstack(fontstack: string): boolean {
   return /^[A-Za-z0-9 _-]{1,80}$/.test(fontstack);
 }
 
+/** Fuentes que CARTO publica realmente (cualquier otra devuelve 404 upstream). */
+const CARTO_FONTS = new Set([
+  "Open Sans Regular",
+  "Open Sans Bold",
+  "Open Sans Italic",
+  "Montserrat Regular",
+  "Montserrat Regular Italic",
+  "Montserrat Medium",
+  "Montserrat Medium Italic",
+  "Noto Sans Regular",
+  "NanumBarunGothic Regular",
+  "HanWangHeiLight Regular",
+]);
+
+/** Nombres que MapLibre/estilos suelen pedir pero CARTO no tiene. */
+const FONT_ALIASES: Record<string, string> = {
+  "Open Sans Semibold": "Open Sans Bold",
+};
+
+export const DEFAULT_FONT = "Open Sans Regular";
+const MAX_FONTSTACK_ENTRIES = 6;
+
+/**
+ * MapLibre pide `text-font` como lista separada por comas
+ * (ej. "Open Sans Regular,Arial Unicode MS Regular"). CARTO solo sirve
+ * fuentes individuales: se elige la primera disponible, o DEFAULT_FONT.
+ * Devuelve null si la entrada es inválida (400).
+ */
+export function resolveFontstack(raw: string): string | null {
+  const names = raw.split(",").map((n) => n.trim());
+  if (names.length > MAX_FONTSTACK_ENTRIES) return null;
+  if (!names.every((n) => isValidFontstack(n))) return null;
+  for (const name of names) {
+    const font = FONT_ALIASES[name] ?? name;
+    if (CARTO_FONTS.has(font)) return font;
+  }
+  return DEFAULT_FONT;
+}
+
 export function isValidGlyphRange(range: string): boolean {
   return /^\d{1,5}-\d{1,5}\.pbf$/.test(range);
 }
