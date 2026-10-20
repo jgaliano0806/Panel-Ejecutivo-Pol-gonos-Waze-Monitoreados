@@ -101,6 +101,18 @@ export function isValidGlyphRange(range: string): boolean {
 
 type AnyJson = Record<string, unknown>;
 
+/**
+ * Versión de la reescritura del estilo. Forma parte del nombre del archivo de
+ * cache en disco: subirla invalida el estilo cacheado (TTL de 1 día) al desplegar.
+ */
+export const STYLE_REWRITE_VERSION = 2;
+
+/** El agua del Dark Matter es azulada; en el estilo clásico era gris casi negro. */
+export const CLASSIC_WATER_PAINT: Record<string, Record<string, string>> = {
+  water: { "fill-color": "#0d0d0d" },
+  waterway: { "line-color": "#151515" },
+};
+
 /** Factor de grosor de calles para acercarse al estilo raster viejo. */
 export const CLASSIC_ROAD_WIDTH_FACTOR = 0.75;
 
@@ -219,6 +231,9 @@ export function applyClassicDarkTweaks(style: AnyJson): AnyJson {
   out.layers = layers.map((layer) => {
     const id = String(layer.id || "");
     const paint = layer.paint as AnyJson | undefined;
+    if (paint && CLASSIC_WATER_PAINT[id]) {
+      return { ...layer, paint: { ...paint, ...CLASSIC_WATER_PAINT[id] } };
+    }
     if (layer.type === "symbol" && paint && typeof paint["text-color"] === "string") {
       return {
         ...layer,

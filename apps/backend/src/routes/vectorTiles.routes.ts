@@ -21,6 +21,7 @@ import {
   isVectorStyleName,
   resolveFontstack,
   rewriteStyle,
+  STYLE_REWRITE_VERSION,
   upstreamFontUrl,
   upstreamMvtUrl,
   upstreamSpriteUrl,
@@ -146,7 +147,7 @@ export default async function vectorTilesRoutes(app: FastifyInstance) {
       try {
         const styleName: VectorStyleName = name;
         const result = await cachedFetch(
-          path.join(CACHE_ROOT, "style", `${styleName}.json`),
+          path.join(CACHE_ROOT, "style", `${styleName}.v${STYLE_REWRITE_VERSION}.json`),
           upstreamStyleUrl(styleName),
           STYLE_TTL_MS,
           (buf) =>
