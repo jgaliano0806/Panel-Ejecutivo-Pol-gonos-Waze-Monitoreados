@@ -94,6 +94,9 @@ const server = Fastify({
   requestIdLogLabel: "reqId",
   disableRequestLogging: false,
   trustProxy: true,
+  // Los fontstacks de MapLibre (/tiles/vector/fonts/:fontstack/...) superan los
+  // 100 caracteres por defecto y daban 404 por ruta no encontrada.
+  maxParamLength: 500,
 });
 
 // Configurar CORS - permitir FRONTEND_URL, mismo host sin puerto (nginx :80) y variantes

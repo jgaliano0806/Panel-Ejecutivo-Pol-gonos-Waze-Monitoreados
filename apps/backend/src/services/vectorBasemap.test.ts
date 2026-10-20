@@ -43,6 +43,15 @@ describe("vectorBasemap", () => {
     expect(resolveFontstack("Open Sans Semibold,Arial Unicode MS Regular")).toBe(
       "Open Sans Bold",
     );
+    // Fontstack real del estilo (itálica): Montserrat Regular Italic no existe en CARTO
+    expect(
+      resolveFontstack(
+        "Montserrat Regular Italic,Open Sans Italic,Noto Sans Regular,HanWangHeiLight Regular,NanumBarunGothic Regular",
+      ),
+    ).toBe("Open Sans Italic");
+    expect(resolveFontstack("HanWangHeiLight Regular,NanumBarunGothic Regular")).toBe(
+      "Open Sans Regular",
+    );
     expect(resolveFontstack("Fuente Inexistente,Otra")).toBe("Open Sans Regular");
     expect(resolveFontstack("../../x")).toBeNull();
     expect(resolveFontstack("A,B,C,D,E,F,G")).toBeNull();
