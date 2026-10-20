@@ -89,6 +89,25 @@ describe("vectorBasemap", () => {
     expect(out.layers[2].minzoom).toBe(15);
   });
 
+  it("dark-matter: agua en grises oscuros, positron intacto", () => {
+    const style = {
+      version: 8,
+      sources: {},
+      layers: [
+        { id: "water", type: "fill", paint: { "fill-color": "#2C353C" } },
+        { id: "waterway", type: "line", paint: { "line-color": "rgba(63, 90, 109, 1)", "line-width": 2 } },
+        { id: "boundary_country_outline", type: "line", paint: { "line-color": "#2C353C" } },
+      ],
+    };
+    const out = rewriteStyle(style, "dark-matter") as any;
+    expect(out.layers[0].paint["fill-color"]).toBe("#0d0d0d");
+    expect(out.layers[1].paint["line-color"]).toBe("#151515");
+    expect(out.layers[1].paint["line-width"]).toBe(2);
+    expect(out.layers[2].paint["line-color"]).toBe("#2C353C");
+    const light = rewriteStyle(style, "positron") as any;
+    expect(light.layers[0].paint["fill-color"]).toBe("#2C353C");
+  });
+
   it("dimColor atenúa hex y rgba", () => {
     expect(dimColor("#fff", 0.5)).toBe("#808080");
     expect(dimColor("rgba(200, 100, 0, 1)", 0.5)).toBe("#643200");
