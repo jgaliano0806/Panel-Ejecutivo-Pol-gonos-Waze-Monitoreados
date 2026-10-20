@@ -62,12 +62,9 @@ const CARTO_FONTS = new Set([
   "Open Sans Bold",
   "Open Sans Italic",
   "Montserrat Regular",
-  "Montserrat Regular Italic",
   "Montserrat Medium",
   "Montserrat Medium Italic",
   "Noto Sans Regular",
-  "NanumBarunGothic Regular",
-  "HanWangHeiLight Regular",
 ]);
 
 /** Nombres que MapLibre/estilos suelen pedir pero CARTO no tiene. */
