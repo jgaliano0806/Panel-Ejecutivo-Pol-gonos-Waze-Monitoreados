@@ -3,7 +3,7 @@
  * Voces neuronales gratuitas de Microsoft
  */
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
-import { MsEdgeTTS, OUTPUT_FORMAT } from "msedge-tts";
+import { synthesizeSpeech } from "../services/ttsSynth";
 
 // Voces argentinas disponibles (neuronales, alta calidad)
 const VOICES: Record<string, { name: string; gender: string; description: string }> = {
@@ -86,19 +86,8 @@ export default async function ttsRoutes(fastify: FastifyInstance): Promise<void>
           `🔊 TTS: Generando audio con voz ${voice} para: "${text.substring(0, 50)}..."`
         );
 
-        // Crear instancia de TTS
-        const tts = new MsEdgeTTS();
-        await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
-
-        // Generar audio
-        const { audioStream } = tts.toStream(text);
-
-        // Recopilar chunks en un buffer
-        const chunks: Buffer[] = [];
-        for await (const chunk of audioStream) {
-          chunks.push(Buffer.from(chunk));
-        }
-        const audioBuffer = Buffer.concat(chunks);
+        // Cola serie + reintentos + cache (Edge TTS falla con pedidos simultáneos)
+        const audioBuffer = await synthesizeSpeech(text, voice);
 
         // Enviar como audio/mpeg
         return reply
@@ -125,15 +114,7 @@ export default async function ttsRoutes(fastify: FastifyInstance): Promise<void>
       const testText =
         "Atención operador. Alerta de tráfico en Ruta Nacional 9, tramo 3. Vehículo detenido en banquina.";
 
-      const tts = new MsEdgeTTS();
-      await tts.setMetadata("es-AR-ElenaNeural", OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
-
-      const { audioStream } = tts.toStream(testText);
-      const chunks: Buffer[] = [];
-      for await (const chunk of audioStream) {
-        chunks.push(Buffer.from(chunk));
-      }
-      const audioBuffer = Buffer.concat(chunks);
+      const audioBuffer = await synthesizeSpeech(testText, "es-AR-ElenaNeural");
 
       return reply
         .header("Content-Type", "audio/mpeg")
