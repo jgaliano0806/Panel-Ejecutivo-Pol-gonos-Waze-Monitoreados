@@ -12,7 +12,7 @@ import {
 } from "@/lib/tts-utils";
 import { shouldShowTTSAndSnackbar } from "@/config/notificationFilters";
 import { logger } from "@/lib/logger";
-import { getNearestKilometer } from "@/utils/geoUtils";
+import { getNearestKilometer, formatKmLocationForSpeech } from "@/utils/geoUtils";
 import { useKilometerStore } from "@/stores/useKilometerStore";
 import { useRedZoneCriticalStore } from "@/stores/useRedZoneCriticalStore";
 import {
@@ -341,23 +341,30 @@ const buildTTSMessage = (notification: Notification): string => {
     }
   }
 
-  // 3. Obtener Hito Kilométrico
-  let localizacionExtra = "";
+  // 3. Hito kilométrico más cercano al evento y ruta que contiene el hito.
+  // Prioridad: datos del backend (nearestKm*); si faltan, calcular con los hitos del store.
+  // Umbral 5 km, igual que el backend (geoReferenceService).
+  let kmRoute: string | null | undefined = notification.data?.nearestKmRoute;
+  let kmName: string | null | undefined = notification.data?.nearestKmName;
   const lat = notification.data?.location?.y ?? notification.data?.latitude;
   const lng = notification.data?.location?.x ?? notification.data?.longitude;
 
-  if (lat != null && lng != null) {
+  if (!kmName && lat != null && lng != null) {
     const kmMarkers = useKilometerStore.getState().markers;
     const nearest = getNearestKilometer(
       { latitude: lat, longitude: lng },
       kmMarkers,
+      5000,
     );
     if (nearest) {
-      // Intentar extraer solo el número del nombre del hito (ej: "Km 710" -> "setecientos diez")
-      // pero por ahora usamos el nombre tal cual para seguridad
-      localizacionExtra = `, a la altura del ${nearest.name.toLowerCase()}`;
+      kmName = nearest.name;
+      kmRoute = nearest.route_name;
     }
   }
+
+  // Con hito: "Ruta Nacional 36, a la altura del kilómetro 807" (reemplaza al polígono/calle)
+  const ubicacionHito = formatKmLocationForSpeech(kmRoute, kmName);
+  if (ubicacionHito) via = ubicacionHito;
 
   // 4. Armar Mensaje Final siguiendo la plantilla
   let prefix = "Atención, operadores. Nuevo incidente ingresado en el sistema.";
@@ -365,7 +372,7 @@ const buildTTSMessage = (notification: Notification): string => {
     prefix = `¡ALERTA CRÍTICA! Incidente reportado dentro de zona peligrosa en ${notification.data?.dangerZoneName || 'área protegida'}. Repito, alerta en zona peligrosa.`;
   }
 
-  const mensajeFinal = `${prefix} Reporte: ${reporte}. Localización: ${via}${localizacionExtra}.`;
+  const mensajeFinal = `${prefix} Reporte: ${reporte}. Localización: ${via}.`;
 
   return mensajeFinal;
 };
