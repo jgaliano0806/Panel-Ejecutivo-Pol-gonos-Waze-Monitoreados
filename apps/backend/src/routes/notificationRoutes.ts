@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { notificationService } from "../services/notificationService";
 import { websocketService } from "../services/websocketService";
+import { geoReferenceService } from "../services/geoReferenceService";
 
 export async function notificationRoutes(server: FastifyInstance) {
   server.get("/", async (request, reply) => {
@@ -45,6 +46,23 @@ export async function notificationRoutes(server: FastifyInstance) {
         return reply.code(500).send({ error: "Socket.IO not initialized" });
       }
 
+      // Ubicación real: un hito al azar con un desvío de ~30 m, igual que una alerta de Waze
+      await geoReferenceService.ensureLoaded();
+      const marker = geoReferenceService.getRandomMarker();
+      const latitude = marker ? marker.latitude + (Math.random() - 0.5) * 0.0006 : undefined;
+      const longitude = marker ? marker.longitude + (Math.random() - 0.5) * 0.0006 : undefined;
+      const nearest =
+        latitude !== undefined && longitude !== undefined
+          ? geoReferenceService.findNearestMarker(latitude, longitude)
+          : null;
+      const street = `Autopista Prueba ${Math.floor(Math.random() * 1000)}`;
+      const ttsText = geoReferenceService.generateTTSText(
+        "ACCIDENT",
+        "ACCIDENT_MAJOR",
+        nearest,
+        street,
+      );
+
       const testNotification = {
         id: crypto.randomUUID(),
         title: "💥 ACCIDENTE GRAVE DETECTADO",
@@ -58,9 +76,15 @@ export async function notificationRoutes(server: FastifyInstance) {
           alertId: `test-${Date.now()}`,
           incidentType: "ACCIDENT",
           subtype: "ACCIDENT_MAJOR",
-          street: `Autopista Prueba ${Math.floor(Math.random() * 1000)}`,
+          street,
           city: "Córdoba",
           polygonName: "Zona de Prueba",
+          latitude,
+          longitude,
+          nearestKmName: nearest?.name || null,
+          nearestKmRoute: nearest?.route_name || null,
+          nearestKmDistance: nearest ? Math.round(nearest.distance) : null,
+          ttsText,
         },
       };
 
