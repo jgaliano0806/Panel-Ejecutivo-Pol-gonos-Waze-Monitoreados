@@ -181,6 +181,10 @@ function routeNameToSpeech(route: string): string {
     .replace(/\bAUTOVIA\s+/gi, "Autovía ")
     .trim();
 
+  // Códigos tipo "E53" / "S271": separar la letra para no leer "Ecincuenta y tres"
+  // (A019 se excluye: la regla "cerodiecinueve" de Circunvalación la espera junta)
+  speech = speech.replace(/\b(?!A0?19\b)([A-Za-z])(\d+)\b/g, "$1 $2");
+
   speech = speech.replace(/(\d+)/g, (_, digits) => {
     const n = parseInt(digits, 10);
     return isNaN(n) ? digits : integerToWords(n);
@@ -303,7 +307,7 @@ export class GeoReferenceService {
         nearest.route_name.includes("19")
       ) {
         routeSpeech = routeSpeech.replace(/Adiecinueve/gi, "cerodiecinueve");
-        routeSpeech = routeSpeech.replace(/diecinueve/gi, "cerodiecinueve");
+        routeSpeech = routeSpeech.replace(/(?<!cero)diecinueve/gi, "cerodiecinueve");
         
         // Si no menciona Circunvalación, lo agregamos para claridad del operador
         if (!routeSpeech.toLowerCase().includes("circunvalacion")) {
@@ -338,6 +342,18 @@ export class GeoReferenceService {
 
   getMarkerCount(): number {
     return this.markers.length;
+  }
+
+  /** Hito al azar (para alertas de prueba con ubicación real). */
+  getRandomMarker(): { name: string; route_name: string; latitude: number; longitude: number } | null {
+    if (this.markers.length === 0) return null;
+    const m = this.markers[Math.floor(Math.random() * this.markers.length)];
+    return {
+      name: m.name,
+      route_name: m.route_name,
+      latitude: m.latitude,
+      longitude: m.longitude,
+    };
   }
 }
 
