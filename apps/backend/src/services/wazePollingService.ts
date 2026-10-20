@@ -1130,15 +1130,20 @@ export class WazePollingService {
 
   public async getAllLatestTvtMetrics(): Promise<any[]> {
     try {
+      // La lista de polígonos sale de la config (no de SELECT DISTINCT sobre la tabla):
+      // el DISTINCT recorría toda la tabla y en producción superaba los 30 s (respuesta [] → WAZERS 0).
+      // Así cada polígono es una búsqueda por índice (polygon_id, created_at DESC).
+      const polygonIds = REAL_POLYGONS.filter((p) => p.tvtFeedUrl).map((p) => p.id);
       const result = await dbService.query(
         `SELECT t.polygon_id, t.wazers_count, t.jam_level_counts, t.length_of_jams, t.update_time, t.created_at
-         FROM (SELECT DISTINCT polygon_id FROM waze_tvt_metrics) AS p
+         FROM unnest($1::text[]) AS p(polygon_id)
          CROSS JOIN LATERAL (
            SELECT * FROM waze_tvt_metrics m
            WHERE m.polygon_id = p.polygon_id
            ORDER BY m.created_at DESC
            LIMIT 1
          ) AS t`,
+        [polygonIds],
       );
       return result.rows.map((row: any) => ({
         polygonId: row.polygon_id,
