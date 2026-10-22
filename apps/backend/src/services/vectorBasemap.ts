@@ -16,8 +16,6 @@ export const VECTOR_STYLE_NAMES: readonly VectorStyleName[] = [
 
 export const VECTOR_MAX_ZOOM = 14;
 
-const CARTO_MVT_SUBDOMAINS = ["a", "b", "c", "d"] as const;
-
 /** Prefijo público de las rutas que expone el backend. */
 export const VECTOR_ROUTE_PREFIX = "/tiles/vector";
 
@@ -37,13 +35,24 @@ export function upstreamFontUrl(fontstack: string, range: string): string {
   return `https://tiles.basemaps.cartocdn.com/fonts/${encodeURIComponent(fontstack)}/${range}`;
 }
 
-/** Subdominio determinístico por tile (mismo tile, mismo host). */
+/**
+ * Esquema de tiles que usa el estilo publicado por CARTO. En oct-2026 CARTO
+ * migró sus estilos GL de `carto.streets/v1` (capas transportation, place...)
+ * a `carto.streets/v2` (capas roads, places, buildings...). Los tiles tienen
+ * que ser del mismo esquema que el estilo: con v1 + estilo v2 solo se dibujaba
+ * el agua y el mapa quedaba negro.
+ */
+export const CARTO_TILES_SCHEMA = "v2";
+
+/**
+ * Carpeta de cache de tiles. Lleva el esquema para no mezclar tiles v1 viejos
+ * (ya cacheados en disco) con tiles v2.
+ */
+export const MVT_CACHE_DIR = `mvt-${CARTO_TILES_SCHEMA}`;
+
+/** Ruta sin versión de fecha: CARTO siempre sirve la última del esquema. */
 export function upstreamMvtUrl(z: string, x: string, y: string): string {
-  const idx =
-    (parseInt(z, 10) + parseInt(x, 10) + parseInt(y, 10)) %
-    CARTO_MVT_SUBDOMAINS.length;
-  const sub = CARTO_MVT_SUBDOMAINS[Math.abs(idx)];
-  return `https://tiles-${sub}.basemaps.cartocdn.com/vectortiles/carto.streets/v1/${z}/${x}/${y}.mvt`;
+  return `https://tiles.basemaps.cartocdn.com/vectortiles/carto.streets/${CARTO_TILES_SCHEMA}/${z}/${x}/${y}.mvt`;
 }
 
 /** Nombres de archivo de sprite permitidos (evita path traversal). */
@@ -102,7 +111,7 @@ type AnyJson = Record<string, unknown>;
  * Versión de la reescritura del estilo. Forma parte del nombre del archivo de
  * cache en disco: subirla invalida el estilo cacheado (TTL de 1 día) al desplegar.
  */
-export const STYLE_REWRITE_VERSION = 2;
+export const STYLE_REWRITE_VERSION = 3;
 
 /** El agua del Dark Matter es azulada; en el estilo clásico era gris casi negro. */
 export const CLASSIC_WATER_PAINT: Record<string, Record<string, string>> = {
