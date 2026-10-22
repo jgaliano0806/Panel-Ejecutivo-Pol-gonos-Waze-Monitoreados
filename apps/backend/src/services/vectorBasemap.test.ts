@@ -9,6 +9,7 @@ import {
   rewriteStyle,
   upstreamFontUrl,
   upstreamMvtUrl,
+  MVT_CACHE_DIR,
   upstreamSpriteUrl,
   upstreamStyleUrl,
 } from "./vectorBasemap";
@@ -57,12 +58,16 @@ describe("vectorBasemap", () => {
     expect(resolveFontstack("A,B,C,D,E,F,G")).toBeNull();
   });
 
-  it("elige subdominio mvt de forma determinística", () => {
+  it("pide los tiles al esquema v2 (el del estilo actual de CARTO)", () => {
     const a = upstreamMvtUrl("14", "5266", "9694");
     expect(a).toBe(upstreamMvtUrl("14", "5266", "9694"));
-    expect(a).toMatch(
-      /^https:\/\/tiles-[abcd]\.basemaps\.cartocdn\.com\/vectortiles\/carto\.streets\/v1\/14\/5266\/9694\.mvt$/,
+    expect(a).toBe(
+      "https://tiles.basemaps.cartocdn.com/vectortiles/carto.streets/v2/14/5266/9694.mvt",
     );
+  });
+
+  it("cachea los tiles en una carpeta propia del esquema", () => {
+    expect(MVT_CACHE_DIR).toBe("mvt-v2");
   });
 
   it("rechaza parámetros peligrosos", () => {

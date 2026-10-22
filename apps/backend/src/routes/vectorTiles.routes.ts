@@ -19,6 +19,7 @@ import {
   isValidGlyphRange,
   isValidSpriteFile,
   isVectorStyleName,
+  MVT_CACHE_DIR,
   resolveFontstack,
   rewriteStyle,
   STYLE_REWRITE_VERSION,
@@ -174,7 +175,7 @@ export default async function vectorTilesRoutes(app: FastifyInstance) {
       }
       try {
         const result = await cachedFetch(
-          path.join(CACHE_ROOT, "mvt", z, x, `${y}.mvt`),
+          path.join(CACHE_ROOT, MVT_CACHE_DIR, z, x, `${y}.mvt`),
           upstreamMvtUrl(z, x, y),
           MVT_TTL_MS,
         );
